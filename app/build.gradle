@@ -1,0 +1,58 @@
+apply plugin: 'com.android.application'
+
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+
+android {
+    namespace 'org.jrs82.fsclock'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+
+    defaultConfig {
+        applicationId 'org.jrs82.fsclock'
+        minSdk 30
+        targetSdk 30
+        versionCode 100
+        versionName '1.0.0'
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    signingConfigs {
+        release {
+            def ksPw = localProps.getProperty('KEYSTORE_PASSWORD') ?: System.getenv('KEYSTORE_PASSWORD')
+            def kPw  = localProps.getProperty('KEY_PASSWORD') ?: System.getenv('KEY_PASSWORD')
+            if (ksPw && kPw) {
+                storeFile rootProject.file('release.keystore')
+                storePassword ksPw
+                keyAlias 'fsclock'
+                keyPassword kPw
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            // käyttää AGP:n debug.keystorea automaattisesti
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+}

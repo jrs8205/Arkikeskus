@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FsClock</string>
+    <string name="dream_description">Kello, päivämäärä ja sää Helsinki-Vantaa, ympärivuorokautinen infotaulu burn-in -suojalla</string>
+    <string name="loading_weather">Ladataan säätietoja…</string>
+    <string name="weather_label">Sää:</string>
+    <string name="weather_stale">vanhentunut</string>
+    <string name="wind_format">Tuuli %1$.0f m/s %2$s</string>
+    <string name="humidity_format">Kosteus %1$.0f%%</string>
+    <string name="rain24h_format">Sade 24h %1$.1f mm</string>
+    <string name="rain24h_missing">Sade 24h --</string>
+    <string name="feels_format">(Tuntuu kuin %+.0f°)</string>
+    <string name="temp_missing">--°C</string>
+    <string name="temp_format">%+.0f °C</string>
+    <string name="hour_format">klo %02d</string>
+    <string name="temp_short_format">%+.0f°</string>
+    <string name="precip_format">%.1f mm</string>
+    <string name="precip_missing">--</string>
+    <string name="separator">"          "</string>
+    <string name="battery_format">%1$d %%  %2$.1f °C</string>
+    <string name="battery_format_charging">⚡ %1$d %%  %2$.1f °C</string>
+    <string name="wind_format_nodir">Tuuli %1$.0f m/s</string>
+    <string name="brightness_dialog_title">Näytön kirkkaus</string>
+    <string name="brightness_day_label">Päivä (06–21)</string>
+    <string name="brightness_night_label">Yö (21–06)</string>
+    <string name="save">Tallenna</string>
+    <string name="cancel">Peruuta</string>
+</resources>
