@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# FsClock build script - kayttaa aapt2 + javac + d8 + apksigner (ei gradle)
+set -e
+
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$PROJECT_DIR"
+
+# === Konfiguraatio ===
+ANDROID_SDK="${ANDROID_HOME:-C:/Android/sdk}"
+BUILD_TOOLS="$ANDROID_SDK/build-tools/30.0.3"
+PLATFORM="$ANDROID_SDK/platforms/android-30"
+ANDROID_JAR="$PLATFORM/android.jar"
+
+JDK_HOME="${JAVA_HOME:-C:/Program Files/Java/jdk-24}"
+JAVAC="$JDK_HOME/bin/javac.exe"
+KEYTOOL="$JDK_HOME/bin/keytool.exe"
+[ -x "$JAVAC" ] || JAVAC="javac"
+[ -x "$KEYTOOL" ] || KEYTOOL="keytool"
+
+AAPT2="$BUILD_TOOLS/aapt2.exe"
+# Build-tools 30.0.3:n d8 ei tue JDK 24:n generoimia attribuutteja => kaytamme uudempaa r8.jaria
+R8_JAR="$ANDROID_SDK/cmdline-tools/latest/lib/r8.jar"
+JAVA="$JDK_HOME/bin/java.exe"
+APKSIGNER="$BUILD_TOOLS/apksigner.bat"
+ZIPALIGN="$BUILD_TOOLS/zipalign.exe"
+
+PKG="org.jrs82.fsclock"
+APP_NAME="FsClock"
+KEYSTORE="$PROJECT_DIR/debug.keystore"
+BIN="$PROJECT_DIR/bin"
+
+echo "== FsClock build =="
+echo "SDK:   $ANDROID_SDK"
+echo "JDK:   $JDK_HOME"
+echo
+
+# === 0) Tyhjenna build-kansio ===
+rm -rf "$BIN"
+mkdir -p "$BIN/res-compiled" "$BIN/gen" "$BIN/classes" "$BIN/dex"
+
+# === 1) Luo debug-keystore jos ei ole ===
+if [ ! -f "$KEYSTORE" ]; then
+    echo "[0/6] Luodaan debug-keystore..."
+    "$KEYTOOL" -genkeypair -v \
+        -keystore "$KEYSTORE" \
+        -storepass android \
+        -keypass android \
+        -alias androiddebugkey \
+        -dname "CN=Android Debug,O=Android,C=US" \
+        -keyalg RSA -keysize 2048 -validity 10000 2>&1 | tail -3
+fi
+
+# === 2) aapt2 compile - kompiloi resurssit ===
+echo "[1/6] aapt2 compile..."
+"$AAPT2" compile --dir res -o "$BIN/res-compiled.zip"
+
+# === 3) aapt2 link - linkkaa unsigned APK + generoi R.java ===
+echo "[2/6] aapt2 link..."
+"$AAPT2" link \
+    -I "$ANDROID_JAR" \
+    --manifest AndroidManifest.xml \
+    -o "$BIN/unsigned.apk" \
+    --java "$BIN/gen" \
+    --auto-add-overlay \
+    "$BIN/res-compiled.zip"
+
+# === 4) javac - kompiloi Java-lahteet ===
+echo "[3/6] javac..."
+SRC_FILES=$(find src "$BIN/gen" -name "*.java")
+"$JAVAC" \
+    -source 1.8 -target 1.8 \
+    -bootclasspath "$ANDROID_JAR" \
+    -classpath "$ANDROID_JAR" \
+    -d "$BIN/classes" \
+    -Xlint:-options \
+    $SRC_FILES
+
+# === 5) d8 - .class -> classes.dex (kaytetaan uudempaa r8.jaria) ===
+echo "[4/6] d8..."
+CLASS_FILES=$(find "$BIN/classes" -name "*.class")
+"$JAVA" -cp "$R8_JAR" com.android.tools.r8.D8 \
+    --output "$BIN/dex" \
+    --lib "$ANDROID_JAR" \
+    --min-api 30 \
+    $CLASS_FILES
+
+# === 6) Lisaa classes.dex APK:hon ===
+echo "[5/6] add dex to APK..."
+cp "$BIN/unsigned.apk" "$BIN/with-dex.apk"
+# zip ei toimi git bashissa, kaytetaan PowerShellia. Muunna polut Windows-muotoon.
+WIN_SRC="$(cygpath -w "$BIN/dex/classes.dex")"
+WIN_DST="$(cygpath -w "$BIN/with-dex.apk")"
+powershell -Command "
+\$src = '$WIN_SRC';
+\$dst = '$WIN_DST';
+Add-Type -AssemblyName System.IO.Compression;
+Add-Type -AssemblyName System.IO.Compression.FileSystem;
+\$zip = [System.IO.Compression.ZipFile]::Open(\$dst, 'Update');
+try {
+  \$existing = \$zip.GetEntry('classes.dex');
+  if (\$existing) { \$existing.Delete() }
+  [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(\$zip, \$src, 'classes.dex') | Out-Null;
+} finally { \$zip.Dispose() }
+"
+
+# === 7) zipalign + apksigner ===
+echo "[6/6] zipalign + sign..."
+"$ZIPALIGN" -p -f 4 "$BIN/with-dex.apk" "$BIN/aligned.apk"
+"$APKSIGNER" sign \
+    --ks "$KEYSTORE" \
+    --ks-pass pass:android \
+    --key-pass pass:android \
+    --out "$BIN/$APP_NAME.apk" \
+    "$BIN/aligned.apk"
+
+# === Verifikaatio ===
+"$APKSIGNER" verify "$BIN/$APP_NAME.apk" 2>&1 | head -3 || true
+
+echo
+echo "== Valmis =="
+ls -la "$BIN/$APP_NAME.apk"
+echo
+echo "Asenna komennolla:"
+echo "  adb install -r '$BIN/$APP_NAME.apk'"
