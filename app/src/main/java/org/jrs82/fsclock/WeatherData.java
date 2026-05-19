@@ -30,6 +30,10 @@ public class WeatherData {
     public Current current = new Current();
     public List<Hour> hours = new ArrayList<>();
     public long fetchedAt = 0;
+    /** Aikaleima viimeisestä onnistuneesta ennustehausta. 0 = ei vielä haettu.
+     *  Käytetään päättämään, voiko ennusteen jättää uudelleenhakematta seuraavalla
+     *  havaintosyklillä. */
+    public long forecastFetchedAt = 0;
 
     /** Pyoristys: |x| < 0.5 -> 0.0, etta -0 C ei tule nakyviin. */
     public static double cleanZero(double v) {

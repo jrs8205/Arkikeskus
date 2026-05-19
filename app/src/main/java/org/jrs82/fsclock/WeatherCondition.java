@@ -36,9 +36,17 @@ public class WeatherCondition {
 
     // ============================================================
     // SmartSymbol-kartoitus (ensisijainen)
-    // FMI SmartSymbol: 1-7 pilvisyys, 9 sumu, 11-20 vesisade, 21-27 sadekuuro,
-    // 31-37 räntäkuuro, 41-47 räntä, 51-57 lumikuuro, 61-67 lumi,
-    // 71-77 ukkoskuuro, 81-87 raekuuro. +100 = yöversio.
+    // Lähde: https://en.ilmatieteenlaitos.fi/weather-symbols
+    //   1 clear, 2 mostly clear, 4 partly cloudy, 6 mostly cloudy, 7 overcast
+    //   9 fog
+    //   11 drizzle, 14 freezing drizzle, 17 freezing rain
+    //   21/24/27 isolated/scattered/showers (sadekuurot)
+    //   31-39 rain (kolme pilvisyystaustaa × kolme intensiteettiä)
+    //   41-46 sleet showers, 47-49 sleet
+    //   51-56 snow showers, 57-59 snowfall
+    //   61/64/67 hail showers (ei HAIL-tyyppiä → SLEET shower fallback)
+    //   71/74/77 thundershowers
+    //   +100 = yöversio
     // ============================================================
     public static WeatherCondition fromSmartSymbol(int smartSymbol) {
         WeatherCondition c = new WeatherCondition();
@@ -51,53 +59,70 @@ public class WeatherCondition {
         }
 
         switch (n) {
-            case 1: c.type = Type.CLEAR; c.intensity = Intensity.NONE; break;
-            case 2: c.type = Type.CLEAR; c.intensity = Intensity.NONE; break; // mostly clear
-            case 4: c.type = Type.PARTLY_CLOUDY; c.intensity = Intensity.NONE; break;
-            case 6: c.type = Type.CLOUDY; c.intensity = Intensity.NONE; break; // mostly cloudy
-            case 7: c.type = Type.CLOUDY; c.intensity = Intensity.NONE; break;
+            // Pilvisyys ja sumu
+            case 1: c.type = Type.CLEAR; break;
+            case 2: c.type = Type.PARTLY_CLOUDY; break; // mostly clear
+            case 4: c.type = Type.PARTLY_CLOUDY; break;
+            case 6: c.type = Type.CLOUDY; break; // mostly cloudy
+            case 7: c.type = Type.CLOUDY; break; // overcast
             case 9: c.type = Type.FOG; c.intensity = Intensity.LIGHT; break;
 
-            // Tihku/vesisade (jatkuva)
-            case 11: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; break;
-            case 14: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; break;
-            case 17: c.type = Type.RAIN; c.intensity = Intensity.MODERATE; break;
-            case 20: c.type = Type.RAIN; c.intensity = Intensity.HEAVY; break;
+            // Tihku ja jäätävät sateet
+            case 11: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; break;  // drizzle
+            case 14: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; break;  // freezing drizzle
+            case 17: c.type = Type.RAIN; c.intensity = Intensity.MODERATE; break; // freezing rain
 
-            // Sadekuurot
+            // Sadekuurot 21/24/27 = isolated / scattered / showers
             case 21: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; c.isShower = true; break;
             case 24: c.type = Type.RAIN; c.intensity = Intensity.MODERATE; c.isShower = true; break;
             case 27: c.type = Type.RAIN; c.intensity = Intensity.HEAVY; c.isShower = true; break;
 
-            // Räntäkuurot
-            case 31: c.type = Type.SLEET; c.intensity = Intensity.LIGHT; c.isShower = true; break;
-            case 34: c.type = Type.SLEET; c.intensity = Intensity.MODERATE; c.isShower = true; break;
-            case 37: c.type = Type.SLEET; c.intensity = Intensity.HEAVY; c.isShower = true; break;
+            // Vesisade 31-39: partly cloudy+rain (31-33), mostly cloudy+rain (34-36),
+            // overcast rain (37-39). Intensiteetti 1/2/3 = LIGHT/MODERATE/HEAVY.
+            case 31: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; break;
+            case 32: c.type = Type.RAIN; c.intensity = Intensity.MODERATE; break;
+            case 33: c.type = Type.RAIN; c.intensity = Intensity.HEAVY; break;
+            case 34: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; break;
+            case 35: c.type = Type.RAIN; c.intensity = Intensity.MODERATE; break;
+            case 36: c.type = Type.RAIN; c.intensity = Intensity.HEAVY; break;
+            case 37: c.type = Type.RAIN; c.intensity = Intensity.LIGHT; break;
+            case 38: c.type = Type.RAIN; c.intensity = Intensity.MODERATE; break;
+            case 39: c.type = Type.RAIN; c.intensity = Intensity.HEAVY; break;
 
-            // Räntä (jatkuva)
-            case 41: c.type = Type.SLEET; c.intensity = Intensity.LIGHT; break;
-            case 44: c.type = Type.SLEET; c.intensity = Intensity.MODERATE; break;
-            case 47: c.type = Type.SLEET; c.intensity = Intensity.HEAVY; break;
+            // Räntäkuurot 41-46 (isolated/scattered, kevyt/kohtalainen/voimakas)
+            case 41: c.type = Type.SLEET; c.intensity = Intensity.LIGHT; c.isShower = true; break;
+            case 42: c.type = Type.SLEET; c.intensity = Intensity.MODERATE; c.isShower = true; break;
+            case 43: c.type = Type.SLEET; c.intensity = Intensity.HEAVY; c.isShower = true; break;
+            case 44: c.type = Type.SLEET; c.intensity = Intensity.LIGHT; c.isShower = true; break;
+            case 45: c.type = Type.SLEET; c.intensity = Intensity.MODERATE; c.isShower = true; break;
+            case 46: c.type = Type.SLEET; c.intensity = Intensity.HEAVY; c.isShower = true; break;
+            // Räntä (jatkuva) 47-49
+            case 47: c.type = Type.SLEET; c.intensity = Intensity.LIGHT; break;
+            case 48: c.type = Type.SLEET; c.intensity = Intensity.MODERATE; break;
+            case 49: c.type = Type.SLEET; c.intensity = Intensity.HEAVY; break;
 
-            // Lumikuurot
+            // Lumikuurot 51-56
             case 51: c.type = Type.SNOW; c.intensity = Intensity.LIGHT; c.isShower = true; break;
-            case 54: c.type = Type.SNOW; c.intensity = Intensity.MODERATE; c.isShower = true; break;
-            case 57: c.type = Type.SNOW; c.intensity = Intensity.HEAVY; c.isShower = true; break;
+            case 52: c.type = Type.SNOW; c.intensity = Intensity.MODERATE; c.isShower = true; break;
+            case 53: c.type = Type.SNOW; c.intensity = Intensity.HEAVY; c.isShower = true; break;
+            case 54: c.type = Type.SNOW; c.intensity = Intensity.LIGHT; c.isShower = true; break;
+            case 55: c.type = Type.SNOW; c.intensity = Intensity.MODERATE; c.isShower = true; break;
+            case 56: c.type = Type.SNOW; c.intensity = Intensity.HEAVY; c.isShower = true; break;
+            // Lumisade (jatkuva) 57-59
+            case 57: c.type = Type.SNOW; c.intensity = Intensity.LIGHT; break;
+            case 58: c.type = Type.SNOW; c.intensity = Intensity.MODERATE; break;
+            case 59: c.type = Type.SNOW; c.intensity = Intensity.HEAVY; break;
 
-            // Lumisade (jatkuva)
-            case 61: c.type = Type.SNOW; c.intensity = Intensity.LIGHT; break;
-            case 64: c.type = Type.SNOW; c.intensity = Intensity.MODERATE; break;
-            case 67: c.type = Type.SNOW; c.intensity = Intensity.HEAVY; break;
+            // Raekuurot 61/64/67 — ei HAIL-tyyppiä, käytetään SLEET-kuuroa fallbackina
+            // TODO: lisää HAIL-tyyppi jos rakeille halutaan oma ikoni
+            case 61: c.type = Type.SLEET; c.intensity = Intensity.LIGHT; c.isShower = true; break;
+            case 64: c.type = Type.SLEET; c.intensity = Intensity.MODERATE; c.isShower = true; break;
+            case 67: c.type = Type.SLEET; c.intensity = Intensity.HEAVY; c.isShower = true; break;
 
-            // Ukkoskuurot
+            // Ukkoskuurot 71/74/77
             case 71: c.type = Type.THUNDER; c.intensity = Intensity.LIGHT; c.isShower = true; break;
             case 74: c.type = Type.THUNDER; c.intensity = Intensity.MODERATE; c.isShower = true; break;
             case 77: c.type = Type.THUNDER; c.intensity = Intensity.HEAVY; c.isShower = true; break;
-
-            // Raekuurot (kohdellaan kuten räntäkuuro)
-            case 81: c.type = Type.SLEET; c.intensity = Intensity.LIGHT; c.isShower = true; break;
-            case 84: c.type = Type.SLEET; c.intensity = Intensity.MODERATE; c.isShower = true; break;
-            case 87: c.type = Type.SLEET; c.intensity = Intensity.HEAVY; c.isShower = true; break;
 
             default:
                 c.type = Type.UNKNOWN;
