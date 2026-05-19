@@ -40,15 +40,8 @@ public class ClockController {
 
     private static final long TICK_MS = 1000L;
     private static final long SHIFT_MS = 60_000L;
-    private static final long WEATHER_OK_MS = 10L * 60_000L;
     private static final long[] WEATHER_RETRY_MS = {30_000L, 60_000L, 5L * 60_000L};
     private static final int PAGE_COUNT = 11;
-
-    public static final String PREFS = "fsclock_prefs";
-    public static final String KEY_BRIGHTNESS_DAY = "brightness_day";
-    public static final String KEY_BRIGHTNESS_NIGHT = "brightness_night";
-    public static final int DEFAULT_BRIGHTNESS_DAY = 60;
-    public static final int DEFAULT_BRIGHTNESS_NIGHT = 8;
 
     private final Context ctx;
     private final Window window;          // saa olla null
@@ -88,10 +81,35 @@ public class ClockController {
     private GestureDetector gesture;
     private Runnable longPressCallback;
 
+    private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener =
+            new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+            if (key == null) return;
+            switch (key) {
+                case SettingsManager.KEY_DAY_BRIGHTNESS:
+                case SettingsManager.KEY_NIGHT_BRIGHTNESS:
+                case SettingsManager.KEY_DAY_MORNING_HOUR:
+                case SettingsManager.KEY_NIGHT_EVENING_HOUR:
+                case SettingsManager.KEY_TEST_MODE_TYPE:
+                case SettingsManager.KEY_TEST_MODE_UNTIL:
+                    reapplyBrightness();
+                    updateStatus();
+                    break;
+                case SettingsManager.KEY_HOME_PLACE:
+                case SettingsManager.KEY_WEATHER_UPDATE_MINUTES:
+                    retryStep = 0;
+                    ui.removeCallbacks(fetchWeather);
+                    ui.post(fetchWeather);
+                    break;
+            }
+        }
+    };
+
     public ClockController(Context ctx, Window window, View root) {
         this.ctx = ctx;
         this.window = window;
         this.root = root;
+        SettingsManager.get().init(ctx.getApplicationContext());
 
         statusText = root.findViewById(R.id.status_text);
         pageIndicator = root.findViewById(R.id.page_indicator);
@@ -110,7 +128,7 @@ public class ClockController {
         showPage(0);
     }
 
-    /** Kutsutaan kun pitkä painallus aloittaa kirkkausdialogin (Activity-tilassa). */
+    /** Kutsutaan kun pitkä painallus aloittaa asetussivun (Activity-tilassa). */
     public void setLongPressCallback(Runnable r) {
         this.longPressCallback = r;
     }
@@ -119,6 +137,7 @@ public class ClockController {
         active.set(true);
         lastRefreshDay = Calendar.getInstance(FI).get(Calendar.DAY_OF_YEAR);
         io = Executors.newSingleThreadExecutor();
+        SettingsManager.get().registerListener(prefsListener);
         renderStaticContent();
         applyTimeBasedBrightness();
         ui.post(tickClock);
@@ -128,6 +147,7 @@ public class ClockController {
 
     public void stop() {
         active.set(false);
+        try { SettingsManager.get().unregisterListener(prefsListener); } catch (Exception ignored) { }
         ui.removeCallbacksAndMessages(null);
         if (io != null) { io.shutdownNow(); io = null; }
     }
@@ -463,34 +483,33 @@ public class ClockController {
     // Kirkkaus
     // ============================================================
 
-    /** Käytetäänkö yötilaa? Yö 21:00-05:59, päivä 06:00-20:59. */
-    public static boolean isNightBrightness(int hourOfDay) {
-        return hourOfDay >= 21 || hourOfDay < 6;
+    /** Käytetäänkö yötilaa? Hyödynnetään asetusten morningHour ja eveningHour. */
+    private boolean isNightBrightness(int hourOfDay) {
+        SettingsManager sm = SettingsManager.get();
+        int morning = sm.getMorningHour();
+        int evening = sm.getEveningHour();
+        return hourOfDay >= evening || hourOfDay < morning;
     }
 
     private void applyTimeBasedBrightness() {
         if (window == null) return;
-        SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        int hour = Calendar.getInstance(FI).get(Calendar.HOUR_OF_DAY);
-        int pct = isNightBrightness(hour)
-                ? sp.getInt(KEY_BRIGHTNESS_NIGHT, DEFAULT_BRIGHTNESS_NIGHT)
-                : sp.getInt(KEY_BRIGHTNESS_DAY, DEFAULT_BRIGHTNESS_DAY);
+        SettingsManager sm = SettingsManager.get();
+        int testMode = sm.getActiveTestMode();
+        int pct;
+        if (testMode == SettingsManager.TEST_DAY) {
+            pct = sm.getDayBrightness();
+        } else if (testMode == SettingsManager.TEST_NIGHT) {
+            pct = sm.getNightBrightness();
+        } else {
+            int hour = Calendar.getInstance(FI).get(Calendar.HOUR_OF_DAY);
+            pct = isNightBrightness(hour) ? sm.getNightBrightness() : sm.getDayBrightness();
+        }
         float val = Math.max(0.01f, Math.min(1f, pct / 100f));
         if (Math.abs(val - lastBrightness) < 0.005f) return;
         lastBrightness = val;
         WindowManager.LayoutParams lp = window.getAttributes();
         lp.screenBrightness = val;
         window.setAttributes(lp);
-    }
-
-    /** Sovella välittömästi annettu prosenttiarvo (käytetään dialogin live previewissä). */
-    public void previewBrightness(int pct) {
-        if (window == null) return;
-        float val = Math.max(0.01f, Math.min(1f, pct / 100f));
-        WindowManager.LayoutParams lp = window.getAttributes();
-        lp.screenBrightness = val;
-        window.setAttributes(lp);
-        lastBrightness = val;
     }
 
     /** Palauta nykyhetken vuorokaudenajan mukainen kirkkaus tallennuksen jälkeen. */
@@ -510,8 +529,16 @@ public class ClockController {
     private class FetchWorker implements Runnable {
         @Override public void run() {
             if (!active.get()) return;
+            // Offline-testitila: ei lähetä pyyntöä, simuloidaan virhe
+            if (SettingsManager.get().getActiveTestMode() == SettingsManager.TEST_OFFLINE) {
+                if (!active.get()) return;
+                Log.i(TAG, "Offline-testitila päällä, ohitetaan FMI-haku");
+                ui.post(new RetryWeather());
+                return;
+            }
             try {
-                WeatherData wd = new FmiClient().fetch();
+                String place = SettingsManager.get().getHomePlace();
+                WeatherData wd = new FmiClient(place).fetch();
                 if (!active.get()) return;
                 ui.post(new ApplyWeather(wd));
             } catch (Exception e) {
@@ -528,10 +555,12 @@ public class ClockController {
             if (!active.get()) return;
             data = wd;
             retryStep = 0;
+            SettingsManager.get().setLastSuccessfulFmiUpdate(wd.fetchedAt);
             renderCurrent();
             renderForecastAll();
             ui.removeCallbacks(fetchWeather);
-            ui.postDelayed(fetchWeather, WEATHER_OK_MS);
+            long okMs = SettingsManager.get().getWeatherUpdateMinutes() * 60_000L;
+            ui.postDelayed(fetchWeather, okMs);
         }
     }
     private class RetryWeather implements Runnable {
@@ -562,8 +591,6 @@ public class ClockController {
             String[] wd = {"su", "ma", "ti", "ke", "to", "pe", "la"};
             String day = wd[hc.get(Calendar.DAY_OF_WEEK) - 1];
 
-            long todayKey = todaySortKey();
-            long days = (h.sortKey() - todayKey);
             String suffix;
             if (h.year == from.get(Calendar.YEAR)
                     && h.month == (from.get(Calendar.MONTH) + 1)
@@ -577,13 +604,6 @@ public class ClockController {
             nextHolidayTv.setText(String.format(FI, "Seuraava juhlapyhä: %s %d.%d.  %s%s",
                     day, h.day, h.month, h.name, suffix));
         }
-    }
-
-    private static long todaySortKey() {
-        Calendar c = Calendar.getInstance(FI);
-        return c.get(Calendar.YEAR) * 10000L
-                + (c.get(Calendar.MONTH) + 1) * 100L
-                + c.get(Calendar.DAY_OF_MONTH);
     }
 
     private static int daysBetween(Calendar from, Calendar to) {
@@ -612,10 +632,7 @@ public class ClockController {
         } else {
             currentFeels.setText("");
         }
-        int curHour = Calendar.getInstance(FI).get(Calendar.HOUR_OF_DAY);
-        int curMonth = Calendar.getInstance(FI).get(Calendar.MONTH) + 1;
-        boolean night = WeatherIconView.isNightHour(curHour, curMonth);
-        currentIcon.setSymbol(WeatherIconView.mapFmiSymbol(c.weatherSymbol, night));
+        currentIcon.setCondition(c.condition);
 
         String sep = ctx.getString(R.string.separator);
         StringBuilder sb = new StringBuilder();
@@ -633,7 +650,7 @@ public class ClockController {
             sb.append(String.format(FI, ctx.getString(R.string.humidity_format), c.humidity));
         }
         if (sb.length() > 0) sb.append(sep);
-        if (Double.isNaN(c.rain24h)) {
+        if (c.rain24hAllMissing) {
             sb.append(ctx.getString(R.string.rain24h_missing));
         } else {
             sb.append(String.format(FI, ctx.getString(R.string.rain24h_format), c.rain24h));
@@ -644,6 +661,18 @@ public class ClockController {
     }
 
     private void updateStatus() {
+        SettingsManager sm = SettingsManager.get();
+        int testMode = sm.getActiveTestMode();
+        if (testMode == SettingsManager.TEST_OFFLINE) {
+            statusText.setText(ctx.getString(R.string.status_offline_test));
+            statusText.setTextColor(0xFFFFAA00);
+            return;
+        }
+        if (testMode == SettingsManager.TEST_WARNING) {
+            statusText.setText("! " + ctx.getString(R.string.status_warning_test));
+            statusText.setTextColor(0xFFFFAA00);
+            return;
+        }
         if (data == null) {
             statusText.setText(ctx.getString(R.string.loading_weather));
             statusText.setTextColor(0xFF606060);
@@ -661,26 +690,38 @@ public class ClockController {
         }
     }
 
-    /** Sade/lumi-symbolit ennusteruutuihin: sininen ● sateelle, valkoinen ❅ lumelle. */
-    private void setPrecipText(TextView tv, double mm, int weatherSymbol) {
+    /** Sade/lumi-symbolit ennusteruutuihin: sininen ● sateelle, valkoinen ❅ lumelle.
+     *  Lukumäärä WeatherCondition.intensity:n mukaan (1-3). */
+    private void setPrecipText(TextView tv, double mm, WeatherCondition cond) {
         if (Double.isNaN(mm) || mm < 0.05) {
             tv.setText("");
             return;
         }
-        int mapped = WeatherIconView.mapFmiSymbol(weatherSymbol, false);
-        boolean snow = (mapped == WeatherIconView.SNOW);
-        boolean sleet = (mapped == WeatherIconView.SLEET);
         int count;
-        if (mm < 0.5) count = 1;
-        else if (mm < 2.0) count = 2;
-        else count = 3;
+        if (cond != null && cond.intensity != null) {
+            switch (cond.intensity) {
+                case LIGHT: count = 1; break;
+                case MODERATE: count = 2; break;
+                case HEAVY: count = 3; break;
+                default:
+                    // intensity ei kerrottu (esim. PARTLY_CLOUDY mutta sade > 0) -> mm-ohjattu
+                    if (mm < 0.5) count = 1;
+                    else if (mm < 2.0) count = 2;
+                    else count = 3;
+            }
+        } else {
+            if (mm < 0.5) count = 1;
+            else if (mm < 2.0) count = 2;
+            else count = 3;
+        }
 
+        WeatherCondition.Type type = cond != null ? cond.type : WeatherCondition.Type.RAIN;
         StringBuilder sym = new StringBuilder();
-        if (sleet) {
+        if (type == WeatherCondition.Type.SLEET) {
             sym.append("\u2745");
             for (int i = 1; i < count; i++) sym.append("\u25CF");
             tv.setTextColor(0xFFB8D8F0);
-        } else if (snow) {
+        } else if (type == WeatherCondition.Type.SNOW) {
             for (int i = 0; i < count; i++) sym.append("\u2745");
             tv.setTextColor(0xFFFFFFFF);
         } else {
@@ -730,11 +771,9 @@ public class ClockController {
             dayHeader[pageIdx].setText(String.format(FI, "%s %d.%d.",
                     dayName, any.dayOfMonth, any.month));
 
-            int month = any.month;
             java.util.Map<Integer, WeatherData.Hour> dayMap = byDay.get(days[dayIdx]);
             for (int hour = 0; hour < 24; hour++) {
                 WeatherData.Hour h = dayMap.get(hour);
-                boolean night = WeatherIconView.isNightHour(hour, month);
                 if (h == null) {
                     dayTemp[pageIdx][hour].setText("--");
                     dayRain[pageIdx][hour].setText("");
@@ -743,9 +782,8 @@ public class ClockController {
                     dayTemp[pageIdx][hour].setText(Double.isNaN(h.temperature)
                             ? "--" : String.format(FI, ctx.getString(R.string.temp_short_format),
                                     WeatherData.cleanZero(h.temperature)));
-                    setPrecipText(dayRain[pageIdx][hour], h.precipitation, h.weatherSymbol);
-                    dayIcon[pageIdx][hour].setSymbol(
-                            WeatherIconView.mapFmiSymbol(h.weatherSymbol, night));
+                    setPrecipText(dayRain[pageIdx][hour], h.precipitation, h.condition);
+                    dayIcon[pageIdx][hour].setCondition(h.condition);
                     dayIcon[pageIdx][hour].setVisibility(View.VISIBLE);
                 }
             }
