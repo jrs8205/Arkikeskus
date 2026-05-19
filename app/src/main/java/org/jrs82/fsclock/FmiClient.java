@@ -8,6 +8,7 @@ import org.xmlpull.v1.XmlPullParser;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -20,13 +21,17 @@ public class FmiClient {
 
     private static final String TAG = "FmiClient";
     private static final String BASE = "https://opendata.fmi.fi/wfs";
-    // Helsinki-Vantaan lentoasema: FMISID 100968, koord. 60.32937,24.97274
-    private static final String FMISID = "100968";
-    private static final String LATLON = "60.32937,24.97274";
     private static final int TIMEOUT_MS = 15000;
+
+    private final String place;
+
+    public FmiClient(String place) {
+        this.place = (place == null || place.trim().isEmpty()) ? "Vantaa" : place.trim();
+    }
 
     public WeatherData fetch() throws Exception {
         WeatherData data = new WeatherData();
+        String encodedPlace = URLEncoder.encode(place, "UTF-8");
 
         SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
         iso.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -42,21 +47,25 @@ public class FmiClient {
         // 1) Havainnot viimeiselta 25h:lta - lasketaan 24h sade ja otetaan tuoreimmat arvot
         String obsUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                 + "&storedquery_id=fmi::observations::weather::simple"
-                + "&fmisid=" + FMISID
+                + "&place=" + encodedPlace
                 + "&parameters=t2m,rh,ws_10min,wd_10min,r_1h,wawa"
                 + "&starttime=" + iso.format(obsStart)
                 + "&endtime=" + iso.format(now);
         parseObservations(obsUrl, data);
 
-        // 2) Ennuste seuraavalle 5 paivalle tunneittain
+        // 2) Ennuste seuraavalle 10 paivalle tunneittain. SmartSymbol on ensisijainen,
+        //    WeatherSymbol3 jaa fallbackiksi.
         String fcUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                 + "&storedquery_id=fmi::forecast::edited::weather::scandinavia::point::simple"
-                + "&latlon=" + LATLON
-                + "&parameters=Temperature,Precipitation1h,WeatherSymbol3"
+                + "&place=" + encodedPlace
+                + "&parameters=Temperature,Precipitation1h,SmartSymbol,WeatherSymbol3"
                 + "&timestep=60"
                 + "&starttime=" + iso.format(now)
                 + "&endtime=" + iso.format(fcEnd);
         parseForecast(fcUrl, data);
+
+        // Nykyikoni: ensisijaisesti lahimman ennustetunnin SmartSymbol, wawa voi tarkentaa
+        applyCurrentCondition(data);
 
         data.fetchedAt = System.currentTimeMillis();
         if (!Double.isNaN(data.current.temperature)) {
@@ -72,7 +81,7 @@ public class FmiClient {
 
         long latestTs = 0;
         Map<String, Double> latest = null;
-        boolean hasWawa = false;
+        Integer wawaCode = null;
         for (Map.Entry<Long, Map<String, Double>> e : byTime.entrySet()) {
             if (e.getKey() > latestTs) {
                 latestTs = e.getKey();
@@ -82,18 +91,21 @@ public class FmiClient {
         if (latest != null) {
             data.current.timestamp = latestTs;
             Double v;
-            v = latest.get("t2m"); if (v != null) data.current.temperature = v;
-            v = latest.get("rh"); if (v != null) data.current.humidity = v;
-            v = latest.get("ws_10min"); if (v != null) data.current.windSpeed = v;
-            v = latest.get("wd_10min"); if (v != null) data.current.windDirection = v;
+            v = latest.get("t2m"); if (v != null && !v.isNaN()) data.current.temperature = v;
+            v = latest.get("rh"); if (v != null && !v.isNaN()) data.current.humidity = v;
+            v = latest.get("ws_10min"); if (v != null && !v.isNaN()) data.current.windSpeed = v;
+            v = latest.get("wd_10min"); if (v != null && !v.isNaN()) data.current.windDirection = v;
             v = latest.get("wawa"); if (v != null && !v.isNaN()) {
-                data.current.weatherSymbol = wawaToSym3((int) (double) v);
-                hasWawa = true;
+                wawaCode = (int) (double) v;
             }
         }
-        data.current.hasSymbolFromObs = hasWawa;
+        // Wawa tallennetaan vasta applyCurrentCondition-vaiheessa, koska se yhdistetaan
+        // ennusteen SmartSymboliin
+        if (wawaCode != null) {
+            data.current.condition.rawWawa = wawaCode;
+        }
 
-        // Sade 24h: ota vain uusimmat 24 r_1h-arvoa (latestTs - 24h ... latestTs)
+        // Sade 24h: ota vain uusimmat 24 r_1h-arvoa (latestTs - 24h ... latestTs]
         long windowStart = latestTs - 24L * 3600L * 1000L;
         double rain24h = 0.0;
         boolean hasRainData = false;
@@ -105,14 +117,19 @@ public class FmiClient {
                 rain24h += Math.max(0.0, r);
             }
         }
-        data.current.rain24h = hasRainData ? rain24h : Double.NaN;
+        if (hasRainData) {
+            data.current.rain24h = rain24h;
+            data.current.rain24hAllMissing = false;
+        } else {
+            data.current.rain24h = Double.NaN;
+            data.current.rain24hAllMissing = true;
+        }
     }
 
     private void parseForecast(String url, WeatherData data) throws Exception {
         Map<Long, Map<String, Double>> byTime = new HashMap<>();
         readWfs(url, byTime);
 
-        // jarjestetaan timestamp-jarjestyksessa
         Long[] keys = byTime.keySet().toArray(new Long[0]);
         java.util.Arrays.sort(keys);
         Calendar c = Calendar.getInstance();
@@ -124,26 +141,87 @@ public class FmiClient {
             h.hour = c.get(Calendar.HOUR_OF_DAY);
             h.dayOfMonth = c.get(Calendar.DAY_OF_MONTH);
             h.month = c.get(Calendar.MONTH) + 1;
+
             Double v;
-            v = m.get("Temperature"); if (v != null) h.temperature = v;
+            v = m.get("Temperature"); if (v != null && !v.isNaN()) h.temperature = v;
             v = m.get("Precipitation1h"); if (v != null && !v.isNaN()) h.precipitation = v;
-            v = m.get("WeatherSymbol3"); if (v != null && !v.isNaN()) h.weatherSymbol = (int) (double) v;
+
+            Integer smartSymbol = null;
+            v = m.get("SmartSymbol"); if (v != null && !v.isNaN()) smartSymbol = (int) (double) v;
+            Integer weatherSymbol3 = null;
+            v = m.get("WeatherSymbol3"); if (v != null && !v.isNaN()) weatherSymbol3 = (int) (double) v;
+
+            h.condition = buildForecastCondition(smartSymbol, weatherSymbol3, h);
             data.hours.add(h);
             if (data.hours.size() >= 240) break;
         }
+    }
 
-        // jos nyt-saa ei loytynyt havainnoista, kaytetaan ensimmaista ennustearvoa
-        if (Double.isNaN(data.current.temperature) && !data.hours.isEmpty()) {
-            WeatherData.Hour first = data.hours.get(0);
-            data.current.temperature = first.temperature;
-            data.current.weatherSymbol = first.weatherSymbol;
-            data.current.hasSymbolFromObs = true; // ennusteen WeatherSymbol3 on aito symboli
-            data.current.timestamp = first.timestamp;
-        } else if (!data.current.hasSymbolFromObs && !data.hours.isEmpty()) {
-            // havainnoissa oli muut arvot mutta wawa puuttui -> lainataan symboli ennusteen lahimmasta tunnista
-            data.current.weatherSymbol = data.hours.get(0).weatherSymbol;
-            data.current.hasSymbolFromObs = true;
+    /** Rakenna ennustetunnin sääolosuhde: SmartSymbol ensisijainen, WeatherSymbol3 fallback,
+     *  muuten päättely arvoista. */
+    private WeatherCondition buildForecastCondition(Integer smartSymbol, Integer weatherSymbol3,
+                                                     WeatherData.Hour h) {
+        if (smartSymbol != null) {
+            return WeatherCondition.fromSmartSymbol(smartSymbol);
         }
+        if (weatherSymbol3 != null) {
+            boolean night = WeatherIconView.isNightHour(h.hour, h.month);
+            return WeatherCondition.fromWeatherSymbol3(weatherSymbol3, night);
+        }
+        boolean night = WeatherIconView.isNightHour(h.hour, h.month);
+        return WeatherCondition.inferFromValues(h.temperature, h.precipitation, Double.NaN, night);
+    }
+
+    /** Nykyhetken ikoni:
+     *  1) Käytä lähimmän ennustetunnin SmartSymbolia (tai sen fallbackia)
+     *  2) Jos wawa-koodi on saatavilla, anna sen tarkentaa (mutta ei pakottaa)
+     *  3) Tallenna kaikki raakakoodit kondition raw*-kenttiin */
+    private void applyCurrentCondition(WeatherData data) {
+        Integer wawa = data.current.condition.rawWawa;
+        WeatherCondition fallback = null;
+        if (!data.hours.isEmpty()) {
+            // Etsi lähin ennustetunti aikaleimaltaan
+            WeatherData.Hour nearest = data.hours.get(0);
+            long bestDiff = Math.abs(nearest.timestamp - System.currentTimeMillis());
+            for (WeatherData.Hour h : data.hours) {
+                long d = Math.abs(h.timestamp - System.currentTimeMillis());
+                if (d < bestDiff) { bestDiff = d; nearest = h; }
+            }
+            fallback = nearest.condition;
+        }
+
+        WeatherCondition c;
+        if (wawa != null) {
+            c = WeatherCondition.fromWawa(wawa, fallback);
+        } else if (fallback != null) {
+            c = fallback;
+        } else {
+            c = WeatherCondition.unknown();
+        }
+        // Yhdistä raakatiedot debug-näkymää varten
+        c.rawWawa = wawa;
+        if (fallback != null) {
+            if (fallback.rawSmartSymbol != null) c.rawSmartSymbol = fallback.rawSmartSymbol;
+            if (fallback.rawWeatherSymbol3 != null) c.rawWeatherSymbol3 = fallback.rawWeatherSymbol3;
+            // isNight tulee SmartSymbolista ensisijaisesti
+            c.isNight = fallback.isNight;
+        }
+        // Jos SmartSymbol ei kertonut yötä, fallback paikallisesta auringonlaskuajasta
+        if (!c.isNight && (c.type == WeatherCondition.Type.CLEAR
+                || c.type == WeatherCondition.Type.PARTLY_CLOUDY)) {
+            Calendar cal = Calendar.getInstance();
+            int hour = cal.get(Calendar.HOUR_OF_DAY);
+            int month = cal.get(Calendar.MONTH) + 1;
+            if (WeatherIconView.isNightHour(hour, month)) {
+                c.isNight = true;
+            }
+        }
+        // Jos lämpötila/sade puuttuu havainnoista, lainataan ennusteesta
+        if (Double.isNaN(data.current.temperature) && fallback != null
+                && !data.hours.isEmpty()) {
+            data.current.temperature = data.hours.get(0).temperature;
+        }
+        data.current.condition = c;
     }
 
     private void readWfs(String url, Map<Long, Map<String, Double>> out) throws Exception {
@@ -185,9 +263,6 @@ public class FmiClient {
                             try {
                                 long ts = iso.parse(curTime).getTime();
                                 double v = Double.parseDouble(curVal);
-                                if (v == Double.NEGATIVE_INFINITY || Double.isNaN(v)) {
-                                    // NaN sailytetaan
-                                }
                                 Map<String, Double> m = out.get(ts);
                                 if (m == null) {
                                     m = new HashMap<>();
@@ -201,6 +276,9 @@ public class FmiClient {
                 }
                 ev = xpp.next();
             }
+        } catch (Exception e) {
+            Log.w(TAG, "WFS read failed: " + url, e);
+            throw e;
         } finally {
             if (in != null) {
                 try { in.close(); } catch (Exception ignored) { }
@@ -209,21 +287,5 @@ public class FmiClient {
                 conn.disconnect();
             }
         }
-    }
-
-    /** WAWA-koodi (havainnot) -> WeatherSymbol3 ryhma */
-    private int wawaToSym3(int wawa) {
-        if (wawa == 0) return 1;
-        if (wawa >= 4 && wawa <= 5) return 71; // utua/sumua
-        if (wawa == 10) return 2;
-        if (wawa >= 20 && wawa <= 25) return 21; // sade
-        if (wawa >= 30 && wawa <= 35) return 31; // lumi
-        if (wawa >= 40 && wawa <= 49) return 21;
-        if (wawa >= 50 && wawa <= 59) return 21;
-        if (wawa >= 60 && wawa <= 69) return 22;
-        if (wawa >= 70 && wawa <= 79) return 32;
-        if (wawa >= 80 && wawa <= 84) return 22;
-        if (wawa >= 85 && wawa <= 89) return 32;
-        return 3;
     }
 }

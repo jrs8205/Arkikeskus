@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FsClock</string>
-    <string name="dream_description">Kello, päivämäärä ja sää Helsinki-Vantaa, ympärivuorokautinen infotaulu burn-in -suojalla</string>
+    <string name="dream_description">Kello, päivämäärä ja sää, ympärivuorokautinen infotaulu burn-in -suojalla</string>
     <string name="loading_weather">Ladataan säätietoja…</string>
     <string name="weather_label">Sää:</string>
     <string name="weather_stale">vanhentunut</string>
@@ -9,6 +9,7 @@
     <string name="humidity_format">Kosteus %1$.0f%%</string>
     <string name="rain24h_format">Sade 24h %1$.1f mm</string>
     <string name="rain24h_missing">Sade 24h --</string>
+    <string name="rain24h_zero">Sade 24h 0,0 mm</string>
     <string name="feels_format">(Tuntuu kuin %+.0f°)</string>
     <string name="temp_missing">--°C</string>
     <string name="temp_format">%+.0f °C</string>
@@ -20,9 +21,57 @@
     <string name="battery_format">%1$d %%  %2$.1f °C</string>
     <string name="battery_format_charging">⚡ %1$d %%  %2$.1f °C</string>
     <string name="wind_format_nodir">Tuuli %1$.0f m/s</string>
-    <string name="brightness_dialog_title">Näytön kirkkaus</string>
-    <string name="brightness_day_label">Päivä (06–21)</string>
-    <string name="brightness_night_label">Yö (21–06)</string>
-    <string name="save">Tallenna</string>
-    <string name="cancel">Peruuta</string>
+
+    <string name="settings_title">FsClock-asetukset</string>
+
+    <!-- Asetussivun ryhmät -->
+    <string name="pref_cat_display">Näyttö ja kirkkaus</string>
+    <string name="pref_cat_weather">Sää ja sijainti</string>
+    <string name="pref_cat_app">Sovellus</string>
+    <string name="pref_cat_test">Testitila (kehitys)</string>
+
+    <!-- Näyttö ja kirkkaus -->
+    <string name="pref_day_brightness">Päivän kirkkaus</string>
+    <string name="pref_night_brightness">Yön kirkkaus</string>
+    <string name="pref_day_morning">Päivän alkamisaika</string>
+    <string name="pref_night_evening">Yön alkamisaika</string>
+    <string name="pref_night_red_tint">Yön punainen sävy</string>
+    <string name="pref_night_red_tint_summary">Käytössä vaiheen 4 jälkeen</string>
+
+    <!-- Sää ja sijainti -->
+    <string name="pref_home_place">Kotipaikkakunta</string>
+    <string name="pref_weather_update_minutes">Sääpäivitysväli (min)</string>
+
+    <!-- Sovellus -->
+    <string name="pref_version">Versio</string>
+    <string name="pref_last_update">Viimeisin sääpäivitys</string>
+    <string name="pref_time_check">Vertaa NTP-aikaan</string>
+    <string name="pref_time_check_summary">Ei toteutettu vielä</string>
+
+    <!-- Testitila -->
+    <string name="pref_test_day">Testaa päivätila</string>
+    <string name="pref_test_night">Testaa yötila</string>
+    <string name="pref_test_warning">Testaa varoitusrivi</string>
+    <string name="pref_test_offline">Testaa offline-tila</string>
+    <string name="pref_test_pixel_shift">Pixel-shift status</string>
+    <string name="pref_test_summary">Klikkaa: 30 min testitila. Toinen klikkaus poistaa.</string>
+    <string name="pref_test_pixel_shift_summary">Aktiivinen (±40px / ±20px joka minuutti)</string>
+
+    <!-- Aikavalitsindialogi -->
+    <string name="time_picker_title">Valitse aika</string>
+
+    <!-- Auto time -warning -->
+    <string name="auto_time_warning">⚠ Automaattinen aika ei ole päällä — kytke asetuksista</string>
+
+    <!-- Testitila-toastit -->
+    <string name="toast_test_activated">%1$s — 30 min</string>
+    <string name="toast_test_cleared">%1$s pois käytöstä</string>
+    <string name="toast_test_warning_label">Varoitusrivi-testi</string>
+    <string name="toast_test_offline_label">Offline-testi</string>
+    <string name="toast_test_day_label">Päivätila-testi</string>
+    <string name="toast_test_night_label">Yötila-testi</string>
+
+    <!-- Statusriviin offline -->
+    <string name="status_offline_test">Offline-testitila</string>
+    <string name="status_warning_test">Varoitusrivi-testitila</string>
 </resources>

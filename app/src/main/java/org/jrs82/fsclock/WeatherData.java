@@ -12,8 +12,8 @@ public class WeatherData {
         public double windSpeed = Double.NaN;
         public double windDirection = Double.NaN;
         public double rain24h = Double.NaN;
-        public int weatherSymbol = 1;
-        public boolean hasSymbolFromObs = false;
+        public boolean rain24hAllMissing = true;
+        public WeatherCondition condition = WeatherCondition.unknown();
         public long timestamp = 0;
     }
 
@@ -24,7 +24,7 @@ public class WeatherData {
         public int month;
         public double temperature = Double.NaN;
         public double precipitation = Double.NaN;
-        public int weatherSymbol = 1;
+        public WeatherCondition condition = WeatherCondition.unknown();
     }
 
     public Current current = new Current();

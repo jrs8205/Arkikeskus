@@ -38,25 +38,30 @@ public class WeatherIconView extends View {
 
     public int getSymbol() { return symbol; }
 
-    public static int mapFmiSymbol(int fmiCode) {
-        return mapFmiSymbol(fmiCode, false);
+    /** WeatherCondition -> sisäinen piirtosymboli. */
+    public void setCondition(WeatherCondition c) {
+        setSymbol(mapCondition(c));
     }
 
-    public static int mapFmiSymbol(int fmiCode, boolean night) {
-        // FMI WeatherSymbol3 koodit -> meidan ryhmat
-        if (fmiCode <= 1) return night ? NIGHT_CLEAR : SUNNY;
-        if (fmiCode == 2) return night ? NIGHT_CLOUDY : PARTLY_CLOUDY;
-        if (fmiCode == 3) return CLOUDY;
-        if (fmiCode >= 21 && fmiCode <= 23) return RAIN;
-        if (fmiCode >= 31 && fmiCode <= 33) return SNOW;
-        if (fmiCode >= 41 && fmiCode <= 43) return SLEET;
-        if (fmiCode >= 51 && fmiCode <= 53) return SLEET;
-        if (fmiCode >= 61 && fmiCode <= 64) return THUNDER;
-        if (fmiCode == 71 || fmiCode == 72) return FOG;
-        return CLOUDY;
+    public static int mapCondition(WeatherCondition c) {
+        if (c == null) return CLOUDY;
+        switch (c.type) {
+            case CLEAR: return c.isNight ? NIGHT_CLEAR : SUNNY;
+            case PARTLY_CLOUDY: return c.isNight ? NIGHT_CLOUDY : PARTLY_CLOUDY;
+            case CLOUDY: return CLOUDY;
+            case RAIN: return RAIN;
+            case SNOW: return SNOW;
+            case SLEET: return SLEET;
+            case FOG: return FOG;
+            case THUNDER: return THUNDER;
+            case UNKNOWN:
+            default:
+                return CLOUDY;
+        }
     }
 
-    /** Karkea Helsinki-Vantaan auringonnousu/lasku kuukausittain (paikallista aikaa). */
+    /** Karkea Helsinki-Vantaan auringonnousu/lasku kuukausittain (paikallista aikaa).
+     *  Käytetään fallbackina jos SmartSymbol ei kerro yötä. */
     public static boolean isNightHour(int hour, int monthOneBased) {
         int m = monthOneBased - 1;
         if (m < 0) m = 0;
