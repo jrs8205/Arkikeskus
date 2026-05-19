@@ -524,9 +524,11 @@ public class ClockController {
 
     private final Runnable fetchWeather = new FetchWeatherRunnable();
     private class FetchWeatherRunnable implements Runnable {
-        @Override public void run() { if (io != null) io.execute(new FetchWorker()); }
+        @Override public void run() { if (io != null) io.execute(new FetchWorker(data)); }
     }
     private class FetchWorker implements Runnable {
+        final WeatherData cached;
+        FetchWorker(WeatherData cached) { this.cached = cached; }
         @Override public void run() {
             if (!active.get()) return;
             // Offline-testitila: ei lähetä pyyntöä, simuloidaan virhe
@@ -538,7 +540,7 @@ public class ClockController {
             }
             try {
                 String place = SettingsManager.get().getHomePlace();
-                WeatherData wd = new FmiClient(place).fetch();
+                WeatherData wd = new FmiClient(place).fetch(cached);
                 if (!active.get()) return;
                 ui.post(new ApplyWeather(wd));
             } catch (Exception e) {

@@ -22,6 +22,9 @@ public class FmiClient {
     private static final String TAG = "FmiClient";
     private static final String BASE = "https://opendata.fmi.fi/wfs";
     private static final int TIMEOUT_MS = 15000;
+    /** Ennustehaun max-ikä. Havainnot haetaan 10 min välein, mutta ennustetta
+     *  ei tarvitse hakea joka kerta — riittää että se päivittyy ~tunnin välein. */
+    private static final long FORECAST_MAX_AGE_MS = 55L * 60_000L;
 
     private final String place;
 
@@ -29,7 +32,8 @@ public class FmiClient {
         this.place = (place == null || place.trim().isEmpty()) ? "Vantaa" : place.trim();
     }
 
-    public WeatherData fetch() throws Exception {
+    /** Hae havainnot aina, ennuste vain jos cached on null tai > 55 min vanha. */
+    public WeatherData fetch(WeatherData cached) throws Exception {
         WeatherData data = new WeatherData();
         String encodedPlace = URLEncoder.encode(place, "UTF-8");
 
@@ -40,9 +44,13 @@ public class FmiClient {
         Date now = cal.getTime();
         cal.add(Calendar.HOUR, -25);
         Date obsStart = cal.getTime();
-        cal.setTime(now);
-        cal.add(Calendar.HOUR, 240); // 10 paivaa - FMI palauttaa sen mita on
-        Date fcEnd = cal.getTime();
+
+        long nowMs = System.currentTimeMillis();
+        boolean needForecast = (cached == null
+                || cached.hours == null
+                || cached.hours.isEmpty()
+                || cached.forecastFetchedAt == 0L
+                || (nowMs - cached.forecastFetchedAt) > FORECAST_MAX_AGE_MS);
 
         // 1) Havainnot viimeiselta 25h:lta - lasketaan 24h sade ja otetaan tuoreimmat arvot
         String obsUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
@@ -53,26 +61,48 @@ public class FmiClient {
                 + "&endtime=" + iso.format(now);
         parseObservations(obsUrl, data);
 
-        // 2) Ennuste seuraavalle 10 paivalle tunneittain. SmartSymbol on ensisijainen,
-        //    WeatherSymbol3 jaa fallbackiksi.
-        String fcUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
-                + "&storedquery_id=fmi::forecast::edited::weather::scandinavia::point::simple"
-                + "&place=" + encodedPlace
-                + "&parameters=Temperature,Precipitation1h,SmartSymbol,WeatherSymbol3"
-                + "&timestep=60"
-                + "&starttime=" + iso.format(now)
-                + "&endtime=" + iso.format(fcEnd);
-        parseForecast(fcUrl, data);
+        if (needForecast) {
+            cal.setTime(now);
+            cal.add(Calendar.HOUR, 240);
+            Date fcEnd = cal.getTime();
+            // 2) Ennuste seuraavalle 10 paivalle tunneittain. SmartSymbol on ensisijainen,
+            //    WeatherSymbol3 jaa fallbackiksi.
+            String fcUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
+                    + "&storedquery_id=fmi::forecast::edited::weather::scandinavia::point::simple"
+                    + "&place=" + encodedPlace
+                    + "&parameters=Temperature,Precipitation1h,SmartSymbol,WeatherSymbol3"
+                    + "&timestep=60"
+                    + "&starttime=" + iso.format(now)
+                    + "&endtime=" + iso.format(fcEnd);
+            parseForecast(fcUrl, data);
+            data.forecastFetchedAt = nowMs;
+            Log.d(TAG, "Forecast refreshed (" + data.hours.size() + " tuntia)");
+        } else {
+            // Käytä cached-ennustetta. Suodata pois jo menneet tunnit jotta ennustelistalla
+            // ei näy vanhentuneita rivejä.
+            long minTs = nowMs - 60L * 60_000L;
+            for (WeatherData.Hour h : cached.hours) {
+                if (h.timestamp >= minTs) data.hours.add(h);
+            }
+            data.forecastFetchedAt = cached.forecastFetchedAt;
+            long ageMin = (nowMs - cached.forecastFetchedAt) / 60_000L;
+            Log.d(TAG, "Forecast reused (" + data.hours.size() + " tuntia, ikä " + ageMin + " min)");
+        }
 
         // Nykyikoni: ensisijaisesti lahimman ennustetunnin SmartSymbol, wawa voi tarkentaa
         applyCurrentCondition(data);
 
-        data.fetchedAt = System.currentTimeMillis();
+        data.fetchedAt = nowMs;
         if (!Double.isNaN(data.current.temperature)) {
             data.current.feelsLike = WeatherData.computeFeelsLike(
                     data.current.temperature, data.current.windSpeed, data.current.humidity);
         }
         return data;
+    }
+
+    /** Vanha API-muoto: hae aina molemmat (käytetään ensimmäisessä haussa). */
+    public WeatherData fetch() throws Exception {
+        return fetch(null);
     }
 
     private void parseObservations(String url, WeatherData data) throws Exception {
@@ -105,24 +135,35 @@ public class FmiClient {
             data.current.condition.rawWawa = wawaCode;
         }
 
-        // Sade 24h: ota vain uusimmat 24 r_1h-arvoa (latestTs - 24h ... latestTs]
-        long windowStart = latestTs - 24L * 3600L * 1000L;
-        double rain24h = 0.0;
-        boolean hasRainData = false;
+        // Sade 24h: ryhmittele r_1h-arvot epoch-tunnin mukaan, ota uusin arvo per tunti,
+        // summaa viimeiset 24 tuntia. Tämä estää tuplalaskennan jos FMI palauttaa saman
+        // tunnin r_1h-arvon useamman kerran (esim. 10 min havaintorivin osana).
+        java.util.HashMap<Long, Long> rainHourLatestTs = new java.util.HashMap<>();
+        java.util.HashMap<Long, Double> rainHourValue = new java.util.HashMap<>();
         for (Map.Entry<Long, Map<String, Double>> e : byTime.entrySet()) {
-            if (e.getKey() <= windowStart || e.getKey() > latestTs) continue;
             Double r = e.getValue().get("r_1h");
-            if (r != null && !r.isNaN()) {
-                hasRainData = true;
-                rain24h += Math.max(0.0, r);
+            if (r == null || r.isNaN()) continue;
+            long hourEpoch = e.getKey() / 3_600_000L;
+            Long prev = rainHourLatestTs.get(hourEpoch);
+            if (prev == null || e.getKey() > prev) {
+                rainHourLatestTs.put(hourEpoch, e.getKey());
+                rainHourValue.put(hourEpoch, Math.max(0.0, r));
             }
         }
-        if (hasRainData) {
-            data.current.rain24h = rain24h;
-            data.current.rain24hAllMissing = false;
-        } else {
+        if (rainHourValue.isEmpty()) {
             data.current.rain24h = Double.NaN;
             data.current.rain24hAllMissing = true;
+        } else {
+            java.util.ArrayList<Long> hourKeys = new java.util.ArrayList<>(rainHourValue.keySet());
+            java.util.Collections.sort(hourKeys);
+            int from = Math.max(0, hourKeys.size() - 24);
+            double sum = 0.0;
+            for (int i = from; i < hourKeys.size(); i++) {
+                sum += rainHourValue.get(hourKeys.get(i));
+            }
+            data.current.rain24h = sum;
+            data.current.rain24hAllMissing = false;
+            Log.d(TAG, "Rain24h: " + (hourKeys.size() - from) + " tuntia, summa " + sum + " mm");
         }
     }
 
@@ -161,15 +202,26 @@ public class FmiClient {
      *  muuten päättely arvoista. */
     private WeatherCondition buildForecastCondition(Integer smartSymbol, Integer weatherSymbol3,
                                                      WeatherData.Hour h) {
+        WeatherCondition c;
         if (smartSymbol != null) {
-            return WeatherCondition.fromSmartSymbol(smartSymbol);
-        }
-        if (weatherSymbol3 != null) {
+            c = WeatherCondition.fromSmartSymbol(smartSymbol);
+        } else if (weatherSymbol3 != null) {
             boolean night = WeatherIconView.isNightHour(h.hour, h.month);
-            return WeatherCondition.fromWeatherSymbol3(weatherSymbol3, night);
+            c = WeatherCondition.fromWeatherSymbol3(weatherSymbol3, night);
+        } else {
+            boolean night = WeatherIconView.isNightHour(h.hour, h.month);
+            c = WeatherCondition.inferFromValues(h.temperature, h.precipitation, Double.NaN, night);
         }
-        boolean night = WeatherIconView.isNightHour(h.hour, h.month);
-        return WeatherCondition.inferFromValues(h.temperature, h.precipitation, Double.NaN, night);
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, String.format(Locale.US,
+                    "FC %02d.%02d %02d:00 ss=%s ws3=%s -> %s/%s%s%s",
+                    h.dayOfMonth, h.month, h.hour,
+                    smartSymbol, weatherSymbol3,
+                    c.type, c.intensity,
+                    c.isShower ? " shower" : "",
+                    c.isNight ? " night" : ""));
+        }
+        return c;
     }
 
     /** Nykyhetken ikoni:
@@ -222,6 +274,12 @@ public class FmiClient {
             data.current.temperature = data.hours.get(0).temperature;
         }
         data.current.condition = c;
+        Log.d(TAG, String.format(Locale.US,
+                "NOW ss=%s ws3=%s wawa=%s -> %s/%s%s%s",
+                c.rawSmartSymbol, c.rawWeatherSymbol3, c.rawWawa,
+                c.type, c.intensity,
+                c.isShower ? " shower" : "",
+                c.isNight ? " night" : ""));
     }
 
     private void readWfs(String url, Map<Long, Map<String, Double>> out) throws Exception {
