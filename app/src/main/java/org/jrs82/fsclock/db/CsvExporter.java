@@ -55,7 +55,10 @@ public final class CsvExporter {
 
     private CsvExporter() {}
 
-    /** channelFilter == null → kaikki kanavat. API-sopimus: ei koskaan heitä. */
+    /** channelFilter == null → kaikki kanavat.
+     *  API-sopimus: ei koskaan heitä Exception-aliluokkaa. Error-tason virheet
+     *  (OutOfMemoryError, StackOverflowError) jätetään tarkoituksella läpinäkyviksi,
+     *  jotta JVM-tason ongelmat eivät piilou CSV-viennin Result.failure-tulokseen. */
     public static Result export(Context context, String channelFilter, String fileName) {
         Uri uri = null;
         try {
@@ -92,11 +95,11 @@ public final class CsvExporter {
             context.getContentResolver().update(uri, values, null, null);
 
             return Result.success(rows.size(), fileName, uri);
-        } catch (Throwable t) {
+        } catch (Exception e) {
             if (uri != null) {
-                try { context.getContentResolver().delete(uri, null, null); } catch (Throwable ignored) {}
+                try { context.getContentResolver().delete(uri, null, null); } catch (Exception ignored) {}
             }
-            return Result.failure(fileName, String.valueOf(t.getMessage()));
+            return Result.failure(fileName, String.valueOf(e.getMessage()));
         }
     }
 
