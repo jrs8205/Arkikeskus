@@ -115,6 +115,62 @@
     <string name="toast_csv_failed">CSV-vienti epäonnistui</string>
     <string name="toast_db_cleared">Tietokanta tyhjennetty</string>
 
+    <!-- Sääilmiön suomenkieliset selitteet (WeatherTextFormatter) -->
+    <string name="wt_clear_day">Selkeää</string>
+    <string name="wt_clear_night">Selkeää yöllä</string>
+    <string name="wt_partly_cloudy_day">Puolipilvistä</string>
+    <string name="wt_partly_cloudy_night">Puolipilvistä yöllä</string>
+    <string name="wt_cloudy">Pilvistä</string>
+    <string name="wt_fog">Sumua</string>
+    <string name="wt_thunder_light">Yksittäistä ukkosta</string>
+    <string name="wt_thunder_moderate">Ukkosta</string>
+    <string name="wt_thunder_heavy">Voimakasta ukkosta</string>
+    <string name="wt_thunder_shower">Ukkoskuuroja</string>
+    <string name="wt_rain_light">Heikkoa sadetta</string>
+    <string name="wt_rain_moderate">Vesisadetta</string>
+    <string name="wt_rain_heavy">Voimakasta sadetta</string>
+    <string name="wt_rain_shower_light">Yksittäisiä sadekuuroja</string>
+    <string name="wt_rain_shower_moderate">Sadekuuroja</string>
+    <string name="wt_rain_shower_heavy">Voimakkaita sadekuuroja</string>
+    <string name="wt_snow_light">Heikkoa lumisadetta</string>
+    <string name="wt_snow_moderate">Lumisadetta</string>
+    <string name="wt_snow_heavy">Voimakasta lumisadetta</string>
+    <string name="wt_snow_shower_light">Yksittäisiä lumikuuroja</string>
+    <string name="wt_snow_shower_moderate">Lumikuuroja</string>
+    <string name="wt_snow_shower_heavy">Voimakkaita lumikuuroja</string>
+    <string name="wt_sleet_light">Heikkoa räntää</string>
+    <string name="wt_sleet_moderate">Räntää</string>
+    <string name="wt_sleet_heavy">Voimakasta räntää</string>
+    <string name="wt_sleet_shower_light">Yksittäisiä räntäkuuroja</string>
+    <string name="wt_sleet_shower_moderate">Räntäkuuroja</string>
+    <string name="wt_sleet_shower_heavy">Voimakkaita räntäkuuroja</string>
+    <string name="wt_unknown">Säätila ei tiedossa</string>
+
+    <!-- Sääseliste yhdistettynä "tuntuu kuin" -tekstiin: "Pilvistä · (Tuntuu kuin +4°)" -->
+    <string name="weather_label_with_feels">%1$s · %2$s</string>
+
+    <!-- Lyhyet sääseliteresurssit tuntisivun sarakkeisiin (12sp, maxLines=1, ellipsize=end) -->
+    <string name="wts_clear_day">Selkeää</string>
+    <string name="wts_clear_night">Selkeää</string>
+    <string name="wts_partly_cloudy">Puolipilv.</string>
+    <string name="wts_cloudy">Pilvistä</string>
+    <string name="wts_fog">Sumua</string>
+    <string name="wts_thunder">Ukkosta</string>
+    <string name="wts_thunder_shower">Ukkoskuuroja</string>
+    <string name="wts_rain_light">Heik. sad.</string>
+    <string name="wts_rain_moderate">Sadetta</string>
+    <string name="wts_rain_heavy">Voim. sad.</string>
+    <string name="wts_rain_shower">Sadekuuroja</string>
+    <string name="wts_snow_light">Heik. lunta</string>
+    <string name="wts_snow_moderate">Lunta</string>
+    <string name="wts_snow_heavy">Voim. lunta</string>
+    <string name="wts_snow_shower">Lumikuuroja</string>
+    <string name="wts_sleet_light">Heik. räntää</string>
+    <string name="wts_sleet_moderate">Räntää</string>
+    <string name="wts_sleet_heavy">Voim. räntää</string>
+    <string name="wts_sleet_shower">Räntäkuuroja</string>
+    <string name="wts_unknown">—</string>
+
     <!-- Säilytysajan vaihtoehdot -->
     <string-array name="retention_labels">
         <item>30 päivää</item>

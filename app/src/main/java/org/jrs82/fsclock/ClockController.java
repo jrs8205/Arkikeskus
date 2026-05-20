@@ -70,6 +70,7 @@ public class ClockController {
     private final WeatherIconView[][] dayIcon = new WeatherIconView[PAGE_COUNT][24];
     private final TextView[][] dayTemp = new TextView[PAGE_COUNT][24];
     private final TextView[][] dayRain = new TextView[PAGE_COUNT][24];
+    private final TextView[][] dayLabel = new TextView[PAGE_COUNT][24];
 
     private WeatherData data;
     private int retryStep = 0;
@@ -224,11 +225,13 @@ public class ClockController {
         wRow.addView(currentTemp);
         root.addView(wRow);
 
-        // Tuntuu kuin (suurempi)
+        // Tuntuu kuin (suurempi) — yhdistää sääseliteen, esim. "Pilvistä · (Tuntuu kuin +4°)"
         currentFeels = new TextView(ctx);
         currentFeels.setTextColor(0xFFB8B8B8);
-        currentFeels.setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f);
+        boolean compactHeight = UiMetrics.isCompactHeight(ctx.getResources());
+        currentFeels.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactHeight ? 26f : 32f);
         currentFeels.setGravity(Gravity.CENTER);
+        currentFeels.setMaxLines(1);
         currentFeels.setText("");
         LinearLayout.LayoutParams cflp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -302,14 +305,24 @@ public class ClockController {
             col.setLayoutParams(colLp);
             cols.addView(col);
 
+            boolean showShortLabel = UiMetrics.isTabletLike(ctx.getResources())
+                    && !UiMetrics.isCompactHeight(ctx.getResources());
+
             for (int r = 0; r < 6; r++) {
                 int hour = c * 6 + r;
                 LinearLayout cell = new LinearLayout(ctx);
-                cell.setOrientation(LinearLayout.HORIZONTAL);
-                cell.setGravity(Gravity.CENTER_VERTICAL);
+                cell.setOrientation(LinearLayout.VERTICAL);
                 cell.setLayoutParams(new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
                 col.addView(cell);
+
+                LinearLayout row1 = new LinearLayout(ctx);
+                row1.setOrientation(LinearLayout.HORIZONTAL);
+                row1.setGravity(Gravity.CENTER_VERTICAL);
+                row1.setLayoutParams(new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+                cell.addView(row1);
 
                 TextView hourTv = new TextView(ctx);
                 hourTv.setTextColor(0xFFB0B0B0);
@@ -317,14 +330,14 @@ public class ClockController {
                 hourTv.setText(String.format(FI, "%02d", hour));
                 hourTv.setLayoutParams(new LinearLayout.LayoutParams(dp(28),
                         ViewGroup.LayoutParams.WRAP_CONTENT));
-                cell.addView(hourTv);
+                row1.addView(hourTv);
 
                 WeatherIconView icon = new WeatherIconView(ctx);
                 LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(28), dp(28));
                 iconLp.setMarginStart(dp(2));
                 iconLp.setMarginEnd(dp(4));
                 icon.setLayoutParams(iconLp);
-                cell.addView(icon);
+                row1.addView(icon);
 
                 TextView temp = new TextView(ctx);
                 temp.setTextColor(Color.WHITE);
@@ -332,7 +345,7 @@ public class ClockController {
                 temp.setText("--");
                 temp.setLayoutParams(new LinearLayout.LayoutParams(dp(48),
                         ViewGroup.LayoutParams.WRAP_CONTENT));
-                cell.addView(temp);
+                row1.addView(temp);
 
                 TextView rain = new TextView(ctx);
                 rain.setTextColor(0xFF4FA8E0);
@@ -344,12 +357,28 @@ public class ClockController {
                         ViewGroup.LayoutParams.WRAP_CONTENT);
                 rnlp.setMarginStart(dp(4));
                 rain.setLayoutParams(rnlp);
-                cell.addView(rain);
+                row1.addView(rain);
+
+                TextView labelTv = new TextView(ctx);
+                labelTv.setTextColor(0xFF909090);
+                labelTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+                labelTv.setMaxLines(1);
+                labelTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                labelTv.setIncludeFontPadding(false);
+                labelTv.setText("");
+                LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                lblLp.setMarginStart(dp(30));   // tasaa kellon kanssa
+                labelTv.setLayoutParams(lblLp);
+                labelTv.setVisibility(showShortLabel ? View.VISIBLE : View.GONE);
+                cell.addView(labelTv);
 
                 dayHourTv[idx][hour] = hourTv;
                 dayIcon[idx][hour] = icon;
                 dayTemp[idx][hour] = temp;
                 dayRain[idx][hour] = rain;
+                dayLabel[idx][hour] = labelTv;
             }
         }
         return root;
@@ -628,9 +657,17 @@ public class ClockController {
             currentTemp.setText(String.format(FI, ctx.getString(R.string.temp_format),
                     WeatherData.cleanZero(c.temperature)));
         }
-        if (!Double.isNaN(c.feelsLike)) {
-            currentFeels.setText(String.format(FI, ctx.getString(R.string.feels_format),
-                    WeatherData.cleanZero(c.feelsLike)));
+        String weatherLabel = WeatherTextFormatter.label(ctx, c.condition);
+        String feelsText = Double.isNaN(c.feelsLike) ? null
+                : String.format(FI, ctx.getString(R.string.feels_format),
+                        WeatherData.cleanZero(c.feelsLike));
+        if (weatherLabel != null && feelsText != null) {
+            currentFeels.setText(String.format(FI,
+                    ctx.getString(R.string.weather_label_with_feels), weatherLabel, feelsText));
+        } else if (weatherLabel != null) {
+            currentFeels.setText(weatherLabel);
+        } else if (feelsText != null) {
+            currentFeels.setText(feelsText);
         } else {
             currentFeels.setText("");
         }
@@ -763,6 +800,7 @@ public class ClockController {
                     dayTemp[pageIdx][h].setText("");
                     dayRain[pageIdx][h].setText("");
                     dayIcon[pageIdx][h].setVisibility(View.INVISIBLE);
+                    if (dayLabel[pageIdx][h] != null) dayLabel[pageIdx][h].setText("");
                 }
                 continue;
             }
@@ -780,6 +818,7 @@ public class ClockController {
                     dayTemp[pageIdx][hour].setText("--");
                     dayRain[pageIdx][hour].setText("");
                     dayIcon[pageIdx][hour].setVisibility(View.INVISIBLE);
+                    if (dayLabel[pageIdx][hour] != null) dayLabel[pageIdx][hour].setText("");
                 } else {
                     dayTemp[pageIdx][hour].setText(Double.isNaN(h.temperature)
                             ? "--" : String.format(FI, ctx.getString(R.string.temp_short_format),
@@ -787,6 +826,10 @@ public class ClockController {
                     setPrecipText(dayRain[pageIdx][hour], h.precipitation, h.condition);
                     dayIcon[pageIdx][hour].setCondition(h.condition);
                     dayIcon[pageIdx][hour].setVisibility(View.VISIBLE);
+                    if (dayLabel[pageIdx][hour] != null) {
+                        dayLabel[pageIdx][hour].setText(
+                                WeatherTextFormatter.shortLabel(ctx, h.condition));
+                    }
                 }
             }
         }
