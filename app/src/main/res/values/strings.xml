@@ -74,4 +74,60 @@
     <!-- Statusriviin offline -->
     <string name="status_offline_test">Offline-testitila</string>
     <string name="status_warning_test">Varoitusrivi-testitila</string>
+
+    <!-- Pitkän painalluksen valikko -->
+    <string name="menu_long_press_title">Valitse</string>
+    <string name="menu_settings">Asetukset</string>
+    <string name="menu_system">Järjestelmä</string>
+
+    <!-- Järjestelmä-sivu -->
+    <string name="system_title">Järjestelmä</string>
+    <string name="system_battery_current">Akku: %1$d %%  ·  %2$.1f °C</string>
+    <string name="system_battery_current_unknown">Akku: —</string>
+    <string name="system_today_label">Tänään</string>
+    <string name="system_today_minmax">min %1$.1f °C klo %2$s  ·  max %3$.1f °C klo %4$s</string>
+    <string name="system_today_no_data">Ei vielä dataa kuluvalta päivältä</string>
+    <string name="system_chart_label">Akun lämpötila (24 h)</string>
+    <string name="system_chart_no_data">Ei dataa vielä — odota muutama minuutti</string>
+    <string name="system_export_csv">Vie battery-data CSV (Downloads)</string>
+    <string name="system_db_count">Tietokannassa %1$d mittausta</string>
+
+    <!-- Historia ja tietokanta -->
+    <string name="pref_cat_history">Historia ja tietokanta</string>
+    <string name="pref_db_size">Tietokannan koko</string>
+    <string name="pref_db_size_summary">%1$d mittausta  ·  %2$s</string>
+    <string name="pref_db_size_loading">—</string>
+    <string name="pref_retention_days">Säilytysaika</string>
+    <string name="pref_export_csv">Vie kaikki data CSV:ksi</string>
+    <string name="pref_clear_db">Tyhjennä tietokanta</string>
+    <string name="pref_clear_db_summary">VAROITUS: poistaa kaikki mittaukset</string>
+
+    <!-- Vahvistusdialogi -->
+    <string name="clear_db_title">Tyhjennä tietokanta?</string>
+    <string name="clear_db_message">Tämä poistaa kaikki mittaukset pysyvästi. Toiminto on peruuttamaton.</string>
+    <string name="clear_db_confirm_check">Olen varma</string>
+    <string name="clear_db_confirm">Tyhjennä</string>
+    <string name="clear_db_cancel">Peruuta</string>
+
+    <!-- CSV-toastit -->
+    <string name="toast_csv_exported">CSV viety: %1$s</string>
+    <string name="toast_csv_empty">Ei vietävää dataa</string>
+    <string name="toast_csv_failed">CSV-vienti epäonnistui</string>
+    <string name="toast_db_cleared">Tietokanta tyhjennetty</string>
+
+    <!-- Säilytysajan vaihtoehdot -->
+    <string-array name="retention_labels">
+        <item>30 päivää</item>
+        <item>3 kuukautta</item>
+        <item>1 vuosi</item>
+        <item>3 vuotta</item>
+        <item>10 vuotta</item>
+    </string-array>
+    <string-array name="retention_values">
+        <item>30</item>
+        <item>90</item>
+        <item>365</item>
+        <item>1095</item>
+        <item>3650</item>
+    </string-array>
 </resources>

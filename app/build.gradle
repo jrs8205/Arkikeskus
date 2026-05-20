@@ -15,8 +15,14 @@ android {
         applicationId 'org.jrs82.fsclock'
         minSdk 30
         targetSdk 35
-        versionCode 111
-        versionName '1.1.1'
+        versionCode 120
+        versionName '1.2.0'
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
+            }
+        }
     }
 
     compileOptions {
@@ -65,4 +71,8 @@ dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.preference:preference:1.2.1'
+
+    def room_version = "2.6.1"
+    implementation "androidx.room:room-runtime:$room_version"
+    annotationProcessor "androidx.room:room-compiler:$room_version"
 }
