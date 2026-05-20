@@ -10,7 +10,11 @@ public class WeatherData {
         public double feelsLike = Double.NaN;
         public double humidity = Double.NaN;
         public double windSpeed = Double.NaN;
+        public double windGust = Double.NaN;
         public double windDirection = Double.NaN;
+        public double cloudCover = Double.NaN; // 0-100 %
+        public double radiationGlobal = Double.NaN;
+        public double precip1h = Double.NaN; // viimeisin r_1h-havainto (mm/h)
         public double rain24h = Double.NaN;
         public boolean rain24hAllMissing = true;
         public WeatherCondition condition = WeatherCondition.unknown();
@@ -24,6 +28,8 @@ public class WeatherData {
         public int month;
         public double temperature = Double.NaN;
         public double precipitation = Double.NaN;
+        public double windGust = Double.NaN;
+        public double radiationGlobal = Double.NaN;
         public WeatherCondition condition = WeatherCondition.unknown();
     }
 

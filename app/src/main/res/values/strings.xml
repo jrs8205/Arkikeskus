@@ -42,6 +42,12 @@
     <string name="pref_home_place">Kotipaikkakunta</string>
     <string name="pref_weather_update_minutes">Sääpäivitysväli (min)</string>
 
+    <!-- Kotipaikkakunnan vaihdon vahvistusdialogi -->
+    <string name="home_place_change_title">Vaihda kotipaikkakunta?</string>
+    <string name="home_place_change_message">Uudelle kotipaikkakunnalle (%1$s) aloitetaan oma datakanava. Vanha data ja kanava säilyvät, mutta uuteen kerääntyy aluksi tyhjyyttä.</string>
+    <string name="home_place_change_ok">Vaihda</string>
+    <string name="home_place_change_cancel">Peruuta</string>
+
     <!-- Sovellus -->
     <string name="pref_version">Versio</string>
     <string name="pref_last_update">Viimeisin sääpäivitys</string>

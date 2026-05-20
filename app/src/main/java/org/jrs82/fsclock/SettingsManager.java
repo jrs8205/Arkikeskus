@@ -67,6 +67,31 @@ public final class SettingsManager {
         sp().edit().putString(KEY_HOME_PLACE, v == null ? DEFAULT_HOME_PLACE : v).apply();
     }
 
+    /** Kotipaikkakunnan DB-kanavanimi. "Vantaa" -> "fmi_vantaa". */
+    public String homeChannel() {
+        return channelForPlace(getHomePlace());
+    }
+
+    /** Normalisoi paikkakunnan nimen DB-kanavanimeksi.
+     *  Pienet kirjaimet, ä/Ä -> a, ö/Ö -> o, å/Å -> a, välilyönnit alaviivoiksi,
+     *  prefix "fmi_". Tyhjästä tai null:sta tulee "fmi_vantaa" (oletuspaikkakunta). */
+    public static String channelForPlace(String place) {
+        if (place == null) place = DEFAULT_HOME_PLACE;
+        String trimmed = place.trim();
+        if (trimmed.isEmpty()) trimmed = DEFAULT_HOME_PLACE;
+        StringBuilder sb = new StringBuilder("fmi_");
+        for (int i = 0; i < trimmed.length(); i++) {
+            char c = Character.toLowerCase(trimmed.charAt(i));
+            switch (c) {
+                case 'ä': case 'å': sb.append('a'); break;
+                case 'ö': sb.append('o'); break;
+                case ' ': case '\t': sb.append('_'); break;
+                default: sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
     // ---- Kirkkaus ----
     public int getDayBrightness() {
         return clampInt(sp().getInt(KEY_DAY_BRIGHTNESS, DEFAULT_DAY_BRIGHTNESS), 1, 100);

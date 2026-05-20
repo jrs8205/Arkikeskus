@@ -568,8 +568,7 @@ public class ClockController {
                 return;
             }
             try {
-                String place = SettingsManager.get().getHomePlace();
-                WeatherData wd = new FmiClient(place).fetch(cached);
+                WeatherData wd = FmiRepository.get(ctx).fetchHome(cached);
                 if (!active.get()) return;
                 ui.post(new ApplyWeather(wd));
             } catch (Exception e) {
