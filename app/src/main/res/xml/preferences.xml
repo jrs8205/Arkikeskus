@@ -63,6 +63,28 @@
             app:selectable="false" />
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="@string/pref_cat_history">
+        <Preference
+            app:key="db_size"
+            app:title="@string/pref_db_size"
+            app:summary="@string/pref_db_size_loading"
+            app:selectable="false" />
+        <ListPreference
+            app:key="retention_days"
+            app:title="@string/pref_retention_days"
+            app:entries="@array/retention_labels"
+            app:entryValues="@array/retention_values"
+            app:defaultValue="1095"
+            app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:key="export_csv"
+            app:title="@string/pref_export_csv" />
+        <Preference
+            app:key="clear_db"
+            app:title="@string/pref_clear_db"
+            app:summary="@string/pref_clear_db_summary" />
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="@string/pref_cat_test">
         <Preference
             app:key="test_day_mode"

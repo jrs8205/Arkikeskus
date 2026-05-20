@@ -4,15 +4,28 @@ import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import android.view.Gravity;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.preference.EditTextPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.SeekBarPreference;
 
+import org.jrs82.fsclock.db.CsvExporter;
+import org.jrs82.fsclock.db.HistoryRepository;
+
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Locale;
 
@@ -86,6 +99,127 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
         // Auto-time -varoitus: lisätään näkyväksi vain jos auto-aika on pois
         addAutoTimeWarningIfNeeded();
+
+        // Historia ja tietokanta
+        setupHistoryPreferences();
+    }
+
+    private void setupHistoryPreferences() {
+        refreshDbSize();
+
+        Preference exportCsv = findPreference("export_csv");
+        if (exportCsv != null) {
+            exportCsv.setOnPreferenceClickListener(p -> { exportAllToCsv(); return true; });
+        }
+
+        Preference clearDb = findPreference("clear_db");
+        if (clearDb != null) {
+            clearDb.setOnPreferenceClickListener(p -> { showClearDbDialog(); return true; });
+        }
+    }
+
+    private void refreshDbSize() {
+        final Preference dbSize = findPreference("db_size");
+        if (dbSize == null) return;
+        final Context ctx = requireContext().getApplicationContext();
+        final HistoryRepository repo = HistoryRepository.get(ctx);
+        final Handler main = new Handler(Looper.getMainLooper());
+        repo.io().execute(() -> {
+            long count = repo.sampleCount();
+            String sizeStr = formatDbFileSize(ctx);
+            main.post(() -> dbSize.setSummary(getString(R.string.pref_db_size_summary, count, sizeStr)));
+        });
+    }
+
+    private static String formatDbFileSize(Context ctx) {
+        try {
+            java.io.File dbFile = ctx.getDatabasePath("fsclock.db");
+            long bytes = dbFile.exists() ? dbFile.length() : 0L;
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return String.format(FI, "%.1f kB", bytes / 1024.0);
+            return String.format(FI, "%.2f MB", bytes / (1024.0 * 1024.0));
+        } catch (Exception e) {
+            return "?";
+        }
+    }
+
+    private void exportAllToCsv() {
+        final Context ctx = requireContext().getApplicationContext();
+        final HistoryRepository repo = HistoryRepository.get(ctx);
+        final Handler main = new Handler(Looper.getMainLooper());
+        final String fileName = "fsclock_all_" + nowStamp() + ".csv";
+        repo.io().execute(() -> {
+            CsvExporter.Result result = CsvExporter.export(ctx, null, fileName);
+            main.post(() -> {
+                if (!isAdded()) return;
+                if (result.ok) {
+                    Toast.makeText(ctx, getString(R.string.toast_csv_exported, result.fileName),
+                            Toast.LENGTH_LONG).show();
+                } else if (result.rowCount == 0 && result.error == null) {
+                    Toast.makeText(ctx, R.string.toast_csv_empty, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(ctx, R.string.toast_csv_failed, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+    }
+
+    private void showClearDbDialog() {
+        final Context ctx = requireContext();
+        int pad = (int) (16 * ctx.getResources().getDisplayMetrics().density);
+
+        LinearLayout container = new LinearLayout(ctx);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(pad * 2, pad, pad * 2, 0);
+
+        TextView msg = new TextView(ctx);
+        msg.setText(R.string.clear_db_message);
+        msg.setTextSize(15);
+        container.addView(msg);
+
+        final CheckBox confirm = new CheckBox(ctx);
+        confirm.setText(R.string.clear_db_confirm_check);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad;
+        lp.gravity = Gravity.START;
+        container.addView(confirm, lp);
+
+        AlertDialog dlg = new AlertDialog.Builder(ctx)
+                .setTitle(R.string.clear_db_title)
+                .setView(container)
+                .setPositiveButton(R.string.clear_db_confirm, (d, w) -> doClearDb())
+                .setNegativeButton(R.string.clear_db_cancel, null)
+                .create();
+
+        dlg.setOnShowListener(d -> {
+            android.widget.Button positive = dlg.getButton(AlertDialog.BUTTON_POSITIVE);
+            positive.setEnabled(false);
+            confirm.setOnCheckedChangeListener((b, checked) -> positive.setEnabled(checked));
+        });
+        dlg.show();
+    }
+
+    private void doClearDb() {
+        final Context ctx = requireContext().getApplicationContext();
+        final HistoryRepository repo = HistoryRepository.get(ctx);
+        final Handler main = new Handler(Looper.getMainLooper());
+        repo.io().execute(() -> {
+            try {
+                repo.clearAll();
+            } catch (Exception ignored) {}
+            main.post(() -> {
+                if (!isAdded()) return;
+                Toast.makeText(ctx, R.string.toast_db_cleared, Toast.LENGTH_SHORT).show();
+                refreshDbSize();
+            });
+        });
+    }
+
+    private static String nowStamp() {
+        return LocalDateTime.now(ZoneId.of("Europe/Helsinki"))
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
     }
 
     private void setupTestModeButton(String key, final int testType, final int labelResId) {

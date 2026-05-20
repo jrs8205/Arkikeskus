@@ -19,6 +19,7 @@ public final class SettingsManager {
     public static final String KEY_LAST_FMI_UPDATE = "last_successful_fmi_update";
     public static final String KEY_TEST_MODE_TYPE = "test_mode_type";
     public static final String KEY_TEST_MODE_UNTIL = "test_mode_until";
+    public static final String KEY_RETENTION_DAYS = "retention_days";
 
     public static final int TEST_NONE = 0;
     public static final int TEST_DAY = 1;
@@ -33,6 +34,7 @@ public final class SettingsManager {
     public static final int DEFAULT_EVENING_HOUR = 21;
     public static final int DEFAULT_WEATHER_UPDATE_MINUTES = 10;
     public static final long TEST_MODE_DURATION_MS = 30L * 60L * 1000L;
+    public static final int DEFAULT_RETENTION_DAYS = 1095;
 
     private static SettingsManager instance;
     private SharedPreferences prefs;
@@ -135,6 +137,18 @@ public final class SettingsManager {
                 .putInt(KEY_TEST_MODE_TYPE, TEST_NONE)
                 .putLong(KEY_TEST_MODE_UNTIL, 0L)
                 .apply();
+    }
+
+    // ---- Säilytysaika (päivinä) ----
+    public int getRetentionDays() {
+        // ListPreference tallentaa String-arvona
+        String raw = sp().getString(KEY_RETENTION_DAYS, String.valueOf(DEFAULT_RETENTION_DAYS));
+        try {
+            int v = Integer.parseInt(raw);
+            return v > 0 ? v : DEFAULT_RETENTION_DAYS;
+        } catch (NumberFormatException e) {
+            return DEFAULT_RETENTION_DAYS;
+        }
     }
 
     // ---- Listenerit ----
