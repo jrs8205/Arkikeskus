@@ -56,7 +56,7 @@ public class FmiClient {
         String obsUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                 + "&storedquery_id=fmi::observations::weather::simple"
                 + "&place=" + encodedPlace
-                + "&parameters=t2m,rh,ws_10min,wd_10min,r_1h,wawa"
+                + "&parameters=t2m,rh,ws_10min,wg_10min,wd_10min,r_1h,n_man,wawa"
                 + "&starttime=" + iso.format(obsStart)
                 + "&endtime=" + iso.format(now);
         parseObservations(obsUrl, data);
@@ -70,7 +70,7 @@ public class FmiClient {
             String fcUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                     + "&storedquery_id=fmi::forecast::edited::weather::scandinavia::point::simple"
                     + "&place=" + encodedPlace
-                    + "&parameters=Temperature,Precipitation1h,SmartSymbol,WeatherSymbol3"
+                    + "&parameters=Temperature,Precipitation1h,WindGust,RadiationGlobal,SmartSymbol,WeatherSymbol3"
                     + "&timestep=60"
                     + "&starttime=" + iso.format(now)
                     + "&endtime=" + iso.format(fcEnd);
@@ -124,7 +124,12 @@ public class FmiClient {
             v = latest.get("t2m"); if (v != null && !v.isNaN()) data.current.temperature = v;
             v = latest.get("rh"); if (v != null && !v.isNaN()) data.current.humidity = v;
             v = latest.get("ws_10min"); if (v != null && !v.isNaN()) data.current.windSpeed = v;
+            v = latest.get("wg_10min"); if (v != null && !v.isNaN()) data.current.windGust = v;
             v = latest.get("wd_10min"); if (v != null && !v.isNaN()) data.current.windDirection = v;
+            v = latest.get("n_man"); if (v != null && !v.isNaN()) {
+                // FMI:n n_man on oktanteissa 0-8, tallennetaan 0-100 %:na
+                data.current.cloudCover = (v / 8.0) * 100.0;
+            }
             v = latest.get("wawa"); if (v != null && !v.isNaN()) {
                 wawaCode = (int) (double) v;
             }
@@ -163,6 +168,8 @@ public class FmiClient {
             }
             data.current.rain24h = sum;
             data.current.rain24hAllMissing = false;
+            // Viimeisimmän tunnin r_1h erikseen DB-talletusta varten
+            data.current.precip1h = rainHourValue.get(hourKeys.get(hourKeys.size() - 1));
             Log.d(TAG, "Rain24h: " + (hourKeys.size() - from) + " tuntia, summa " + sum + " mm");
         }
     }
@@ -186,6 +193,8 @@ public class FmiClient {
             Double v;
             v = m.get("Temperature"); if (v != null && !v.isNaN()) h.temperature = v;
             v = m.get("Precipitation1h"); if (v != null && !v.isNaN()) h.precipitation = v;
+            v = m.get("WindGust"); if (v != null && !v.isNaN()) h.windGust = v;
+            v = m.get("RadiationGlobal"); if (v != null && !v.isNaN()) h.radiationGlobal = v;
 
             Integer smartSymbol = null;
             v = m.get("SmartSymbol"); if (v != null && !v.isNaN()) smartSymbol = (int) (double) v;

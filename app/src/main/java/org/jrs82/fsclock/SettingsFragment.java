@@ -33,6 +33,10 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
     private static final Locale FI = new Locale("fi", "FI");
 
+    /** True kun home_place asetetaan ohjelmallisesti dialogin kautta — estää
+     *  OnPreferenceChangeListeneriä avaamasta dialogia toista kertaa. */
+    private boolean settingHomePlaceProgrammatically = false;
+
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.preferences, rootKey);
@@ -87,8 +91,11 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
         // EditTextPreference: paikkakunnan summary näyttää oletuksena tekstin
         EditTextPreference place = findPreference(SettingsManager.KEY_HOME_PLACE);
-        if (place != null && (place.getText() == null || place.getText().isEmpty())) {
-            place.setText(SettingsManager.DEFAULT_HOME_PLACE);
+        if (place != null) {
+            if (place.getText() == null || place.getText().isEmpty()) {
+                place.setText(SettingsManager.DEFAULT_HOME_PLACE);
+            }
+            setupHomePlaceConfirm(place);
         }
 
         // Testitila-napit
@@ -102,6 +109,41 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
         // Historia ja tietokanta
         setupHistoryPreferences();
+    }
+
+    /** Pyyntö kotipaikkakunnan vaihtoon vaatii vahvistuksen, koska uusi
+     *  DB-kanava aloittaa tyhjältä. Listener palauttaa false ja näyttää dialogin;
+     *  OK asettaa arvon käsin guard-flagin takana, ettei dialogi aukea uudestaan. */
+    private void setupHomePlaceConfirm(final EditTextPreference pref) {
+        pref.setOnPreferenceChangeListener((p, newValue) -> {
+            if (settingHomePlaceProgrammatically) return true;
+            String newStr = newValue == null ? "" : newValue.toString().trim();
+            String oldStr = pref.getText() == null ? "" : pref.getText().trim();
+            if (newStr.isEmpty() || newStr.equalsIgnoreCase(oldStr)) {
+                return false;
+            }
+            showHomePlaceChangeDialog(pref, newStr);
+            return false;
+        });
+    }
+
+    private void showHomePlaceChangeDialog(final EditTextPreference pref, final String newPlace) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.home_place_change_title)
+                .setMessage(getString(R.string.home_place_change_message, newPlace))
+                .setPositiveButton(R.string.home_place_change_ok, (d, w) -> {
+                    settingHomePlaceProgrammatically = true;
+                    try {
+                        // setText kirjoittaa SharedPreferencesiin avaimella "home_place"
+                        // ja triggeröi FsClockApp:n kanavavaihdon. Ei tarvita erillistä
+                        // SettingsManager.setHomePlace-kutsua.
+                        pref.setText(newPlace);
+                    } finally {
+                        settingHomePlaceProgrammatically = false;
+                    }
+                })
+                .setNegativeButton(R.string.home_place_change_cancel, null)
+                .show();
     }
 
     private void setupHistoryPreferences() {
