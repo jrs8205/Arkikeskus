@@ -39,6 +39,13 @@
             android:theme="@style/SettingsTheme"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".history.HistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title"
+            android:theme="@style/SettingsTheme"
+            android:parentActivityName=".system.SystemActivity" />
+
         <receiver
             android:name=".BootReceiver"
             android:exported="true"

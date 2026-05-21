@@ -9,6 +9,8 @@ import android.view.View;
 import android.view.WindowManager;
 
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import org.jrs82.fsclock.system.SystemActivity;
 
@@ -23,7 +25,6 @@ public class MainActivity extends Activity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.dream);
         View root = findViewById(R.id.shift_container);
         controller = new ClockController(this, getWindow(), root);
@@ -31,6 +32,7 @@ public class MainActivity extends Activity {
             @Override public void run() { showLongPressMenu(); }
         });
         controller.start();
+        applyImmersive();
     }
 
     @Override
@@ -39,6 +41,25 @@ public class MainActivity extends Activity {
         // SettingsActivitysta paluun jalkeen pakota kirkkaus uudelleen, jotta
         // mahdolliset muutokset astuvat voimaan heti
         if (controller != null) controller.reapplyBrightness();
+        applyImmersive();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        // Navigaatio- ja statuspalkit voivat tulla takaisin järjestelmäeleiden,
+        // dialogien tai muiden Activityjen jälkeen — palauta immersive aina kun
+        // tämä Activity saa fokuksen.
+        if (hasFocus) applyImmersive();
+    }
+
+    private void applyImmersive() {
+        View decor = getWindow().getDecorView();
+        WindowInsetsControllerCompat ctl = WindowCompat.getInsetsController(getWindow(), decor);
+        if (ctl == null) return;
+        ctl.setSystemBarsBehavior(
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        ctl.hide(WindowInsetsCompat.Type.systemBars());
     }
 
     @Override

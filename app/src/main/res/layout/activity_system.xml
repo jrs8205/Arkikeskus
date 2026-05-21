@@ -81,11 +81,32 @@
             android:textSize="14sp" />
 
         <Button
-            android:id="@+id/export_csv"
+            android:id="@+id/export_all"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="@string/system_export_csv" />
+            android:text="@string/system_export_all" />
+
+        <Button
+            android:id="@+id/export_weather"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/system_export_weather" />
+
+        <Button
+            android:id="@+id/export_battery"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/system_export_battery" />
+
+        <Button
+            android:id="@+id/open_history"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/system_open_history" />
 
     </LinearLayout>
 </ScrollView>

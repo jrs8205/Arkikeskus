@@ -3,7 +3,7 @@
     <string name="app_name">FsClock</string>
     <string name="dream_description">Kello, päivämäärä ja sää, ympärivuorokautinen infotaulu burn-in -suojalla</string>
     <string name="loading_weather">Ladataan säätietoja…</string>
-    <string name="weather_label">Sää:</string>
+    <string name="weather_label">Sää päivitetty:</string>
     <string name="weather_stale">vanhentunut</string>
     <string name="wind_format">Tuuli %1$.0f m/s %2$s</string>
     <string name="humidity_format">Kosteus %1$.0f%%</string>
@@ -96,7 +96,30 @@
     <string name="system_chart_label">Akun lämpötila (24 h)</string>
     <string name="system_chart_no_data">Ei dataa vielä — odota muutama minuutti</string>
     <string name="system_export_csv">Vie battery-data CSV (Downloads)</string>
+    <string name="system_export_all">Vie raaka CSV (kaikki kanavat)</string>
+    <string name="system_export_weather">Vie sää-CSV (luettava)</string>
+    <string name="system_export_battery">Vie akku-CSV (luettava)</string>
+    <string name="system_open_history">Avaa historia</string>
     <string name="system_db_count">Tietokannassa %1$d mittausta</string>
+
+    <!-- Historia-sivu -->
+    <string name="history_title">Historia</string>
+    <string name="history_channel_label">Kanava:</string>
+    <string name="history_prev_month">‹</string>
+    <string name="history_next_month">›</string>
+    <string name="history_no_data">Ei dataa tälle kuukaudelle</string>
+    <string name="history_no_channels">Ei kanavia tietokannassa</string>
+    <string name="history_partial_marker">*</string>
+    <string name="history_chart_label">Lämpötila kuukauden aikana</string>
+    <!-- Sää-kanavan riveille -->
+    <string name="history_weather_row">%1$s  ·  min %2$.1f  avg %3$.1f  max %4$.1f °C</string>
+    <string name="history_weather_extras">Sade %1$.1f mm  ·  puuska max %2$.1f m/s  ·  N=%3$d%4$s</string>
+    <string name="history_weather_extras_no_precip">puuska max %1$.1f m/s  ·  N=%2$d%3$s</string>
+    <string name="history_weather_extras_no_wind">Sade %1$.1f mm  ·  N=%2$d%3$s</string>
+    <string name="history_weather_extras_basic">N=%1$d%2$s</string>
+    <!-- Akku-kanavan riveille -->
+    <string name="history_battery_row">%1$s  ·  min %2$.1f  avg %3$.1f  max %4$.1f °C</string>
+    <string name="history_battery_extras">N=%1$d%2$s</string>
 
     <!-- Historia ja tietokanta -->
     <string name="pref_cat_history">Historia ja tietokanta</string>

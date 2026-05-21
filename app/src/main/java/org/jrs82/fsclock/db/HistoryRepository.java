@@ -7,7 +7,9 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -71,8 +73,12 @@ public class HistoryRepository {
         long minTempAt = 0;
         long maxTempAt = 0;
         double sumTemp = 0.0;
-        Double totalPrecip = null;
         Double maxWindGust = null;
+
+        // r_1h on edellisen tunnin sade ja FMI palauttaa sen 10 min välein
+        // samana arvona. Otetaan yksi arvo per tunti (myöhempi sample voittaa),
+        // ettei sade tuplaannu noin 6×.
+        Map<Long, Double> hourlyPrecip = new HashMap<>();
 
         for (WeatherSample s : samples) {
             if (s.temperature < minTemp) {
@@ -86,11 +92,18 @@ public class HistoryRepository {
             sumTemp += s.temperature;
 
             if (s.precipitation1h != null) {
-                totalPrecip = (totalPrecip == null) ? s.precipitation1h : totalPrecip + s.precipitation1h;
+                hourlyPrecip.put(s.timestamp / 3_600_000L, s.precipitation1h);
             }
             if (s.windGust != null) {
                 maxWindGust = (maxWindGust == null) ? s.windGust : Math.max(maxWindGust, s.windGust);
             }
+        }
+
+        Double totalPrecip = null;
+        if (!hourlyPrecip.isEmpty()) {
+            double sum = 0.0;
+            for (Double v : hourlyPrecip.values()) sum += v;
+            totalPrecip = sum;
         }
 
         DailyStat stat = new DailyStat();
