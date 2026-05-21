@@ -39,8 +39,6 @@ public class ClockController {
     private static final int PAGE_COUNT = 11;
 
     private final Context ctx;
-    private final Window window;          // saa olla null
-    private final View root;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private ExecutorService io;
 
@@ -52,7 +50,6 @@ public class ClockController {
 
     // Yhteiset
     private TextView statusText, batteryText;
-    private FrameLayout pagesContainer;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
     private final PageController pageController;
@@ -101,18 +98,16 @@ public class ClockController {
 
     public ClockController(Context ctx, Window window, View root) {
         this.ctx = ctx;
-        this.window = window;
-        this.root = root;
         SettingsManager.get().init(ctx.getApplicationContext());
 
         statusText = root.findViewById(R.id.status_text);
         TextView pageIndicator = root.findViewById(R.id.page_indicator);
         batteryText = root.findViewById(R.id.battery_text);
-        pagesContainer = root.findViewById(R.id.pages_container);
+        FrameLayout pagesContainer = root.findViewById(R.id.pages_container);
         pixelShift = new PixelShiftController(root.findViewById(R.id.shift_container));
         brightness = new BrightnessController(window, SettingsManager.get());
 
-        buildPages();
+        buildPages(pagesContainer);
 
         pageController = new PageController(ctx, pagesContainer, pageIndicator, pages);
         pageController.start();
@@ -148,7 +143,7 @@ public class ClockController {
     // Layout
     // ============================================================
 
-    private void buildPages() {
+    private void buildPages(FrameLayout pagesContainer) {
         pagesContainer.removeAllViews();
         pages[0] = buildMainPage();
         pagesContainer.addView(pages[0]);
