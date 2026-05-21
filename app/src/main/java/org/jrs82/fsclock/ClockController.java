@@ -476,7 +476,7 @@ public class ClockController {
                 return;
             }
             try {
-                WeatherData wd = FmiRepository.get(ctx).fetchHome(cached);
+                WeatherData wd = WeatherRepository.get(ctx).fetchHome(cached);
                 if (!active.get()) return;
                 ui.post(new ApplyWeather(wd));
             } catch (Exception e) {
