@@ -60,6 +60,14 @@ public class WeatherSample {
     @Nullable
     public Integer weatherSymbol;
 
+    /** FMI:n wawa-koodi (WMO 0–99) suoraan havaintorivistä. Deterministinen,
+     *  ei riipu ennusteen hakuhetkestä. Käytetään historiakäyrien totuusarvona;
+     *  weatherSymbol jää legacy-kentäksi vanhoille riveille ja ennustepohjaiselle
+     *  UI-debugille. NULL jos havainnoissa ei ollut wawa-arvoa. */
+    @ColumnInfo(name = "observedWawa")
+    @Nullable
+    public Integer observedWawa;
+
     @ColumnInfo(name = "batteryLevel")
     @Nullable
     public Integer batteryLevel;

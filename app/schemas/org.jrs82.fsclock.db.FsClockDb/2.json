@@ -1,0 +1,210 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "35ecac0c809735ad56c4b5dfd521d4e1",
+    "entities": [
+      {
+        "tableName": "weather_samples",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `channel` TEXT, `timestamp` INTEGER NOT NULL, `temperature` REAL NOT NULL, `humidity` REAL, `pressure` REAL, `windSpeed` REAL, `windGust` REAL, `windDirection` REAL, `precipitation1h` REAL, `cloudCover` REAL, `radiationGlobal` REAL, `weatherSymbol` INTEGER, `observedWawa` INTEGER, `batteryLevel` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "channel",
+            "columnName": "channel",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "temperature",
+            "columnName": "temperature",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "humidity",
+            "columnName": "humidity",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pressure",
+            "columnName": "pressure",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "windSpeed",
+            "columnName": "windSpeed",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "windGust",
+            "columnName": "windGust",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "windDirection",
+            "columnName": "windDirection",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "precipitation1h",
+            "columnName": "precipitation1h",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cloudCover",
+            "columnName": "cloudCover",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "radiationGlobal",
+            "columnName": "radiationGlobal",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "weatherSymbol",
+            "columnName": "weatherSymbol",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "observedWawa",
+            "columnName": "observedWawa",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "batteryLevel",
+            "columnName": "batteryLevel",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_weather_samples_channel_timestamp",
+            "unique": true,
+            "columnNames": [
+              "channel",
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_weather_samples_channel_timestamp` ON `${TABLE_NAME}` (`channel`, `timestamp`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "daily_stats",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`channel` TEXT NOT NULL, `date` TEXT NOT NULL, `minTemp` REAL NOT NULL, `minTempAt` INTEGER NOT NULL, `maxTemp` REAL NOT NULL, `maxTempAt` INTEGER NOT NULL, `avgTemp` REAL NOT NULL, `totalPrecip` REAL, `maxWindGust` REAL, `sampleCount` INTEGER NOT NULL, `isPartial` INTEGER NOT NULL, PRIMARY KEY(`channel`, `date`))",
+        "fields": [
+          {
+            "fieldPath": "channel",
+            "columnName": "channel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minTemp",
+            "columnName": "minTemp",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minTempAt",
+            "columnName": "minTempAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxTemp",
+            "columnName": "maxTemp",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxTempAt",
+            "columnName": "maxTempAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avgTemp",
+            "columnName": "avgTemp",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalPrecip",
+            "columnName": "totalPrecip",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "maxWindGust",
+            "columnName": "maxWindGust",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sampleCount",
+            "columnName": "sampleCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPartial",
+            "columnName": "isPartial",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "channel",
+            "date"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '35ecac0c809735ad56c4b5dfd521d4e1')"
+    ]
+  }
+}

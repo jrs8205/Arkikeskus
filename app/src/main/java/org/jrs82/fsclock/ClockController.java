@@ -713,7 +713,7 @@ public class ClockController {
         }
         if (data == null) {
             statusText.setText(ctx.getString(R.string.loading_weather));
-            statusText.setTextColor(0xFF606060);
+            statusText.setTextColor(0xFFE0E0E0);
             return;
         }
         long ageMin = (System.currentTimeMillis() - data.fetchedAt) / 60_000L;
@@ -724,7 +724,7 @@ public class ClockController {
             statusText.setTextColor(0xFFFFAA00);
         } else {
             statusText.setText(s);
-            statusText.setTextColor(0xFF606060);
+            statusText.setTextColor(0xFFE0E0E0);
         }
     }
 

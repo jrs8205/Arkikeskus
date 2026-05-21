@@ -44,7 +44,10 @@ public class SystemActivity extends AppCompatActivity {
     private TextView dbCount;
     private TextView chartEmpty;
     private BatteryChartView chart;
-    private Button exportButton;
+    private Button exportAllButton;
+    private Button exportWeatherButton;
+    private Button exportBatteryButton;
+    private Button openHistoryButton;
 
     private final BroadcastReceiver liveBattery = new BroadcastReceiver() {
         @Override public void onReceive(Context ctx, Intent intent) {
@@ -76,9 +79,16 @@ public class SystemActivity extends AppCompatActivity {
         dbCount = findViewById(R.id.db_count);
         chartEmpty = findViewById(R.id.chart_empty);
         chart = findViewById(R.id.battery_chart);
-        exportButton = findViewById(R.id.export_csv);
+        exportAllButton = findViewById(R.id.export_all);
+        exportWeatherButton = findViewById(R.id.export_weather);
+        exportBatteryButton = findViewById(R.id.export_battery);
+        openHistoryButton = findViewById(R.id.open_history);
 
-        exportButton.setOnClickListener(v -> exportCsv());
+        exportAllButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.RAW_ALL));
+        exportWeatherButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.WEATHER_HUMAN));
+        exportBatteryButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.BATTERY_HUMAN));
+        openHistoryButton.setOnClickListener(v -> startActivity(
+                new Intent(this, org.jrs82.fsclock.history.HistoryActivity.class)));
     }
 
     @Override
@@ -136,12 +146,12 @@ public class SystemActivity extends AppCompatActivity {
         dbCount.setText(String.format(FI, getString(R.string.system_db_count), totalCount));
     }
 
-    private void exportCsv() {
-        exportButton.setEnabled(false);
-        String fileName = "fsclock_battery_" + nowStamp() + ".csv";
+    private void exportCsv(CsvExporter.Kind kind) {
+        setExportButtonsEnabled(false);
+        final String fileName = CsvExporter.buildFileName(kind);
         repo.io().execute(() -> {
             final CsvExporter.Result result =
-                    CsvExporter.export(getApplicationContext(), "battery", fileName);
+                    CsvExporter.export(getApplicationContext(), kind, fileName);
             main.post(() -> {
                 try {
                     if (result.ok) {
@@ -153,13 +163,15 @@ public class SystemActivity extends AppCompatActivity {
                         Toast.makeText(this, R.string.toast_csv_failed, Toast.LENGTH_LONG).show();
                     }
                 } finally {
-                    exportButton.setEnabled(true);
+                    setExportButtonsEnabled(true);
                 }
             });
         });
     }
 
-    private static String nowStamp() {
-        return LocalDateTime.now(ZONE).format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+    private void setExportButtonsEnabled(boolean enabled) {
+        exportAllButton.setEnabled(enabled);
+        exportWeatherButton.setEnabled(enabled);
+        exportBatteryButton.setEnabled(enabled);
     }
 }

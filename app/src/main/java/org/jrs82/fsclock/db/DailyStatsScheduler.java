@@ -70,6 +70,15 @@ public class DailyStatsScheduler {
     public void start() {
         if (running) return;
         running = true;
+        // Lasketaan today + yesterday heti, ettei history näytä tyhjältä
+        // uudelleenkäynnistyksen jälkeen ennen seuraavaa tasatuntia.
+        repo.io().execute(() -> {
+            LocalDate today = LocalDate.now(ZONE);
+            try { repo.recomputeDailyStats(channel, today); }
+            catch (Exception e) { Log.w(TAG, "initial recompute (today) failed", e); }
+            try { repo.recomputeDailyStats(channel, today.minusDays(1)); }
+            catch (Exception e) { Log.w(TAG, "initial recompute (yesterday) failed", e); }
+        });
         handler.postDelayed(hourlyTick, msUntilNextHour());
         handler.postDelayed(finalizeTick, msUntilNextFinalize());
     }

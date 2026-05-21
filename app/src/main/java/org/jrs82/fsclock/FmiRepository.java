@@ -89,8 +89,15 @@ public final class FmiRepository {
         s.precipitation1h = nullIfNan(data.current.precip1h);
         s.cloudCover = nullIfNan(data.current.cloudCover);
         s.radiationGlobal = nullIfNan(data.current.radiationGlobal);
-        s.weatherSymbol = (data.current.condition != null)
-                ? data.current.condition.rawSmartSymbol : null;
+        // weatherSymbol jätetään uusille riveille NULL:ksi: legacy-kenttä tuli
+        // ennusteen rawSmartSymbol-arvosta ja heilahti laitteittain. observedWawa
+        // on uusi totuusarvo (havainnon wawa-koodi).
+        s.weatherSymbol = null;
+        // observedWawa: deterministinen havainnon wawa-koodi, ei riipu ennusteesta.
+        // FmiClient.parseObservations asettaa data.current.condition.rawWawan ennen
+        // applyCurrentCondition-yhdistämistä, joten arvo on suoraan havainnoista.
+        s.observedWawa = (data.current.condition != null)
+                ? data.current.condition.rawWawa : null;
         s.batteryLevel = null;
         // pressure ei tällä hetkellä haeta FMI:ltä
 

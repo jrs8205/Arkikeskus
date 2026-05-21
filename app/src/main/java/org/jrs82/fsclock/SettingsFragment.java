@@ -23,9 +23,6 @@ import org.jrs82.fsclock.db.CsvExporter;
 import org.jrs82.fsclock.db.HistoryRepository;
 
 import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Locale;
 
@@ -189,9 +186,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         final Context ctx = requireContext().getApplicationContext();
         final HistoryRepository repo = HistoryRepository.get(ctx);
         final Handler main = new Handler(Looper.getMainLooper());
-        final String fileName = "fsclock_all_" + nowStamp() + ".csv";
+        final String fileName = CsvExporter.buildFileName(CsvExporter.Kind.RAW_ALL);
         repo.io().execute(() -> {
-            CsvExporter.Result result = CsvExporter.export(ctx, null, fileName);
+            CsvExporter.Result result = CsvExporter.export(ctx, CsvExporter.Kind.RAW_ALL, fileName);
             main.post(() -> {
                 if (!isAdded()) return;
                 if (result.ok) {
@@ -257,11 +254,6 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 refreshDbSize();
             });
         });
-    }
-
-    private static String nowStamp() {
-        return LocalDateTime.now(ZoneId.of("Europe/Helsinki"))
-                .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
     }
 
     private void setupTestModeButton(String key, final int testType, final int labelResId) {
