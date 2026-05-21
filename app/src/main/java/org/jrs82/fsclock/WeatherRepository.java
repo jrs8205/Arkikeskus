@@ -1,5 +1,6 @@
 package org.jrs82.fsclock;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 
 /** Säädatan UI-tason kosketuspinta. Tässä vaiheessa ohut wrapper, joka delegoi
@@ -9,6 +10,9 @@ import android.content.Context;
  *  sisään muuttamatta ClockControllerin kutsupaikkoja. */
 public class WeatherRepository {
 
+    // INSTANCE pitää referenssin sovelluskontekstiin (ks. get()), ei Activityyn,
+    // joten lintin StaticFieldLeak on tässä false positive.
+    @SuppressLint("StaticFieldLeak")
     private static WeatherRepository INSTANCE;
 
     private final Context appCtx;
