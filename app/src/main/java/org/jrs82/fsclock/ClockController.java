@@ -26,7 +26,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,7 +38,6 @@ public class ClockController {
     private static final Locale FI = new Locale("fi", "FI");
 
     private static final long TICK_MS = 1000L;
-    private static final long SHIFT_MS = 60_000L;
     private static final long[] WEATHER_RETRY_MS = {30_000L, 60_000L, 5L * 60_000L};
     private static final int PAGE_COUNT = 11;
 
@@ -58,7 +56,7 @@ public class ClockController {
     // Yhteiset
     private TextView statusText, pageIndicator, batteryText;
     private FrameLayout pagesContainer;
-    private LinearLayout shiftContainer;
+    private final PixelShiftController pixelShift;
 
     // Sivut
     private final View[] pages = new View[PAGE_COUNT];
@@ -77,7 +75,6 @@ public class ClockController {
     private int currentPage = 0;
     private int lastRefreshDay = -1;
     private float lastBrightness = -1f;
-    private final Random rnd = new Random();
     private final AtomicBoolean active = new AtomicBoolean(false);
     private GestureDetector gesture;
     private Runnable longPressCallback;
@@ -116,7 +113,7 @@ public class ClockController {
         pageIndicator = root.findViewById(R.id.page_indicator);
         batteryText = root.findViewById(R.id.battery_text);
         pagesContainer = root.findViewById(R.id.pages_container);
-        shiftContainer = root.findViewById(R.id.shift_container);
+        pixelShift = new PixelShiftController(root.findViewById(R.id.shift_container));
 
         buildPages();
 
@@ -142,13 +139,14 @@ public class ClockController {
         renderStaticContent();
         applyTimeBasedBrightness();
         ui.post(tickClock);
-        ui.post(pixelShift);
+        pixelShift.start();
         ui.post(fetchWeather);
     }
 
     public void stop() {
         active.set(false);
         try { SettingsManager.get().unregisterListener(prefsListener); } catch (Exception ignored) { }
+        pixelShift.stop();
         ui.removeCallbacksAndMessages(null);
         if (io != null) { io.shutdownNow(); io = null; }
     }
@@ -486,17 +484,6 @@ public class ClockController {
         Calendar c = Calendar.getInstance(FI);
         c.setTime(d);
         return weekdays[c.get(Calendar.DAY_OF_WEEK) - 1];
-    }
-
-    private final Runnable pixelShift = new PixelShiftRunnable();
-    private class PixelShiftRunnable implements Runnable {
-        @Override public void run() {
-            int dx = rnd.nextInt(81) - 40;
-            int dy = rnd.nextInt(41) - 20;
-            shiftContainer.setTranslationX(dx);
-            shiftContainer.setTranslationY(dy);
-            ui.postDelayed(this, SHIFT_MS);
-        }
     }
 
     private void checkDailyRefresh() {
