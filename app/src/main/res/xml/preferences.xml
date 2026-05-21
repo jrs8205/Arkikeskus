@@ -9,14 +9,16 @@
             android:max="100"
             app:min="1"
             app:defaultValue="60"
-            app:showSeekBarValue="true" />
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
         <SeekBarPreference
             app:key="night_brightness"
             app:title="@string/pref_night_brightness"
             android:max="100"
             app:min="1"
             app:defaultValue="8"
-            app:showSeekBarValue="true" />
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
         <Preference
             app:key="day_morning_hour"
             app:title="@string/pref_day_morning"
