@@ -16,7 +16,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -57,6 +56,7 @@ public class ClockController {
     private TextView statusText, pageIndicator, batteryText;
     private FrameLayout pagesContainer;
     private final PixelShiftController pixelShift;
+    private final BrightnessController brightness;
 
     // Sivut
     private final View[] pages = new View[PAGE_COUNT];
@@ -74,7 +74,6 @@ public class ClockController {
     private int retryStep = 0;
     private int currentPage = 0;
     private int lastRefreshDay = -1;
-    private float lastBrightness = -1f;
     private final AtomicBoolean active = new AtomicBoolean(false);
     private GestureDetector gesture;
     private Runnable longPressCallback;
@@ -88,9 +87,11 @@ public class ClockController {
                 case SettingsManager.KEY_NIGHT_BRIGHTNESS:
                 case SettingsManager.KEY_DAY_MORNING_HOUR:
                 case SettingsManager.KEY_NIGHT_EVENING_HOUR:
+                    brightness.applyNow();
+                    break;
                 case SettingsManager.KEY_TEST_MODE_TYPE:
                 case SettingsManager.KEY_TEST_MODE_UNTIL:
-                    reapplyBrightness();
+                    brightness.applyNow();
                     updateStatus();
                     break;
                 case SettingsManager.KEY_HOME_PLACE:
@@ -114,6 +115,7 @@ public class ClockController {
         batteryText = root.findViewById(R.id.battery_text);
         pagesContainer = root.findViewById(R.id.pages_container);
         pixelShift = new PixelShiftController(root.findViewById(R.id.shift_container));
+        brightness = new BrightnessController(window, SettingsManager.get());
 
         buildPages();
 
@@ -137,9 +139,9 @@ public class ClockController {
         io = Executors.newSingleThreadExecutor();
         SettingsManager.get().registerListener(prefsListener);
         renderStaticContent();
-        applyTimeBasedBrightness();
         ui.post(tickClock);
         pixelShift.start();
+        brightness.start();
         ui.post(fetchWeather);
     }
 
@@ -147,6 +149,7 @@ public class ClockController {
         active.set(false);
         try { SettingsManager.get().unregisterListener(prefsListener); } catch (Exception ignored) { }
         pixelShift.stop();
+        brightness.stop();
         ui.removeCallbacksAndMessages(null);
         if (io != null) { io.shutdownNow(); io = null; }
     }
@@ -433,7 +436,6 @@ public class ClockController {
         @Override public void run() {
             updateClock();
             updateBattery();
-            applyTimeBasedBrightness();
             checkDailyRefresh();
             ui.postDelayed(this, TICK_MS - (System.currentTimeMillis() % TICK_MS));
         }
@@ -495,43 +497,10 @@ public class ClockController {
         }
     }
 
-    // ============================================================
-    // Kirkkaus
-    // ============================================================
-
-    /** Käytetäänkö yötilaa? Hyödynnetään asetusten morningHour ja eveningHour. */
-    private boolean isNightBrightness(int hourOfDay) {
-        SettingsManager sm = SettingsManager.get();
-        int morning = sm.getMorningHour();
-        int evening = sm.getEveningHour();
-        return hourOfDay >= evening || hourOfDay < morning;
-    }
-
-    private void applyTimeBasedBrightness() {
-        if (window == null) return;
-        SettingsManager sm = SettingsManager.get();
-        int testMode = sm.getActiveTestMode();
-        int pct;
-        if (testMode == SettingsManager.TEST_DAY) {
-            pct = sm.getDayBrightness();
-        } else if (testMode == SettingsManager.TEST_NIGHT) {
-            pct = sm.getNightBrightness();
-        } else {
-            int hour = Calendar.getInstance(FI).get(Calendar.HOUR_OF_DAY);
-            pct = isNightBrightness(hour) ? sm.getNightBrightness() : sm.getDayBrightness();
-        }
-        float val = Math.max(0.01f, Math.min(1f, pct / 100f));
-        if (Math.abs(val - lastBrightness) < 0.005f) return;
-        lastBrightness = val;
-        WindowManager.LayoutParams lp = window.getAttributes();
-        lp.screenBrightness = val;
-        window.setAttributes(lp);
-    }
-
-    /** Palauta nykyhetken vuorokaudenajan mukainen kirkkaus tallennuksen jälkeen. */
+    /** MainActivity.onResume kutsuu tätä, jotta Asetukset-paluun jälkeinen
+     *  kirkkausarvo astuu varmasti voimaan (vaikka sama pct kuin ennen). */
     public void reapplyBrightness() {
-        lastBrightness = -1f;
-        applyTimeBasedBrightness();
+        brightness.reapply();
     }
 
     // ============================================================
