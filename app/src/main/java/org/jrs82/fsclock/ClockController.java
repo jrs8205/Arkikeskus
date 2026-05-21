@@ -10,9 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.GestureDetector;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -53,14 +51,14 @@ public class ClockController {
     private TextView nextHolidayTv;
 
     // Yhteiset
-    private TextView statusText, pageIndicator, batteryText;
+    private TextView statusText, batteryText;
     private FrameLayout pagesContainer;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
+    private final PageController pageController;
 
-    // Sivut
+    // Sivut — pages jaetaan PageControllerille referenssinä
     private final View[] pages = new View[PAGE_COUNT];
-    private int availablePages = 1;
 
     // Päivä-sivu: 4 saraketta * 6 riviä = 24h
     private final TextView[] dayHeader = new TextView[PAGE_COUNT];
@@ -72,11 +70,8 @@ public class ClockController {
 
     private WeatherData data;
     private int retryStep = 0;
-    private int currentPage = 0;
     private int lastRefreshDay = -1;
     private final AtomicBoolean active = new AtomicBoolean(false);
-    private GestureDetector gesture;
-    private Runnable longPressCallback;
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
@@ -111,7 +106,7 @@ public class ClockController {
         SettingsManager.get().init(ctx.getApplicationContext());
 
         statusText = root.findViewById(R.id.status_text);
-        pageIndicator = root.findViewById(R.id.page_indicator);
+        TextView pageIndicator = root.findViewById(R.id.page_indicator);
         batteryText = root.findViewById(R.id.battery_text);
         pagesContainer = root.findViewById(R.id.pages_container);
         pixelShift = new PixelShiftController(root.findViewById(R.id.shift_container));
@@ -119,18 +114,13 @@ public class ClockController {
 
         buildPages();
 
-        gesture = new GestureDetector(ctx, new SwipeListener());
-        pagesContainer.setOnTouchListener(new View.OnTouchListener() {
-            @Override public boolean onTouch(View v, MotionEvent e) {
-                return gesture.onTouchEvent(e);
-            }
-        });
-        showPage(0);
+        pageController = new PageController(ctx, pagesContainer, pageIndicator, pages);
+        pageController.start();
     }
 
     /** Kutsutaan kun pitkä painallus aloittaa asetussivun (Activity-tilassa). */
     public void setLongPressCallback(Runnable r) {
-        this.longPressCallback = r;
+        pageController.setLongPressCallback(r);
     }
 
     public void start() {
@@ -383,44 +373,6 @@ public class ClockController {
             }
         }
         return root;
-    }
-
-    private void showPage(int idx) {
-        if (idx < 0) idx = 0;
-        if (idx >= availablePages) idx = availablePages - 1;
-        currentPage = idx;
-        for (int i = 0; i < PAGE_COUNT; i++) {
-            if (pages[i] != null) pages[i].setVisibility(i == idx ? View.VISIBLE : View.GONE);
-        }
-        updatePageIndicator();
-    }
-
-    private void updatePageIndicator() {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < availablePages; i++) {
-            sb.append(i == currentPage ? "\u25CF" : "\u25CB");
-            if (i < availablePages - 1) sb.append(' ');
-        }
-        pageIndicator.setText(sb.toString());
-    }
-
-    private class SwipeListener extends GestureDetector.SimpleOnGestureListener {
-        @Override public boolean onDown(MotionEvent e) { return true; }
-        @Override public boolean onFling(MotionEvent e1, MotionEvent e2,
-                                          float velocityX, float velocityY) {
-            if (e1 == null || e2 == null) return false;
-            float dx = e2.getX() - e1.getX();
-            float dy = e2.getY() - e1.getY();
-            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > dp(60)) {
-                if (dx < 0) showPage(currentPage + 1);
-                else showPage(currentPage - 1);
-                return true;
-            }
-            return false;
-        }
-        @Override public void onLongPress(MotionEvent e) {
-            if (longPressCallback != null) longPressCallback.run();
-        }
     }
 
     private int dp(float v) {
@@ -743,9 +695,7 @@ public class ClockController {
         }
         Integer[] days = byDay.keySet().toArray(new Integer[0]);
         int dayPagesAvailable = Math.min(days.length, PAGE_COUNT - 1);
-        availablePages = 1 + dayPagesAvailable;
-        if (currentPage >= availablePages) currentPage = availablePages - 1;
-        updatePageIndicator();
+        pageController.setAvailablePages(1 + dayPagesAvailable);
 
         for (int pageIdx = 1; pageIdx < PAGE_COUNT; pageIdx++) {
             int dayIdx = pageIdx - 1;
