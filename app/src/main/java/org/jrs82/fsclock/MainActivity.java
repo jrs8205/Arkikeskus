@@ -31,6 +31,9 @@ public class MainActivity extends Activity {
         controller.setLongPressCallback(new Runnable() {
             @Override public void run() { showLongPressMenu(); }
         });
+        controller.setSettingsClickCallback(new Runnable() {
+            @Override public void run() { openSettings(); }
+        });
         controller.start();
         applyImmersive();
     }
