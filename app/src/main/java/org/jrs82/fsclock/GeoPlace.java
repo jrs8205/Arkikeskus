@@ -1,7 +1,10 @@
 package org.jrs82.fsclock;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -19,7 +22,7 @@ public final class GeoPlace {
         add("Tampere", 61.4978, 23.7610);
         add("Turku", 60.4518, 22.2666);
         add("Oulu", 65.0121, 25.4651);
-        add("Jyvaskyla", 62.2426, 25.7473);
+        add("Jyväskylä", 62.2426, 25.7473);
         add("Lahti", 60.9827, 25.6612);
         add("Kuopio", 62.8924, 27.6770);
         add("Joensuu", 62.6010, 29.7636);
@@ -31,10 +34,30 @@ public final class GeoPlace {
         add("Kemi", 65.7364, 24.5637);
         add("Tornio", 65.8481, 24.1466);
         add("Mikkeli", 61.6886, 27.2723);
-        add("Seinajoki", 62.7903, 22.8403);
-        add("Hameenlinna", 60.9959, 24.4643);
+        add("Seinäjoki", 62.7903, 22.8403);
+        add("Hämeenlinna", 60.9959, 24.4643);
         add("Kotka", 60.4664, 26.9458);
         add("Kouvola", 60.8681, 26.7042);
+        add("Hyvinkää", 60.6336, 24.8690);
+        add("Järvenpää", 60.4737, 25.0899);
+        add("Kirkkonummi", 60.1238, 24.4385);
+        add("Lohja", 60.2518, 24.0653);
+        add("Porvoo", 60.3923, 25.6651);
+        add("Rauma", 61.1280, 21.5113);
+        add("Salo", 60.3831, 23.1331);
+        add("Savonlinna", 61.8688, 28.8864);
+        add("Imatra", 61.1719, 28.7524);
+        add("Varkaus", 62.3153, 27.8730);
+        add("Iisalmi", 63.5592, 27.1907);
+        add("Kokkola", 63.8385, 23.1307);
+        add("Pietarsaari", 63.6749, 22.7026);
+        add("Raahe", 64.6833, 24.4833);
+        add("Ylivieska", 64.0736, 24.5378);
+        add("Kuusamo", 65.9646, 29.1887);
+        add("Sodankylä", 67.4155, 26.5897);
+        add("Inari", 68.9055, 27.0283);
+        add("Utsjoki", 69.9086, 27.0284);
+        add("Maarianhamina", 60.0973, 19.9348);
     }
 
     public final String name;
@@ -47,11 +70,24 @@ public final class GeoPlace {
         this.longitude = longitude;
     }
 
-    public static GeoPlace forPlace(String rawPlace) {
+    public static synchronized GeoPlace forPlace(String rawPlace) {
         String key = normalize(rawPlace);
         GeoPlace p = PLACES.get(key);
         if (p != null) return p;
         return PLACES.get(normalize(SettingsManager.DEFAULT_HOME_PLACE));
+    }
+
+    public static synchronized String[] placeNames() {
+        List<String> names = new ArrayList<>();
+        for (GeoPlace p : PLACES.values()) {
+            names.add(p.name);
+        }
+        Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
+        return names.toArray(new String[0]);
+    }
+
+    public static synchronized void register(String name, double lat, double lon) {
+        add(name, lat, lon);
     }
 
     private static void add(String name, double lat, double lon) {

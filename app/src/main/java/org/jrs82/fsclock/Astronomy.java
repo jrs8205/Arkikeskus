@@ -82,12 +82,19 @@ public final class Astronomy {
         } else if (sm.sun.sunsetMinutes == SunTimes.NEVER_SETS) {
             sun = "Aurinko ei laske";
         } else {
-            sun = "Aurinko " + formatMinutes(sm.sun.sunriseMinutes)
-                    + "-" + formatMinutes(sm.sun.sunsetMinutes)
-                    + " (" + formatDuration(sm.sun.dayLengthMinutes()) + ")";
+            sun = "Aurinko nousee " + formatMinutes(sm.sun.sunriseMinutes)
+                    + "   Aurinko laskee " + formatMinutes(sm.sun.sunsetMinutes)
+                    + "   Päivän kesto " + formatDuration(sm.sun.dayLengthMinutes());
         }
         int illum = (int) Math.round(sm.moon.illumination * 100.0);
-        return sun + "   Kuu: " + sm.moon.label + " " + illum + " %";
+        return sun + "\nKuun valaistu osa " + illum + " %, " + moonTrend(sm.moon.phase);
+    }
+
+    private static String moonTrend(double phase) {
+        if (phase < 0.03 || phase >= 0.97) return "uusi kuu";
+        if (phase < 0.50) return "valaistus lisääntyy";
+        if (phase < 0.53) return "täysikuu";
+        return "valaistus vähenee";
     }
 
     private static String moonLabel(double phase) {

@@ -18,7 +18,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.FrameLayout;
-import android.widget.EditText;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -233,21 +234,49 @@ public class ClockController {
 
     private void showBrowsePlaceDialog() {
         if (settingsClickCallback == null) return;
-        final EditText input = new EditText(ctx);
+        final AutoCompleteTextView input = new AutoCompleteTextView(ctx);
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
         input.setHint(R.string.browse_place_hint);
+        input.setThreshold(1);
+        final ArrayAdapter<String> adapter = new ArrayAdapter<>(ctx,
+                android.R.layout.simple_dropdown_item_1line, GeoPlace.placeNames());
+        input.setAdapter(adapter);
+        input.setOnClickListener(v -> input.showDropDown());
         input.setText(currentPlaceLabel());
         input.selectAll();
 
-        new AlertDialog.Builder(ctx)
+        final AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(R.string.browse_place_title)
                 .setView(input)
-                .setPositiveButton(R.string.browse_place_ok, (dialog, which) -> {
+                .setPositiveButton(R.string.browse_place_ok, (d, which) -> {
                     startTemporaryBrowse(input.getText() == null ? null : input.getText().toString());
                 })
                 .setNegativeButton(R.string.browse_place_cancel, null)
-                .show();
+                .create();
+        dialog.setOnShowListener(d -> loadFmiPlaceSuggestions(adapter, input, dialog));
+        dialog.show();
+    }
+
+    private void loadFmiPlaceSuggestions(final ArrayAdapter<String> adapter,
+                                         final AutoCompleteTextView input,
+                                         final AlertDialog dialog) {
+        if (io == null) return;
+        io.execute(() -> {
+            try {
+                final String[] names = FmiPlaceSearch.fetchCityNames();
+                if (!active.get()) return;
+                ui.post(() -> {
+                    if (!dialog.isShowing()) return;
+                    adapter.clear();
+                    adapter.addAll(names);
+                    adapter.notifyDataSetChanged();
+                    if (input.hasFocus()) input.showDropDown();
+                });
+            } catch (Exception e) {
+                Log.w(TAG, "FMI place suggestions failed", e);
+            }
+        });
     }
 
     private View buildDayPage(int idx) {

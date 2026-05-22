@@ -170,7 +170,7 @@
         android:layout_marginTop="@dimen/home_page_gap_small"
         android:ellipsize="end"
         android:gravity="center"
-        android:maxLines="1"
+        android:maxLines="2"
         android:text=""
         android:textColor="#B8D8F0"
         android:textSize="@dimen/home_sun_moon_text_size"
