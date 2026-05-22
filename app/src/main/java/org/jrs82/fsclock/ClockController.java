@@ -5,9 +5,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.app.AlertDialog;
 import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -16,6 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.FrameLayout;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -37,6 +40,7 @@ public class ClockController {
     private static final Locale FI = new Locale("fi", "FI");
 
     private static final long TICK_MS = 1000L;
+    private static final long TEMP_BROWSE_MS = 30L * 60L * 1000L;
     private static final long[] WEATHER_RETRY_MS = {30_000L, 60_000L, 5L * 60_000L};
     private static final int PAGE_COUNT = 11;
 
@@ -53,6 +57,8 @@ public class ClockController {
 
     // Yhteiset
     private TextView statusText, batteryText;
+    private TextView browsePlaceLabel;
+    private View placeControls, browsePlaceButton, homePlaceButton;
     private View settingsButton;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
@@ -70,6 +76,9 @@ public class ClockController {
     private final TextView[][] dayLabel = new TextView[PAGE_COUNT][24];
 
     private WeatherData data;
+    private WeatherData homeData;
+    private String browsePlace;
+    private long browseUntilMs;
     private int retryStep = 0;
     private int lastRefreshDay = -1;
     private Runnable settingsClickCallback;
@@ -92,8 +101,13 @@ public class ClockController {
                     updateStatus();
                     break;
                 case SettingsManager.KEY_HOME_PLACE:
+                    homeData = null;
                     renderStaticContent();
-                    // fall through
+                    updatePlaceControls();
+                    retryStep = 0;
+                    ui.removeCallbacks(fetchWeather);
+                    ui.post(fetchWeather);
+                    break;
                 case SettingsManager.KEY_WEATHER_UPDATE_MINUTES:
                     retryStep = 0;
                     ui.removeCallbacks(fetchWeather);
@@ -128,6 +142,7 @@ public class ClockController {
     public void setSettingsClickCallback(Runnable r) {
         settingsClickCallback = r;
         updateSettingsButtonVisibility();
+        updatePlaceControls();
     }
 
     public void start() {
@@ -136,6 +151,7 @@ public class ClockController {
         io = Executors.newSingleThreadExecutor();
         SettingsManager.get().registerListener(prefsListener);
         renderStaticContent();
+        updatePlaceControls();
         ui.post(tickClock);
         pixelShift.start();
         brightness.start();
@@ -147,6 +163,7 @@ public class ClockController {
         try { SettingsManager.get().unregisterListener(prefsListener); } catch (Exception ignored) { }
         pixelShift.stop();
         brightness.stop();
+        ui.removeCallbacks(returnHomeRunnable);
         ui.removeCallbacksAndMessages(null);
         if (io != null) { io.shutdownNow(); io = null; }
     }
@@ -176,6 +193,16 @@ public class ClockController {
         currentDetails = root.findViewById(R.id.current_details);
         sunMoonText = root.findViewById(R.id.sun_moon_text);
         nextHolidayTv = root.findViewById(R.id.next_holiday);
+        placeControls = root.findViewById(R.id.place_controls);
+        browsePlaceLabel = root.findViewById(R.id.browse_place_label);
+        browsePlaceButton = root.findViewById(R.id.browse_place_button);
+        homePlaceButton = root.findViewById(R.id.home_place_button);
+        browsePlaceButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showBrowsePlaceDialog(); }
+        });
+        homePlaceButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { returnToHomeWeather(); }
+        });
         settingsButton = root.findViewById(R.id.settings_button);
         settingsButton.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -183,6 +210,7 @@ public class ClockController {
             }
         });
         updateSettingsButtonVisibility();
+        updatePlaceControls();
 
         if (UiMetrics.isCompactHeight(ctx.getResources())) {
             currentFeels.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f);
@@ -193,6 +221,33 @@ public class ClockController {
     private void updateSettingsButtonVisibility() {
         if (settingsButton == null) return;
         settingsButton.setVisibility(settingsClickCallback == null ? View.GONE : View.VISIBLE);
+    }
+
+    private void updatePlaceControls() {
+        if (placeControls == null || browsePlaceLabel == null || homePlaceButton == null) return;
+        boolean interactive = settingsClickCallback != null;
+        placeControls.setVisibility(interactive ? View.VISIBLE : View.GONE);
+        browsePlaceLabel.setText(currentPlaceLabel());
+        homePlaceButton.setVisibility(isBrowsingPlace() ? View.VISIBLE : View.GONE);
+    }
+
+    private void showBrowsePlaceDialog() {
+        if (settingsClickCallback == null) return;
+        final EditText input = new EditText(ctx);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+        input.setHint(R.string.browse_place_hint);
+        input.setText(currentPlaceLabel());
+        input.selectAll();
+
+        new AlertDialog.Builder(ctx)
+                .setTitle(R.string.browse_place_title)
+                .setView(input)
+                .setPositiveButton(R.string.browse_place_ok, (dialog, which) -> {
+                    startTemporaryBrowse(input.getText() == null ? null : input.getText().toString());
+                })
+                .setNegativeButton(R.string.browse_place_cancel, null)
+                .show();
     }
 
     private View buildDayPage(int idx) {
@@ -390,13 +445,58 @@ public class ClockController {
         brightness.reapply();
     }
 
+    private void startTemporaryBrowse(String rawPlace) {
+        if (rawPlace == null) return;
+        String place = rawPlace.trim();
+        if (place.isEmpty()) return;
+        browsePlace = place;
+        browseUntilMs = System.currentTimeMillis() + TEMP_BROWSE_MS;
+        ui.removeCallbacks(returnHomeRunnable);
+        ui.postDelayed(returnHomeRunnable, TEMP_BROWSE_MS);
+        updatePlaceControls();
+        renderSunMoon();
+        updateStatus();
+        if (io != null) io.execute(new BrowseFetchWorker(place, null));
+    }
+
+    private void returnToHomeWeather() {
+        browsePlace = null;
+        browseUntilMs = 0L;
+        ui.removeCallbacks(returnHomeRunnable);
+        data = homeData;
+        updatePlaceControls();
+        renderSunMoon();
+        if (data != null) {
+            renderCurrent();
+            renderForecastAll();
+        } else {
+            updateStatus();
+            ui.removeCallbacks(fetchWeather);
+            ui.post(fetchWeather);
+        }
+    }
+
+    private boolean isBrowsingPlace() {
+        return browsePlace != null && System.currentTimeMillis() < browseUntilMs;
+    }
+
+    private String currentPlaceLabel() {
+        return isBrowsingPlace() ? browsePlace : SettingsManager.get().getHomePlace();
+    }
+
+    private final Runnable returnHomeRunnable = new Runnable() {
+        @Override public void run() {
+            if (browsePlace != null) returnToHomeWeather();
+        }
+    };
+
     // ============================================================
     // Sää-haku
     // ============================================================
 
     private final Runnable fetchWeather = new FetchWeatherRunnable();
     private class FetchWeatherRunnable implements Runnable {
-        @Override public void run() { if (io != null) io.execute(new FetchWorker(data)); }
+        @Override public void run() { if (io != null) io.execute(new FetchWorker(homeData)); }
     }
     private class FetchWorker implements Runnable {
         final WeatherData cached;
@@ -421,19 +521,73 @@ public class ClockController {
             }
         }
     }
+    private class BrowseFetchWorker implements Runnable {
+        final String place;
+        final WeatherData cached;
+        BrowseFetchWorker(String place, WeatherData cached) {
+            this.place = place;
+            this.cached = cached;
+        }
+        @Override public void run() {
+            if (!active.get()) return;
+            if (SettingsManager.get().getActiveTestMode() == SettingsManager.TEST_OFFLINE) {
+                ui.post(new BrowseWeatherFailed(place));
+                return;
+            }
+            try {
+                WeatherData wd = WeatherRepository.get(ctx).fetchBrowse(place, cached);
+                if (!active.get()) return;
+                ui.post(new ApplyBrowseWeather(place, wd));
+            } catch (Exception e) {
+                if (!active.get()) return;
+                Log.w(TAG, "FMI browse fetch failed: " + place, e);
+                ui.post(new BrowseWeatherFailed(place));
+            }
+        }
+    }
     private class ApplyWeather implements Runnable {
         final WeatherData wd;
         ApplyWeather(WeatherData wd) { this.wd = wd; }
         @Override public void run() {
             if (!active.get()) return;
-            data = wd;
+            homeData = wd;
             retryStep = 0;
             SettingsManager.get().setLastSuccessfulFmiUpdate(wd.fetchedAt);
-            renderCurrent();
-            renderForecastAll();
+            if (!isBrowsingPlace()) {
+                data = wd;
+                renderCurrent();
+                renderForecastAll();
+            } else {
+                updateStatus();
+            }
             ui.removeCallbacks(fetchWeather);
             long okMs = SettingsManager.get().getWeatherUpdateMinutes() * 60_000L;
             ui.postDelayed(fetchWeather, okMs);
+        }
+    }
+    private class ApplyBrowseWeather implements Runnable {
+        final String place;
+        final WeatherData wd;
+        ApplyBrowseWeather(String place, WeatherData wd) {
+            this.place = place;
+            this.wd = wd;
+        }
+        @Override public void run() {
+            if (!active.get() || !isBrowsingPlace() || !place.equals(browsePlace)) return;
+            data = wd;
+            renderSunMoon();
+            renderCurrent();
+            renderForecastAll();
+            updatePlaceControls();
+        }
+    }
+    private class BrowseWeatherFailed implements Runnable {
+        final String place;
+        BrowseWeatherFailed(String place) { this.place = place; }
+        @Override public void run() {
+            if (!active.get() || !isBrowsingPlace() || !place.equals(browsePlace)) return;
+            statusText.setText(ctx.getString(R.string.browse_fetch_failed));
+            statusText.setTextColor(0xFFFFAA00);
         }
     }
     private class RetryWeather implements Runnable {
@@ -483,7 +637,7 @@ public class ClockController {
     private void renderSunMoon() {
         if (sunMoonText == null) return;
         try {
-            GeoPlace place = GeoPlace.forPlace(SettingsManager.get().getHomePlace());
+            GeoPlace place = GeoPlace.forPlace(currentPlaceLabel());
             Astronomy.SunMoon sunMoon = Astronomy.calculate(
                     new Date(), place.latitude, place.longitude, TimeZone.getDefault());
             sunMoonText.setText(Astronomy.format(sunMoon));
@@ -568,7 +722,7 @@ public class ClockController {
             return;
         }
         if (data == null) {
-            statusText.setText(ctx.getString(R.string.loading_weather));
+            statusText.setText(statusForCurrentPlace(ctx.getString(R.string.loading_weather)));
             statusText.setTextColor(0xFFE0E0E0);
             return;
         }
@@ -576,12 +730,18 @@ public class ClockController {
         SimpleDateFormat hm = new SimpleDateFormat("HH:mm", FI);
         String s = ctx.getString(R.string.weather_label) + " " + hm.format(new Date(data.fetchedAt));
         if (ageMin > 30) {
-            statusText.setText("! " + s + " (" + ctx.getString(R.string.weather_stale) + ")");
+            statusText.setText("! " + statusForCurrentPlace(
+                    s + " (" + ctx.getString(R.string.weather_stale) + ")"));
             statusText.setTextColor(0xFFFFAA00);
         } else {
-            statusText.setText(s);
+            statusText.setText(statusForCurrentPlace(s));
             statusText.setTextColor(0xFFE0E0E0);
         }
+    }
+
+    private String statusForCurrentPlace(String status) {
+        if (!isBrowsingPlace()) return status;
+        return String.format(FI, ctx.getString(R.string.browse_status_prefix), browsePlace, status);
     }
 
     /** Sade/lumi-symbolit ennusteruutuihin: sininen ● sateelle, valkoinen ❅ lumelle.

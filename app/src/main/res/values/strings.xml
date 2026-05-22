@@ -88,6 +88,14 @@
     <string name="menu_settings">Asetukset</string>
     <string name="menu_system">Järjestelmä</string>
     <string name="action_open_settings">Avaa asetukset</string>
+    <string name="action_browse_place">Selaa sääpaikkaa</string>
+    <string name="action_return_home_place">Palaa kotipaikkaan</string>
+    <string name="browse_place_title">Selaa sääpaikkaa</string>
+    <string name="browse_place_hint">Paikkakunta</string>
+    <string name="browse_place_ok">Hae</string>
+    <string name="browse_place_cancel">Peruuta</string>
+    <string name="browse_fetch_failed">Sääpaikan haku epäonnistui</string>
+    <string name="browse_status_prefix">Selaus: %1$s · %2$s</string>
 
     <!-- Järjestelmä-sivu -->
     <string name="system_title">Järjestelmä</string>
