@@ -3,6 +3,8 @@
     <string name="app_name">FsClock</string>
     <string name="dream_description">Kello, päivämäärä ja sää, ympärivuorokautinen infotaulu burn-in -suojalla</string>
     <string name="loading_weather">Ladataan säätietoja…</string>
+    <string name="clock_time_placeholder">--:--:--</string>
+    <string name="value_missing_short">--</string>
     <string name="weather_label">Sää päivitetty:</string>
     <string name="weather_stale">vanhentunut</string>
     <string name="wind_format">Tuuli %1$.0f m/s %2$s</string>
@@ -85,6 +87,7 @@
     <string name="menu_long_press_title">Valitse</string>
     <string name="menu_settings">Asetukset</string>
     <string name="menu_system">Järjestelmä</string>
+    <string name="action_open_settings">Avaa asetukset</string>
 
     <!-- Järjestelmä-sivu -->
     <string name="system_title">Järjestelmä</string>

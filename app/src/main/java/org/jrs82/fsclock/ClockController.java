@@ -51,6 +51,7 @@ public class ClockController {
 
     // Yhteiset
     private TextView statusText, batteryText;
+    private View settingsButton;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
     private final PageController pageController;
@@ -69,6 +70,7 @@ public class ClockController {
     private WeatherData data;
     private int retryStep = 0;
     private int lastRefreshDay = -1;
+    private Runnable settingsClickCallback;
     private final AtomicBoolean active = new AtomicBoolean(false);
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener =
@@ -119,6 +121,11 @@ public class ClockController {
         pageController.setLongPressCallback(r);
     }
 
+    public void setSettingsClickCallback(Runnable r) {
+        settingsClickCallback = r;
+        updateSettingsButtonVisibility();
+    }
+
     public void start() {
         active.set(true);
         lastRefreshDay = Calendar.getInstance(FI).get(Calendar.DAY_OF_YEAR);
@@ -164,11 +171,23 @@ public class ClockController {
         currentFeels = root.findViewById(R.id.current_feels);
         currentDetails = root.findViewById(R.id.current_details);
         nextHolidayTv = root.findViewById(R.id.next_holiday);
+        settingsButton = root.findViewById(R.id.settings_button);
+        settingsButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (settingsClickCallback != null) settingsClickCallback.run();
+            }
+        });
+        updateSettingsButtonVisibility();
 
         if (UiMetrics.isCompactHeight(ctx.getResources())) {
             currentFeels.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f);
         }
         return root;
+    }
+
+    private void updateSettingsButtonVisibility() {
+        if (settingsButton == null) return;
+        settingsButton.setVisibility(settingsClickCallback == null ? View.GONE : View.VISIBLE);
     }
 
     private View buildDayPage(int idx) {
