@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -145,7 +146,7 @@ public class ClockController {
 
     private void buildPages(FrameLayout pagesContainer) {
         pagesContainer.removeAllViews();
-        pages[0] = buildMainPage();
+        pages[0] = buildMainPageXml(pagesContainer);
         pagesContainer.addView(pages[0]);
         for (int i = 1; i < PAGE_COUNT; i++) {
             pages[i] = buildDayPage(i);
@@ -153,105 +154,20 @@ public class ClockController {
         }
     }
 
-    private View buildMainPage() {
-        LinearLayout root = new LinearLayout(ctx);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setLayoutParams(new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
+    private View buildMainPageXml(ViewGroup parent) {
+        View root = LayoutInflater.from(ctx).inflate(R.layout.page_home, parent, false);
 
-        // Kello
-        clockTime = new TextView(ctx);
-        clockTime.setTextColor(Color.WHITE);
-        clockTime.setTextSize(TypedValue.COMPLEX_UNIT_SP, 150f);
-        clockTime.setGravity(Gravity.CENTER);
-        clockTime.setIncludeFontPadding(false);
-        clockTime.setText("--:--:--");
-        clockTime.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(clockTime);
+        clockTime = root.findViewById(R.id.clock_time);
+        clockDate = root.findViewById(R.id.clock_date);
+        currentIcon = root.findViewById(R.id.current_icon);
+        currentTemp = root.findViewById(R.id.current_temp);
+        currentFeels = root.findViewById(R.id.current_feels);
+        currentDetails = root.findViewById(R.id.current_details);
+        nextHolidayTv = root.findViewById(R.id.next_holiday);
 
-        // Päivämäärä
-        clockDate = new TextView(ctx);
-        clockDate.setTextColor(0xFFC0C0C0);
-        clockDate.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f);
-        clockDate.setGravity(Gravity.CENTER);
-        clockDate.setText("--");
-        LinearLayout.LayoutParams dlp0 = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        dlp0.bottomMargin = dp(10);
-        clockDate.setLayoutParams(dlp0);
-        root.addView(clockDate);
-
-        // Sää-rivi
-        LinearLayout wRow = new LinearLayout(ctx);
-        wRow.setOrientation(LinearLayout.HORIZONTAL);
-        wRow.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
-        wRow.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        currentIcon = new WeatherIconView(ctx);
-        currentIcon.setLayoutParams(new LinearLayout.LayoutParams(dp(110), dp(110)));
-        wRow.addView(currentIcon);
-
-        currentTemp = new TextView(ctx);
-        currentTemp.setTextColor(Color.WHITE);
-        currentTemp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 90f);
-        currentTemp.setIncludeFontPadding(false);
-        currentTemp.setText(ctx.getString(R.string.temp_missing));
-        LinearLayout.LayoutParams ctlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        ctlp.setMarginStart(dp(20));
-        currentTemp.setLayoutParams(ctlp);
-        wRow.addView(currentTemp);
-        root.addView(wRow);
-
-        // Tuntuu kuin (suurempi) — yhdistää sääseliteen, esim. "Pilvistä · (Tuntuu kuin +4°)"
-        currentFeels = new TextView(ctx);
-        currentFeels.setTextColor(0xFFB8B8B8);
-        boolean compactHeight = UiMetrics.isCompactHeight(ctx.getResources());
-        currentFeels.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactHeight ? 26f : 32f);
-        currentFeels.setGravity(Gravity.CENTER);
-        currentFeels.setMaxLines(1);
-        currentFeels.setText("");
-        LinearLayout.LayoutParams cflp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        cflp.topMargin = dp(6);
-        currentFeels.setLayoutParams(cflp);
-        root.addView(currentFeels);
-
-        // Tuuli + kosteus + sade 24h
-        currentDetails = new TextView(ctx);
-        currentDetails.setTextColor(0xFFC8C8C8);
-        currentDetails.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f);
-        currentDetails.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams cdlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        cdlp.topMargin = dp(10);
-        currentDetails.setLayoutParams(cdlp);
-        currentDetails.setText("");
-        root.addView(currentDetails);
-
-        // Seuraava juhlapyhä yhdellä rivillä keskelle
-        nextHolidayTv = new TextView(ctx);
-        nextHolidayTv.setTextColor(0xFFE8E8E8);
-        nextHolidayTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f);
-        nextHolidayTv.setGravity(Gravity.CENTER);
-        nextHolidayTv.setText("");
-        LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        nlp.topMargin = dp(28);
-        nextHolidayTv.setLayoutParams(nlp);
-        root.addView(nextHolidayTv);
-
+        if (UiMetrics.isCompactHeight(ctx.getResources())) {
+            currentFeels.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f);
+        }
         return root;
     }
 

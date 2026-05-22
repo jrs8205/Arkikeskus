@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/home_page_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/clock_time"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:autoSizeMaxTextSize="@dimen/home_clock_text_size"
+        android:autoSizeMinTextSize="54sp"
+        android:autoSizeStepGranularity="2sp"
+        android:autoSizeTextType="uniform"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:text="--:--:--"
+        android:textColor="#FFFFFF"
+        android:textSize="@dimen/home_clock_text_size"
+        app:layout_constraintBottom_toTopOf="@id/clock_date"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <TextView
+        android:id="@+id/clock_date"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/home_page_gap_small"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text="--"
+        android:textColor="#C0C0C0"
+        android:textSize="@dimen/home_date_text_size"
+        app:layout_constraintBottom_toTopOf="@id/home_weather_row"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/clock_time" />
+
+    <LinearLayout
+        android:id="@+id/home_weather_row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/home_page_gap_medium"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toTopOf="@id/current_feels"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/clock_date">
+
+        <org.jrs82.fsclock.WeatherIconView
+            android:id="@+id/current_icon"
+            android:layout_width="@dimen/home_weather_icon_size"
+            android:layout_height="@dimen/home_weather_icon_size" />
+
+        <TextView
+            android:id="@+id/current_temp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/home_page_gap_large"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="@string/temp_missing"
+            android:textColor="#FFFFFF"
+            android:textSize="@dimen/home_temp_text_size" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/current_feels"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/home_page_gap_small"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text=""
+        android:textColor="#B8B8B8"
+        android:textSize="@dimen/home_feels_text_size"
+        app:layout_constraintBottom_toTopOf="@id/current_details"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/home_weather_row" />
+
+    <TextView
+        android:id="@+id/current_details"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/home_page_gap_small"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="2"
+        android:text=""
+        android:textColor="#C8C8C8"
+        android:textSize="@dimen/home_details_text_size"
+        app:layout_constraintBottom_toTopOf="@id/next_holiday"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/current_feels" />
+
+    <TextView
+        android:id="@+id/next_holiday"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/home_page_gap_large"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="2"
+        android:text=""
+        android:textColor="#E8E8E8"
+        android:textSize="@dimen/home_holiday_text_size"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/current_details" />
+</androidx.constraintlayout.widget.ConstraintLayout>
