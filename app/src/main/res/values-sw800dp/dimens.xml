@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="clock_shell_padding_horizontal">48dp</dimen>
+    <dimen name="clock_shell_padding_top">30dp</dimen>
+    <dimen name="clock_shell_padding_bottom">22dp</dimen>
+    <dimen name="clock_footer_margin_top">6dp</dimen>
+
+    <dimen name="home_page_gap_small">12dp</dimen>
+    <dimen name="home_page_gap_medium">20dp</dimen>
+    <dimen name="home_page_gap_large">34dp</dimen>
+
+    <dimen name="home_clock_text_size">150sp</dimen>
+    <dimen name="home_date_text_size">36sp</dimen>
+    <dimen name="home_temp_text_size">90sp</dimen>
+    <dimen name="home_feels_text_size">32sp</dimen>
+    <dimen name="home_details_text_size">24sp</dimen>
+    <dimen name="home_holiday_text_size">26sp</dimen>
+    <dimen name="home_meta_text_size">16sp</dimen>
+
+    <dimen name="home_weather_icon_size">110dp</dimen>
+    <dimen name="home_top_button_size">52dp</dimen>
+</resources>
