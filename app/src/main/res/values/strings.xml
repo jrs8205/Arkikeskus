@@ -7,6 +7,8 @@
     <string name="value_missing_short">--</string>
     <string name="weather_label">Sää päivitetty:</string>
     <string name="weather_stale">vanhentunut</string>
+    <string name="weather_stale_format">%1$s (%2$s)</string>
+    <string name="status_alert_format">! %1$s</string>
     <string name="wind_format">Tuuli %1$.0f m/s %2$s</string>
     <string name="humidity_format">Kosteus %1$.0f%%</string>
     <string name="rain24h_format">Sade 24h %1$.1f mm</string>

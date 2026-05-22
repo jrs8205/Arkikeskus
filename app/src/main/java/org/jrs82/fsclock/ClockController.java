@@ -717,7 +717,8 @@ public class ClockController {
             return;
         }
         if (testMode == SettingsManager.TEST_WARNING) {
-            statusText.setText("! " + ctx.getString(R.string.status_warning_test));
+            statusText.setText(ctx.getString(R.string.status_alert_format,
+                    ctx.getString(R.string.status_warning_test)));
             statusText.setTextColor(0xFFFFAA00);
             return;
         }
@@ -730,8 +731,10 @@ public class ClockController {
         SimpleDateFormat hm = new SimpleDateFormat("HH:mm", FI);
         String s = ctx.getString(R.string.weather_label) + " " + hm.format(new Date(data.fetchedAt));
         if (ageMin > 30) {
-            statusText.setText("! " + statusForCurrentPlace(
-                    s + " (" + ctx.getString(R.string.weather_stale) + ")"));
+            String stale = ctx.getString(R.string.weather_stale_format,
+                    s, ctx.getString(R.string.weather_stale));
+            statusText.setText(ctx.getString(R.string.status_alert_format,
+                    statusForCurrentPlace(stale)));
             statusText.setTextColor(0xFFFFAA00);
         } else {
             statusText.setText(statusForCurrentPlace(s));
