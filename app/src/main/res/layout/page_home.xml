@@ -112,10 +112,26 @@
         android:text=""
         android:textColor="#C8C8C8"
         android:textSize="@dimen/home_details_text_size"
-        app:layout_constraintBottom_toTopOf="@id/next_holiday"
+        app:layout_constraintBottom_toTopOf="@id/sun_moon_text"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/current_feels" />
+
+    <TextView
+        android:id="@+id/sun_moon_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/home_page_gap_small"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text=""
+        android:textColor="#B8D8F0"
+        android:textSize="@dimen/home_sun_moon_text_size"
+        app:layout_constraintBottom_toTopOf="@id/next_holiday"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/current_details" />
 
     <TextView
         android:id="@+id/next_holiday"
@@ -131,5 +147,5 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/current_details" />
+        app:layout_constraintTop_toBottomOf="@id/sun_moon_text" />
 </androidx.constraintlayout.widget.ConstraintLayout>

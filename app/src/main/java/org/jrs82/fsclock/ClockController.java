@@ -24,6 +24,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,6 +47,7 @@ public class ClockController {
     // Pääsivu
     private TextView clockTime, clockDate;
     private TextView currentTemp, currentFeels, currentDetails;
+    private TextView sunMoonText;
     private WeatherIconView currentIcon;
     private TextView nextHolidayTv;
 
@@ -90,6 +92,8 @@ public class ClockController {
                     updateStatus();
                     break;
                 case SettingsManager.KEY_HOME_PLACE:
+                    renderStaticContent();
+                    // fall through
                 case SettingsManager.KEY_WEATHER_UPDATE_MINUTES:
                     retryStep = 0;
                     ui.removeCallbacks(fetchWeather);
@@ -170,6 +174,7 @@ public class ClockController {
         currentTemp = root.findViewById(R.id.current_temp);
         currentFeels = root.findViewById(R.id.current_feels);
         currentDetails = root.findViewById(R.id.current_details);
+        sunMoonText = root.findViewById(R.id.sun_moon_text);
         nextHolidayTv = root.findViewById(R.id.next_holiday);
         settingsButton = root.findViewById(R.id.settings_button);
         settingsButton.setOnClickListener(new View.OnClickListener() {
@@ -471,6 +476,19 @@ public class ClockController {
             }
             nextHolidayTv.setText(String.format(FI, "Seuraava juhlapyhä: %s %d.%d.  %s%s",
                     day, h.day, h.month, h.name, suffix));
+        }
+        renderSunMoon();
+    }
+
+    private void renderSunMoon() {
+        if (sunMoonText == null) return;
+        try {
+            GeoPlace place = GeoPlace.forPlace(SettingsManager.get().getHomePlace());
+            Astronomy.SunMoon sunMoon = Astronomy.calculate(
+                    new Date(), place.latitude, place.longitude, TimeZone.getDefault());
+            sunMoonText.setText(Astronomy.format(sunMoon));
+        } catch (Exception e) {
+            sunMoonText.setText("");
         }
     }
 
