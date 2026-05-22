@@ -17,6 +17,7 @@
     <dimen name="home_temp_text_size">90sp</dimen>
     <dimen name="home_feels_text_size">32sp</dimen>
     <dimen name="home_details_text_size">24sp</dimen>
+    <dimen name="home_sun_moon_text_size">22sp</dimen>
     <dimen name="home_holiday_text_size">26sp</dimen>
     <dimen name="home_meta_text_size">16sp</dimen>
 
