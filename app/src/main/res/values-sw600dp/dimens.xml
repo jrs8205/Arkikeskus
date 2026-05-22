@@ -4,6 +4,9 @@
     <dimen name="clock_shell_padding_top">28dp</dimen>
     <dimen name="clock_shell_padding_bottom">20dp</dimen>
     <dimen name="clock_footer_margin_top">6dp</dimen>
+    <dimen name="clock_footer_indicator_text_size">16sp</dimen>
+    <dimen name="clock_footer_battery_text_size">28sp</dimen>
+    <dimen name="clock_footer_status_text_size">16sp</dimen>
 
     <dimen name="home_page_gap_small">10dp</dimen>
     <dimen name="home_page_gap_medium">18dp</dimen>
