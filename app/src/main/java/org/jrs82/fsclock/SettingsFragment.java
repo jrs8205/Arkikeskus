@@ -1,8 +1,12 @@
 package org.jrs82.fsclock;
 
+import android.Manifest;
 import android.app.TimePickerDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,7 +17,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.preference.EditTextPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
@@ -21,10 +28,16 @@ import androidx.preference.SeekBarPreference;
 
 import org.jrs82.fsclock.db.CsvExporter;
 import org.jrs82.fsclock.db.HistoryRepository;
+import org.jrs82.fsclock.ruuvi.RuuviRepository;
+import org.jrs82.fsclock.ruuvi.RuuviSample;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class SettingsFragment extends PreferenceFragmentCompat {
 
@@ -33,6 +46,30 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     /** True kun home_place asetetaan ohjelmallisesti dialogin kautta — estää
      *  OnPreferenceChangeListeneriä avaamasta dialogia toista kertaa. */
     private boolean settingHomePlaceProgrammatically = false;
+
+    /** Ruuvi-skannauksen dialogin tila (jos dialog on auki). */
+    private AlertDialog ruuviScanDialog;
+    /** Dialogissa näytettävien MACien järjestys (sama kuin näkyy listalla). */
+    private final List<String> ruuviDialogMacs = new ArrayList<>();
+    /** Slot johon valittu anturi kytketään, tai null jos kysytään dialogissa erikseen. */
+    private String ruuviPendingSlot;
+    /** Listener jolla RuuviRepository päivittää avoimen dialogin. */
+    private RuuviRepository.Listener ruuviDialogListener;
+    /** Ajetaan kun BLUETOOTH_SCAN-lupa on myönnetty (jos dialog yritettiin avata). */
+    private Runnable pendingRuuviAction;
+
+    private final ActivityResultLauncher<String> bluetoothScanPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (!isAdded()) return;
+                if (granted) {
+                    Runnable r = pendingRuuviAction;
+                    pendingRuuviAction = null;
+                    if (r != null) r.run();
+                } else {
+                    Toast.makeText(requireContext(), R.string.ruuvi_perm_needed,
+                            Toast.LENGTH_LONG).show();
+                }
+            });
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -106,6 +143,21 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
         // Historia ja tietokanta
         setupHistoryPreferences();
+
+        // Ruuvi-anturit
+        setupRuuviPreferences();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        refreshRuuviSlotSummaries();
+    }
+
+    @Override
+    public void onPause() {
+        dismissRuuviScanDialog();
+        super.onPause();
     }
 
     /** Pyyntö kotipaikkakunnan vaihtoon vaatii vahvistuksen, koska uusi
@@ -305,6 +357,228 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 }, currentHour, 0, true);
         dlg.setTitle(R.string.time_picker_title);
         dlg.show();
+    }
+
+    // ---------- Ruuvi-asetukset ----------
+
+    private void setupRuuviPreferences() {
+        Preference scan = findPreference("ruuvi_scan");
+        if (scan != null) {
+            scan.setOnPreferenceClickListener(p -> { openScanDialog(null); return true; });
+        }
+        setupSlotPreference("ruuvi_slot_bedroom", SettingsManager.RUUVI_SLOT_BEDROOM);
+        setupSlotPreference("ruuvi_slot_livingroom", SettingsManager.RUUVI_SLOT_LIVINGROOM);
+        setupSlotPreference("ruuvi_slot_balcony", SettingsManager.RUUVI_SLOT_BALCONY);
+        refreshRuuviSlotSummaries();
+    }
+
+    private void setupSlotPreference(String key, final String slot) {
+        Preference p = findPreference(key);
+        if (p == null) return;
+        p.setOnPreferenceClickListener(pp -> { openScanDialog(slot); return true; });
+    }
+
+    private void refreshRuuviSlotSummaries() {
+        SettingsManager sm = SettingsManager.get();
+        RuuviRepository repo = RuuviRepository.get(requireContext());
+        updateSlotSummary("ruuvi_slot_bedroom", sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BEDROOM), repo);
+        updateSlotSummary("ruuvi_slot_livingroom", sm.getRuuviMac(SettingsManager.RUUVI_SLOT_LIVINGROOM), repo);
+        updateSlotSummary("ruuvi_slot_balcony", sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BALCONY), repo);
+    }
+
+    private void updateSlotSummary(String key, String mac, RuuviRepository repo) {
+        Preference p = findPreference(key);
+        if (p == null) return;
+        if (mac == null || mac.isEmpty()) {
+            p.setSummary(R.string.ruuvi_slot_empty);
+            return;
+        }
+        RuuviSample s = repo.getLatest(mac);
+        if (s != null && s.temperatureC() != null) {
+            p.setSummary(mac + " · " + String.format(FI, "%.1f °C", s.temperatureC()));
+        } else {
+            p.setSummary(mac);
+        }
+    }
+
+    private void openScanDialog(String targetSlot) {
+        if (!ensureBluetoothScanPermission(() -> openScanDialog(targetSlot))) return;
+        Context ctx = requireContext();
+        RuuviRepository repo = RuuviRepository.get(ctx);
+        boolean started = repo.start();
+        if (!started && !repo.isScanning()) {
+            Toast.makeText(ctx, R.string.ruuvi_perm_needed, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        ruuviPendingSlot = targetSlot;
+        ruuviDialogMacs.clear();
+        final CharSequence[] initialItems = buildScanItems(repo.snapshot());
+
+        AlertDialog.Builder b = new AlertDialog.Builder(ctx)
+                .setTitle(R.string.ruuvi_scan_dialog_title)
+                .setItems(initialItems, (d, which) -> {
+                    if (which < 0 || which >= ruuviDialogMacs.size()) return;
+                    String mac = ruuviDialogMacs.get(which);
+                    if (ruuviPendingSlot != null) {
+                        assignMacToSlot(mac, ruuviPendingSlot);
+                    } else {
+                        showAssignDialog(mac);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null);
+        if (targetSlot == null) {
+            b.setMessage(R.string.ruuvi_scan_dialog_hint);
+        }
+        ruuviScanDialog = b.create();
+        ruuviScanDialog.setOnDismissListener(d -> {
+            if (ruuviDialogListener != null) {
+                repo.removeListener(ruuviDialogListener);
+                ruuviDialogListener = null;
+            }
+            ruuviScanDialog = null;
+            ruuviPendingSlot = null;
+        });
+
+        final Handler main = new Handler(Looper.getMainLooper());
+        ruuviDialogListener = (mac, sample) -> main.post(() -> {
+            if (ruuviScanDialog == null || !ruuviScanDialog.isShowing()) return;
+            updateScanDialogList(repo.snapshot());
+        });
+        repo.addListener(ruuviDialogListener);
+
+        ruuviScanDialog.show();
+        updateScanDialogList(repo.snapshot());
+    }
+
+    private CharSequence[] buildScanItems(Map<String, RuuviSample> snapshot) {
+        ruuviDialogMacs.clear();
+        if (snapshot == null || snapshot.isEmpty()) {
+            return new CharSequence[]{ getString(R.string.ruuvi_scan_dialog_empty) };
+        }
+        Map<String, RuuviSample> sorted = sortSnapshotByMac(snapshot);
+        SettingsManager sm = SettingsManager.get();
+        List<CharSequence> items = new ArrayList<>(sorted.size());
+        for (Map.Entry<String, RuuviSample> e : sorted.entrySet()) {
+            String mac = e.getKey();
+            RuuviSample s = e.getValue();
+            ruuviDialogMacs.add(mac);
+            String temp = (s != null && s.temperatureC() != null)
+                    ? String.format(FI, "%.1f °C", s.temperatureC())
+                    : getString(R.string.ruuvi_card_temp_missing);
+            String label = getString(R.string.ruuvi_card_format, mac, temp, s == null ? 0 : s.rssi);
+            String slot = sm.slotForMac(mac);
+            if (slot != null) label += "  [" + slotLabel(slot) + "]";
+            items.add(label);
+        }
+        return items.toArray(new CharSequence[0]);
+    }
+
+    private Map<String, RuuviSample> sortSnapshotByMac(Map<String, RuuviSample> snapshot) {
+        List<String> keys = new ArrayList<>(snapshot.keySet());
+        java.util.Collections.sort(keys);
+        Map<String, RuuviSample> out = new LinkedHashMap<>();
+        for (String k : keys) out.put(k, snapshot.get(k));
+        return out;
+    }
+
+    private void updateScanDialogList(Map<String, RuuviSample> snapshot) {
+        if (ruuviScanDialog == null) return;
+        CharSequence[] items = buildScanItems(snapshot);
+        android.widget.ListView lv = ruuviScanDialog.getListView();
+        if (lv == null) return;
+        lv.setAdapter(new android.widget.ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_list_item_1, items));
+        if (snapshot == null || snapshot.isEmpty()) {
+            lv.setOnItemClickListener(null);
+        } else {
+            lv.setOnItemClickListener((parent, view, position, id) -> {
+                if (position < 0 || position >= ruuviDialogMacs.size()) return;
+                String mac = ruuviDialogMacs.get(position);
+                if (ruuviScanDialog != null) ruuviScanDialog.dismiss();
+                if (ruuviPendingSlot != null) {
+                    assignMacToSlot(mac, ruuviPendingSlot);
+                } else {
+                    showAssignDialog(mac);
+                }
+            });
+        }
+    }
+
+    private void dismissRuuviScanDialog() {
+        if (ruuviScanDialog != null && ruuviScanDialog.isShowing()) {
+            ruuviScanDialog.dismiss();
+        }
+        ruuviScanDialog = null;
+    }
+
+    private void showAssignDialog(final String mac) {
+        Context ctx = requireContext();
+        CharSequence[] options = new CharSequence[]{
+                getString(R.string.ruuvi_assign_to_bedroom),
+                getString(R.string.ruuvi_assign_to_livingroom),
+                getString(R.string.ruuvi_assign_to_balcony),
+                getString(R.string.ruuvi_assign_clear)
+        };
+        new AlertDialog.Builder(ctx)
+                .setTitle(getString(R.string.ruuvi_assign_dialog_title, mac))
+                .setItems(options, (DialogInterface d, int which) -> {
+                    switch (which) {
+                        case 0: assignMacToSlot(mac, SettingsManager.RUUVI_SLOT_BEDROOM); break;
+                        case 1: assignMacToSlot(mac, SettingsManager.RUUVI_SLOT_LIVINGROOM); break;
+                        case 2: assignMacToSlot(mac, SettingsManager.RUUVI_SLOT_BALCONY); break;
+                        case 3: clearMacAssignment(mac); break;
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** Asettaa MAC slottiin. Jos MAC oli aiemmin toisessa slotissa, sieltä se poistuu. */
+    private void assignMacToSlot(String mac, String slot) {
+        SettingsManager sm = SettingsManager.get();
+        // poista MAC mahdollisesta vanhasta slotista
+        String existing = sm.slotForMac(mac);
+        if (existing != null && !existing.equals(slot)) {
+            sm.setRuuviMac(existing, null);
+        }
+        // poista mahdollinen aiempi MAC kohdeslotista (yksi anturi per slot)
+        sm.setRuuviMac(slot, mac);
+        refreshRuuviSlotSummaries();
+        Toast.makeText(requireContext(),
+                getString(R.string.ruuvi_assigned_toast, mac, slotLabel(slot)),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void clearMacAssignment(String mac) {
+        SettingsManager sm = SettingsManager.get();
+        String slot = sm.slotForMac(mac);
+        if (slot == null) return;
+        sm.setRuuviMac(slot, null);
+        refreshRuuviSlotSummaries();
+    }
+
+    private String slotLabel(String slot) {
+        if (SettingsManager.RUUVI_SLOT_BEDROOM.equals(slot)) return getString(R.string.ruuvi_assign_to_bedroom);
+        if (SettingsManager.RUUVI_SLOT_LIVINGROOM.equals(slot)) return getString(R.string.ruuvi_assign_to_livingroom);
+        if (SettingsManager.RUUVI_SLOT_BALCONY.equals(slot)) return getString(R.string.ruuvi_assign_to_balcony);
+        return slot;
+    }
+
+    /** Varmistaa BLE-skannauksen vaatiman luvan: API 31+ BLUETOOTH_SCAN, API ≤30
+     *  ACCESS_FINE_LOCATION. Palauttaa true jos lupa on jo, false jos käyttäjältä
+     *  kysytään (silloin onPermissionResult ajaa pyydetyn actionin). */
+    private boolean ensureBluetoothScanPermission(Runnable onGranted) {
+        Context ctx = requireContext();
+        String perm = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                ? Manifest.permission.BLUETOOTH_SCAN
+                : Manifest.permission.ACCESS_FINE_LOCATION;
+        if (ContextCompat.checkSelfPermission(ctx, perm) == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+        pendingRuuviAction = onGranted;
+        bluetoothScanPermissionLauncher.launch(perm);
+        return false;
     }
 
     private void addAutoTimeWarningIfNeeded() {

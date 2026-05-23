@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="@dimen/home_page_gap_small">
+
+    <FrameLayout
+        android:id="@+id/sensor_circle"
+        android:layout_width="@dimen/sensor_circle_size"
+        android:layout_height="@dimen/sensor_circle_size"
+        android:background="@drawable/bg_sensor_circle">
+
+        <TextView
+            android:id="@+id/sensor_temp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="@string/sensor_temp_missing"
+            android:textColor="#000000"
+            android:textSize="@dimen/sensor_temp_text_size"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/sensor_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text=""
+        android:textColor="#D0D0D0"
+        android:textSize="@dimen/sensor_label_text_size" />
+</LinearLayout>

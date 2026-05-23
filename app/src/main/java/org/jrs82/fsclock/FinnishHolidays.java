@@ -6,16 +6,25 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-/** Suomen viralliset pyhapaivat (laissa maaratyt vapaapaivat + kirkolliset). */
+/** Suomen viralliset pyhapaivat (laissa maaratyt vapaapaivat + kirkolliset) seka
+ *  vakiintuneet liputuspaivat. Etusivu nayttaa kumpi on ensimmaiseksi tulossa. */
 public class FinnishHolidays {
+
+    /** Tapahtumalaji vaikuttaa siihen, miten ClockController muotoilee tekstin. */
+    public enum EventType { HOLIDAY, FLAG_DAY }
 
     public static class Holiday {
         public final String name;
         public final int year;
         public final int month;   // 1..12
         public final int day;
+        public final EventType type;
+
         public Holiday(String name, int y, int m, int d) {
-            this.name = name; this.year = y; this.month = m; this.day = d;
+            this(name, y, m, d, EventType.HOLIDAY);
+        }
+        public Holiday(String name, int y, int m, int d, EventType type) {
+            this.name = name; this.year = y; this.month = m; this.day = d; this.type = type;
         }
         /** Aikavyohykkeesta riippumaton paivanumero (year*10000 + month*100 + day). */
         public int sortKey() { return year * 10000 + month * 100 + day; }
@@ -78,36 +87,45 @@ public class FinnishHolidays {
                 c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH));
     }
 
-    /** Aitienpaiva = toukokuun toinen sunnuntai. */
-    private static Holiday aitienpaiva(int year) {
+    /** Toistuva: kuukauden N:s tietty viikonpaiva. */
+    private static int nthWeekdayOfMonth(int year, int monthCal, int dayOfWeek, int nth) {
         Calendar c = Calendar.getInstance();
         c.clear();
-        c.set(year, Calendar.MAY, 1);
+        c.set(year, monthCal, 1);
         int sunCount = 0;
         while (true) {
-            if (c.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+            if (c.get(Calendar.DAY_OF_WEEK) == dayOfWeek) {
                 sunCount++;
-                if (sunCount == 2) break;
+                if (sunCount == nth) return c.get(Calendar.DAY_OF_MONTH);
             }
             c.add(Calendar.DAY_OF_MONTH, 1);
+            if (c.get(Calendar.MONTH) != monthCal) return -1;
         }
-        return new Holiday("Äitienpäivä", year, 5, c.get(Calendar.DAY_OF_MONTH));
+    }
+
+    /** Toistuva: kuukauden viimeinen tietty viikonpaiva. */
+    private static int lastWeekdayOfMonth(int year, int monthCal, int dayOfWeek) {
+        Calendar c = Calendar.getInstance();
+        c.clear();
+        c.set(year, monthCal, 1);
+        c.add(Calendar.MONTH, 1);
+        c.add(Calendar.DAY_OF_MONTH, -1);
+        while (c.get(Calendar.DAY_OF_WEEK) != dayOfWeek) {
+            c.add(Calendar.DAY_OF_MONTH, -1);
+        }
+        return c.get(Calendar.DAY_OF_MONTH);
+    }
+
+    /** Aitienpaiva = toukokuun toinen sunnuntai. */
+    private static Holiday aitienpaiva(int year) {
+        int d = nthWeekdayOfMonth(year, Calendar.MAY, Calendar.SUNDAY, 2);
+        return new Holiday("Äitienpäivä", year, 5, d);
     }
 
     /** Isanpaiva = marraskuun toinen sunnuntai. */
     private static Holiday isanpaiva(int year) {
-        Calendar c = Calendar.getInstance();
-        c.clear();
-        c.set(year, Calendar.NOVEMBER, 1);
-        int sunCount = 0;
-        while (true) {
-            if (c.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                sunCount++;
-                if (sunCount == 2) break;
-            }
-            c.add(Calendar.DAY_OF_MONTH, 1);
-        }
-        return new Holiday("Isänpäivä", year, 11, c.get(Calendar.DAY_OF_MONTH));
+        int d = nthWeekdayOfMonth(year, Calendar.NOVEMBER, Calendar.SUNDAY, 2);
+        return new Holiday("Isänpäivä", year, 11, d);
     }
 
     /** 1. adventti = sunnuntai 27.11.-3.12. valilla. */
@@ -122,11 +140,12 @@ public class FinnishHolidays {
                 c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH));
     }
 
-    private static List<Holiday> yearHolidays(int year) {
+    private static List<Holiday> yearEvents(int year) {
         List<Holiday> list = new ArrayList<>();
         int[] e = easter(year);
         int em = e[0], ed = e[1];
 
+        // --- Viralliset vapaapaivat / kirkolliset pyhat ---
         list.add(new Holiday("Uudenvuodenpäivä", year, 1, 1));
         list.add(new Holiday("Loppiainen", year, 1, 6));
         list.add(addDays(year, em, ed, -2, "Pitkäperjantai"));
@@ -145,18 +164,50 @@ public class FinnishHolidays {
         list.add(new Holiday("Jouluaatto", year, 12, 24));
         list.add(new Holiday("Joulupäivä", year, 12, 25));
         list.add(new Holiday("Tapaninpäivä", year, 12, 26));
+
+        // --- Vakiintuneet liputuspaivat (B-vaihtoehto, ~15 kpl) ---
+        // Vakiintuneet jotka eivat jo ole HOLIDAY (Vappu, Aitienpaiva, Juhannuspaiva = Suomen lipun paiva,
+        // Isanpaiva, Itsenaisyyspaiva). Vaalipaivat jaaneet pois.
+        list.add(new Holiday("Runebergin päivä", year, 2, 5, EventType.FLAG_DAY));
+        list.add(new Holiday("Kalevalan päivä, suomalaisen kulttuurin päivä",
+                year, 2, 28, EventType.FLAG_DAY));
+        list.add(new Holiday("Minna Canthin päivä, tasa-arvon päivä",
+                year, 3, 19, EventType.FLAG_DAY));
+        list.add(new Holiday("Mikael Agricolan päivä, suomen kielen päivä",
+                year, 4, 9, EventType.FLAG_DAY));
+        list.add(new Holiday("Kansallinen veteraanipäivä", year, 4, 27, EventType.FLAG_DAY));
+        list.add(new Holiday("Eurooppa-päivä", year, 5, 9, EventType.FLAG_DAY));
+        list.add(new Holiday("J.V. Snellmanin päivä, suomalaisuuden päivä",
+                year, 5, 12, EventType.FLAG_DAY));
+        int kaatuneet = nthWeekdayOfMonth(year, Calendar.MAY, Calendar.SUNDAY, 3);
+        list.add(new Holiday("Kaatuneitten muistopäivä", year, 5, kaatuneet, EventType.FLAG_DAY));
+        list.add(new Holiday("Puolustusvoimain lippujuhlan päivä",
+                year, 6, 4, EventType.FLAG_DAY));
+        int einoLeino = nthWeekdayOfMonth(year, Calendar.JULY, Calendar.SATURDAY, 2);
+        list.add(new Holiday("Eino Leinon päivä, runon ja suven päivä",
+                year, 7, einoLeino, EventType.FLAG_DAY));
+        int luonnonpaiva = lastWeekdayOfMonth(year, Calendar.AUGUST, Calendar.SATURDAY);
+        list.add(new Holiday("Suomen luonnon päivä", year, 8, luonnonpaiva, EventType.FLAG_DAY));
+        list.add(new Holiday("Aleksis Kiven päivä, suomalaisen kirjallisuuden päivä",
+                year, 10, 10, EventType.FLAG_DAY));
+        list.add(new Holiday("YK:n päivä", year, 10, 24, EventType.FLAG_DAY));
+        list.add(new Holiday("Ruotsalaisuuden päivä, Kustaa Aadolfin päivä",
+                year, 11, 6, EventType.FLAG_DAY));
+        list.add(new Holiday("Lapsen oikeuksien päivä", year, 11, 20, EventType.FLAG_DAY));
+
         return list;
     }
 
-    /** Palauttaa seuraavat 'count' pyhapaivaa annetusta paivasta lukien (sama paiva sallittu). */
+    /** Palauttaa seuraavat 'count' tapahtumaa (juhlapaiva tai liputuspaiva)
+     *  annetusta paivasta lukien (sama paiva sallittu). Jarjestys = aikajarjestys. */
     public static List<Holiday> upcoming(Calendar from, int count) {
         int fromKey = from.get(Calendar.YEAR) * 10000
                 + (from.get(Calendar.MONTH) + 1) * 100
                 + from.get(Calendar.DAY_OF_MONTH);
 
         List<Holiday> all = new ArrayList<>();
-        all.addAll(yearHolidays(from.get(Calendar.YEAR)));
-        all.addAll(yearHolidays(from.get(Calendar.YEAR) + 1));
+        all.addAll(yearEvents(from.get(Calendar.YEAR)));
+        all.addAll(yearEvents(from.get(Calendar.YEAR) + 1));
 
         List<Holiday> upcoming = new ArrayList<>();
         for (Holiday h : all) {

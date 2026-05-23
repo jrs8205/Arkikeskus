@@ -49,6 +49,22 @@
             app:showSeekBarValue="true" />
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="@string/pref_cat_ruuvi">
+        <Preference
+            app:key="ruuvi_scan"
+            app:title="@string/pref_ruuvi_scan"
+            app:summary="@string/pref_ruuvi_scan_summary" />
+        <Preference
+            app:key="ruuvi_slot_bedroom"
+            app:title="@string/pref_ruuvi_slot_bedroom" />
+        <Preference
+            app:key="ruuvi_slot_livingroom"
+            app:title="@string/pref_ruuvi_slot_livingroom" />
+        <Preference
+            app:key="ruuvi_slot_balcony"
+            app:title="@string/pref_ruuvi_slot_balcony" />
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="@string/pref_cat_app">
         <Preference
             app:key="version"

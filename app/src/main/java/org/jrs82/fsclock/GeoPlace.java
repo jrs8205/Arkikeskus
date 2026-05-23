@@ -86,8 +86,13 @@ public final class GeoPlace {
         return names.toArray(new String[0]);
     }
 
+    /** Lisää uuden paikan vain jos sitä ei ole rekisterissä. Built-in-koordinaatteja
+     *  ei korvata FMI:n haku- tai vastaussijainnilla (B2-korjaus). */
     public static synchronized void register(String name, double lat, double lon) {
-        add(name, lat, lon);
+        String key = normalize(name);
+        if (!PLACES.containsKey(key)) {
+            PLACES.put(key, new GeoPlace(name, lat, lon));
+        }
     }
 
     private static void add(String name, double lat, double lon) {

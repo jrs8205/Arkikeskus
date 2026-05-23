@@ -75,26 +75,19 @@ public final class Astronomy {
         return new MoonPhase(phase, illumination, moonLabel(phase));
     }
 
-    public static String format(SunMoon sm) {
-        String sun;
-        if (sm.sun.sunriseMinutes == SunTimes.NEVER_RISES) {
-            sun = "Aurinko ei nouse";
-        } else if (sm.sun.sunsetMinutes == SunTimes.NEVER_SETS) {
-            sun = "Aurinko ei laske";
-        } else {
-            sun = "Aurinko nousee " + formatMinutes(sm.sun.sunriseMinutes)
-                    + "   Aurinko laskee " + formatMinutes(sm.sun.sunsetMinutes)
-                    + "   Päivän kesto " + formatDuration(sm.sun.dayLengthMinutes());
+    /** Muotoilee auringon nousun, laskun ja paivan pituuden kolmelle riville.
+     *  Kuu poistettu Vaihe 4C:ssa kayttajan pyynnosta. */
+    public static String formatSun(android.content.Context ctx, SunTimes sun) {
+        if (sun.sunriseMinutes == SunTimes.NEVER_RISES) {
+            return ctx.getString(R.string.sun_never_rises);
         }
-        int illum = (int) Math.round(sm.moon.illumination * 100.0);
-        return sun + "\nKuun valaistu osa " + illum + " %, " + moonTrend(sm.moon.phase);
-    }
-
-    private static String moonTrend(double phase) {
-        if (phase < 0.03 || phase >= 0.97) return "uusi kuu";
-        if (phase < 0.50) return "valaistus lisääntyy";
-        if (phase < 0.53) return "täysikuu";
-        return "valaistus vähenee";
+        if (sun.sunsetMinutes == SunTimes.NEVER_SETS) {
+            return ctx.getString(R.string.sun_never_sets);
+        }
+        return String.format(FI, ctx.getString(R.string.sun_line_format),
+                formatMinutes(sun.sunriseMinutes),
+                formatMinutes(sun.sunsetMinutes),
+                formatDuration(sun.dayLengthMinutes()));
     }
 
     private static String moonLabel(double phase) {
@@ -108,15 +101,31 @@ public final class Astronomy {
         return "vähenevä sirppi";
     }
 
-    private static String formatMinutes(int minutes) {
+    static String formatMinutes(int minutes) {
         int h = minutes / 60;
         int m = minutes % 60;
         return String.format(FI, "%02d:%02d", h, m);
     }
 
-    private static String formatDuration(int minutes) {
+    static String formatDuration(int minutes) {
         if (minutes < 0) minutes += 1440;
         return String.format(FI, "%d h %02d min", minutes / 60, minutes % 60);
+    }
+
+    public static String formatSunrise(SunTimes sun) {
+        if (sun.sunriseMinutes == SunTimes.NEVER_RISES) return "—";
+        return formatMinutes(sun.sunriseMinutes);
+    }
+
+    public static String formatSunset(SunTimes sun) {
+        if (sun.sunsetMinutes == SunTimes.NEVER_SETS) return "—";
+        return formatMinutes(sun.sunsetMinutes);
+    }
+
+    public static String formatDayLength(SunTimes sun) {
+        if (sun.sunriseMinutes == SunTimes.NEVER_RISES
+                || sun.sunsetMinutes == SunTimes.NEVER_SETS) return "";
+        return formatDuration(sun.dayLengthMinutes());
     }
 
     private static double rad(double deg) {

@@ -22,6 +22,8 @@ public class PageController {
     private int availablePages = 1;
     private int currentPage = 0;
     private Runnable longPressCallback;
+    private TextView topIndicator;
+    private String topIndicatorFormat = "%1$d / %2$d";
 
     public PageController(Context ctx, ViewGroup pagesContainer,
                           TextView pageIndicator, View[] pages) {
@@ -48,6 +50,14 @@ public class PageController {
 
     public void setLongPressCallback(Runnable r) {
         this.longPressCallback = r;
+    }
+
+    /** Otsikkorivin numeerinen sivuilmaisin (esim. "2 / 5"). Päivitetään automaattisesti
+     *  aina kun sivu vaihtuu tai saatavilla olevien sivujen määrä muuttuu. */
+    public void setTopIndicator(TextView view, String format) {
+        this.topIndicator = view;
+        if (format != null) this.topIndicatorFormat = format;
+        updatePageIndicator();
     }
 
     public int getCurrentPage() {
@@ -83,12 +93,18 @@ public class PageController {
     }
 
     private void updatePageIndicator() {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < availablePages; i++) {
-            sb.append(i == currentPage ? "\u25CF" : "\u25CB");
-            if (i < availablePages - 1) sb.append(' ');
+        if (pageIndicator != null) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < availablePages; i++) {
+                sb.append(i == currentPage ? "\u25CF" : "\u25CB");
+                if (i < availablePages - 1) sb.append(' ');
+            }
+            pageIndicator.setText(sb.toString());
         }
-        pageIndicator.setText(sb.toString());
+        if (topIndicator != null) {
+            topIndicator.setText(String.format(java.util.Locale.ROOT,
+                    topIndicatorFormat, currentPage + 1, availablePages));
+        }
     }
 
     private int dp(float v) {
