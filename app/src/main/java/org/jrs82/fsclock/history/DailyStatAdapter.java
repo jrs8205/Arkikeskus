@@ -24,9 +24,11 @@ public class DailyStatAdapter extends RecyclerView.Adapter<DailyStatAdapter.VH> 
 
     private final List<DailyStat> data = new ArrayList<>();
     private boolean batteryChannel;
+    private boolean ruuviChannel;
 
     public void setData(List<DailyStat> stats, String channel) {
         this.batteryChannel = "battery".equals(channel);
+        this.ruuviChannel = channel != null && channel.startsWith("ruuvi:");
         data.clear();
         if (stats != null) data.addAll(stats);
         notifyDataSetChanged();
@@ -52,6 +54,21 @@ public class DailyStatAdapter extends RecyclerView.Adapter<DailyStatAdapter.VH> 
             h.extras.setText(String.format(FI,
                     h.itemView.getContext().getString(R.string.history_battery_extras),
                     s.sampleCount, partial));
+        } else if (ruuviChannel) {
+            h.primary.setText(h.itemView.getContext().getString(
+                    R.string.history_ruuvi_row, dateLabel, s.minTemp, s.avgTemp, s.maxTemp));
+            // HistoryRepository.getRuuviMonth tallensi keskimääräisen kosteuden
+            // totalPrecip-kenttään, ks. siellä oleva kommentti.
+            Double avgHumidity = s.totalPrecip;
+            if (avgHumidity != null) {
+                h.extras.setText(String.format(FI,
+                        h.itemView.getContext().getString(R.string.history_ruuvi_extras),
+                        avgHumidity, s.sampleCount));
+            } else {
+                h.extras.setText(String.format(FI,
+                        h.itemView.getContext().getString(R.string.history_ruuvi_extras_no_humidity),
+                        s.sampleCount));
+            }
         } else {
             h.primary.setText(h.itemView.getContext().getString(
                     R.string.history_weather_row, dateLabel, s.minTemp, s.avgTemp, s.maxTemp));

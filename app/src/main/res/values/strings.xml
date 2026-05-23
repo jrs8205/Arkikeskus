@@ -58,6 +58,7 @@
     <string name="ruuvi_card_temp_missing">— °C</string>
     <string name="ruuvi_card_humidity_format">%1$.0f %%</string>
     <string name="ruuvi_perm_needed">Bluetooth-lupa tarvitaan antureiden hakuun.</string>
+    <string name="ruuvi_bt_off">Kytke Bluetooth päälle ennen kuin etsit antureita.</string>
 
     <!-- Näyttö ja kirkkaus -->
     <string name="pref_day_brightness">Päivän kirkkaus</string>
@@ -210,6 +211,12 @@
     <!-- Akku-kanavan riveille -->
     <string name="history_battery_row">%1$s  ·  min %2$.1f  avg %3$.1f  max %4$.1f °C</string>
     <string name="history_battery_extras">N=%1$d%2$s</string>
+    <!-- Ruuvi-kanaville -->
+    <string name="history_ruuvi_label">Anturi: %1$s (%2$s)</string>
+    <string name="history_ruuvi_unassigned">Ei käytössä</string>
+    <string name="history_ruuvi_row">%1$s  ·  min %2$.1f  avg %3$.1f  max %4$.1f °C</string>
+    <string name="history_ruuvi_extras">Kosteus avg %1$.0f %%  ·  N=%2$d</string>
+    <string name="history_ruuvi_extras_no_humidity">N=%1$d</string>
 
     <!-- Historia ja tietokanta -->
     <string name="pref_cat_history">Historia ja tietokanta</string>

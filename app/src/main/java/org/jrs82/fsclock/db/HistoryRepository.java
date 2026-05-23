@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,40 @@ public class HistoryRepository {
         LocalDate first = LocalDate.of(year, month, 1);
         LocalDate last = first.with(TemporalAdjusters.lastDayOfMonth());
         return db.dailyStatDao().getRange(channel, first.toString(), last.toString());
+    }
+
+    /** Ruuvi-MAC:n päiväkohtaiset arvot kuukauden ajalta. Aggregoi suoraan
+     *  ruuvi_samples-taulusta — ei käytä daily_stats-taulua, koska Ruuvi tallentaa
+     *  jo valmiiksi vain ~5 min välein. */
+    public List<DailyStat> getRuuviMonth(String mac, int year, int month) {
+        LocalDate first = LocalDate.of(year, month, 1);
+        LocalDate next = first.plusMonths(1);
+        long from = first.atStartOfDay(ZONE).toInstant().toEpochMilli();
+        long to = next.atStartOfDay(ZONE).toInstant().toEpochMilli();
+        String channel = "ruuvi:" + (mac == null ? "" : mac);
+        List<RuuviDailyAggregate> rows = db.ruuviSamplesDao().dailyAggregate(mac, from, to);
+        List<DailyStat> out = new ArrayList<>(rows.size());
+        for (RuuviDailyAggregate r : rows) {
+            if (r == null || r.day == null) continue;
+            DailyStat s = new DailyStat();
+            s.channel = channel;
+            s.date = r.day;
+            s.minTemp = r.minTemp == null ? 0.0 : r.minTemp;
+            s.maxTemp = r.maxTemp == null ? 0.0 : r.maxTemp;
+            s.avgTemp = r.avgTemp == null ? 0.0 : r.avgTemp;
+            s.sampleCount = r.sampleCount;
+            // Käytetään totalPrecip-kenttää keskimääräisen kosteuden välittämiseen
+            // (adapter osaa lukea sen Ruuvi-kanavalle). DailyStat itsessään on
+            // suunniteltu sääaineistolle, mutta riittää tähän käyttöön.
+            s.totalPrecip = r.avgHumidity;
+            s.isPartial = false;
+            out.add(s);
+        }
+        return out;
+    }
+
+    public List<String> listRuuviMacs() {
+        return db.ruuviSamplesDao().listMacs();
     }
 
     public List<WeatherSample> getSamplesBetween(String channel, long startMs, long endMs) {

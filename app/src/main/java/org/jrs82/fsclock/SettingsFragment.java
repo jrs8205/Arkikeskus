@@ -2,6 +2,8 @@ package org.jrs82.fsclock;
 
 import android.Manifest;
 import android.app.TimePickerDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -404,6 +406,10 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private void openScanDialog(String targetSlot) {
         if (!ensureBluetoothScanPermission(() -> openScanDialog(targetSlot))) return;
         Context ctx = requireContext();
+        if (!isBluetoothEnabled(ctx)) {
+            Toast.makeText(ctx, R.string.ruuvi_bt_off, Toast.LENGTH_LONG).show();
+            return;
+        }
         RuuviRepository repo = RuuviRepository.get(ctx);
         boolean started = repo.start();
         if (!started && !repo.isScanning()) {
@@ -563,6 +569,19 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         if (SettingsManager.RUUVI_SLOT_LIVINGROOM.equals(slot)) return getString(R.string.ruuvi_assign_to_livingroom);
         if (SettingsManager.RUUVI_SLOT_BALCONY.equals(slot)) return getString(R.string.ruuvi_assign_to_balcony);
         return slot;
+    }
+
+    /** Tarkistaa onko Bluetooth-radio päällä. Try/catch koska adapter.isEnabled()
+     *  saattaa heittää SecurityExceptionin vanhoilla API-tasoilla jos lupa puuttuu. */
+    private boolean isBluetoothEnabled(Context ctx) {
+        try {
+            BluetoothManager bm = (BluetoothManager) ctx.getSystemService(Context.BLUETOOTH_SERVICE);
+            if (bm == null) return false;
+            BluetoothAdapter adapter = bm.getAdapter();
+            return adapter != null && adapter.isEnabled();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** Varmistaa BLE-skannauksen vaatiman luvan: API 31+ BLUETOOTH_SCAN, API ≤30
