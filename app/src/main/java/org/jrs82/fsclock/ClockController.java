@@ -68,7 +68,7 @@ public class ClockController {
     private TextView statusText, batteryText;
     private TextView browsePlaceLabel;
     private android.widget.ImageButton favoriteButton, browsePlaceButton, homePlaceButton;
-    private android.widget.ImageButton prevPageButton, nextPageButton, settingsButton;
+    private android.widget.ImageButton prevPageButton, nextPageButton, settingsButton, systemButton;
     private TextView pageIndicatorTop;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
@@ -92,6 +92,7 @@ public class ClockController {
     private int retryStep = 0;
     private int lastRefreshDay = -1;
     private Runnable settingsClickCallback;
+    private Runnable systemClickCallback;
     private final AtomicBoolean active = new AtomicBoolean(false);
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener =
@@ -151,6 +152,7 @@ public class ClockController {
         nextPageButton = root.findViewById(R.id.next_page_button);
         pageIndicatorTop = root.findViewById(R.id.page_indicator_top);
         settingsButton = root.findViewById(R.id.settings_button);
+        systemButton = root.findViewById(R.id.system_button);
 
         browsePlaceButton.setOnClickListener(v -> showBrowsePlaceDialog());
         homePlaceButton.setOnClickListener(v -> returnToHomeWeather());
@@ -159,6 +161,11 @@ public class ClockController {
         settingsButton.setOnClickListener(v -> {
             if (settingsClickCallback != null) settingsClickCallback.run();
         });
+        if (systemButton != null) {
+            systemButton.setOnClickListener(v -> {
+                if (systemClickCallback != null) systemClickCallback.run();
+            });
+        }
 
         buildPages(pagesContainer);
 
@@ -246,6 +253,15 @@ public class ClockController {
         settingsClickCallback = r;
         updateSettingsButtonVisibility();
         updatePlaceControls();
+    }
+
+    /** Asetetaan vain Activity-tilassa. ClockDream jättää tämän asettamatta,
+     *  jolloin nappi piilotetaan eikä yritetä avata Activityä Dream-kontekstista. */
+    public void setSystemClickCallback(Runnable r) {
+        systemClickCallback = r;
+        if (systemButton != null) {
+            systemButton.setVisibility(r == null ? View.GONE : View.VISIBLE);
+        }
     }
 
     public void start() {
@@ -415,8 +431,12 @@ public class ClockController {
     }
 
     private void updateSettingsButtonVisibility() {
-        if (settingsButton == null) return;
-        settingsButton.setVisibility(settingsClickCallback == null ? View.GONE : View.VISIBLE);
+        if (settingsButton != null) {
+            settingsButton.setVisibility(settingsClickCallback == null ? View.GONE : View.VISIBLE);
+        }
+        if (systemButton != null) {
+            systemButton.setVisibility(systemClickCallback == null ? View.GONE : View.VISIBLE);
+        }
     }
 
     private void updatePlaceControls() {

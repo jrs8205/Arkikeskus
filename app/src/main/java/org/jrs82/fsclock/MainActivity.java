@@ -34,6 +34,9 @@ public class MainActivity extends Activity {
         controller.setSettingsClickCallback(new Runnable() {
             @Override public void run() { openSettings(); }
         });
+        controller.setSystemClickCallback(new Runnable() {
+            @Override public void run() { openSystem(); }
+        });
         controller.start();
         applyImmersive();
     }
