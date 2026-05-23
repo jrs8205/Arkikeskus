@@ -68,9 +68,22 @@ public final class FmiRepository {
         }
         WeatherData data = new FmiClient(place).fetch(cached);
         synchronized (browseCache) {
+            // Sweepataan vanhentuneet ennen insertointia, jotta cache ei kasva
+            // rajattomasti pitkän kayttoajan aikana (B5-korjaus).
+            sweepExpiredLocked(now);
             browseCache.put(key, new BrowseCacheEntry(data, now));
         }
         return data;
+    }
+
+    private void sweepExpiredLocked(long now) {
+        java.util.Iterator<Map.Entry<String, BrowseCacheEntry>> it = browseCache.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, BrowseCacheEntry> e = it.next();
+            if ((now - e.getValue().fetchedAt) >= BROWSE_CACHE_TTL_MS) {
+                it.remove();
+            }
+        }
     }
 
     private void persistObservation(String channel, WeatherData data) {

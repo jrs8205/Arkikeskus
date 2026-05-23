@@ -5,7 +5,7 @@
     <string name="loading_weather">Ladataan säätietoja…</string>
     <string name="clock_time_placeholder">--:--:--</string>
     <string name="value_missing_short">--</string>
-    <string name="weather_label">Sää päivitetty:</string>
+    <string name="weather_label">Sää päivitetty viimeksi kello:</string>
     <string name="weather_stale">vanhentunut</string>
     <string name="weather_stale_format">%1$s (%2$s)</string>
     <string name="status_alert_format">! %1$s</string>
@@ -22,9 +22,11 @@
     <string name="precip_format">%.1f mm</string>
     <string name="precip_missing">--</string>
     <string name="separator">"          "</string>
-    <string name="battery_format">%1$d %%  %2$.1f °C</string>
-    <string name="battery_format_charging">⚡ %1$d %%  %2$.1f °C</string>
+    <string name="battery_format">Akun varaus: %1$d %%  ·  Akun lämpötila: %2$.1f °C</string>
+    <string name="battery_format_charging">⚡ Akun varaus: %1$d %%  ·  Akun lämpötila: %2$.1f °C</string>
     <string name="wind_format_nodir">Tuuli %1$.0f m/s</string>
+    <string name="wind_missing">Tuuli —</string>
+    <string name="humidity_missing">Kosteus —</string>
 
     <string name="settings_title">FsClock-asetukset</string>
 
@@ -33,6 +35,29 @@
     <string name="pref_cat_weather">Sää ja sijainti</string>
     <string name="pref_cat_app">Sovellus</string>
     <string name="pref_cat_test">Testitila (kehitys)</string>
+    <string name="pref_cat_ruuvi">RuuviTag-anturit</string>
+
+    <!-- Ruuvi -->
+    <string name="pref_ruuvi_scan">Etsi antureita</string>
+    <string name="pref_ruuvi_scan_summary">Avaa lista lähellä havaituista RuuviTag-antureista</string>
+    <string name="pref_ruuvi_slot_bedroom">Makuuhuoneen anturi</string>
+    <string name="pref_ruuvi_slot_livingroom">Olohuoneen anturi</string>
+    <string name="pref_ruuvi_slot_balcony">Parvekkeen anturi</string>
+    <string name="ruuvi_slot_empty">Ei valittu</string>
+    <string name="ruuvi_scan_dialog_title">Havaitut RuuviTagit</string>
+    <string name="ruuvi_scan_dialog_empty">Etsitään antureita…</string>
+    <string name="ruuvi_scan_dialog_hint">Valitse anturi, niin voit kytkeä sen huoneeseen.</string>
+    <string name="ruuvi_assign_dialog_title">Kytke %1$s</string>
+    <string name="ruuvi_assign_to_bedroom">Makuuhuone</string>
+    <string name="ruuvi_assign_to_livingroom">Olohuone</string>
+    <string name="ruuvi_assign_to_balcony">Parveke</string>
+    <string name="ruuvi_assign_clear">Poista huone­kytkentä</string>
+    <string name="ruuvi_assigned_toast">%1$s → %2$s</string>
+    <string name="ruuvi_card_format">%1$s · %2$s · RSSI %3$d</string>
+    <string name="ruuvi_card_temp_format">%1$.1f °C</string>
+    <string name="ruuvi_card_temp_missing">— °C</string>
+    <string name="ruuvi_card_humidity_format">%1$.0f %%</string>
+    <string name="ruuvi_perm_needed">Bluetooth-lupa tarvitaan antureiden hakuun.</string>
 
     <!-- Näyttö ja kirkkaus -->
     <string name="pref_day_brightness">Päivän kirkkaus</string>
@@ -98,6 +123,58 @@
     <string name="browse_place_cancel">Peruuta</string>
     <string name="browse_fetch_failed">Sääpaikan haku epäonnistui</string>
     <string name="browse_status_prefix">Selaus: %1$s · %2$s</string>
+    <string name="action_favorite_toggle">Lisää tai poista suosikeista</string>
+    <string name="action_page_prev">Edellinen sivu</string>
+    <string name="action_page_next">Seuraava sivu</string>
+    <string name="page_indicator_format">%1$d / %2$d</string>
+    <string name="favorite_added">Lisätty suosikkeihin: %1$s</string>
+    <string name="favorite_removed">Poistettu suosikeista: %1$s</string>
+    <string name="favorites_separator">────────────</string>
+    <string name="favorites_menu_title">Suosikit</string>
+    <string name="favorites_menu_empty">Ei vielä suosikkeja</string>
+    <string name="favorites_menu_add">♡  Lisää \"%1$s\" suosikiksi</string>
+    <string name="favorites_menu_remove">♥  Poista \"%1$s\" suosikeista</string>
+
+    <!-- Sääoitukset (MeteoAlarm/FMI) -->
+    <string name="warnings_header">SÄÄVAROITUKSET</string>
+    <string name="warnings_empty">Ei voimassa olevia varoituksia</string>
+    <string name="warnings_loading">Ladataan…</string>
+    <string name="warning_area_prefix">Alueet: %1$s</string>
+    <string name="warning_valid_same_day">voimassa %1$s klo %2$s–%3$s</string>
+    <string name="warning_valid_multi_day">voimassa %1$s klo %2$s – %3$s klo %4$s</string>
+    <string name="warning_severity_suffix">%1$s %2$s</string>
+
+    <!-- Juhlapyhän ja liputuspäivän esitysmuodot etusivulla -->
+    <string name="holiday_today_format">Tänään: %1$s</string>
+    <string name="holiday_tomorrow_format">Huomenna: %1$s</string>
+    <string name="holiday_in_days_format">%1$s — %2$d päivän päästä</string>
+    <string name="flag_today_format">Tänään liputetaan: %1$s</string>
+    <string name="flag_tomorrow_format">Huomenna liputetaan: %1$s</string>
+    <string name="flag_in_days_format">%1$s (liputus) — %2$d päivän päästä</string>
+
+    <!-- Aurinkorivin muoto (kuuosa poistettu Vaihe 4C:ssa) -->
+    <string name="sun_line_format">Aurinko nousee %1$s\nAurinko laskee %2$s\nPäivän kesto %3$s</string>
+    <string name="day_length_format">Päivän kesto %1$s</string>
+    <string name="sun_never_rises">Aurinko ei nouse tänään</string>
+    <string name="sun_never_sets">Aurinko ei laske tänään</string>
+
+    <!-- Supersää (FMI vs Open-Meteo) -->
+    <string name="super_weather_title">Tunti tunnilta</string>
+    <string name="super_weather_col_fmi">Ilmatieteen laitos</string>
+    <string name="super_weather_col_om">Open-Meteo</string>
+    <string name="super_weather_loading">Ladataan…</string>
+    <string name="super_weather_no_data">—</string>
+    <string name="super_weather_hour_format">%02d:00</string>
+    <string name="super_weather_row_format">%1$s %2$+.0f°  T%3$.0f  K%4$.0f  S%5$.1f</string>
+    <string name="super_weather_row_format_no_rain">%1$s %2$+.0f°  T%3$.0f  K%4$.0f</string>
+
+    <!-- Anturit (RuuviTag — tilavaraus) -->
+    <string name="sensor_label_bedroom">Makuuhuone</string>
+    <string name="sensor_label_livingroom">Olohuone</string>
+    <string name="sensor_label_balcony">Parveke</string>
+    <string name="sensor_temp_missing">—</string>
+    <string name="sensor_temp_format">%+.1f°</string>
+    <string name="sensor_temp_no_signal">offline</string>
 
     <!-- Järjestelmä-sivu -->
     <string name="system_title">Järjestelmä</string>

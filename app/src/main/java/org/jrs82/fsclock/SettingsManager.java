@@ -5,6 +5,11 @@ import android.content.SharedPreferences;
 
 import androidx.preference.PreferenceManager;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+
 /** Yhden API:n takaa SharedPreferences-luvut. ClockController ja muut eivät
  *  kosketa SharedPreferenceseihin suoraan. */
 public final class SettingsManager {
@@ -20,6 +25,14 @@ public final class SettingsManager {
     public static final String KEY_TEST_MODE_TYPE = "test_mode_type";
     public static final String KEY_TEST_MODE_UNTIL = "test_mode_until";
     public static final String KEY_RETENTION_DAYS = "retention_days";
+    public static final String KEY_FAVORITE_PLACES = "favorite_places";
+    public static final String KEY_RUUVI_MAC_BEDROOM = "ruuvi_mac_bedroom";
+    public static final String KEY_RUUVI_MAC_LIVINGROOM = "ruuvi_mac_livingroom";
+    public static final String KEY_RUUVI_MAC_BALCONY = "ruuvi_mac_balcony";
+
+    public static final String RUUVI_SLOT_BEDROOM = "bedroom";
+    public static final String RUUVI_SLOT_LIVINGROOM = "livingroom";
+    public static final String RUUVI_SLOT_BALCONY = "balcony";
 
     public static final int TEST_NONE = 0;
     public static final int TEST_DAY = 1;
@@ -174,6 +187,89 @@ public final class SettingsManager {
         } catch (NumberFormatException e) {
             return DEFAULT_RETENTION_DAYS;
         }
+    }
+
+    // ---- Suosikkipaikkakunnat ----
+    /** Lukee suosikit lisäysjärjestyksessä. Tallennusmuoto = '|'-erotettu merkkijono.  */
+    public List<String> getFavoritePlaces() {
+        String raw = sp().getString(KEY_FAVORITE_PLACES, "");
+        List<String> out = new ArrayList<>();
+        if (raw == null || raw.isEmpty()) return out;
+        for (String s : raw.split("\\|")) {
+            String t = s.trim();
+            if (!t.isEmpty()) out.add(t);
+        }
+        return out;
+    }
+    public boolean isFavoritePlace(String name) {
+        if (name == null) return false;
+        String key = name.trim().toLowerCase(Locale.ROOT);
+        for (String f : getFavoritePlaces()) {
+            if (f.toLowerCase(Locale.ROOT).equals(key)) return true;
+        }
+        return false;
+    }
+    /** Lisää uuden suosikin jos puuttuu. Palauttaa true jos lista muuttui. */
+    public boolean addFavoritePlace(String name) {
+        if (name == null) return false;
+        String trimmed = name.trim();
+        if (trimmed.isEmpty()) return false;
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        String key = trimmed.toLowerCase(Locale.ROOT);
+        for (String f : getFavoritePlaces()) {
+            if (!f.toLowerCase(Locale.ROOT).equals(key)) set.add(f);
+        }
+        set.add(trimmed);
+        saveFavorites(set);
+        return true;
+    }
+    /** Poistaa suosikin. Palauttaa true jos lista muuttui. */
+    public boolean removeFavoritePlace(String name) {
+        if (name == null) return false;
+        String key = name.trim().toLowerCase(Locale.ROOT);
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        boolean removed = false;
+        for (String f : getFavoritePlaces()) {
+            if (f.toLowerCase(Locale.ROOT).equals(key)) removed = true;
+            else set.add(f);
+        }
+        if (removed) saveFavorites(set);
+        return removed;
+    }
+    private void saveFavorites(LinkedHashSet<String> set) {
+        StringBuilder sb = new StringBuilder();
+        for (String s : set) {
+            if (sb.length() > 0) sb.append('|');
+            sb.append(s);
+        }
+        sp().edit().putString(KEY_FAVORITE_PLACES, sb.toString()).apply();
+    }
+
+    // ---- Ruuvi-slotit ----
+    private static String slotKey(String slot) {
+        if (RUUVI_SLOT_BEDROOM.equals(slot)) return KEY_RUUVI_MAC_BEDROOM;
+        if (RUUVI_SLOT_LIVINGROOM.equals(slot)) return KEY_RUUVI_MAC_LIVINGROOM;
+        if (RUUVI_SLOT_BALCONY.equals(slot)) return KEY_RUUVI_MAC_BALCONY;
+        return null;
+    }
+    public String getRuuviMac(String slot) {
+        String k = slotKey(slot);
+        return k == null ? null : sp().getString(k, null);
+    }
+    public void setRuuviMac(String slot, String mac) {
+        String k = slotKey(slot);
+        if (k == null) return;
+        if (mac == null || mac.trim().isEmpty()) sp().edit().remove(k).apply();
+        else sp().edit().putString(k, mac.trim().toUpperCase(Locale.ROOT)).apply();
+    }
+    /** Palauttaa slotin nimen jolle MAC on määritetty, tai null jos vapaa. */
+    public String slotForMac(String mac) {
+        if (mac == null) return null;
+        String up = mac.trim().toUpperCase(Locale.ROOT);
+        if (up.equals(sp().getString(KEY_RUUVI_MAC_BEDROOM, null))) return RUUVI_SLOT_BEDROOM;
+        if (up.equals(sp().getString(KEY_RUUVI_MAC_LIVINGROOM, null))) return RUUVI_SLOT_LIVINGROOM;
+        if (up.equals(sp().getString(KEY_RUUVI_MAC_BALCONY, null))) return RUUVI_SLOT_BALCONY;
+        return null;
     }
 
     // ---- Listenerit ----
