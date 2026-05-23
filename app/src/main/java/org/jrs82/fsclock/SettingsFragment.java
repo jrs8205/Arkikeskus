@@ -200,6 +200,15 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     private void setupHistoryPreferences() {
         refreshDbSize();
 
+        Preference openHistory = findPreference("open_history");
+        if (openHistory != null) {
+            openHistory.setOnPreferenceClickListener(p -> {
+                startActivity(new Intent(requireContext(),
+                        org.jrs82.fsclock.history.HistoryActivity.class));
+                return true;
+            });
+        }
+
         Preference exportCsv = findPreference("export_csv");
         if (exportCsv != null) {
             exportCsv.setOnPreferenceClickListener(p -> { exportAllToCsv(); return true; });
