@@ -68,6 +68,10 @@ public class RuuviScanner {
             return false;
         }
 
+        // Manufacturer-suodatin: 0x0499 + data ensimmäinen tavu = 0x05 (RAWv2).
+        // mask {0xFF} = match vain ensimmäisen tavun (data format ID), loput 23 tavua
+        // (lämpö/kosteus/paine/jne) saavat olla mitä tahansa. Ilman maskia BLE-stack
+        // vaatisi *kaikkien* tavujen täsmäävän → mikään paketti ei läpäisisi.
         List<ScanFilter> filters = new ArrayList<>();
         filters.add(new ScanFilter.Builder()
                 .setManufacturerData(RuuviPacket.MANUFACTURER_ID, new byte[]{ (byte) RuuviPacket.FORMAT_RAW_V2 },

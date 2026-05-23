@@ -272,7 +272,11 @@ public class ClockController {
         active.set(false);
         try { SettingsManager.get().unregisterListener(prefsListener); } catch (Exception ignored) { }
         WarningsRepository.get().removeListener(warningsListener);
-        try { RuuviRepository.get(ctx).removeListener(ruuviListener); } catch (Exception ignored) { }
+        try {
+            RuuviRepository repo = RuuviRepository.get(ctx);
+            repo.removeListener(ruuviListener);
+            repo.stop();
+        } catch (Exception ignored) { }
         pixelShift.stop();
         brightness.stop();
         ui.removeCallbacks(returnHomeRunnable);

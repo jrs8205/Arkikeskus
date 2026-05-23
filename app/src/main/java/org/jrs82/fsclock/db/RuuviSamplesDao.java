@@ -27,6 +27,22 @@ public interface RuuviSamplesDao {
     @Query("SELECT * FROM ruuvi_samples WHERE mac = :mac AND timestamp >= :fromMs AND timestamp <= :toMs ORDER BY timestamp ASC")
     List<RuuviSampleEntity> rangeForMac(String mac, long fromMs, long toMs);
 
+    @Query("SELECT DISTINCT mac FROM ruuvi_samples ORDER BY mac")
+    List<String> listMacs();
+
+    /** Päiväkohtainen aggregaatti yhdelle MAC:lle. 'localtime' käyttää laitteen
+     *  aikavyöhykettä (Europe/Helsinki tabletille), joten päiväraja on paikallinen. */
+    @Query("SELECT date(timestamp/1000, 'unixepoch', 'localtime') AS day, "
+            + "MIN(temperature_c) AS minT, "
+            + "MAX(temperature_c) AS maxT, "
+            + "AVG(temperature_c) AS avgT, "
+            + "AVG(humidity_pct) AS avgH, "
+            + "COUNT(*) AS cnt "
+            + "FROM ruuvi_samples "
+            + "WHERE mac = :mac AND timestamp >= :fromMs AND timestamp < :toMs "
+            + "GROUP BY day ORDER BY day ASC")
+    List<RuuviDailyAggregate> dailyAggregate(String mac, long fromMs, long toMs);
+
     @Query("DELETE FROM ruuvi_samples WHERE timestamp < :cutoffMs")
     int deleteOlderThan(long cutoffMs);
 

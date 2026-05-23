@@ -15,8 +15,8 @@ android {
         applicationId 'org.jrs82.fsclock'
         minSdk 30
         targetSdk 35
-        versionCode 160
-        versionName '1.6.0-ruuvi'
+        versionCode 161
+        versionName '1.6.1-ruuvi'
 
         javaCompileOptions {
             annotationProcessorOptions {
