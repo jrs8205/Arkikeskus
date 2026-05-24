@@ -167,6 +167,7 @@
     <string name="super_weather_hour_format">%02d:00</string>
     <string name="super_weather_row_format">%1$s %2$+.0f°  T%3$.0f  K%4$.0f  S%5$.1f</string>
     <string name="super_weather_row_format_no_rain">%1$s %2$+.0f°  T%3$.0f  K%4$.0f</string>
+    <string name="sun_symbol">☀</string>
 
     <!-- Anturit (RuuviTag — tilavaraus) -->
     <string name="sensor_label_bedroom">Makuuhuone</string>

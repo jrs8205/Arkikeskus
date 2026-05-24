@@ -1,406 +1,368 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/home_page_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="vertical"
+    tools:ignore="InconsistentLayout">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_col_left"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.25" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_col_right"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.65" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_sensor_top"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.78" />
-
-    <!-- Pystyviivat sarakkeiden välissä, kulkevat ylhäältä alas läpi anturirivin -->
-    <View
-        android:id="@+id/divider_v_left"
-        android:layout_width="1dp"
-        android:layout_height="0dp"
-        android:background="#404040"
-        app:layout_constraintStart_toStartOf="@id/gl_col_left"
-        app:layout_constraintEnd_toEndOf="@id/gl_col_left"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-    <View
-        android:id="@+id/divider_v_right"
-        android:layout_width="1dp"
-        android:layout_height="0dp"
-        android:background="#404040"
-        app:layout_constraintStart_toStartOf="@id/gl_col_right"
-        app:layout_constraintEnd_toEndOf="@id/gl_col_right"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-    <!-- Vaakaviiva, joka erottaa anturit yläpuolisesta datasta -->
-    <View
-        android:id="@+id/divider_sensor_top"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:background="#404040"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@id/gl_sensor_top" />
-
-    <!-- Vasen sarake: aurinko nousee / laskee / päivän kesto + sääoitukset -->
     <LinearLayout
-        android:id="@+id/col_sun"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="start|top"
-        android:paddingStart="@dimen/home_page_gap_small"
-        android:paddingEnd="@dimen/home_page_gap_small"
-        android:paddingTop="@dimen/home_page_gap_small"
-        android:paddingBottom="@dimen/home_page_gap_small"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/gl_col_left"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/gl_sensor_top">
+        android:paddingBottom="@dimen/home_page_gap_large">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:baselineAligned="false"
+            android:gravity="top"
+            android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/sun_rise_text"
+            <LinearLayout
+                android:id="@+id/col_center"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.25"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/home_page_gap_small"
+                android:paddingEnd="@dimen/home_page_gap_small">
+
+                <TextView
+                    android:id="@+id/clock_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:autoSizeMaxTextSize="@dimen/home_clock_text_size"
+                    android:autoSizeMinTextSize="34sp"
+                    android:autoSizeStepGranularity="2sp"
+                    android:autoSizeTextType="uniform"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/clock_time_placeholder"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/home_clock_text_size" />
+
+                <TextView
+                    android:id="@+id/clock_date"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/home_page_gap_small"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/value_missing_short"
+                    android:textColor="#C0C0C0"
+                    android:textSize="@dimen/home_date_text_size" />
+
+                <TextView
+                    android:id="@+id/next_holiday"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/home_page_gap_small"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="2"
+                    android:text=""
+                    android:textColor="#E8E8E8"
+                    android:textSize="@dimen/home_holiday_text_size" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:background="#404040" />
+
+            <LinearLayout
+                android:id="@+id/col_current"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:gravity="start"
-                android:text=""
-                android:textColor="#FFD89A"
-                android:textSize="@dimen/home_sun_moon_text_size" />
+                android:gravity="top|center_horizontal"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/home_page_gap_small"
+                android:paddingEnd="@dimen/home_page_gap_small">
 
-            <TextView
-                android:id="@+id/sun_icon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:text="☀"
-                android:textColor="#FFC04A"
-                android:textSize="@dimen/home_sun_moon_text_size" />
+                <org.jrs82.fsclock.WeatherIconView
+                    android:id="@+id/current_icon"
+                    android:layout_width="@dimen/home_weather_icon_size"
+                    android:layout_height="@dimen/home_weather_icon_size" />
 
-            <TextView
-                android:id="@+id/sun_set_text"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="end"
-                android:text=""
-                android:textColor="#A8B8D8"
-                android:textSize="@dimen/home_sun_moon_text_size" />
+                <TextView
+                    android:id="@+id/current_line_temp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/temp_missing"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/home_temp_text_size" />
+
+                <TextView
+                    android:id="@+id/current_line_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text=""
+                    android:textColor="#D8D8D8"
+                    android:textSize="@dimen/home_feels_text_size" />
+
+                <TextView
+                    android:id="@+id/current_line_feels"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text=""
+                    android:textColor="#B8B8B8"
+                    android:textSize="@dimen/home_feels_text_size" />
+
+                <TextView
+                    android:id="@+id/current_line_wind"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/wind_missing"
+                    android:textColor="#C8C8C8"
+                    android:textSize="@dimen/home_details_text_size" />
+
+                <TextView
+                    android:id="@+id/current_line_humidity"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/humidity_missing"
+                    android:textColor="#C8C8C8"
+                    android:textSize="@dimen/home_details_text_size" />
+
+                <TextView
+                    android:id="@+id/current_line_precip"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/rain24h_missing"
+                    android:textColor="#C8C8C8"
+                    android:textSize="@dimen/home_details_text_size" />
+            </LinearLayout>
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/day_length_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:autoSizeTextType="uniform"
-            android:autoSizeMinTextSize="10sp"
-            android:autoSizeMaxTextSize="@dimen/home_sun_moon_text_size"
-            android:autoSizeStepGranularity="1sp"
-            android:ellipsize="end"
-            android:gravity="start"
-            android:maxLines="1"
-            android:text=""
-            android:textColor="#B8D8F0"
-            android:textSize="@dimen/home_sun_moon_text_size" />
-
         <View
+            android:id="@+id/sensor_section_top_divider"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="6dp"
-            android:background="#303030" />
+            android:layout_marginTop="@dimen/home_page_gap_medium"
+            android:background="#404040" />
 
-        <TextView
-            android:id="@+id/warnings_header"
+        <LinearLayout
+            android:id="@+id/sensor_section_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="start"
-            android:text="@string/warnings_header"
-            android:textColor="#A0A0A0"
-            android:textSize="@dimen/warning_meta_text_size" />
+            android:baselineAligned="false"
+            android:gravity="center"
+            android:orientation="horizontal">
 
-        <ScrollView
-            android:id="@+id/warnings_scroll"
+            <include
+                android:id="@+id/sensor_bedroom"
+                layout="@layout/inc_sensor_circle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <include
+                android:id="@+id/sensor_livingroom"
+                layout="@layout/inc_sensor_circle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <include
+                android:id="@+id/sensor_balcony"
+                layout="@layout/inc_sensor_circle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/sensor_section_bottom_divider"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:fillViewport="true"
-            android:scrollbars="none">
+            android:layout_height="1dp"
+            android:layout_marginTop="@dimen/home_page_gap_medium"
+            android:background="#404040" />
+
+        <LinearLayout
+            android:id="@+id/col_sun"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="start|top"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/home_page_gap_small"
+            android:paddingEnd="@dimen/home_page_gap_small"
+            android:paddingTop="@dimen/home_page_gap_medium">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/sun_rise_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="start"
+                    android:text=""
+                    android:textColor="#FFD89A"
+                    android:textSize="@dimen/home_sun_moon_text_size" />
+
+                <TextView
+                    android:id="@+id/sun_icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:text="@string/sun_symbol"
+                    android:textColor="#FFC04A"
+                    android:textSize="@dimen/home_sun_moon_text_size" />
+
+                <TextView
+                    android:id="@+id/sun_set_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
+                    android:text=""
+                    android:textColor="#A8B8D8"
+                    android:textSize="@dimen/home_sun_moon_text_size" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/day_length_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:autoSizeMaxTextSize="@dimen/home_sun_moon_text_size"
+                android:autoSizeMinTextSize="9sp"
+                android:autoSizeStepGranularity="1sp"
+                android:autoSizeTextType="uniform"
+                android:ellipsize="end"
+                android:gravity="start"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="#B8D8F0"
+                android:textSize="@dimen/home_sun_moon_text_size" />
+
+            <TextView
+                android:id="@+id/warnings_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/home_page_gap_medium"
+                android:gravity="start"
+                android:text="@string/warnings_header"
+                android:textColor="#A0A0A0"
+                android:textSize="@dimen/warning_meta_text_size" />
 
             <LinearLayout
                 android:id="@+id/warnings_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
-        </ScrollView>
-    </LinearLayout>
+        </LinearLayout>
 
-    <!-- Keskisarake: kello / päivämäärä / juhlapäivä / supersää -->
-    <LinearLayout
-        android:id="@+id/col_center"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:paddingStart="@dimen/home_page_gap_small"
-        android:paddingEnd="@dimen/home_page_gap_small"
-        app:layout_constraintStart_toStartOf="@id/gl_col_left"
-        app:layout_constraintEnd_toStartOf="@id/gl_col_right"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/gl_sensor_top">
-
-        <TextView
-            android:id="@+id/clock_time"
+        <View
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:autoSizeMaxTextSize="@dimen/home_clock_text_size"
-            android:autoSizeMinTextSize="48sp"
-            android:autoSizeStepGranularity="2sp"
-            android:autoSizeTextType="uniform"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="@string/clock_time_placeholder"
-            android:textColor="#FFFFFF"
-            android:textSize="@dimen/home_clock_text_size" />
-
-        <TextView
-            android:id="@+id/clock_date"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/home_page_gap_small"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text="@string/value_missing_short"
-            android:textColor="#C0C0C0"
-            android:textSize="@dimen/home_date_text_size" />
-
-        <TextView
-            android:id="@+id/next_holiday"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/home_page_gap_small"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="2"
-            android:text=""
-            android:textColor="#E8E8E8"
-            android:textSize="@dimen/home_holiday_text_size" />
-
-        <TextView
-            android:id="@+id/super_weather_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="1dp"
             android:layout_marginTop="@dimen/home_page_gap_medium"
-            android:gravity="center"
-            android:text="@string/super_weather_title"
-            android:textColor="#A0C0E0"
-            android:textSize="@dimen/home_meta_text_size" />
+            android:background="#404040" />
 
-        <!-- Sarakeotsikot: FMI | (tunti) | Open-Meteo -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:paddingStart="@dimen/home_page_gap_small"
+            android:paddingEnd="@dimen/home_page_gap_small"
+            android:paddingTop="@dimen/home_page_gap_medium">
 
             <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:autoSizeTextType="uniform"
-                android:autoSizeMinTextSize="9sp"
-                android:autoSizeMaxTextSize="@dimen/super_weather_text_size"
-                android:autoSizeStepGranularity="1sp"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:maxLines="1"
-                android:text="@string/super_weather_col_fmi"
-                android:textColor="#A0A0A0"
-                android:textSize="@dimen/super_weather_text_size" />
-
-            <TextView
-                android:layout_width="56dp"
+                android:id="@+id/super_weather_title"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text=""
-                android:textColor="#A0A0A0"
-                android:textSize="@dimen/super_weather_text_size" />
+                android:text="@string/super_weather_title"
+                android:textColor="#A0C0E0"
+                android:textSize="@dimen/home_meta_text_size" />
 
-            <TextView
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="@string/super_weather_col_om"
-                android:textColor="#A0A0A0"
-                android:textSize="@dimen/super_weather_text_size" />
-        </LinearLayout>
+                android:layout_marginTop="2dp"
+                android:orientation="horizontal">
 
-        <ScrollView
-            android:id="@+id/super_weather_scroll"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:fillViewport="true"
-            android:scrollbars="vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:autoSizeMaxTextSize="@dimen/super_weather_text_size"
+                    android:autoSizeMinTextSize="8sp"
+                    android:autoSizeStepGranularity="1sp"
+                    android:autoSizeTextType="uniform"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/super_weather_col_fmi"
+                    android:textColor="#A0A0A0"
+                    android:textSize="@dimen/super_weather_text_size" />
+
+                <TextView
+                    android:layout_width="42dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text=""
+                    android:textColor="#A0A0A0"
+                    android:textSize="@dimen/super_weather_text_size" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:autoSizeMaxTextSize="@dimen/super_weather_text_size"
+                    android:autoSizeMinTextSize="8sp"
+                    android:autoSizeStepGranularity="1sp"
+                    android:autoSizeTextType="uniform"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/super_weather_col_om"
+                    android:textColor="#A0A0A0"
+                    android:textSize="@dimen/super_weather_text_size" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/super_weather_list"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
-        </ScrollView>
+        </LinearLayout>
     </LinearLayout>
-
-    <!-- Oikea sarake: nykyinen sää, ikoni ylhäällä + 5 kiinteää tekstiriviä -->
-    <LinearLayout
-        android:id="@+id/col_current"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        android:gravity="top|center_horizontal"
-        android:paddingStart="@dimen/home_page_gap_small"
-        android:paddingEnd="@dimen/home_page_gap_small"
-        android:paddingTop="@dimen/home_page_gap_small"
-        android:paddingBottom="@dimen/home_page_gap_small"
-        app:layout_constraintStart_toStartOf="@id/gl_col_right"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/gl_sensor_top">
-
-        <org.jrs82.fsclock.WeatherIconView
-            android:id="@+id/current_icon"
-            android:layout_width="@dimen/home_weather_icon_size"
-            android:layout_height="@dimen/home_weather_icon_size" />
-
-        <TextView
-            android:id="@+id/current_line_temp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:text="@string/temp_missing"
-            android:textColor="#FFFFFF"
-            android:textSize="@dimen/home_temp_text_size" />
-
-        <TextView
-            android:id="@+id/current_line_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text=""
-            android:textColor="#D8D8D8"
-            android:textSize="@dimen/home_feels_text_size" />
-
-        <TextView
-            android:id="@+id/current_line_feels"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text=""
-            android:textColor="#B8B8B8"
-            android:textSize="@dimen/home_feels_text_size" />
-
-        <TextView
-            android:id="@+id/current_line_wind"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text="@string/wind_missing"
-            android:textColor="#C8C8C8"
-            android:textSize="@dimen/home_details_text_size" />
-
-        <TextView
-            android:id="@+id/current_line_humidity"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text="@string/humidity_missing"
-            android:textColor="#C8C8C8"
-            android:textSize="@dimen/home_details_text_size" />
-
-        <TextView
-            android:id="@+id/current_line_precip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text="@string/rain24h_missing"
-            android:textColor="#C8C8C8"
-            android:textSize="@dimen/home_details_text_size" />
-    </LinearLayout>
-
-    <!-- Anturit: kukin omassa sarakkeessaan keskellä (25% / 40% / 35%) -->
-    <include
-        android:id="@+id/sensor_bedroom"
-        layout="@layout/inc_sensor_circle"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/gl_col_left"
-        app:layout_constraintTop_toBottomOf="@id/divider_sensor_top"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-    <include
-        android:id="@+id/sensor_livingroom"
-        layout="@layout/inc_sensor_circle"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintStart_toStartOf="@id/gl_col_left"
-        app:layout_constraintEnd_toStartOf="@id/gl_col_right"
-        app:layout_constraintTop_toBottomOf="@id/divider_sensor_top"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-    <include
-        android:id="@+id/sensor_balcony"
-        layout="@layout/inc_sensor_circle"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintStart_toStartOf="@id/gl_col_right"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/divider_sensor_top"
-        app:layout_constraintBottom_toBottomOf="parent" />
-</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
