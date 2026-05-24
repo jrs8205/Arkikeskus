@@ -1330,7 +1330,12 @@ public class ClockController {
         }
         long ageMin = (System.currentTimeMillis() - data.fetchedAt) / 60_000L;
         SimpleDateFormat hm = new SimpleDateFormat("HH:mm", FI);
-        String s = ctx.getString(R.string.weather_label) + " " + hm.format(new Date(data.fetchedAt));
+        // Näytä havainnon slot-aika (10 min bucketing) eikä haun aikaleimaa, jotta
+        // sama 14:10-havainto näkyy yhtenäisenä riippumatta siitä koska eri laitteet
+        // haun käytännössä tekivät. fetchedAt ohjaa edelleen stale-tarkastusta.
+        long shownTs = (data.current != null && data.current.timestamp > 0)
+                ? data.current.timestamp : data.fetchedAt;
+        String s = ctx.getString(R.string.weather_label) + " " + hm.format(new Date(shownTs));
         if (ageMin > 30) {
             String stale = ctx.getString(R.string.weather_stale_format,
                     s, ctx.getString(R.string.weather_stale));

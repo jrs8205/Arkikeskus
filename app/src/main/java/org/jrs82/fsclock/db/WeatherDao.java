@@ -19,6 +19,13 @@ public interface WeatherDao {
     @Query("SELECT * FROM weather_samples WHERE channel = :ch AND timestamp >= :start AND timestamp < :end ORDER BY timestamp")
     List<WeatherSample> getSamplesBetween(String ch, long start, long end);
 
+    /** Bucketing-tarkistus: onko 10 min slot-välillä [slotStart, slotEnd) jo
+     *  tallennettu sample. Palauttaa tuoreimman (myöhempi voittaa, esim. jos
+     *  saman slotin sisään on tullut sekä FMI-hakuviiveestä että live-pyynnöstä
+     *  rivi). Vain yhden rivin haku, ei kuormita pitkillä kanavilla. */
+    @Query("SELECT * FROM weather_samples WHERE channel = :ch AND timestamp >= :slotStart AND timestamp < :slotEnd ORDER BY timestamp DESC LIMIT 1")
+    WeatherSample getLatestInSlot(String ch, long slotStart, long slotEnd);
+
     @Query("DELETE FROM weather_samples WHERE timestamp < :cutoff")
     int deleteOlderThan(long cutoff);
 
