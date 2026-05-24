@@ -91,6 +91,19 @@ public class ClockController {
     private long browseUntilMs;
     private int retryStep = 0;
     private int lastRefreshDay = -1;
+    /** Viimeksi UI:lle näytetty havainto-slotin alku (ms). Käytetään
+     *  päättämään, oliko juuri haettu data uusi (etenemme slot-rytmiin)
+     *  vai sama (FMI ei vielä päivittänyt → lyhyt retry). */
+    private long lastShownSlotMs = 0L;
+    /** Slot-pituus sään bucketingissa (10 min, sama kuin FmiRepository.SLOT_MS). */
+    private static final long WEATHER_SLOT_MS = 10L * 60_000L;
+    /** Offset slotin alun jälkeen ennen seuraavaa hakua. FMI:llä on tyypillisesti
+     *  1–3 min viive havainnon julkaisussa; 60 s antaa puskuria mutta ei viivytä
+     *  liikaa. */
+    private static final long WEATHER_SLOT_OFFSET_MS = 60_000L;
+    /** Lyhyt retry kun haku palauttaa saman tai vanhemman slotin (FMI ei
+     *  vielä päivittänyt). 90 s = pyörähtää loppuun ennen seuraavaa slottia. */
+    private static final long WEATHER_STALE_SLOT_RETRY_MS = 90_000L;
     private Runnable settingsClickCallback;
     private Runnable systemClickCallback;
     private final AtomicBoolean active = new AtomicBoolean(false);
@@ -888,9 +901,31 @@ public class ClockController {
                 updateStatus();
             }
             ui.removeCallbacks(fetchWeather);
-            long okMs = SettingsManager.get().getWeatherUpdateMinutes() * 60_000L;
-            ui.postDelayed(fetchWeather, okMs);
+            // Slot-synkattu uudelleenajastus: jos haku tuotti uudemman slotin
+            // (FMI on jo päivittänyt), tickaa seuraavan slotin alkua seuraavalla
+            // 60 s offsetilla. Jos saatiin sama slot kuin viimeksi, FMI ei ole
+            // vielä julkaissut uutta havaintoa → lyhyt retry 90 s päästä.
+            long slotTs = (wd.current != null) ? wd.current.timestamp : 0L;
+            long delay;
+            if (slotTs > 0 && slotTs > lastShownSlotMs) {
+                lastShownSlotMs = slotTs;
+                delay = computeNextSlotTickDelay();
+            } else {
+                delay = WEATHER_STALE_SLOT_RETRY_MS;
+            }
+            ui.postDelayed(fetchWeather, delay);
         }
+    }
+
+    /** Millisekunnit nykyhetkestä seuraavan 10 min slotin alkuun + 60 s offset.
+     *  Esim. now=13:21:30 → next slot 13:30, target 13:31:00 → delay 9 min 30 s.
+     *  Minimi 30 s, jottei busy-loopin riski synny jos kello on aivan slotin
+     *  rajalla. */
+    private long computeNextSlotTickDelay() {
+        long now = System.currentTimeMillis();
+        long nextSlot = ((now / WEATHER_SLOT_MS) + 1L) * WEATHER_SLOT_MS;
+        long target = nextSlot + WEATHER_SLOT_OFFSET_MS;
+        return Math.max(30_000L, target - now);
     }
 
     private void kickOpenMeteoFetch(final String placeName) {
