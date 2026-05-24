@@ -23,7 +23,8 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         SettingsManager.get().init(getApplicationContext());
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(),
+                UiMetrics.isCompactHeight(getResources()));
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.dream);
         View root = findViewById(R.id.shift_container);
@@ -38,7 +39,7 @@ public class MainActivity extends Activity {
             @Override public void run() { openSystem(); }
         });
         controller.start();
-        applyImmersive();
+        applySystemBars();
     }
 
     @Override
@@ -47,7 +48,7 @@ public class MainActivity extends Activity {
         // SettingsActivitysta paluun jalkeen pakota kirkkaus uudelleen, jotta
         // mahdolliset muutokset astuvat voimaan heti
         if (controller != null) controller.reapplyBrightness();
-        applyImmersive();
+        applySystemBars();
     }
 
     @Override
@@ -56,13 +57,22 @@ public class MainActivity extends Activity {
         // Navigaatio- ja statuspalkit voivat tulla takaisin järjestelmäeleiden,
         // dialogien tai muiden Activityjen jälkeen — palauta immersive aina kun
         // tämä Activity saa fokuksen.
-        if (hasFocus) applyImmersive();
+        if (hasFocus) applySystemBars();
     }
 
-    private void applyImmersive() {
+    private void applySystemBars() {
         View decor = getWindow().getDecorView();
         WindowInsetsControllerCompat ctl = WindowCompat.getInsetsController(getWindow(), decor);
         if (ctl == null) return;
+        if (UiMetrics.isCompactHeight(getResources())) {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+            ctl.show(WindowInsetsCompat.Type.navigationBars());
+            ctl.hide(WindowInsetsCompat.Type.statusBars());
+            return;
+        }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         ctl.setSystemBarsBehavior(
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         ctl.hide(WindowInsetsCompat.Type.systemBars());

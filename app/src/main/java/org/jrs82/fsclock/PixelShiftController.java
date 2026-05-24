@@ -26,6 +26,10 @@ public class PixelShiftController {
 
     public void stop() {
         ui.removeCallbacks(tick);
+        if (shiftContainer != null) {
+            shiftContainer.setTranslationX(0f);
+            shiftContainer.setTranslationY(0f);
+        }
     }
 
     private final Runnable tick = new Runnable() {

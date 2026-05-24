@@ -4,6 +4,8 @@
     <dimen name="clock_shell_padding_top">20dp</dimen>
     <dimen name="clock_shell_padding_bottom">16dp</dimen>
     <dimen name="clock_footer_margin_top">6dp</dimen>
+    <dimen name="clock_header_side_inset">0dp</dimen>
+    <dimen name="clock_footer_side_inset">0dp</dimen>
     <dimen name="clock_footer_indicator_text_size">14sp</dimen>
     <dimen name="clock_footer_battery_text_size">22sp</dimen>
     <dimen name="clock_footer_status_text_size">14sp</dimen>
@@ -31,6 +33,7 @@
     <dimen name="warning_card_padding">8dp</dimen>
     <dimen name="warning_dot_size">10dp</dimen>
     <dimen name="sensor_circle_size">72dp</dimen>
+    <dimen name="sensor_section_height">96dp</dimen>
     <dimen name="sensor_temp_text_size">18sp</dimen>
     <dimen name="sensor_label_text_size">13sp</dimen>
 </resources>

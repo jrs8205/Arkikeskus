@@ -24,6 +24,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.constraintlayout.widget.ConstraintLayout;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -63,6 +65,8 @@ public class ClockController {
     private LinearLayout warningsContainer;
     private TextView warningsHeader;
     private View sensorBedroom, sensorLivingroom, sensorBalcony;
+    private View sensorTopGuideline, sensorTopDivider;
+    private View sensorSectionRow, sensorSectionTopDivider, sensorSectionBottomDivider;
     private OpenMeteoData openMeteoData;
 
     // Yhteiset (jaettu globaali header näkyy joka sivulla)
@@ -300,7 +304,11 @@ public class ClockController {
         renderStaticContent();
         updatePlaceControls();
         ui.post(tickClock);
-        pixelShift.start();
+        if (!UiMetrics.isCompactHeight(ctx.getResources())) {
+            pixelShift.start();
+        } else {
+            pixelShift.stop();
+        }
         brightness.start();
         ui.post(fetchWeather);
         WarningsRepository.get().addListener(warningsListener);
@@ -393,9 +401,13 @@ public class ClockController {
         electricityPriceText.setVisibility(View.VISIBLE);
         String value = String.format(FI, "%.3f", q.sntPerKwh);
         android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
-        sb.append("Sähkön hinta suomessa nyt: ");
+        if (UiMetrics.isCompactHeight(ctx.getResources())) {
+            sb.append("Sähkö nyt: ");
+        } else {
+            sb.append("Sähkön hinta suomessa nyt: ");
+        }
         int start = sb.length();
-        sb.append(value).append(" c/KWh");
+        sb.append(value).append(" c/kWh");
         sb.setSpan(new android.text.style.ForegroundColorSpan(ElectricityDialog.priceColor(q.sntPerKwh)),
                 start, sb.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         electricityPriceText.setText(sb);
@@ -428,31 +440,61 @@ public class ClockController {
     private void renderSensors() {
         SettingsManager sm = SettingsManager.get();
         RuuviRepository repo = RuuviRepository.get(ctx);
-        renderOneSensor(sensorBedroom, sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BEDROOM), repo);
-        renderOneSensor(sensorLivingroom, sm.getRuuviMac(SettingsManager.RUUVI_SLOT_LIVINGROOM), repo);
-        renderOneSensor(sensorBalcony, sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BALCONY), repo);
+        String bedroomMac = sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BEDROOM);
+        String livingroomMac = sm.getRuuviMac(SettingsManager.RUUVI_SLOT_LIVINGROOM);
+        String balconyMac = sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BALCONY);
+        boolean bedroomVisible = renderOneSensor(sensorBedroom, bedroomMac, repo);
+        boolean livingroomVisible = renderOneSensor(sensorLivingroom, livingroomMac, repo);
+        boolean balconyVisible = renderOneSensor(sensorBalcony, balconyMac, repo);
+        updateSensorRegion(bedroomVisible || livingroomVisible || balconyVisible);
     }
 
-    private void renderOneSensor(View container, String mac, RuuviRepository repo) {
-        if (container == null) return;
+    private boolean renderOneSensor(View container, String mac, RuuviRepository repo) {
+        if (container == null) return false;
         TextView tempTv = container.findViewById(R.id.sensor_temp);
-        if (tempTv == null) return;
-        if (mac == null || mac.isEmpty()) {
-            tempTv.setText(R.string.sensor_temp_missing);
-            applySensorBackground(container, Double.NaN);
-            return;
+        if (tempTv == null) return false;
+        if (!hasRuuviMac(mac)) {
+            container.setVisibility(View.GONE);
+            return false;
         }
         RuuviSample s = repo.getLatest(mac);
         long now = System.currentTimeMillis();
         if (s == null || s.temperatureC() == null
                 || (now - s.timestamp) > SENSOR_STALE_MS) {
-            tempTv.setText(R.string.sensor_temp_no_signal);
-            applySensorBackground(container, Double.NaN);
-            return;
+            container.setVisibility(View.GONE);
+            return false;
         }
+        container.setVisibility(View.VISIBLE);
         double tC = s.temperatureC();
         tempTv.setText(String.format(FI, "%+.1f°", tC));
         applySensorBackground(container, tC);
+        return true;
+    }
+
+    private boolean hasRuuviMac(String mac) {
+        return mac != null && !mac.trim().isEmpty();
+    }
+
+    private void updateSensorRegion(boolean hasAnySensor) {
+        if (sensorTopDivider != null) {
+            sensorTopDivider.setVisibility(hasAnySensor ? View.VISIBLE : View.GONE);
+        }
+        if (sensorSectionRow != null) {
+            sensorSectionRow.setVisibility(hasAnySensor ? View.VISIBLE : View.GONE);
+        }
+        if (sensorSectionTopDivider != null) {
+            sensorSectionTopDivider.setVisibility(hasAnySensor ? View.VISIBLE : View.GONE);
+        }
+        if (sensorSectionBottomDivider != null) {
+            sensorSectionBottomDivider.setVisibility(hasAnySensor ? View.VISIBLE : View.GONE);
+        }
+        if (sensorTopGuideline != null) {
+            ViewGroup.LayoutParams lp = sensorTopGuideline.getLayoutParams();
+            if (lp instanceof ConstraintLayout.LayoutParams) {
+                ((ConstraintLayout.LayoutParams) lp).guidePercent = hasAnySensor ? 0.78f : 1.0f;
+                sensorTopGuideline.setLayoutParams(lp);
+            }
+        }
     }
 
     // ============================================================
@@ -492,13 +534,15 @@ public class ClockController {
         sensorBedroom = root.findViewById(R.id.sensor_bedroom);
         sensorLivingroom = root.findViewById(R.id.sensor_livingroom);
         sensorBalcony = root.findViewById(R.id.sensor_balcony);
+        sensorTopGuideline = root.findViewById(R.id.gl_sensor_top);
+        sensorTopDivider = root.findViewById(R.id.divider_sensor_top);
+        sensorSectionRow = root.findViewById(R.id.sensor_section_row);
+        sensorSectionTopDivider = root.findViewById(R.id.sensor_section_top_divider);
+        sensorSectionBottomDivider = root.findViewById(R.id.sensor_section_bottom_divider);
         initSensorCircle(sensorBedroom, ctx.getString(R.string.sensor_label_bedroom));
         initSensorCircle(sensorLivingroom, ctx.getString(R.string.sensor_label_livingroom));
         initSensorCircle(sensorBalcony, ctx.getString(R.string.sensor_label_balcony));
 
-        if (UiMetrics.isCompactHeight(ctx.getResources())) {
-            currentLineFeels.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
-        }
         return root;
     }
 
@@ -675,9 +719,11 @@ public class ClockController {
     }
 
     private View buildDayPage(int idx) {
+        boolean compactForecast = !UiMetrics.isTabletLike(ctx.getResources())
+                || UiMetrics.isCompactHeight(ctx.getResources());
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), 0, dp(16), 0);
+        root.setPadding(dp(compactForecast ? 4 : 16), 0, dp(compactForecast ? 4 : 16), 0);
         root.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
@@ -685,7 +731,7 @@ public class ClockController {
         // Päivän otsikko, esim. "Lauantai 25.5."
         TextView header = new TextView(ctx);
         header.setTextColor(Color.WHITE);
-        header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f);
+        header.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactForecast ? 18f : 26f);
         header.setGravity(Gravity.CENTER);
         header.setText("--");
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
@@ -710,11 +756,13 @@ public class ClockController {
         TextView fmiHdr = new TextView(ctx);
         fmiHdr.setText("Ilmatieteen laitos");
         fmiHdr.setTextColor(0xFFB0B0B0);
-        fmiHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        fmiHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactForecast ? 12f : 14f);
         fmiHdr.setGravity(Gravity.START);
+        fmiHdr.setSingleLine(true);
+        fmiHdr.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams fmiHdrLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        fmiHdrLp.setMarginStart(dp(12));
+        fmiHdrLp.setMarginStart(dp(compactForecast ? 4 : 12));
         fmiHdr.setLayoutParams(fmiHdrLp);
         dayFmiHeader[idx] = fmiHdr;
         colHeaders.addView(fmiHdr);
@@ -722,11 +770,13 @@ public class ClockController {
         TextView omHdr = new TextView(ctx);
         omHdr.setText("Open-Meteo");
         omHdr.setTextColor(0xFFB0B0B0);
-        omHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        omHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactForecast ? 12f : 14f);
         omHdr.setGravity(Gravity.START);
+        omHdr.setSingleLine(true);
+        omHdr.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams omHdrLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        omHdrLp.setMarginStart(dp(12));
+        omHdrLp.setMarginStart(dp(compactForecast ? 4 : 12));
         omHdr.setLayoutParams(omHdrLp);
         colHeaders.addView(omHdr);
 
@@ -750,65 +800,71 @@ public class ClockController {
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            rowLp.topMargin = dp(2);
-            rowLp.bottomMargin = dp(2);
+            rowLp.topMargin = dp(compactForecast ? 1 : 2);
+            rowLp.bottomMargin = dp(compactForecast ? 1 : 2);
             row.setLayoutParams(rowLp);
             rows.addView(row);
 
-            row.addView(buildFmiCell(idx, hour));
-            row.addView(buildOmCell(idx, hour));
+            row.addView(buildFmiCell(idx, hour, compactForecast));
+            row.addView(buildOmCell(idx, hour, compactForecast));
         }
         return root;
     }
 
-    private View buildFmiCell(int idx, int hour) {
+    private View buildFmiCell(int idx, int hour, boolean compact) {
         LinearLayout cell = new LinearLayout(ctx);
         cell.setOrientation(LinearLayout.HORIZONTAL);
         cell.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        cellLp.setMarginStart(dp(8));
-        cellLp.setMarginEnd(dp(8));
+        cellLp.setMarginStart(dp(compact ? 0 : 8));
+        cellLp.setMarginEnd(dp(compact ? 0 : 8));
         cell.setLayoutParams(cellLp);
-        cell.setPadding(dp(4), dp(2), dp(4), dp(2));
+        cell.setPadding(dp(compact ? 2 : 4), dp(2), dp(compact ? 2 : 4), dp(2));
+
+        if (compact) {
+            TextView source = forecastSourceLabel("FMI");
+            cell.addView(source);
+        }
 
         TextView hourTv = new TextView(ctx);
         hourTv.setTextColor(0xFFB0B0B0);
-        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
         hourTv.setText(String.format(FI, "%02d", hour));
         hourTv.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(28), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 18 : 28), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(hourTv);
 
         WeatherIconView icon = new WeatherIconView(ctx);
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(28), dp(28));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(
+                dp(compact ? 18 : 28), dp(compact ? 18 : 28));
         iconLp.setMarginStart(dp(2));
-        iconLp.setMarginEnd(dp(4));
+        iconLp.setMarginEnd(dp(compact ? 2 : 4));
         icon.setLayoutParams(iconLp);
         cell.addView(icon);
 
         TextView temp = new TextView(ctx);
         temp.setTextColor(Color.WHITE);
-        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
         temp.setText("--");
         temp.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(56), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 34 : 56), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(temp);
 
         TextView wind = new TextView(ctx);
         wind.setTextColor(0xFFB0B0B0);
-        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
         wind.setText("");
         wind.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(76), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 46 : 76), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(wind);
 
         TextView rain = new TextView(ctx);
         rain.setTextColor(0xFF4FA8E0);
-        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
         rain.setText("");
         rain.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(76), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 46 : 76), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(rain);
 
         dayFmiHour[idx][hour] = hourTv;
@@ -819,70 +875,76 @@ public class ClockController {
         return cell;
     }
 
-    private View buildOmCell(int idx, int hour) {
+    private View buildOmCell(int idx, int hour, boolean compact) {
         LinearLayout cell = new LinearLayout(ctx);
         cell.setOrientation(LinearLayout.HORIZONTAL);
         cell.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        cellLp.setMarginStart(dp(8));
-        cellLp.setMarginEnd(dp(8));
+        cellLp.setMarginStart(dp(compact ? 0 : 8));
+        cellLp.setMarginEnd(dp(compact ? 0 : 8));
         cell.setLayoutParams(cellLp);
-        cell.setPadding(dp(4), dp(2), dp(4), dp(2));
+        cell.setPadding(dp(compact ? 2 : 4), dp(2), dp(compact ? 2 : 4), dp(2));
+
+        if (compact) {
+            TextView source = forecastSourceLabel("OM");
+            cell.addView(source);
+        }
 
         TextView hourTv = new TextView(ctx);
         hourTv.setTextColor(0xFFB0B0B0);
-        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
         hourTv.setText(String.format(FI, "%02d", hour));
         hourTv.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(28), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 18 : 28), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(hourTv);
 
         WeatherIconView icon = new WeatherIconView(ctx);
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(28), dp(28));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(
+                dp(compact ? 18 : 28), dp(compact ? 18 : 28));
         iconLp.setMarginStart(dp(2));
-        iconLp.setMarginEnd(dp(4));
+        iconLp.setMarginEnd(dp(compact ? 2 : 4));
         icon.setLayoutParams(iconLp);
         cell.addView(icon);
 
         TextView temp = new TextView(ctx);
         temp.setTextColor(Color.WHITE);
-        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
         temp.setText("--");
         temp.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(56), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 34 : 56), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(temp);
 
         TextView feels = new TextView(ctx);
         feels.setTextColor(0xFFB0B0B0);
-        feels.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        feels.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
         feels.setText("");
         feels.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(60), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 34 : 60), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(feels);
 
         TextView wind = new TextView(ctx);
         wind.setTextColor(0xFFB0B0B0);
-        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
         wind.setText("");
         wind.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(70), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 44 : 70), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(wind);
 
         TextView hum = new TextView(ctx);
         hum.setTextColor(0xFFB0B0B0);
-        hum.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        hum.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
         hum.setText("");
         hum.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(58), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 34 : 58), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(hum);
 
         TextView rain = new TextView(ctx);
         rain.setTextColor(0xFF4FA8E0);
-        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
         rain.setText("");
         rain.setLayoutParams(new LinearLayout.LayoutParams(
-                dp(70), ViewGroup.LayoutParams.WRAP_CONTENT));
+                dp(compact ? 44 : 70), ViewGroup.LayoutParams.WRAP_CONTENT));
         cell.addView(rain);
 
         dayOmHour[idx][hour] = hourTv;
@@ -893,6 +955,17 @@ public class ClockController {
         dayOmHumidity[idx][hour] = hum;
         dayOmRain[idx][hour] = rain;
         return cell;
+    }
+
+    private TextView forecastSourceLabel(String text) {
+        TextView source = new TextView(ctx);
+        source.setText(text);
+        source.setTextColor(0xFF909090);
+        source.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
+        source.setGravity(Gravity.CENTER_VERTICAL);
+        source.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(24), ViewGroup.LayoutParams.WRAP_CONTENT));
+        return source;
     }
 
     private int dp(float v) {

@@ -20,7 +20,9 @@
             android:layout_width="match_parent"
             android:layout_height="@dimen/home_top_button_size"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/clock_header_side_inset"
+            android:paddingEnd="@dimen/clock_header_side_inset">
 
             <TextView
                 android:id="@+id/browse_place_label"
@@ -187,6 +189,7 @@
                 android:autoSizeStepGranularity="1sp"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:paddingStart="@dimen/clock_footer_side_inset"
                 android:textColor="#D0D0D0"
                 android:textSize="@dimen/clock_footer_battery_text_size"
                 android:gravity="start|center_vertical"
@@ -203,6 +206,7 @@
                 android:autoSizeStepGranularity="1sp"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:paddingEnd="@dimen/clock_footer_side_inset"
                 android:textColor="#707070"
                 android:textSize="@dimen/clock_footer_status_text_size"
                 android:gravity="end|center_vertical"

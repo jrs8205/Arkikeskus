@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="clock_shell_padding_horizontal">16dp</dimen>
+    <dimen name="clock_shell_padding_top">8dp</dimen>
+    <dimen name="clock_shell_padding_bottom">6dp</dimen>
+    <dimen name="clock_footer_margin_top">4dp</dimen>
+    <dimen name="clock_header_side_inset">48dp</dimen>
+    <dimen name="clock_footer_side_inset">56dp</dimen>
+    <dimen name="clock_footer_indicator_text_size">11sp</dimen>
+    <dimen name="clock_footer_battery_text_size">13sp</dimen>
+    <dimen name="clock_footer_status_text_size">11sp</dimen>
+
+    <dimen name="home_page_gap_small">5dp</dimen>
+    <dimen name="home_page_gap_medium">10dp</dimen>
+    <dimen name="home_page_gap_large">14dp</dimen>
+
+    <dimen name="home_clock_text_size">58sp</dimen>
+    <dimen name="home_date_text_size">16sp</dimen>
+    <dimen name="home_temp_text_size">34sp</dimen>
+    <dimen name="home_feels_text_size">14sp</dimen>
+    <dimen name="home_details_text_size">12sp</dimen>
+    <dimen name="home_sun_moon_text_size">12sp</dimen>
+    <dimen name="home_holiday_text_size">13sp</dimen>
+    <dimen name="home_meta_text_size">11sp</dimen>
+
+    <dimen name="home_weather_icon_size">46dp</dimen>
+    <dimen name="home_top_button_size">36dp</dimen>
+
+    <dimen name="super_weather_text_size">10sp</dimen>
+    <dimen name="warning_title_text_size">12sp</dimen>
+    <dimen name="warning_meta_text_size">10sp</dimen>
+    <dimen name="warning_body_text_size">11sp</dimen>
+    <dimen name="warning_card_padding">6dp</dimen>
+    <dimen name="warning_dot_size">8dp</dimen>
+    <dimen name="sensor_circle_size">48dp</dimen>
+    <dimen name="sensor_section_height">72dp</dimen>
+    <dimen name="sensor_temp_text_size">13sp</dimen>
+    <dimen name="sensor_label_text_size">10sp</dimen>
+</resources>
