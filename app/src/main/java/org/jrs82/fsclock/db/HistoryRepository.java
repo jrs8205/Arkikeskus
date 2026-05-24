@@ -173,7 +173,8 @@ public class HistoryRepository {
         int samples = db.weatherDao().deleteOlderThan(cutoffMs);
         String cutoffDate = LocalDate.now(ZONE).minusDays(retentionDays).toString();
         int stats = db.dailyStatDao().deleteOlderThan(cutoffDate);
-        return samples + stats;
+        int ruuvi = db.ruuviSamplesDao().deleteOlderThan(cutoffMs);
+        return samples + stats + ruuvi;
     }
 
     public DailyStat allTimeMax(String channel) {
@@ -185,11 +186,12 @@ public class HistoryRepository {
     }
 
     public long sampleCount() {
-        return db.weatherDao().count();
+        return db.weatherDao().count() + db.ruuviSamplesDao().count();
     }
 
     public void clearAll() {
         db.weatherDao().clear();
         db.dailyStatDao().clear();
+        db.ruuviSamplesDao().deleteAll();
     }
 }

@@ -408,10 +408,14 @@ public class ClockController {
         if (container == null) return;
         TextView labelTv = container.findViewById(R.id.sensor_label);
         TextView tempTv = container.findViewById(R.id.sensor_temp);
-        if (labelTv != null) labelTv.setText(label);
+        if (labelTv != null) {
+            labelTv.setText(label);
+            labelTv.setShadowLayer(3f, 1f, 1f, 0xCC000000);
+        }
         if (tempTv != null) {
             tempTv.setText(ctx.getString(R.string.sensor_temp_missing));
             tempTv.setTextColor(0xFFFFFFFF);
+            tempTv.setShadowLayer(3f, 1f, 1f, 0xCC000000);
         }
         applySensorBackground(container, Double.NaN);
     }

@@ -15,13 +15,19 @@ android {
         applicationId 'org.jrs82.fsclock'
         minSdk 30
         targetSdk 35
-        versionCode 162
-        versionName '1.6.2-ruuvi'
+        versionCode 163
+        versionName '1.6.3-ruuvi'
 
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
             }
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "FsClock-${variant.versionName}.apk"
         }
     }
 
