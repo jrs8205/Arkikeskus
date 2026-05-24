@@ -28,6 +28,7 @@ public class WeatherData {
         public int month;
         public double temperature = Double.NaN;
         public double precipitation = Double.NaN;
+        public double windSpeed = Double.NaN;
         public double windGust = Double.NaN;
         public double radiationGlobal = Double.NaN;
         public WeatherCondition condition = WeatherCondition.unknown();

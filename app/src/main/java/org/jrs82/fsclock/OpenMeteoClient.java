@@ -42,7 +42,7 @@ public class OpenMeteoClient {
                 + "shortwave_radiation,weathercode"
                 + "&windspeed_unit=ms"
                 + "&timezone=auto"
-                + "&forecast_days=3"
+                + "&forecast_days=7"
                 + "&models=" + MODEL;
 
         Log.d(TAG, "GET " + url);
@@ -120,12 +120,13 @@ public class OpenMeteoClient {
             row.windDirection = optD(wd, i);
             row.radiationGlobal = optD(rad, i);
 
-            double tempD = row.temperature != null ? row.temperature : Double.NaN;
-            double pcpD = row.precipitation != null ? row.precipitation : Double.NaN;
-            double ccD = row.cloudCover != null ? row.cloudCover : Double.NaN;
-            row.condition = WeatherCondition.inferFromValues(tempD, pcpD, ccD, false);
             if (code != null && !code.isNull(i)) {
-                row.condition.rawWeatherSymbol3 = code.getInt(i);
+                row.condition = WeatherCondition.fromWmoCode(code.getInt(i), false);
+            } else {
+                double tempD = row.temperature != null ? row.temperature : Double.NaN;
+                double pcpD = row.precipitation != null ? row.precipitation : Double.NaN;
+                double ccD = row.cloudCover != null ? row.cloudCover : Double.NaN;
+                row.condition = WeatherCondition.inferFromValues(tempD, pcpD, ccD, false);
             }
 
             data.hours.add(row);

@@ -70,7 +70,7 @@ public class FmiClient {
             String fcUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                     + "&storedquery_id=fmi::forecast::edited::weather::scandinavia::point::simple"
                     + "&place=" + encodedPlace
-                    + "&parameters=Temperature,Precipitation1h,WindGust,RadiationGlobal,SmartSymbol,WeatherSymbol3"
+                    + "&parameters=Temperature,Precipitation1h,WindSpeedMS,WindGust,RadiationGlobal,SmartSymbol,WeatherSymbol3"
                     + "&timestep=60"
                     + "&starttime=" + iso.format(now)
                     + "&endtime=" + iso.format(fcEnd);
@@ -193,6 +193,7 @@ public class FmiClient {
             Double v;
             v = m.get("Temperature"); if (v != null && !v.isNaN()) h.temperature = v;
             v = m.get("Precipitation1h"); if (v != null && !v.isNaN()) h.precipitation = v;
+            v = m.get("WindSpeedMS"); if (v != null && !v.isNaN()) h.windSpeed = v;
             v = m.get("WindGust"); if (v != null && !v.isNaN()) h.windGust = v;
             v = m.get("RadiationGlobal"); if (v != null && !v.isNaN()) h.radiationGlobal = v;
 
