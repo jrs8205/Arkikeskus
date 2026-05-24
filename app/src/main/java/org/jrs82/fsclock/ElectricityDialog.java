@@ -39,6 +39,13 @@ public final class ElectricityDialog {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private Runnable pollRunnable;
     private boolean showingTomorrow = false;
+    /** Estää useamman samanaikaisen verkkokutsun: triggerFetch tarkistaa tämän. */
+    private boolean fetchInFlight = false;
+    /** Per-välilehti lippu: kunkin tabin ensimmäinen tyhjyysrender saa pyrkiä
+     *  fetchaan kerran. Sen jälkeen luotetaan pollRunnableen / ClockControllerin
+     *  taustahakuun. Estää renderActiveTab→triggerFetch→render-silmukan. */
+    private boolean firedFetchForToday = false;
+    private boolean firedFetchForTomorrow = false;
 
     public ElectricityDialog(Context ctx, ElectricityRepository repo, ExecutorService io) {
         this.ctx = ctx;
@@ -130,10 +137,17 @@ public final class ElectricityDialog {
             if (showingTomorrow) {
                 contentContainer.addView(buildEmptyText(
                         "Huomisen hinnat eivät vielä saatavilla.\nNordPool julkaisee yleensä klo 14.\nPäivitetään automaattisesti…"));
-                startTomorrowPolling();
+                if (!firedFetchForTomorrow) {
+                    firedFetchForTomorrow = true;
+                    triggerFetch();
+                }
+                ensureTomorrowPollScheduled();
             } else {
                 contentContainer.addView(buildEmptyText("Ladataan…"));
-                triggerFetch();
+                if (!firedFetchForToday) {
+                    firedFetchForToday = true;
+                    triggerFetch();
+                }
             }
             return;
         }
@@ -142,9 +156,11 @@ public final class ElectricityDialog {
         addQuartersToContainer(contentContainer, qs, !showingTomorrow);
     }
 
-    private void startTomorrowPolling() {
-        stopTomorrowPolling();
-        triggerFetch();
+    /** Ajastaa pollin vain jos sellainen ei jo ole pyörimässä. Ei tee
+     *  välitöntä triggerFetch-kutsua — se tehdään vain renderActiveTab:n
+     *  firedFetchForTomorrow-portin kautta. */
+    private void ensureTomorrowPollScheduled() {
+        if (pollRunnable != null) return;
         pollRunnable = new Runnable() {
             @Override public void run() {
                 if (dialog == null || !dialog.isShowing()) return;
@@ -163,11 +179,14 @@ public final class ElectricityDialog {
     }
 
     private void triggerFetch() {
+        if (fetchInFlight) return;
+        fetchInFlight = true;
         io.execute(() -> {
             try {
                 repo.fetchNow();
             } catch (Exception ignored) { }
             ui.post(() -> {
+                fetchInFlight = false;
                 if (dialog == null || !dialog.isShowing()) return;
                 renderActiveTab();
             });
