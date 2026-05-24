@@ -97,6 +97,13 @@ public class HistoryRepository {
         return db.weatherDao().getSamplesBetween(channel, startMs, endMs);
     }
 
+    /** Bucketing: hae sample 10 min slotille. Käytetään FmiRepository.fetchHome:n
+     *  yhdenmukaisuusvarmistuksessa — jos sample on jo DB:ssä, sitä käytetään
+     *  uuden FMI-pyynnön sijaan. Synkroninen kutsu, kutsu io-poolista. */
+    public WeatherSample getLatestInSlot(String channel, long slotStartMs, long slotEndMs) {
+        return db.weatherDao().getLatestInSlot(channel, slotStartMs, slotEndMs);
+    }
+
     public void recomputeDailyStats(String channel, LocalDate date) {
         long start = date.atStartOfDay(ZONE).toInstant().toEpochMilli();
         long end = date.plusDays(1).atStartOfDay(ZONE).toInstant().toEpochMilli();
