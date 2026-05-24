@@ -69,8 +69,10 @@ public final class ElectricityRepository {
         c.set(Calendar.SECOND, 0);
         c.set(Calendar.MILLISECOND, 0);
         long startMs = c.getTimeInMillis();
-        // 48 h ikkuna: tänään 00:00 EET → ylihuomenna 00:00 EET
-        long endMs = startMs + 48L * 3600_000L;
+        // Ikkuna kalenteripäivinä eikä millisekunteina, jotta DST-siirtymät
+        // (25 h tai 23 h vrk) eivät tipota tai duplikoi vartteja.
+        c.add(Calendar.DAY_OF_YEAR, 2);
+        long endMs = c.getTimeInMillis();
 
         ElectricityData fresh = client.fetchRange(startMs, endMs);
         synchronized (this) {
@@ -96,16 +98,16 @@ public final class ElectricityRepository {
         return false;
     }
 
-    /** Palauttaa tämän hetken vartin (nykyaika EET) tai null. */
+    /** Palauttaa tämän hetken vartin (nykyaika EET) tai null jos cache ei kata
+     *  nykyhetkeä. Ei palauteta vanhentunutta varttia, jotta headerissa ei näy
+     *  eilistä/yli-ikäistä hintaa verkko-ongelmien tai päivänvaihdon yli. */
     public synchronized ElectricityData.Quarter currentQuarter() {
         if (data == null || data.quarters.isEmpty()) return null;
         long now = System.currentTimeMillis();
-        ElectricityData.Quarter best = null;
         for (ElectricityData.Quarter q : data.quarters) {
             if (q.timestamp <= now && q.timestamp + 15L * 60_000L > now) return q;
-            if (q.timestamp <= now) best = q;
         }
-        return best;
+        return null;
     }
 
     /** Annetun päivän vartit aikajärjestyksessä. */

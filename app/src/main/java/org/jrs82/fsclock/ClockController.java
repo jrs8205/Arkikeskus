@@ -1306,11 +1306,23 @@ public class ClockController {
         return bestH;
     }
 
+    /** Palauttaa openMeteoData:n vain jos sen paikkanimi täsmää nykyiseen
+     *  näkyvään paikkaan. Estää vanhan paikan datan vuotamisen renderiin
+     *  paikkavaihdon ja uuden OM-haun valmistumisen välissä. */
+    private OpenMeteoData openMeteoForCurrentPlace() {
+        OpenMeteoData om = openMeteoData;
+        if (om == null || om.placeName == null) return null;
+        String current = currentPlaceLabel();
+        if (current == null) return null;
+        return current.trim().equalsIgnoreCase(om.placeName.trim()) ? om : null;
+    }
+
     private OpenMeteoData.Hour findOpenMeteoHour(long ms) {
-        if (openMeteoData == null) return null;
+        OpenMeteoData om = openMeteoForCurrentPlace();
+        if (om == null) return null;
         long best = Long.MAX_VALUE;
         OpenMeteoData.Hour bestH = null;
-        for (OpenMeteoData.Hour h : openMeteoData.hours) {
+        for (OpenMeteoData.Hour h : om.hours) {
             long diff = Math.abs(h.timestamp - ms);
             if (diff < best && diff <= 30L * 60_000L) {
                 best = diff;
@@ -1641,8 +1653,9 @@ public class ClockController {
 
         java.util.LinkedHashMap<Integer, java.util.Map<Integer, OpenMeteoData.Hour>> omByDay
                 = new java.util.LinkedHashMap<>();
-        if (openMeteoData != null) {
-            for (OpenMeteoData.Hour h : openMeteoData.hours) {
+        OpenMeteoData omForRender = openMeteoForCurrentPlace();
+        if (omForRender != null) {
+            for (OpenMeteoData.Hour h : omForRender.hours) {
                 int key = dayKey(h.timestamp);
                 java.util.Map<Integer, OpenMeteoData.Hour> map = omByDay.get(key);
                 if (map == null) {
