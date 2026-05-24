@@ -33,6 +33,31 @@
                 android:textColor="#D0D0D0"
                 android:textSize="@dimen/home_meta_text_size" />
 
+            <TextView
+                android:id="@+id/electricity_price_text"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:paddingStart="6dp"
+                android:paddingEnd="2dp"
+                android:textColor="#D0D0D0"
+                android:textStyle="bold"
+                android:textSize="@dimen/home_meta_text_size"
+                android:text=""
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/electricity_button"
+                android:layout_width="@dimen/home_top_button_size"
+                android:layout_height="@dimen/home_top_button_size"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Sähkönhinta"
+                android:padding="10dp"
+                android:scaleType="center"
+                android:src="@drawable/ic_bolt_24"
+                app:tint="#D0D0D0" />
+
             <ImageButton
                 android:id="@+id/favorite_button"
                 android:layout_width="@dimen/home_top_button_size"
