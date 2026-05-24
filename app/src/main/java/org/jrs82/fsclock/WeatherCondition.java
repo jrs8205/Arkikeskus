@@ -299,6 +299,48 @@ public class WeatherCondition {
         return c;
     }
 
+    // ============================================================
+    // WMO weather_code → Type (Open-Meteo)
+    // Lähde: https://open-meteo.com/en/docs (WMO Weather interpretation codes)
+    // ============================================================
+    public static WeatherCondition fromWmoCode(int code, boolean night) {
+        WeatherCondition c = new WeatherCondition();
+        c.rawWeatherSymbol3 = code;
+        c.isNight = night;
+        switch (code) {
+            case 0:  c.type = Type.CLEAR;          c.intensity = Intensity.NONE;     break;
+            case 1:  c.type = Type.CLEAR;          c.intensity = Intensity.NONE;     break;
+            case 2:  c.type = Type.PARTLY_CLOUDY;  c.intensity = Intensity.NONE;     break;
+            case 3:  c.type = Type.CLOUDY;         c.intensity = Intensity.NONE;     break;
+            case 45: case 48:
+                     c.type = Type.FOG;            c.intensity = Intensity.NONE;     break;
+            case 51: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
+            case 53: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
+            case 55: c.type = Type.RAIN;           c.intensity = Intensity.MODERATE; break;
+            case 56: c.type = Type.SLEET;          c.intensity = Intensity.LIGHT;    break;
+            case 57: c.type = Type.SLEET;          c.intensity = Intensity.MODERATE; break;
+            case 61: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
+            case 63: c.type = Type.RAIN;           c.intensity = Intensity.MODERATE; break;
+            case 65: c.type = Type.RAIN;           c.intensity = Intensity.HEAVY;    break;
+            case 66: c.type = Type.SLEET;          c.intensity = Intensity.LIGHT;    break;
+            case 67: c.type = Type.SLEET;          c.intensity = Intensity.HEAVY;    break;
+            case 71: c.type = Type.SNOW;           c.intensity = Intensity.LIGHT;    break;
+            case 73: c.type = Type.SNOW;           c.intensity = Intensity.MODERATE; break;
+            case 75: c.type = Type.SNOW;           c.intensity = Intensity.HEAVY;    break;
+            case 77: c.type = Type.SNOW;           c.intensity = Intensity.LIGHT;    break;
+            case 80: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    c.isShower = true; break;
+            case 81: c.type = Type.RAIN;           c.intensity = Intensity.MODERATE; c.isShower = true; break;
+            case 82: c.type = Type.RAIN;           c.intensity = Intensity.HEAVY;    c.isShower = true; break;
+            case 85: c.type = Type.SNOW;           c.intensity = Intensity.LIGHT;    c.isShower = true; break;
+            case 86: c.type = Type.SNOW;           c.intensity = Intensity.HEAVY;    c.isShower = true; break;
+            case 95: c.type = Type.THUNDER;        c.intensity = Intensity.MODERATE; break;
+            case 96: c.type = Type.THUNDER;        c.intensity = Intensity.MODERATE; break;
+            case 99: c.type = Type.THUNDER;        c.intensity = Intensity.HEAVY;    break;
+            default: c.type = Type.UNKNOWN;        c.intensity = Intensity.NONE;     break;
+        }
+        return c;
+    }
+
     /** Päättele sää lämpötilasta, sateesta ja pilvisyydestä, kun symbolia ei ole. */
     public static WeatherCondition inferFromValues(double temperatureC, double precipitation1h,
                                                     double totalCloudCoverPct, boolean night) {

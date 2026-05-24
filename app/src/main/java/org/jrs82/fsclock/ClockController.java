@@ -21,6 +21,7 @@ import android.widget.FrameLayout;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
@@ -46,7 +47,7 @@ public class ClockController {
     private static final long TICK_MS = 1000L;
     private static final long TEMP_BROWSE_MS = 30L * 60L * 1000L;
     private static final long[] WEATHER_RETRY_MS = {30_000L, 60_000L, 5L * 60_000L};
-    private static final int PAGE_COUNT = 11;
+    private static final int PAGE_COUNT = 8;
 
     private final Context ctx;
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -77,13 +78,24 @@ public class ClockController {
     // Sivut — pages jaetaan PageControllerille referenssinä
     private final View[] pages = new View[PAGE_COUNT];
 
-    // Päivä-sivu: 4 saraketta * 6 riviä = 24h
+    // Päivä-sivu (supersää 1.7.1): kaksi saraketta — vasen FMI, oikea Open-Meteo.
+    // 24 riviä (00-23) per sivu, skrollattava.
     private final TextView[] dayHeader = new TextView[PAGE_COUNT];
-    private final TextView[][] dayHourTv = new TextView[PAGE_COUNT][24];
-    private final WeatherIconView[][] dayIcon = new WeatherIconView[PAGE_COUNT][24];
-    private final TextView[][] dayTemp = new TextView[PAGE_COUNT][24];
-    private final TextView[][] dayRain = new TextView[PAGE_COUNT][24];
-    private final TextView[][] dayLabel = new TextView[PAGE_COUNT][24];
+    private final TextView[] dayFmiHeader = new TextView[PAGE_COUNT];
+    // FMI-sarake
+    private final TextView[][] dayFmiHour = new TextView[PAGE_COUNT][24];
+    private final WeatherIconView[][] dayFmiIcon = new WeatherIconView[PAGE_COUNT][24];
+    private final TextView[][] dayFmiTemp = new TextView[PAGE_COUNT][24];
+    private final TextView[][] dayFmiWind = new TextView[PAGE_COUNT][24];
+    private final TextView[][] dayFmiRain = new TextView[PAGE_COUNT][24];
+    // Open-Meteo -sarake
+    private final TextView[][] dayOmHour = new TextView[PAGE_COUNT][24];
+    private final WeatherIconView[][] dayOmIcon = new WeatherIconView[PAGE_COUNT][24];
+    private final TextView[][] dayOmTemp = new TextView[PAGE_COUNT][24];
+    private final TextView[][] dayOmFeels = new TextView[PAGE_COUNT][24];
+    private final TextView[][] dayOmWind = new TextView[PAGE_COUNT][24];
+    private final TextView[][] dayOmHumidity = new TextView[PAGE_COUNT][24];
+    private final TextView[][] dayOmRain = new TextView[PAGE_COUNT][24];
 
     private WeatherData data;
     private WeatherData homeData;
@@ -587,116 +599,222 @@ public class ClockController {
     private View buildDayPage(int idx) {
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(16), 0, dp(16), 0);
         root.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
+        // Päivän otsikko, esim. "Lauantai 25.5."
         TextView header = new TextView(ctx);
         header.setTextColor(Color.WHITE);
-        header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f);
+        header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f);
         header.setGravity(Gravity.CENTER);
         header.setText("--");
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        hlp.bottomMargin = dp(8);
+        hlp.bottomMargin = dp(2);
         header.setLayoutParams(hlp);
         dayHeader[idx] = header;
         root.addView(header);
 
-        LinearLayout cols = new LinearLayout(ctx);
-        cols.setOrientation(LinearLayout.HORIZONTAL);
-        cols.setLayoutParams(new LinearLayout.LayoutParams(
+        // Sarake-otsikot: Ilmatieteen laitos | Open-Meteo
+        LinearLayout colHeaders = new LinearLayout(ctx);
+        colHeaders.setOrientation(LinearLayout.HORIZONTAL);
+        colHeaders.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams chLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        chLp.bottomMargin = dp(4);
+        colHeaders.setLayoutParams(chLp);
+        root.addView(colHeaders);
+
+        TextView fmiHdr = new TextView(ctx);
+        fmiHdr.setText("Ilmatieteen laitos");
+        fmiHdr.setTextColor(0xFFB0B0B0);
+        fmiHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        fmiHdr.setGravity(Gravity.START);
+        LinearLayout.LayoutParams fmiHdrLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        fmiHdrLp.setMarginStart(dp(12));
+        fmiHdr.setLayoutParams(fmiHdrLp);
+        dayFmiHeader[idx] = fmiHdr;
+        colHeaders.addView(fmiHdr);
+
+        TextView omHdr = new TextView(ctx);
+        omHdr.setText("Open-Meteo");
+        omHdr.setTextColor(0xFFB0B0B0);
+        omHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        omHdr.setGravity(Gravity.START);
+        LinearLayout.LayoutParams omHdrLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        omHdrLp.setMarginStart(dp(12));
+        omHdr.setLayoutParams(omHdrLp);
+        colHeaders.addView(omHdr);
+
+        // Yhteinen ScrollView molemmille sarakkeille — skrollaavat synkroonisesti.
+        ScrollView scroll = new ScrollView(ctx);
+        scroll.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-        root.addView(cols);
+        scroll.setFillViewport(true);
+        root.addView(scroll);
 
-        for (int c = 0; c < 4; c++) {
-            LinearLayout col = new LinearLayout(ctx);
-            col.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-            colLp.setMarginStart(dp(4));
-            colLp.setMarginEnd(dp(4));
-            col.setLayoutParams(colLp);
-            cols.addView(col);
+        LinearLayout rows = new LinearLayout(ctx);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        rows.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        scroll.addView(rows);
 
-            boolean showShortLabel = UiMetrics.isTabletLike(ctx.getResources())
-                    && !UiMetrics.isCompactHeight(ctx.getResources());
+        for (int hour = 0; hour < 24; hour++) {
+            LinearLayout row = new LinearLayout(ctx);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            rowLp.topMargin = dp(2);
+            rowLp.bottomMargin = dp(2);
+            row.setLayoutParams(rowLp);
+            rows.addView(row);
 
-            for (int r = 0; r < 6; r++) {
-                int hour = c * 6 + r;
-                LinearLayout cell = new LinearLayout(ctx);
-                cell.setOrientation(LinearLayout.VERTICAL);
-                cell.setLayoutParams(new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-                col.addView(cell);
-
-                LinearLayout row1 = new LinearLayout(ctx);
-                row1.setOrientation(LinearLayout.HORIZONTAL);
-                row1.setGravity(Gravity.CENTER_VERTICAL);
-                row1.setLayoutParams(new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-                cell.addView(row1);
-
-                TextView hourTv = new TextView(ctx);
-                hourTv.setTextColor(0xFFB0B0B0);
-                hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-                hourTv.setText(String.format(FI, "%02d", hour));
-                hourTv.setLayoutParams(new LinearLayout.LayoutParams(dp(28),
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-                row1.addView(hourTv);
-
-                WeatherIconView icon = new WeatherIconView(ctx);
-                LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(28), dp(28));
-                iconLp.setMarginStart(dp(2));
-                iconLp.setMarginEnd(dp(4));
-                icon.setLayoutParams(iconLp);
-                row1.addView(icon);
-
-                TextView temp = new TextView(ctx);
-                temp.setTextColor(Color.WHITE);
-                temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-                temp.setText("--");
-                temp.setLayoutParams(new LinearLayout.LayoutParams(dp(48),
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-                row1.addView(temp);
-
-                TextView rain = new TextView(ctx);
-                rain.setTextColor(0xFF4FA8E0);
-                rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
-                rain.setText("");
-                rain.setIncludeFontPadding(false);
-                LinearLayout.LayoutParams rnlp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT);
-                rnlp.setMarginStart(dp(4));
-                rain.setLayoutParams(rnlp);
-                row1.addView(rain);
-
-                TextView labelTv = new TextView(ctx);
-                labelTv.setTextColor(0xFF909090);
-                labelTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-                labelTv.setMaxLines(1);
-                labelTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                labelTv.setIncludeFontPadding(false);
-                labelTv.setText("");
-                LinearLayout.LayoutParams lblLp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT);
-                lblLp.setMarginStart(dp(30));   // tasaa kellon kanssa
-                labelTv.setLayoutParams(lblLp);
-                labelTv.setVisibility(showShortLabel ? View.VISIBLE : View.GONE);
-                cell.addView(labelTv);
-
-                dayHourTv[idx][hour] = hourTv;
-                dayIcon[idx][hour] = icon;
-                dayTemp[idx][hour] = temp;
-                dayRain[idx][hour] = rain;
-                dayLabel[idx][hour] = labelTv;
-            }
+            row.addView(buildFmiCell(idx, hour));
+            row.addView(buildOmCell(idx, hour));
         }
         return root;
+    }
+
+    private View buildFmiCell(int idx, int hour) {
+        LinearLayout cell = new LinearLayout(ctx);
+        cell.setOrientation(LinearLayout.HORIZONTAL);
+        cell.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        cellLp.setMarginStart(dp(8));
+        cellLp.setMarginEnd(dp(8));
+        cell.setLayoutParams(cellLp);
+        cell.setPadding(dp(4), dp(2), dp(4), dp(2));
+
+        TextView hourTv = new TextView(ctx);
+        hourTv.setTextColor(0xFFB0B0B0);
+        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        hourTv.setText(String.format(FI, "%02d", hour));
+        hourTv.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(28), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(hourTv);
+
+        WeatherIconView icon = new WeatherIconView(ctx);
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(28), dp(28));
+        iconLp.setMarginStart(dp(2));
+        iconLp.setMarginEnd(dp(4));
+        icon.setLayoutParams(iconLp);
+        cell.addView(icon);
+
+        TextView temp = new TextView(ctx);
+        temp.setTextColor(Color.WHITE);
+        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        temp.setText("--");
+        temp.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(56), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(temp);
+
+        TextView wind = new TextView(ctx);
+        wind.setTextColor(0xFFB0B0B0);
+        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        wind.setText("");
+        wind.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(76), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(wind);
+
+        TextView rain = new TextView(ctx);
+        rain.setTextColor(0xFF4FA8E0);
+        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        rain.setText("");
+        rain.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(76), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(rain);
+
+        dayFmiHour[idx][hour] = hourTv;
+        dayFmiIcon[idx][hour] = icon;
+        dayFmiTemp[idx][hour] = temp;
+        dayFmiWind[idx][hour] = wind;
+        dayFmiRain[idx][hour] = rain;
+        return cell;
+    }
+
+    private View buildOmCell(int idx, int hour) {
+        LinearLayout cell = new LinearLayout(ctx);
+        cell.setOrientation(LinearLayout.HORIZONTAL);
+        cell.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        cellLp.setMarginStart(dp(8));
+        cellLp.setMarginEnd(dp(8));
+        cell.setLayoutParams(cellLp);
+        cell.setPadding(dp(4), dp(2), dp(4), dp(2));
+
+        TextView hourTv = new TextView(ctx);
+        hourTv.setTextColor(0xFFB0B0B0);
+        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        hourTv.setText(String.format(FI, "%02d", hour));
+        hourTv.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(28), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(hourTv);
+
+        WeatherIconView icon = new WeatherIconView(ctx);
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(28), dp(28));
+        iconLp.setMarginStart(dp(2));
+        iconLp.setMarginEnd(dp(4));
+        icon.setLayoutParams(iconLp);
+        cell.addView(icon);
+
+        TextView temp = new TextView(ctx);
+        temp.setTextColor(Color.WHITE);
+        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        temp.setText("--");
+        temp.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(56), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(temp);
+
+        TextView feels = new TextView(ctx);
+        feels.setTextColor(0xFFB0B0B0);
+        feels.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        feels.setText("");
+        feels.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(60), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(feels);
+
+        TextView wind = new TextView(ctx);
+        wind.setTextColor(0xFFB0B0B0);
+        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        wind.setText("");
+        wind.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(70), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(wind);
+
+        TextView hum = new TextView(ctx);
+        hum.setTextColor(0xFFB0B0B0);
+        hum.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        hum.setText("");
+        hum.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(58), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(hum);
+
+        TextView rain = new TextView(ctx);
+        rain.setTextColor(0xFF4FA8E0);
+        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        rain.setText("");
+        rain.setLayoutParams(new LinearLayout.LayoutParams(
+                dp(70), ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(rain);
+
+        dayOmHour[idx][hour] = hourTv;
+        dayOmIcon[idx][hour] = icon;
+        dayOmTemp[idx][hour] = temp;
+        dayOmFeels[idx][hour] = feels;
+        dayOmWind[idx][hour] = wind;
+        dayOmHumidity[idx][hour] = hum;
+        dayOmRain[idx][hour] = rain;
+        return cell;
     }
 
     private int dp(float v) {
@@ -933,6 +1051,7 @@ public class ClockController {
                     if (!active.get()) return;
                     openMeteoData = om;
                     renderSuperWeather();
+                    renderForecastAll();
                 });
             } catch (Exception e) {
                 Log.w(TAG, "Open-Meteo fetch failed: " + placeName, e);
@@ -1425,65 +1544,172 @@ public class ClockController {
     }
 
     private void renderForecastAll() {
-        if (data == null) return;
-
-        java.util.LinkedHashMap<Integer, java.util.Map<Integer, WeatherData.Hour>> byDay
+        // Ryhmittele molemmat lähteet päivän mukaan (avaimena yyyymmdd).
+        java.util.LinkedHashMap<Integer, java.util.Map<Integer, WeatherData.Hour>> fmiByDay
                 = new java.util.LinkedHashMap<>();
-        java.util.LinkedHashMap<Integer, WeatherData.Hour> dayAny
-                = new java.util.LinkedHashMap<>();
-        for (WeatherData.Hour h : data.hours) {
-            java.util.Map<Integer, WeatherData.Hour> map = byDay.get(h.dayOfMonth);
-            if (map == null) {
-                map = new java.util.HashMap<>();
-                byDay.put(h.dayOfMonth, map);
-                dayAny.put(h.dayOfMonth, h);
+        java.util.Map<Integer, Long> dayAnyTs = new java.util.HashMap<>();
+        if (data != null) {
+            for (WeatherData.Hour h : data.hours) {
+                int key = dayKey(h.timestamp);
+                java.util.Map<Integer, WeatherData.Hour> map = fmiByDay.get(key);
+                if (map == null) {
+                    map = new java.util.HashMap<>();
+                    fmiByDay.put(key, map);
+                }
+                map.put(h.hour, h);
+                dayAnyTs.putIfAbsent(key, h.timestamp);
             }
-            map.put(h.hour, h);
         }
-        Integer[] days = byDay.keySet().toArray(new Integer[0]);
+
+        java.util.LinkedHashMap<Integer, java.util.Map<Integer, OpenMeteoData.Hour>> omByDay
+                = new java.util.LinkedHashMap<>();
+        if (openMeteoData != null) {
+            for (OpenMeteoData.Hour h : openMeteoData.hours) {
+                int key = dayKey(h.timestamp);
+                java.util.Map<Integer, OpenMeteoData.Hour> map = omByDay.get(key);
+                if (map == null) {
+                    map = new java.util.HashMap<>();
+                    omByDay.put(key, map);
+                }
+                map.put(h.hour, h);
+                dayAnyTs.putIfAbsent(key, h.timestamp);
+            }
+        }
+
+        // Union päivistä, järjestyksessä
+        java.util.TreeSet<Integer> dayKeys = new java.util.TreeSet<>();
+        dayKeys.addAll(fmiByDay.keySet());
+        dayKeys.addAll(omByDay.keySet());
+        Integer[] days = dayKeys.toArray(new Integer[0]);
         int dayPagesAvailable = Math.min(days.length, PAGE_COUNT - 1);
         pageController.setAvailablePages(1 + dayPagesAvailable);
 
         for (int pageIdx = 1; pageIdx < PAGE_COUNT; pageIdx++) {
             int dayIdx = pageIdx - 1;
             if (dayIdx >= days.length) {
-                dayHeader[pageIdx].setText("");
-                for (int h = 0; h < 24; h++) {
-                    dayTemp[pageIdx][h].setText("");
-                    dayRain[pageIdx][h].setText("");
-                    dayIcon[pageIdx][h].setVisibility(View.INVISIBLE);
-                    if (dayLabel[pageIdx][h] != null) dayLabel[pageIdx][h].setText("");
-                }
+                clearDayPage(pageIdx);
                 continue;
             }
-            WeatherData.Hour any = dayAny.get(days[dayIdx]);
+            int dayK = days[dayIdx];
+            long anyTs = dayAnyTs.getOrDefault(dayK, 0L);
             Calendar dc = Calendar.getInstance(FI);
-            dc.setTimeInMillis(any.timestamp);
+            dc.setTimeInMillis(anyTs);
             String dayName = shortFinnishDay(dc.getTime());
             dayHeader[pageIdx].setText(String.format(FI, "%s %d.%d.",
-                    dayName, any.dayOfMonth, any.month));
+                    dayName, dc.get(Calendar.DAY_OF_MONTH), dc.get(Calendar.MONTH) + 1));
 
-            java.util.Map<Integer, WeatherData.Hour> dayMap = byDay.get(days[dayIdx]);
-            for (int hour = 0; hour < 24; hour++) {
-                WeatherData.Hour h = dayMap.get(hour);
-                if (h == null) {
-                    dayTemp[pageIdx][hour].setText("--");
-                    dayRain[pageIdx][hour].setText("");
-                    dayIcon[pageIdx][hour].setVisibility(View.INVISIBLE);
-                    if (dayLabel[pageIdx][hour] != null) dayLabel[pageIdx][hour].setText("");
-                } else {
-                    dayTemp[pageIdx][hour].setText(Double.isNaN(h.temperature)
-                            ? "--" : String.format(FI, ctx.getString(R.string.temp_short_format),
-                                    WeatherData.cleanZero(h.temperature)));
-                    setPrecipText(dayRain[pageIdx][hour], h.precipitation, h.condition);
-                    dayIcon[pageIdx][hour].setCondition(h.condition);
-                    dayIcon[pageIdx][hour].setVisibility(View.VISIBLE);
-                    if (dayLabel[pageIdx][hour] != null) {
-                        dayLabel[pageIdx][hour].setText(
-                                WeatherTextFormatter.shortLabel(ctx, h.condition));
-                    }
+            java.util.Map<Integer, WeatherData.Hour> fmiMap = fmiByDay.get(dayK);
+            java.util.Map<Integer, OpenMeteoData.Hour> omMap = omByDay.get(dayK);
+
+            int firstFmiHour = -1;
+            if (fmiMap != null) {
+                for (int hh = 0; hh < 24; hh++) {
+                    if (fmiMap.containsKey(hh)) { firstFmiHour = hh; break; }
                 }
             }
+            if (dayFmiHeader[pageIdx] != null) {
+                if (firstFmiHour > 0) {
+                    dayFmiHeader[pageIdx].setText(String.format(FI,
+                            "Ilmatieteen laitos (ennuste alkaa klo %02d)", firstFmiHour));
+                } else {
+                    dayFmiHeader[pageIdx].setText("Ilmatieteen laitos");
+                }
+            }
+
+            for (int hour = 0; hour < 24; hour++) {
+                WeatherData.Hour fmiH = fmiMap != null ? fmiMap.get(hour) : null;
+                if (fmiH != null) fillFmiCell(pageIdx, hour, fmiH);
+                else clearFmiCell(pageIdx, hour);
+
+                OpenMeteoData.Hour omH = omMap != null ? omMap.get(hour) : null;
+                if (omH != null) fillOmCell(pageIdx, hour, omH);
+                else clearOmCell(pageIdx, hour);
+            }
         }
+    }
+
+    private int dayKey(long ts) {
+        Calendar c = Calendar.getInstance(FI);
+        c.setTimeInMillis(ts);
+        return c.get(Calendar.YEAR) * 10000
+                + (c.get(Calendar.MONTH) + 1) * 100
+                + c.get(Calendar.DAY_OF_MONTH);
+    }
+
+    private void clearDayPage(int pageIdx) {
+        dayHeader[pageIdx].setText("");
+        for (int h = 0; h < 24; h++) {
+            clearFmiCell(pageIdx, h);
+            clearOmCell(pageIdx, h);
+        }
+    }
+
+    private void clearFmiCell(int pageIdx, int hour) {
+        dayFmiTemp[pageIdx][hour].setText("--");
+        dayFmiWind[pageIdx][hour].setText("");
+        dayFmiRain[pageIdx][hour].setText("");
+        dayFmiIcon[pageIdx][hour].setVisibility(View.INVISIBLE);
+    }
+
+    private void clearOmCell(int pageIdx, int hour) {
+        dayOmTemp[pageIdx][hour].setText("--");
+        dayOmFeels[pageIdx][hour].setText("");
+        dayOmWind[pageIdx][hour].setText("");
+        dayOmHumidity[pageIdx][hour].setText("");
+        dayOmRain[pageIdx][hour].setText("");
+        dayOmIcon[pageIdx][hour].setVisibility(View.INVISIBLE);
+    }
+
+    private void fillFmiCell(int pageIdx, int hour, WeatherData.Hour h) {
+        dayFmiTemp[pageIdx][hour].setText(Double.isNaN(h.temperature)
+                ? "--" : String.format(FI, ctx.getString(R.string.temp_short_format),
+                        WeatherData.cleanZero(h.temperature)));
+        double ws = !Double.isNaN(h.windSpeed) ? h.windSpeed
+                : (!Double.isNaN(h.windGust) ? h.windGust : Double.NaN);
+        if (!Double.isNaN(ws)) {
+            dayFmiWind[pageIdx][hour].setText(String.format(FI, "\uD83D\uDCA8 %.0f m/s", ws));
+        } else {
+            dayFmiWind[pageIdx][hour].setText("");
+        }
+        if (!Double.isNaN(h.precipitation) && h.precipitation >= 0.05) {
+            dayFmiRain[pageIdx][hour].setText(String.format(FI, "\u2614 %.1f mm",
+                    h.precipitation));
+        } else {
+            dayFmiRain[pageIdx][hour].setText("");
+        }
+        dayFmiIcon[pageIdx][hour].setCondition(h.condition);
+        dayFmiIcon[pageIdx][hour].setVisibility(View.VISIBLE);
+    }
+
+    private void fillOmCell(int pageIdx, int hour, OpenMeteoData.Hour h) {
+        dayOmTemp[pageIdx][hour].setText(h.temperature == null
+                ? "--" : String.format(FI, ctx.getString(R.string.temp_short_format),
+                        WeatherData.cleanZero(h.temperature)));
+        if (h.feelsLike != null) {
+            dayOmFeels[pageIdx][hour].setText(String.format(FI, "(~%+d\u00B0)",
+                    (int) Math.round(h.feelsLike)));
+        } else {
+            dayOmFeels[pageIdx][hour].setText("");
+        }
+        if (h.windSpeed != null) {
+            dayOmWind[pageIdx][hour].setText(String.format(FI, "\uD83D\uDCA8 %.0f m/s",
+                    h.windSpeed));
+        } else {
+            dayOmWind[pageIdx][hour].setText("");
+        }
+        if (h.humidity != null) {
+            dayOmHumidity[pageIdx][hour].setText(String.format(FI, "\uD83D\uDCA7 %.0f%%",
+                    h.humidity));
+        } else {
+            dayOmHumidity[pageIdx][hour].setText("");
+        }
+        if (h.precipitation != null && h.precipitation >= 0.05) {
+            dayOmRain[pageIdx][hour].setText(String.format(FI, "\u2614 %.1f mm",
+                    h.precipitation));
+        } else {
+            dayOmRain[pageIdx][hour].setText("");
+        }
+        dayOmIcon[pageIdx][hour].setCondition(h.condition);
+        dayOmIcon[pageIdx][hour].setVisibility(View.VISIBLE);
     }
 }
