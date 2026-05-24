@@ -40,13 +40,6 @@
             app:title="@string/pref_home_place"
             app:defaultValue="Vantaa"
             app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference
-            app:key="weather_update_minutes"
-            app:title="@string/pref_weather_update_minutes"
-            android:max="30"
-            app:min="1"
-            app:defaultValue="10"
-            app:showSeekBarValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_ruuvi">

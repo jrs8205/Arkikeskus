@@ -70,7 +70,6 @@
 
     <!-- Sää ja sijainti -->
     <string name="pref_home_place">Kotipaikkakunta</string>
-    <string name="pref_weather_update_minutes">Sääpäivitysväli (min)</string>
 
     <!-- Kotipaikkakunnan vaihdon vahvistusdialogi -->
     <string name="home_place_change_title">Vaihda kotipaikkakunta?</string>
