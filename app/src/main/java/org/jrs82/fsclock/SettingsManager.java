@@ -20,7 +20,6 @@ public final class SettingsManager {
     public static final String KEY_DAY_MORNING_HOUR = "day_morning_hour";
     public static final String KEY_NIGHT_EVENING_HOUR = "night_evening_hour";
     public static final String KEY_NIGHT_RED_TINT = "night_red_tint";
-    public static final String KEY_WEATHER_UPDATE_MINUTES = "weather_update_minutes";
     public static final String KEY_LAST_FMI_UPDATE = "last_successful_fmi_update";
     public static final String KEY_TEST_MODE_TYPE = "test_mode_type";
     public static final String KEY_TEST_MODE_UNTIL = "test_mode_until";
@@ -45,7 +44,6 @@ public final class SettingsManager {
     public static final int DEFAULT_NIGHT_BRIGHTNESS = 8;
     public static final int DEFAULT_MORNING_HOUR = 6;
     public static final int DEFAULT_EVENING_HOUR = 21;
-    public static final int DEFAULT_WEATHER_UPDATE_MINUTES = 10;
     public static final long TEST_MODE_DURATION_MS = 30L * 60L * 1000L;
     public static final int DEFAULT_RETENTION_DAYS = 1095;
 
@@ -136,11 +134,6 @@ public final class SettingsManager {
     // ---- Yön punainen sävy (toteutus Vaihe 4:ssä, asetus tallennetaan jo nyt) ----
     public boolean isNightRedTint() {
         return sp().getBoolean(KEY_NIGHT_RED_TINT, false);
-    }
-
-    // ---- Sääpäivitysväli ----
-    public int getWeatherUpdateMinutes() {
-        return clampInt(sp().getInt(KEY_WEATHER_UPDATE_MINUTES, DEFAULT_WEATHER_UPDATE_MINUTES), 1, 30);
     }
 
     // ---- Viimeisin onnistunut FMI-päivitys ----

@@ -137,11 +137,6 @@ public class ClockController {
                     ui.removeCallbacks(fetchWeather);
                     ui.post(fetchWeather);
                     break;
-                case SettingsManager.KEY_WEATHER_UPDATE_MINUTES:
-                    retryStep = 0;
-                    ui.removeCallbacks(fetchWeather);
-                    ui.post(fetchWeather);
-                    break;
             }
         }
     };
