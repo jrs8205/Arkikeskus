@@ -70,6 +70,8 @@ public class ClockController {
     private TextView browsePlaceLabel;
     private android.widget.ImageButton favoriteButton, browsePlaceButton, homePlaceButton;
     private android.widget.ImageButton prevPageButton, nextPageButton, settingsButton, systemButton;
+    private android.widget.ImageButton electricityButton;
+    private TextView electricityPriceText;
     private TextView pageIndicatorTop;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
@@ -165,6 +167,8 @@ public class ClockController {
 
         // Globaali header näkyy joka sivulla; etusivulta on poistettu omat napit
         browsePlaceLabel = root.findViewById(R.id.browse_place_label);
+        electricityPriceText = root.findViewById(R.id.electricity_price_text);
+        electricityButton = root.findViewById(R.id.electricity_button);
         favoriteButton = root.findViewById(R.id.favorite_button);
         browsePlaceButton = root.findViewById(R.id.browse_place_button);
         homePlaceButton = root.findViewById(R.id.home_place_button);
@@ -173,6 +177,10 @@ public class ClockController {
         pageIndicatorTop = root.findViewById(R.id.page_indicator_top);
         settingsButton = root.findViewById(R.id.settings_button);
         systemButton = root.findViewById(R.id.system_button);
+
+        View.OnClickListener openElectricity = v -> showElectricityDialog();
+        if (electricityButton != null) electricityButton.setOnClickListener(openElectricity);
+        if (electricityPriceText != null) electricityPriceText.setOnClickListener(openElectricity);
 
         browsePlaceButton.setOnClickListener(v -> showBrowsePlaceDialog());
         homePlaceButton.setOnClickListener(v -> returnToHomeWeather());
@@ -297,6 +305,8 @@ public class ClockController {
         ui.post(fetchWeather);
         WarningsRepository.get().addListener(warningsListener);
         ui.post(fetchWarnings);
+        ui.post(fetchElectricity);
+        ui.post(electricityHeaderTick);
         RuuviRepository ruuvi = RuuviRepository.get(ctx);
         ruuvi.start();
         ruuvi.addListener(ruuviListener);
@@ -327,6 +337,74 @@ public class ClockController {
             ui.postDelayed(this, 15L * 60_000L);
         }
     };
+
+    // ============================================================
+    // Sähkönhinta
+    // ============================================================
+    /** Aikaväli kun NordPool-huominen ei vielä saatavilla — pollataan tihennetysti. */
+    private static final long ELECTRICITY_REFRESH_FAST_MS = 30L * 60_000L;
+    private static final long ELECTRICITY_REFRESH_SLOW_MS = 6L * 60L * 60_000L;
+
+    private final Runnable fetchElectricity = new Runnable() {
+        @Override public void run() {
+            if (!active.get() || io == null) return;
+            io.execute(() -> {
+                if (!active.get()) return;
+                try {
+                    ElectricityRepository.get(ctx).fetchIfStale();
+                } catch (Exception e) {
+                    Log.w(TAG, "Elering fetch failed", e);
+                }
+                if (!active.get()) return;
+                ui.post(() -> {
+                    renderElectricityHeader();
+                    boolean haveTomorrow = ElectricityRepository.get(ctx).hasTomorrow();
+                    Calendar c = Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"));
+                    int hour = c.get(Calendar.HOUR_OF_DAY);
+                    boolean publishWindow = hour >= 13 && hour <= 21;
+                    long delay = (!haveTomorrow && publishWindow)
+                            ? ELECTRICITY_REFRESH_FAST_MS : ELECTRICITY_REFRESH_SLOW_MS;
+                    ui.removeCallbacks(fetchElectricity);
+                    ui.postDelayed(fetchElectricity, delay);
+                });
+            });
+        }
+    };
+
+    /** Päivittää headerin sähköhintatekstin joka vartin alussa, jotta nykyinen vartti
+     *  pysyy ajantasalla ilman uutta verkkokutsua. */
+    private final Runnable electricityHeaderTick = new Runnable() {
+        @Override public void run() {
+            if (!active.get()) return;
+            renderElectricityHeader();
+            long now = System.currentTimeMillis();
+            long nextQuarter = ((now / (15L * 60_000L)) + 1L) * (15L * 60_000L);
+            ui.postDelayed(this, Math.max(5_000L, nextQuarter - now + 1000L));
+        }
+    };
+
+    private void renderElectricityHeader() {
+        if (electricityPriceText == null) return;
+        ElectricityData.Quarter q = ElectricityRepository.get(ctx).currentQuarter();
+        if (q == null) {
+            electricityPriceText.setVisibility(View.GONE);
+            return;
+        }
+        electricityPriceText.setVisibility(View.VISIBLE);
+        String value = String.format(FI, "%.3f", q.sntPerKwh);
+        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+        sb.append("Sähkön hinta suomessa nyt: ");
+        int start = sb.length();
+        sb.append(value).append(" c/KWh");
+        sb.setSpan(new android.text.style.ForegroundColorSpan(ElectricityDialog.priceColor(q.sntPerKwh)),
+                start, sb.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        electricityPriceText.setText(sb);
+    }
+
+    private void showElectricityDialog() {
+        if (io == null) return;
+        new ElectricityDialog(ctx, ElectricityRepository.get(ctx), io).show();
+    }
 
     private final WarningsRepository.Listener warningsListener = warnings ->
             ui.post(() -> renderWarnings(warnings));
