@@ -125,6 +125,7 @@ public class SystemActivity extends AppCompatActivity {
 
     private void renderData(List<WeatherSample> samples, DailyStat todayStat,
                             long totalCount, long rangeStartMs, long rangeEndMs) {
+        if (isFinishing() || isDestroyed()) return;
         if (samples.isEmpty()) {
             chart.setVisibility(View.GONE);
             chartEmpty.setVisibility(View.VISIBLE);
@@ -153,6 +154,7 @@ public class SystemActivity extends AppCompatActivity {
             final CsvExporter.Result result =
                     CsvExporter.export(getApplicationContext(), kind, fileName);
             main.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
                 try {
                     if (result.ok) {
                         Toast.makeText(this, getString(R.string.toast_csv_exported, result.fileName),
