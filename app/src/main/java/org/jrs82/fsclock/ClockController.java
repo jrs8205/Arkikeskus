@@ -408,7 +408,7 @@ public class ClockController {
         }
         int start = sb.length();
         sb.append(value).append(" c/kWh");
-        sb.setSpan(new android.text.style.ForegroundColorSpan(ElectricityDialog.priceColor(q.sntPerKwh)),
+        sb.setSpan(new android.text.style.ForegroundColorSpan(ElectricityPageBuilder.priceColor(q.sntPerKwh)),
                 start, sb.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         electricityPriceText.setText(sb);
     }
