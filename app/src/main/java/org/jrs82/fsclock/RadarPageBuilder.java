@@ -256,13 +256,8 @@ public final class RadarPageBuilder {
 
     private void updatePlayPauseIcon() {
         if (playPauseButton == null) return;
-        // ▶ = play (Unicode), ⏸ = pause
-        // Use text since we don't have vector drawables for these
-        playPauseButton.setImageDrawable(null);
+        playPauseButton.setImageResource(playing ? R.drawable.ic_pause_24 : R.drawable.ic_play_24);
         playPauseButton.setContentDescription(playing ? "Tauko" : "Toista");
-        // Draw a simple play/pause using a small TextView overlay trick
-        // Actually, set as content description and use a colored background indicator
-        // Simpler: just create a tiny text-based approach
     }
 
     private void scheduleRefresh() {
