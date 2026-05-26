@@ -166,17 +166,6 @@
                 android:text="" />
 
             <ImageButton
-                android:id="@+id/system_button"
-                android:layout_width="@dimen/home_top_button_size"
-                android:layout_height="@dimen/home_top_button_size"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/menu_system"
-                android:padding="10dp"
-                android:scaleType="center"
-                android:src="@drawable/ic_system_24"
-                app:tint="#D0D0D0" />
-
-            <ImageButton
                 android:id="@+id/settings_button"
                 android:layout_width="@dimen/home_top_button_size"
                 android:layout_height="@dimen/home_top_button_size"

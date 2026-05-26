@@ -5,6 +5,8 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.jrs82.fsclock.system.SystemFragment;
+
 public class SettingsActivity extends AppCompatActivity {
 
     private BrightnessController brightness;
@@ -33,9 +35,11 @@ public class SettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         SettingsManager.get().init(getApplicationContext());
 
+        setContentView(R.layout.activity_settings_combined);
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
-                    .replace(android.R.id.content, new SettingsFragment())
+                    .replace(R.id.settings_fragment_container, new SettingsFragment())
+                    .replace(R.id.system_fragment_container, new SystemFragment())
                     .commit();
         }
         if (getSupportActionBar() != null) {

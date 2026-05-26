@@ -93,7 +93,8 @@ public final class ElectricityPageBuilder {
         active = true;
         firedFetchForToday = false;
         firedFetchForTomorrow = false;
-        renderActiveTab();
+        if (scrollView != null) scrollView.scrollTo(0, 0);
+        selectTab(false);
     }
 
     public void onPageHidden() {

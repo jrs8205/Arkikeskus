@@ -32,9 +32,6 @@ public class MainActivity extends Activity {
         controller.setSettingsClickCallback(new Runnable() {
             @Override public void run() { openSettings(); }
         });
-        controller.setSystemClickCallback(new Runnable() {
-            @Override public void run() { openSystem(); }
-        });
         controller.start();
         applySystemBars();
     }
@@ -87,9 +84,4 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
     }
 
-    private void openSystem() {
-        try {
-            startActivity(new Intent(this, SystemActivity.class));
-        } catch (Exception ignored) { }
-    }
 }
