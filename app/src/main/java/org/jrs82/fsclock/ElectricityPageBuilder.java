@@ -39,6 +39,7 @@ public final class ElectricityPageBuilder {
     private boolean firedFetchForToday = false;
     private boolean firedFetchForTomorrow = false;
     private boolean active = false;
+    private boolean skipAutoScroll = false;
 
     public ElectricityPageBuilder(Context ctx, ElectricityRepository repo, ExecutorService io) {
         this.ctx = ctx;
@@ -93,7 +94,7 @@ public final class ElectricityPageBuilder {
         active = true;
         firedFetchForToday = false;
         firedFetchForTomorrow = false;
-        if (scrollView != null) scrollView.scrollTo(0, 0);
+        skipAutoScroll = true;
         selectTab(false);
     }
 
@@ -297,13 +298,18 @@ public final class ElectricityPageBuilder {
             dest.addView(row);
         }
 
-        if (currentRow != null && scrollView != null) {
-            final View target = currentRow;
-            scrollView.post(() -> {
-                int y = target.getTop() - dp(24);
-                if (y < 0) y = 0;
-                scrollView.scrollTo(0, y);
-            });
+        if (scrollView != null) {
+            if (skipAutoScroll) {
+                skipAutoScroll = false;
+                scrollView.post(() -> scrollView.scrollTo(0, 0));
+            } else if (currentRow != null) {
+                final View target = currentRow;
+                scrollView.post(() -> {
+                    int y = target.getTop() - dp(24);
+                    if (y < 0) y = 0;
+                    scrollView.scrollTo(0, y);
+                });
+            }
         }
     }
 
