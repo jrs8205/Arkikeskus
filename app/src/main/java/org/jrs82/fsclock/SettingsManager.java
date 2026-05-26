@@ -15,6 +15,8 @@ import java.util.Locale;
 public final class SettingsManager {
 
     public static final String KEY_HOME_PLACE = "home_place";
+    public static final String KEY_HOME_LATITUDE = "home_latitude";
+    public static final String KEY_HOME_LONGITUDE = "home_longitude";
     public static final String KEY_DAY_BRIGHTNESS = "day_brightness";
     public static final String KEY_NIGHT_BRIGHTNESS = "night_brightness";
     public static final String KEY_DAY_MORNING_HOUR = "day_morning_hour";
@@ -76,6 +78,32 @@ public final class SettingsManager {
     }
     public void setHomePlace(String v) {
         sp().edit().putString(KEY_HOME_PLACE, v == null ? DEFAULT_HOME_PLACE : v).apply();
+    }
+
+    public void setHomeCoordinates(double latitude, double longitude) {
+        sp().edit()
+                .putFloat(KEY_HOME_LATITUDE, (float) latitude)
+                .putFloat(KEY_HOME_LONGITUDE, (float) longitude)
+                .apply();
+    }
+
+    public void clearHomeCoordinates() {
+        sp().edit()
+                .remove(KEY_HOME_LATITUDE)
+                .remove(KEY_HOME_LONGITUDE)
+                .apply();
+    }
+
+    public boolean hasHomeCoordinates() {
+        return sp().contains(KEY_HOME_LATITUDE) && sp().contains(KEY_HOME_LONGITUDE);
+    }
+
+    public double getHomeLatitude() {
+        return sp().getFloat(KEY_HOME_LATITUDE, Float.NaN);
+    }
+
+    public double getHomeLongitude() {
+        return sp().getFloat(KEY_HOME_LONGITUDE, Float.NaN);
     }
 
     /** Kotipaikkakunnan DB-kanavanimi. "Vantaa" -> "fmi_vantaa". */
