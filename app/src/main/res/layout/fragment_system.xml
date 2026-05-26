@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:text="@string/system_title"
         android:textColor="#FFFFFF"
-        android:textSize="28sp"
+        android:textSize="@dimen/page_title_text_size"
         android:textStyle="bold" />
 
     <Button
@@ -28,7 +28,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:textColor="#FFD89B"
-        android:textSize="22sp"
+        android:textSize="@dimen/page_body_large_text_size"
         android:text="@string/system_battery_current_unknown" />
 
     <TextView
@@ -38,7 +38,7 @@
         android:layout_marginTop="20dp"
         android:text="@string/system_chart_label"
         android:textColor="#B0B8C0"
-        android:textSize="16sp" />
+        android:textSize="@dimen/page_body_text_size" />
 
     <org.jrs82.fsclock.system.BatteryChartView
         android:id="@+id/battery_chart"
@@ -54,7 +54,7 @@
         android:visibility="gone"
         android:text="@string/system_chart_no_data"
         android:textColor="#808890"
-        android:textSize="14sp" />
+        android:textSize="@dimen/page_caption_text_size" />
 
     <TextView
         android:id="@+id/today_label"
@@ -63,14 +63,14 @@
         android:layout_marginTop="20dp"
         android:text="@string/system_today_label"
         android:textColor="#B0B8C0"
-        android:textSize="16sp" />
+        android:textSize="@dimen/page_body_text_size" />
 
     <TextView
         android:id="@+id/today_minmax"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="#FFFFFF"
-        android:textSize="18sp"
+        android:textSize="@dimen/page_body_text_size"
         android:text="@string/system_today_no_data" />
 
     <TextView
@@ -79,7 +79,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:textColor="#808890"
-        android:textSize="14sp" />
+        android:textSize="@dimen/page_caption_text_size" />
 
     <Button
         android:id="@+id/export_all"
