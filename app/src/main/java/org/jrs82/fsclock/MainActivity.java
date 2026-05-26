@@ -29,9 +29,6 @@ public class MainActivity extends Activity {
         setContentView(R.layout.dream);
         View root = findViewById(R.id.shift_container);
         controller = new ClockController(this, getWindow(), root);
-        controller.setLongPressCallback(new Runnable() {
-            @Override public void run() { showLongPressMenu(); }
-        });
         controller.setSettingsClickCallback(new Runnable() {
             @Override public void run() { openSettings(); }
         });
@@ -82,20 +79,6 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         if (controller != null) controller.stop();
         super.onDestroy();
-    }
-
-    private void showLongPressMenu() {
-        final CharSequence[] items = {
-                getString(R.string.menu_settings),
-                getString(R.string.menu_system)
-        };
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.menu_long_press_title)
-                .setItems(items, (dialog, which) -> {
-                    if (which == 0) openSettings();
-                    else openSystem();
-                })
-                .show();
     }
 
     private void openSettings() {
