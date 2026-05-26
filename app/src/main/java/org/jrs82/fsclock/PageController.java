@@ -41,11 +41,11 @@ public class PageController {
 
     @SuppressLint("ClickableViewAccessibility")
     public void start() {
-        pagesContainer.setOnTouchListener(new View.OnTouchListener() {
-            @Override public boolean onTouch(View v, MotionEvent e) {
-                return gesture.onTouchEvent(e);
-            }
-        });
+        if (pagesContainer instanceof SwipeInterceptLayout) {
+            ((SwipeInterceptLayout) pagesContainer).setSwipeDetector(gesture);
+        } else {
+            pagesContainer.setOnTouchListener((v, e) -> gesture.onTouchEvent(e));
+        }
         showPage(0);
     }
 

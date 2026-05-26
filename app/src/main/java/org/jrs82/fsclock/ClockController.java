@@ -431,7 +431,7 @@ public class ClockController {
         if (UiMetrics.isCompactHeight(ctx.getResources())) {
             sb.append("Sähkö nyt: ");
         } else {
-            sb.append("Sähkön hinta suomessa nyt: ");
+            sb.append("Sähkön hinta nyt: ");
         }
         int start = sb.length();
         sb.append(value).append(" c/kWh");

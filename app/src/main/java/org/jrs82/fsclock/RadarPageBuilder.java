@@ -2,7 +2,10 @@ package org.jrs82.fsclock;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
@@ -28,8 +31,8 @@ public final class RadarPageBuilder {
 
     private static final String TAG = "RadarPageBuilder";
     private static final int FRAME_COUNT = 12;
-    private static final int IMG_WIDTH = 512;
-    private static final int IMG_HEIGHT = 768;
+    private static final int IMG_WIDTH = 640;
+    private static final int IMG_HEIGHT = 560;
     private static final long FRAME_DELAY_MS = 400L;
     private static final long LAST_FRAME_DELAY_MS = 1200L;
     private static final long REFRESH_INTERVAL_MS = 5L * 60_000L;
@@ -45,6 +48,7 @@ public final class RadarPageBuilder {
     private TextView currentTimeLabel;
     private TextView loadingText;
 
+    private Bitmap backgroundMap;
     private Bitmap[] frames;
     private long[] frameTimes;
     private int currentFrame = 0;
@@ -182,7 +186,9 @@ public final class RadarPageBuilder {
                 Bitmap[] bitmaps = new Bitmap[FRAME_COUNT];
                 for (int i = 0; i < FRAME_COUNT; i++) {
                     if (!active) return;
-                    bitmaps[i] = client.fetchFrame(times[i], IMG_WIDTH, IMG_HEIGHT);
+                    Bitmap raw = client.fetchFrame(times[i], IMG_WIDTH, IMG_HEIGHT);
+                    bitmaps[i] = compositeFrame(raw);
+                    raw.recycle();
                 }
                 ui.post(() -> {
                     if (!active) return;
@@ -275,6 +281,64 @@ public final class RadarPageBuilder {
             ui.removeCallbacks(refreshRunnable);
             refreshRunnable = null;
         }
+    }
+
+    private Bitmap compositeFrame(Bitmap radar) {
+        if (backgroundMap == null) backgroundMap = createBackgroundMap();
+        Bitmap out = Bitmap.createBitmap(IMG_WIDTH, IMG_HEIGHT, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(out);
+        c.drawBitmap(backgroundMap, 0, 0, null);
+        c.drawBitmap(radar, 0, 0, null);
+        return out;
+    }
+
+    private Bitmap createBackgroundMap() {
+        Bitmap bmp = Bitmap.createBitmap(IMG_WIDTH, IMG_HEIGHT, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        c.drawColor(0xFF0A0A1E);
+
+        // BBOX: lon 17.5–33.5, lat 58.0–72.0
+        float bboxMinLon = 17.5f, bboxMaxLon = 33.5f;
+        float bboxMinLat = 58.0f, bboxMaxLat = 72.0f;
+
+        Paint landPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        landPaint.setColor(0xFF1A1A2E);
+        landPaint.setStyle(Paint.Style.FILL);
+
+        Paint borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        borderPaint.setColor(0xFF333355);
+        borderPaint.setStyle(Paint.Style.STROKE);
+        borderPaint.setStrokeWidth(1.5f);
+
+        // Suomen ääriviiva (yksinkertaistettu)
+        float[][] finland = {
+            {22.8f,59.8f}, {24.0f,59.8f}, {25.5f,60.1f}, {27.0f,60.5f},
+            {28.5f,61.0f}, {29.5f,61.5f}, {30.0f,62.0f}, {31.0f,62.5f},
+            {30.5f,63.0f}, {30.0f,63.5f}, {30.5f,64.0f}, {30.0f,64.5f},
+            {29.5f,65.0f}, {30.0f,65.5f}, {29.5f,66.0f}, {29.0f,66.5f},
+            {29.5f,67.0f}, {29.0f,67.5f}, {28.5f,68.0f}, {28.0f,68.5f},
+            {28.5f,69.0f}, {29.0f,69.5f}, {29.5f,70.0f},
+            {28.0f,69.5f}, {27.0f,69.5f}, {26.0f,69.1f}, {25.5f,68.9f},
+            {24.0f,68.6f}, {23.5f,68.0f}, {23.0f,67.5f},
+            {23.5f,66.5f}, {24.0f,66.0f}, {23.5f,65.5f},
+            {23.0f,65.0f}, {22.0f,64.5f}, {21.5f,64.0f},
+            {21.0f,63.5f}, {21.5f,63.0f}, {21.5f,62.5f},
+            {21.0f,62.0f}, {21.5f,61.5f}, {21.5f,61.0f},
+            {22.0f,60.5f}, {22.5f,60.0f}, {22.8f,59.8f}
+        };
+
+        Path path = new Path();
+        for (int i = 0; i < finland.length; i++) {
+            float px = (finland[i][0] - bboxMinLon) / (bboxMaxLon - bboxMinLon) * IMG_WIDTH;
+            float py = (bboxMaxLat - finland[i][1]) / (bboxMaxLat - bboxMinLat) * IMG_HEIGHT;
+            if (i == 0) path.moveTo(px, py);
+            else path.lineTo(px, py);
+        }
+        path.close();
+        c.drawPath(path, landPaint);
+        c.drawPath(path, borderPaint);
+
+        return bmp;
     }
 
     private int dp(int v) {

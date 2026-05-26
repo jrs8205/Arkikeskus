@@ -49,18 +49,26 @@
                 android:text=""
                 android:visibility="gone" />
 
+            <View
+                android:layout_width="1dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="2dp"
+                android:background="#333333" />
+
             <TextView
                 android:id="@+id/nav_koti"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:background="?android:attr/selectableItemBackground"
                 android:gravity="center"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:minWidth="52dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
                 android:text="@string/nav_koti"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:textSize="@dimen/home_meta_text_size" />
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/nav_forecast"
@@ -68,12 +76,13 @@
                 android:layout_height="match_parent"
                 android:background="?android:attr/selectableItemBackground"
                 android:gravity="center"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:minWidth="52dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
                 android:text="@string/nav_forecast"
                 android:textColor="#808080"
                 android:textStyle="bold"
-                android:textSize="@dimen/home_meta_text_size" />
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/nav_radar"
@@ -81,12 +90,13 @@
                 android:layout_height="match_parent"
                 android:background="?android:attr/selectableItemBackground"
                 android:gravity="center"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:minWidth="52dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
                 android:text="@string/nav_radar"
                 android:textColor="#808080"
                 android:textStyle="bold"
-                android:textSize="@dimen/home_meta_text_size" />
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/nav_electricity"
@@ -94,12 +104,20 @@
                 android:layout_height="match_parent"
                 android:background="?android:attr/selectableItemBackground"
                 android:gravity="center"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:minWidth="52dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
                 android:text="@string/nav_electricity"
                 android:textColor="#808080"
                 android:textStyle="bold"
-                android:textSize="@dimen/home_meta_text_size" />
+                android:textSize="16sp" />
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="4dp"
+                android:background="#333333" />
 
             <ImageButton
                 android:id="@+id/favorite_button"
@@ -177,7 +195,7 @@
             android:layout_marginTop="2dp"
             android:background="#404040" />
 
-        <FrameLayout
+        <org.jrs82.fsclock.SwipeInterceptLayout
             android:id="@+id/pages_container"
             android:layout_width="match_parent"
             android:layout_height="0dp"

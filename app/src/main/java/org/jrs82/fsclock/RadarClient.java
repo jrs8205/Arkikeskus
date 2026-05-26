@@ -39,11 +39,12 @@ public final class RadarClient {
                 + "&LAYERS=Radar:suomi_rr_eureffin"
                 + "&STYLES="
                 + "&SRS=EPSG:4326"
-                + "&BBOX=19.0,59.0,32.0,71.0"
+                + "&BBOX=17.5,58.0,33.5,72.0"
                 + "&WIDTH=" + width
                 + "&HEIGHT=" + height
                 + "&FORMAT=image/png"
                 + "&TRANSPARENT=true"
+                + "&BGCOLOR=0x0A0A1E"
                 + "&TIME=" + timeStr;
 
         Log.d(TAG, "GET " + url);

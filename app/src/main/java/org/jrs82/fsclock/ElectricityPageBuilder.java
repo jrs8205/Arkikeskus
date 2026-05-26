@@ -161,6 +161,7 @@ public final class ElectricityPageBuilder {
         }
 
         if (showingTomorrow) stopTomorrowPolling();
+        addSummary(contentContainer, qs);
         addQuartersToContainer(contentContainer, qs, !showingTomorrow);
     }
 
@@ -198,8 +199,53 @@ public final class ElectricityPageBuilder {
         });
     }
 
+    private void addSummary(LinearLayout dest, List<ElectricityData.Quarter> qs) {
+        if (qs.isEmpty()) return;
+        ElectricityData.Quarter cheapest = qs.get(0);
+        ElectricityData.Quarter costliest = qs.get(0);
+        for (ElectricityData.Quarter q : qs) {
+            if (q.sntPerKwh < cheapest.sntPerKwh) cheapest = q;
+            if (q.sntPerKwh > costliest.sntPerKwh) costliest = q;
+        }
+
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        row.setPadding(dp(8), dp(6), dp(8), dp(6));
+
+        TextView cheapTv = new TextView(ctx);
+        cheapTv.setText(String.format(new Locale("fi", "FI"),
+                "Halvin: %02d:%02d  %.3f c/kWh", cheapest.hour, cheapest.minute, cheapest.sntPerKwh));
+        cheapTv.setTextColor(priceColor(cheapest.sntPerKwh));
+        cheapTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        cheapTv.setTypeface(Typeface.DEFAULT_BOLD);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        row.addView(cheapTv, lp);
+
+        TextView costTv = new TextView(ctx);
+        costTv.setText(String.format(new Locale("fi", "FI"),
+                "Kallein: %02d:%02d  %.3f c/kWh", costliest.hour, costliest.minute, costliest.sntPerKwh));
+        costTv.setTextColor(priceColor(costliest.sntPerKwh));
+        costTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        costTv.setTypeface(Typeface.DEFAULT_BOLD);
+        costTv.setGravity(Gravity.END);
+        row.addView(costTv, new LinearLayout.LayoutParams(lp));
+
+        dest.addView(row);
+
+        View div = new View(ctx);
+        div.setBackgroundColor(0xFF404040);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        dlp.topMargin = dp(4);
+        dlp.bottomMargin = dp(4);
+        dest.addView(div, dlp);
+    }
+
     private void addQuartersToContainer(LinearLayout dest, List<ElectricityData.Quarter> qs,
                                         boolean highlightCurrent) {
+        boolean tablet = UiMetrics.isTabletLike(ctx.getResources());
         long now = System.currentTimeMillis();
         currentRow = null;
         for (ElectricityData.Quarter q : qs) {
@@ -209,22 +255,25 @@ public final class ElectricityPageBuilder {
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            int rowVPad = isCurrent ? dp(8) : dp(3);
-            int rowHPad = isCurrent ? dp(8) : 0;
+            int rowVPad = isCurrent ? dp(8) : dp(tablet ? 4 : 3);
+            int rowHPad = isCurrent ? dp(12) : dp(tablet ? 8 : 0);
             row.setPadding(rowHPad, rowVPad, rowHPad, rowVPad);
+
+            float timeSp = isCurrent ? 28 : (tablet ? 24 : 20);
+            float priceSp = isCurrent ? 32 : (tablet ? 26 : 22);
 
             TextView time = new TextView(ctx);
             time.setText(String.format(Locale.US, "%02d:%02d", q.hour, q.minute));
             time.setTextColor(isCurrent ? 0xFFFFFFFF : 0xFFD0D0D0);
-            time.setTextSize(TypedValue.COMPLEX_UNIT_SP, isCurrent ? 26 : 20);
+            time.setTextSize(TypedValue.COMPLEX_UNIT_SP, timeSp);
             time.setTypeface(Typeface.MONOSPACE, isCurrent ? Typeface.BOLD : Typeface.NORMAL);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-                    dp(isCurrent ? 100 : 80), ViewGroup.LayoutParams.WRAP_CONTENT);
+                    dp(isCurrent ? 120 : 100), ViewGroup.LayoutParams.WRAP_CONTENT);
             row.addView(time, tlp);
 
             TextView price = new TextView(ctx);
             price.setText(String.format(new Locale("fi", "FI"), "%.3f c/kWh", q.sntPerKwh));
-            price.setTextSize(TypedValue.COMPLEX_UNIT_SP, isCurrent ? 28 : 22);
+            price.setTextSize(TypedValue.COMPLEX_UNIT_SP, priceSp);
             price.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
             price.setTextColor(priceColor(q.sntPerKwh));
             LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(
@@ -272,11 +321,12 @@ public final class ElectricityPageBuilder {
     }
 
     public static int priceColor(double sntPerKwh) {
-        if (sntPerKwh < 7.0) return 0xFF66DD66;
-        if (sntPerKwh < 10.0) return interp(0xFF66DD66, 0xFFEED344, sntPerKwh, 7.0, 10.0);
+        if (sntPerKwh < 5.0) return 0xFF66DD66;
+        if (sntPerKwh < 10.0) return interp(0xFF66DD66, 0xFFEED344, sntPerKwh, 5.0, 10.0);
         if (sntPerKwh < 15.0) return interp(0xFFEED344, 0xFFEE9933, sntPerKwh, 10.0, 15.0);
         if (sntPerKwh < 20.0) return interp(0xFFEE9933, 0xFFEE4444, sntPerKwh, 15.0, 20.0);
-        return 0xFFEE4444;
+        if (sntPerKwh < 30.0) return interp(0xFFEE4444, 0xFFFF0000, sntPerKwh, 20.0, 30.0);
+        return 0xFFFF0000;
     }
 
     private static int interp(int a, int b, double v, double lo, double hi) {
