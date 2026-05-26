@@ -72,6 +72,7 @@ public class ClockController {
     private View sensorTopGuideline, sensorTopDivider;
     private View sensorSectionRow, sensorSectionTopDivider, sensorSectionBottomDivider;
     private OpenMeteoData openMeteoData;
+    private float forecastHeaderPx, forecastColHeaderPx, forecastHourPx, forecastValuePx, forecastDetailPx;
 
     // Yhteiset (jaettu globaali header näkyy joka sivulla)
     private TextView statusText, batteryText;
@@ -736,8 +737,14 @@ public class ClockController {
     }
 
     private View buildDayPage(int idx) {
-        boolean compactForecast = !UiMetrics.isTabletLike(ctx.getResources())
-                || UiMetrics.isCompactHeight(ctx.getResources());
+        android.content.res.Resources res = ctx.getResources();
+        boolean compactForecast = !UiMetrics.isTabletLike(res)
+                || UiMetrics.isCompactHeight(res);
+        forecastHeaderPx = res.getDimension(R.dimen.forecast_header_text_size);
+        forecastColHeaderPx = res.getDimension(R.dimen.forecast_col_header_text_size);
+        forecastHourPx = res.getDimension(R.dimen.forecast_hour_text_size);
+        forecastValuePx = res.getDimension(R.dimen.forecast_value_text_size);
+        forecastDetailPx = res.getDimension(R.dimen.forecast_detail_text_size);
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(compactForecast ? 4 : 16), 0, dp(compactForecast ? 4 : 16), 0);
@@ -748,7 +755,7 @@ public class ClockController {
         // Päivän otsikko, esim. "Lauantai 25.5."
         TextView header = new TextView(ctx);
         header.setTextColor(Color.WHITE);
-        header.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactForecast ? 18f : 26f);
+        header.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastHeaderPx);
         header.setGravity(Gravity.CENTER);
         header.setText("--");
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
@@ -773,7 +780,7 @@ public class ClockController {
         TextView fmiHdr = new TextView(ctx);
         fmiHdr.setText("Ilmatieteen laitos");
         fmiHdr.setTextColor(0xFFB0B0B0);
-        fmiHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactForecast ? 12f : 14f);
+        fmiHdr.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastColHeaderPx);
         fmiHdr.setGravity(Gravity.START);
         fmiHdr.setSingleLine(true);
         fmiHdr.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -787,7 +794,7 @@ public class ClockController {
         TextView omHdr = new TextView(ctx);
         omHdr.setText("Open-Meteo");
         omHdr.setTextColor(0xFFB0B0B0);
-        omHdr.setTextSize(TypedValue.COMPLEX_UNIT_SP, compactForecast ? 12f : 14f);
+        omHdr.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastColHeaderPx);
         omHdr.setGravity(Gravity.START);
         omHdr.setSingleLine(true);
         omHdr.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -846,7 +853,7 @@ public class ClockController {
 
         TextView hourTv = new TextView(ctx);
         hourTv.setTextColor(0xFFB0B0B0);
-        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
+        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastHourPx);
         hourTv.setText(String.format(FI, "%02d", hour));
         hourTv.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 18 : 28), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -862,7 +869,7 @@ public class ClockController {
 
         TextView temp = new TextView(ctx);
         temp.setTextColor(Color.WHITE);
-        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
+        temp.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastHourPx);
         temp.setText("--");
         temp.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 34 : 56), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -870,7 +877,7 @@ public class ClockController {
 
         TextView wind = new TextView(ctx);
         wind.setTextColor(0xFFB0B0B0);
-        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
+        wind.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastDetailPx);
         wind.setText("");
         wind.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 46 : 76), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -878,7 +885,7 @@ public class ClockController {
 
         TextView rain = new TextView(ctx);
         rain.setTextColor(0xFF4FA8E0);
-        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
+        rain.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastDetailPx);
         rain.setText("");
         rain.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 46 : 76), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -910,7 +917,7 @@ public class ClockController {
 
         TextView hourTv = new TextView(ctx);
         hourTv.setTextColor(0xFFB0B0B0);
-        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
+        hourTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastHourPx);
         hourTv.setText(String.format(FI, "%02d", hour));
         hourTv.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 18 : 28), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -926,7 +933,7 @@ public class ClockController {
 
         TextView temp = new TextView(ctx);
         temp.setTextColor(Color.WHITE);
-        temp.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 13f : 16f);
+        temp.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastHourPx);
         temp.setText("--");
         temp.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 34 : 56), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -934,7 +941,7 @@ public class ClockController {
 
         TextView feels = new TextView(ctx);
         feels.setTextColor(0xFFB0B0B0);
-        feels.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
+        feels.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastDetailPx);
         feels.setText("");
         feels.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 34 : 60), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -942,7 +949,7 @@ public class ClockController {
 
         TextView wind = new TextView(ctx);
         wind.setTextColor(0xFFB0B0B0);
-        wind.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
+        wind.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastDetailPx);
         wind.setText("");
         wind.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 44 : 70), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -950,7 +957,7 @@ public class ClockController {
 
         TextView hum = new TextView(ctx);
         hum.setTextColor(0xFFB0B0B0);
-        hum.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
+        hum.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastDetailPx);
         hum.setText("");
         hum.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 34 : 58), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -958,7 +965,7 @@ public class ClockController {
 
         TextView rain = new TextView(ctx);
         rain.setTextColor(0xFF4FA8E0);
-        rain.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 11f : 13f);
+        rain.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastDetailPx);
         rain.setText("");
         rain.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(compact ? 44 : 70), ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -978,7 +985,7 @@ public class ClockController {
         TextView source = new TextView(ctx);
         source.setText(text);
         source.setTextColor(0xFF909090);
-        source.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f);
+        source.setTextSize(TypedValue.COMPLEX_UNIT_PX, forecastDetailPx);
         source.setGravity(Gravity.CENTER_VERTICAL);
         source.setLayoutParams(new LinearLayout.LayoutParams(
                 dp(24), ViewGroup.LayoutParams.WRAP_CONTENT));

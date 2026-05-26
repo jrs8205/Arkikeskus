@@ -86,7 +86,8 @@ public final class RadarPageBuilder {
         loadingText = new TextView(ctx);
         loadingText.setText("Ladataan sadetutka…");
         loadingText.setTextColor(0xFFB0B0B0);
-        loadingText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        loadingText.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                ctx.getResources().getDimension(R.dimen.page_body_large_text_size));
         loadingText.setGravity(Gravity.CENTER);
         root.addView(loadingText, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -149,7 +150,8 @@ public final class RadarPageBuilder {
 
         currentTimeLabel = new TextView(ctx);
         currentTimeLabel.setTextColor(0xFFFFFFFF);
-        currentTimeLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        currentTimeLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                ctx.getResources().getDimension(R.dimen.page_body_text_size));
         currentTimeLabel.setMinWidth(dp(48));
         currentTimeLabel.setGravity(Gravity.CENTER);
         currentTimeLabel.setText("--:--");

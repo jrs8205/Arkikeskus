@@ -111,7 +111,8 @@ public final class ElectricityPageBuilder {
         TextView tv = new TextView(ctx);
         tv.setText(label);
         tv.setGravity(Gravity.CENTER);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                ctx.getResources().getDimension(R.dimen.page_body_large_text_size));
         tv.setTypeface(Typeface.DEFAULT_BOLD);
         tv.setPadding(dp(12), dp(10), dp(12), dp(10));
         tv.setBackgroundResource(android.R.drawable.list_selector_background);
@@ -219,7 +220,8 @@ public final class ElectricityPageBuilder {
         cheapTv.setText(String.format(new Locale("fi", "FI"),
                 "Halvin: %02d:%02d  %.3f c/kWh", cheapest.hour, cheapest.minute, cheapest.sntPerKwh));
         cheapTv.setTextColor(priceColor(cheapest.sntPerKwh));
-        cheapTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        cheapTv.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                ctx.getResources().getDimension(R.dimen.page_body_text_size));
         cheapTv.setTypeface(Typeface.DEFAULT_BOLD);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -229,7 +231,8 @@ public final class ElectricityPageBuilder {
         costTv.setText(String.format(new Locale("fi", "FI"),
                 "Kallein: %02d:%02d  %.3f c/kWh", costliest.hour, costliest.minute, costliest.sntPerKwh));
         costTv.setTextColor(priceColor(costliest.sntPerKwh));
-        costTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        costTv.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                ctx.getResources().getDimension(R.dimen.page_body_text_size));
         costTv.setTypeface(Typeface.DEFAULT_BOLD);
         costTv.setGravity(Gravity.END);
         row.addView(costTv, new LinearLayout.LayoutParams(lp));
@@ -261,13 +264,15 @@ public final class ElectricityPageBuilder {
             int rowHPad = isCurrent ? dp(12) : dp(tablet ? 8 : 0);
             row.setPadding(rowHPad, rowVPad, rowHPad, rowVPad);
 
-            float timeSp = isCurrent ? 28 : (tablet ? 24 : 20);
-            float priceSp = isCurrent ? 32 : (tablet ? 26 : 22);
+            float bodyPx = ctx.getResources().getDimension(R.dimen.page_body_text_size);
+            float bodyLargePx = ctx.getResources().getDimension(R.dimen.page_body_large_text_size);
+            float timePx = isCurrent ? bodyLargePx * 1.2f : bodyPx;
+            float pricePx = isCurrent ? bodyLargePx * 1.4f : bodyLargePx;
 
             TextView time = new TextView(ctx);
             time.setText(String.format(Locale.US, "%02d:%02d", q.hour, q.minute));
             time.setTextColor(isCurrent ? 0xFFFFFFFF : 0xFFD0D0D0);
-            time.setTextSize(TypedValue.COMPLEX_UNIT_SP, timeSp);
+            time.setTextSize(TypedValue.COMPLEX_UNIT_PX, timePx);
             time.setTypeface(Typeface.MONOSPACE, isCurrent ? Typeface.BOLD : Typeface.NORMAL);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
                     dp(isCurrent ? 120 : 100), ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -275,7 +280,7 @@ public final class ElectricityPageBuilder {
 
             TextView price = new TextView(ctx);
             price.setText(String.format(new Locale("fi", "FI"), "%.3f c/kWh", q.sntPerKwh));
-            price.setTextSize(TypedValue.COMPLEX_UNIT_SP, priceSp);
+            price.setTextSize(TypedValue.COMPLEX_UNIT_PX, pricePx);
             price.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
             price.setTextColor(priceColor(q.sntPerKwh));
             LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(
@@ -317,7 +322,8 @@ public final class ElectricityPageBuilder {
         TextView tv = new TextView(ctx);
         tv.setText(text);
         tv.setTextColor(0xFFB0B0B0);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                ctx.getResources().getDimension(R.dimen.page_body_text_size));
         tv.setPadding(0, dp(8), 0, dp(8));
         return tv;
     }
