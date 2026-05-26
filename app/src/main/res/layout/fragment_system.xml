@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingVertical="20dp">
+
+    <TextView
+        android:id="@+id/system_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/system_title"
+        android:textColor="#FFFFFF"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/open_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/system_open_history" />
+
+    <TextView
+        android:id="@+id/battery_current"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textColor="#FFD89B"
+        android:textSize="22sp"
+        android:text="@string/system_battery_current_unknown" />
+
+    <TextView
+        android:id="@+id/chart_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/system_chart_label"
+        android:textColor="#B0B8C0"
+        android:textSize="16sp" />
+
+    <org.jrs82.fsclock.system.BatteryChartView
+        android:id="@+id/battery_chart"
+        android:layout_width="match_parent"
+        android:layout_height="220dp"
+        android:layout_marginTop="6dp" />
+
+    <TextView
+        android:id="@+id/chart_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:visibility="gone"
+        android:text="@string/system_chart_no_data"
+        android:textColor="#808890"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/today_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/system_today_label"
+        android:textColor="#B0B8C0"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/today_minmax"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:text="@string/system_today_no_data" />
+
+    <TextView
+        android:id="@+id/db_count"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="#808890"
+        android:textSize="14sp" />
+
+    <Button
+        android:id="@+id/export_all"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/system_export_all" />
+
+    <Button
+        android:id="@+id/export_weather"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/system_export_weather" />
+
+    <Button
+        android:id="@+id/export_battery"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/system_export_battery" />
+
+</LinearLayout>

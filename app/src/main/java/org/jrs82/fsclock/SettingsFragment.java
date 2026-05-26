@@ -13,6 +13,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.Gravity;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
@@ -75,7 +77,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-        setPreferencesFromResource(R.xml.preferences, rootKey);
+        setPreferencesFromResource(preferencesResource(), rootKey);
         SettingsManager sm = SettingsManager.get();
 
         // Päivän alkamisaika
@@ -148,6 +150,24 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
         // Ruuvi-anturit
         setupRuuviPreferences();
+    }
+
+    protected int preferencesResource() {
+        return R.xml.preferences;
+    }
+
+    @Override
+    public void onViewCreated(View view, Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        androidx.recyclerview.widget.RecyclerView rv = getListView();
+        if (rv != null) {
+            rv.setNestedScrollingEnabled(false);
+            ViewGroup.LayoutParams lp = rv.getLayoutParams();
+            if (lp != null) {
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                rv.setLayoutParams(lp);
+            }
+        }
     }
 
     @Override
