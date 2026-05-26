@@ -3,23 +3,25 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingHorizontal="24dp"
-    android:paddingVertical="20dp">
+    android:paddingHorizontal="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="20dp">
 
     <TextView
         android:id="@+id/system_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/system_title"
-        android:textColor="#FFFFFF"
-        android:textSize="@dimen/page_body_large_text_size"
-        android:textStyle="bold" />
+        android:textColor="?android:attr/colorAccent"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:paddingStart="4dp" />
 
     <Button
         android:id="@+id/open_history"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:text="@string/system_open_history" />
 
     <TextView
@@ -27,18 +29,20 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
+        android:paddingStart="4dp"
         android:textColor="#FFD89B"
-        android:textSize="@dimen/page_body_text_size"
+        android:textSize="16sp"
         android:text="@string/system_battery_current_unknown" />
 
     <TextView
         android:id="@+id/chart_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="16dp"
+        android:paddingStart="4dp"
         android:text="@string/system_chart_label"
         android:textColor="#B0B8C0"
-        android:textSize="@dimen/page_caption_text_size" />
+        android:textSize="14sp" />
 
     <org.jrs82.fsclock.system.BatteryChartView
         android:id="@+id/battery_chart"
@@ -52,40 +56,44 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:visibility="gone"
+        android:paddingStart="4dp"
         android:text="@string/system_chart_no_data"
         android:textColor="#808890"
-        android:textSize="@dimen/page_caption_text_size" />
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/today_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="16dp"
+        android:paddingStart="4dp"
         android:text="@string/system_today_label"
         android:textColor="#B0B8C0"
-        android:textSize="@dimen/page_caption_text_size" />
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/today_minmax"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:paddingStart="4dp"
         android:textColor="#FFFFFF"
-        android:textSize="@dimen/page_body_text_size"
+        android:textSize="16sp"
         android:text="@string/system_today_no_data" />
 
     <TextView
         android:id="@+id/db_count"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
+        android:paddingStart="4dp"
         android:textColor="#808890"
-        android:textSize="@dimen/page_caption_text_size" />
+        android:textSize="14sp" />
 
     <Button
         android:id="@+id/export_all"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:text="@string/system_export_all" />
 
     <Button
