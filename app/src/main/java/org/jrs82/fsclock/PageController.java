@@ -22,8 +22,13 @@ public class PageController {
     private int availablePages = 1;
     private int currentPage = 0;
     private Runnable longPressCallback;
+    private PageChangeListener pageChangeListener;
     private TextView topIndicator;
     private String topIndicatorFormat = "%1$d / %2$d";
+
+    public interface PageChangeListener {
+        void onPageChanged(int oldPage, int newPage);
+    }
 
     public PageController(Context ctx, ViewGroup pagesContainer,
                           TextView pageIndicator, View[] pages) {
@@ -50,6 +55,10 @@ public class PageController {
 
     public void setLongPressCallback(Runnable r) {
         this.longPressCallback = r;
+    }
+
+    public void setPageChangeListener(PageChangeListener l) {
+        this.pageChangeListener = l;
     }
 
     /** Otsikkorivin numeerinen sivuilmaisin (esim. "2 / 5"). Päivitetään automaattisesti
@@ -85,11 +94,15 @@ public class PageController {
     private void showPage(int idx) {
         if (idx < 0) idx = 0;
         if (idx >= availablePages) idx = availablePages - 1;
+        int oldPage = currentPage;
         currentPage = idx;
         for (int i = 0; i < pages.length; i++) {
             if (pages[i] != null) pages[i].setVisibility(i == idx ? View.VISIBLE : View.GONE);
         }
         updatePageIndicator();
+        if (pageChangeListener != null && oldPage != currentPage) {
+            pageChangeListener.onPageChanged(oldPage, currentPage);
+        }
     }
 
     private void updatePageIndicator() {

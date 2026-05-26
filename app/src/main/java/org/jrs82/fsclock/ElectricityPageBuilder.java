@@ -1,6 +1,5 @@
 package org.jrs82.fsclock;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,6 +9,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -20,10 +20,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 
-/** Sähkönhintojen popup-näkymä. Kaksi välilehteä: Tänään / Huomenna.
- *  Huomenna-välilehti hakee toistuvasti taustalla, kunnes NordPool julkaisee
- *  huomispäivän vartit (yleensä klo 14 EET tienoilla). */
-public final class ElectricityDialog {
+public final class ElectricityPageBuilder {
 
     private static final long POLL_INTERVAL_MS = 30L * 60_000L;
 
@@ -31,7 +28,6 @@ public final class ElectricityDialog {
     private final ElectricityRepository repo;
     private final ExecutorService io;
 
-    private AlertDialog dialog;
     private TextView tabTodayBtn, tabTomorrowBtn;
     private LinearLayout contentContainer;
     private ScrollView scrollView;
@@ -39,27 +35,29 @@ public final class ElectricityDialog {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private Runnable pollRunnable;
     private boolean showingTomorrow = false;
-    /** Estää useamman samanaikaisen verkkokutsun: triggerFetch tarkistaa tämän. */
     private boolean fetchInFlight = false;
-    /** Per-välilehti lippu: kunkin tabin ensimmäinen tyhjyysrender saa pyrkiä
-     *  fetchaan kerran. Sen jälkeen luotetaan pollRunnableen / ClockControllerin
-     *  taustahakuun. Estää renderActiveTab→triggerFetch→render-silmukan. */
     private boolean firedFetchForToday = false;
     private boolean firedFetchForTomorrow = false;
+    private boolean active = false;
 
-    public ElectricityDialog(Context ctx, ElectricityRepository repo, ExecutorService io) {
+    public ElectricityPageBuilder(Context ctx, ElectricityRepository repo, ExecutorService io) {
         this.ctx = ctx;
         this.repo = repo;
         this.io = io;
     }
 
-    public void show() {
+    public View buildPage() {
         LinearLayout root = new LinearLayout(ctx);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Välilehtirivi
         LinearLayout tabs = new LinearLayout(ctx);
         tabs.setOrientation(LinearLayout.HORIZONTAL);
+        tabs.setGravity(Gravity.CENTER);
+        int tabPadTop = dp(8);
+        tabs.setPadding(0, tabPadTop, 0, 0);
         tabTodayBtn = buildTab("Tänään");
         tabTomorrowBtn = buildTab("Huomenna");
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0,
@@ -74,6 +72,7 @@ public final class ElectricityDialog {
         divider.setBackgroundColor(0xFF404040);
         LinearLayout.LayoutParams dp1 = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        dp1.topMargin = dp(4);
         root.addView(divider, dp1);
 
         scrollView = new ScrollView(ctx);
@@ -86,22 +85,31 @@ public final class ElectricityDialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         root.addView(scrollView, sp);
 
-        dialog = new AlertDialog.Builder(ctx)
-                .setTitle("Sähkönhinta")
-                .setView(root)
-                .setPositiveButton("Sulje", null)
-                .setOnDismissListener(d -> stopTomorrowPolling())
-                .create();
-        dialog.show();
-
         selectTab(false);
+        return root;
+    }
+
+    public void onPageVisible() {
+        active = true;
+        firedFetchForToday = false;
+        firedFetchForTomorrow = false;
+        renderActiveTab();
+    }
+
+    public void onPageHidden() {
+        active = false;
+        stopTomorrowPolling();
+    }
+
+    public void refreshContent() {
+        if (active) renderActiveTab();
     }
 
     private TextView buildTab(String label) {
         TextView tv = new TextView(ctx);
         tv.setText(label);
         tv.setGravity(Gravity.CENTER);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
         tv.setTypeface(Typeface.DEFAULT_BOLD);
         tv.setPadding(dp(12), dp(10), dp(12), dp(10));
         tv.setBackgroundResource(android.R.drawable.list_selector_background);
@@ -156,14 +164,11 @@ public final class ElectricityDialog {
         addQuartersToContainer(contentContainer, qs, !showingTomorrow);
     }
 
-    /** Ajastaa pollin vain jos sellainen ei jo ole pyörimässä. Ei tee
-     *  välitöntä triggerFetch-kutsua — se tehdään vain renderActiveTab:n
-     *  firedFetchForTomorrow-portin kautta. */
     private void ensureTomorrowPollScheduled() {
         if (pollRunnable != null) return;
         pollRunnable = new Runnable() {
             @Override public void run() {
-                if (dialog == null || !dialog.isShowing()) return;
+                if (!active) return;
                 triggerFetch();
                 ui.postDelayed(this, POLL_INTERVAL_MS);
             }
@@ -179,7 +184,7 @@ public final class ElectricityDialog {
     }
 
     private void triggerFetch() {
-        if (fetchInFlight) return;
+        if (fetchInFlight || io == null) return;
         fetchInFlight = true;
         io.execute(() -> {
             try {
@@ -187,7 +192,7 @@ public final class ElectricityDialog {
             } catch (Exception ignored) { }
             ui.post(() -> {
                 fetchInFlight = false;
-                if (dialog == null || !dialog.isShowing()) return;
+                if (!active) return;
                 renderActiveTab();
             });
         });
@@ -218,7 +223,7 @@ public final class ElectricityDialog {
             row.addView(time, tlp);
 
             TextView price = new TextView(ctx);
-            price.setText(String.format(new Locale("fi", "FI"), "%.3f c/KWh", q.sntPerKwh));
+            price.setText(String.format(new Locale("fi", "FI"), "%.3f c/kWh", q.sntPerKwh));
             price.setTextSize(TypedValue.COMPLEX_UNIT_SP, isCurrent ? 28 : 22);
             price.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
             price.setTextColor(priceColor(q.sntPerKwh));
@@ -242,7 +247,6 @@ public final class ElectricityDialog {
             dest.addView(row);
         }
 
-        // Scrollataan nykyiseen varttiin avauksen jälkeen
         if (currentRow != null && scrollView != null) {
             final View target = currentRow;
             scrollView.post(() -> {
