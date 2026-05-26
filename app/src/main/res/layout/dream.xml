@@ -49,16 +49,57 @@
                 android:text=""
                 android:visibility="gone" />
 
-            <ImageButton
-                android:id="@+id/electricity_button"
-                android:layout_width="@dimen/home_top_button_size"
-                android:layout_height="@dimen/home_top_button_size"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Sähkönhinta"
-                android:padding="10dp"
-                android:scaleType="center"
-                android:src="@drawable/ic_bolt_24"
-                app:tint="#D0D0D0" />
+            <TextView
+                android:id="@+id/nav_koti"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/nav_koti"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:textSize="@dimen/home_meta_text_size" />
+
+            <TextView
+                android:id="@+id/nav_forecast"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/nav_forecast"
+                android:textColor="#808080"
+                android:textStyle="bold"
+                android:textSize="@dimen/home_meta_text_size" />
+
+            <TextView
+                android:id="@+id/nav_radar"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/nav_radar"
+                android:textColor="#808080"
+                android:textStyle="bold"
+                android:textSize="@dimen/home_meta_text_size" />
+
+            <TextView
+                android:id="@+id/nav_electricity"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/nav_electricity"
+                android:textColor="#808080"
+                android:textStyle="bold"
+                android:textSize="@dimen/home_meta_text_size" />
 
             <ImageButton
                 android:id="@+id/favorite_button"
@@ -94,17 +135,6 @@
                 android:visibility="gone"
                 app:tint="#D0D0D0" />
 
-            <ImageButton
-                android:id="@+id/prev_page_button"
-                android:layout_width="@dimen/home_top_button_size"
-                android:layout_height="@dimen/home_top_button_size"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/action_page_prev"
-                android:padding="10dp"
-                android:scaleType="center"
-                android:src="@drawable/ic_arrow_left_24"
-                app:tint="#D0D0D0" />
-
             <TextView
                 android:id="@+id/page_indicator_top"
                 android:layout_width="wrap_content"
@@ -113,20 +143,9 @@
                 android:paddingStart="6dp"
                 android:paddingEnd="6dp"
                 android:gravity="center"
-                android:textColor="#D0D0D0"
+                android:textColor="#808080"
                 android:textSize="@dimen/home_meta_text_size"
                 android:text="" />
-
-            <ImageButton
-                android:id="@+id/next_page_button"
-                android:layout_width="@dimen/home_top_button_size"
-                android:layout_height="@dimen/home_top_button_size"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/action_page_next"
-                android:padding="10dp"
-                android:scaleType="center"
-                android:src="@drawable/ic_arrow_right_24"
-                app:tint="#D0D0D0" />
 
             <ImageButton
                 android:id="@+id/system_button"
