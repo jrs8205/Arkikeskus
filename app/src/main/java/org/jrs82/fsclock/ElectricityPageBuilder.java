@@ -79,6 +79,7 @@ public final class ElectricityPageBuilder {
         scrollView = new ScrollView(ctx);
         contentContainer = new LinearLayout(ctx);
         contentContainer.setOrientation(LinearLayout.VERTICAL);
+        contentContainer.setGravity(Gravity.CENTER_HORIZONTAL);
         int pad = dp(16);
         contentContainer.setPadding(pad, pad, pad, pad);
         scrollView.addView(contentContainer);
@@ -259,7 +260,7 @@ public final class ElectricityPageBuilder {
 
             LinearLayout row = new LinearLayout(ctx);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setGravity(Gravity.CENTER);
             int rowVPad = isCurrent ? dp(8) : dp(tablet ? 4 : 3);
             int rowHPad = isCurrent ? dp(12) : dp(tablet ? 8 : 0);
             row.setPadding(rowHPad, rowVPad, rowHPad, rowVPad);
