@@ -49,7 +49,11 @@ public class ClockController {
     private static final long TICK_MS = 1000L;
     private static final long TEMP_BROWSE_MS = 30L * 60L * 1000L;
     private static final long[] WEATHER_RETRY_MS = {30_000L, 60_000L, 5L * 60_000L};
-    private static final int PAGE_COUNT = 8;
+    private static final int PAGE_COUNT = 10;
+    private static final int PAGE_IDX_HOME = 0;
+    private static final int PAGE_IDX_FORECAST_START = 1;
+    private static final int PAGE_IDX_RADAR = 8;
+    private static final int PAGE_IDX_ELECTRICITY = 9;
 
     private final Context ctx;
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -73,10 +77,12 @@ public class ClockController {
     private TextView statusText, batteryText;
     private TextView browsePlaceLabel;
     private android.widget.ImageButton favoriteButton, browsePlaceButton, homePlaceButton;
-    private android.widget.ImageButton prevPageButton, nextPageButton, settingsButton, systemButton;
-    private android.widget.ImageButton electricityButton;
+    private android.widget.ImageButton settingsButton, systemButton;
     private TextView electricityPriceText;
     private TextView pageIndicatorTop;
+    private TextView navKoti, navForecast, navRadar, navElectricity;
+    private RadarPageBuilder radarPage;
+    private ElectricityPageBuilder electricityPage;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
     private final PageController pageController;
@@ -169,22 +175,20 @@ public class ClockController {
         pixelShift = new PixelShiftController(root.findViewById(R.id.shift_container));
         brightness = new BrightnessController(window, SettingsManager.get());
 
-        // Globaali header näkyy joka sivulla; etusivulta on poistettu omat napit
+        // Globaali header näkyy joka sivulla
         browsePlaceLabel = root.findViewById(R.id.browse_place_label);
         electricityPriceText = root.findViewById(R.id.electricity_price_text);
-        electricityButton = root.findViewById(R.id.electricity_button);
         favoriteButton = root.findViewById(R.id.favorite_button);
         browsePlaceButton = root.findViewById(R.id.browse_place_button);
         homePlaceButton = root.findViewById(R.id.home_place_button);
-        prevPageButton = root.findViewById(R.id.prev_page_button);
-        nextPageButton = root.findViewById(R.id.next_page_button);
         pageIndicatorTop = root.findViewById(R.id.page_indicator_top);
         settingsButton = root.findViewById(R.id.settings_button);
         systemButton = root.findViewById(R.id.system_button);
 
-        View.OnClickListener openElectricity = v -> showElectricityDialog();
-        if (electricityButton != null) electricityButton.setOnClickListener(openElectricity);
-        if (electricityPriceText != null) electricityPriceText.setOnClickListener(openElectricity);
+        navKoti = root.findViewById(R.id.nav_koti);
+        navForecast = root.findViewById(R.id.nav_forecast);
+        navRadar = root.findViewById(R.id.nav_radar);
+        navElectricity = root.findViewById(R.id.nav_electricity);
 
         browsePlaceButton.setOnClickListener(v -> showBrowsePlaceDialog());
         homePlaceButton.setOnClickListener(v -> returnToHomeWeather());
@@ -199,19 +203,39 @@ public class ClockController {
             });
         }
 
+        io = Executors.newSingleThreadExecutor();
         buildPages(pagesContainer);
 
         pageController = new PageController(ctx, pagesContainer, null, pages);
         pageController.setTopIndicator(pageIndicatorTop, ctx.getString(R.string.page_indicator_format));
 
-        final PageController pc = pageController;
-        prevPageButton.setOnClickListener(v -> pc.goTo(pc.getCurrentPage() - 1));
-        nextPageButton.setOnClickListener(v -> pc.goTo(pc.getCurrentPage() + 1));
+        if (electricityPriceText != null) {
+            electricityPriceText.setOnClickListener(v -> pageController.goTo(PAGE_IDX_ELECTRICITY));
+        }
+        if (navKoti != null) navKoti.setOnClickListener(v -> pageController.goTo(PAGE_IDX_HOME));
+        if (navForecast != null) navForecast.setOnClickListener(v -> pageController.goTo(PAGE_IDX_FORECAST_START));
+        if (navRadar != null) navRadar.setOnClickListener(v -> pageController.goTo(PAGE_IDX_RADAR));
+        if (navElectricity != null) navElectricity.setOnClickListener(v -> pageController.goTo(PAGE_IDX_ELECTRICITY));
+
+        pageController.setPageChangeListener((oldPage, newPage) -> {
+            if (oldPage == PAGE_IDX_RADAR && radarPage != null) radarPage.onPageHidden();
+            if (oldPage == PAGE_IDX_ELECTRICITY && electricityPage != null) electricityPage.onPageHidden();
+            if (newPage == PAGE_IDX_RADAR && radarPage != null) radarPage.onPageVisible();
+            if (newPage == PAGE_IDX_ELECTRICITY && electricityPage != null) electricityPage.onPageVisible();
+            updateNavHighlight(newPage);
+        });
 
         pageController.start();
 
+        boolean tablet = UiMetrics.isTabletLike(ctx.getResources());
+        if (navKoti != null) navKoti.setVisibility(tablet ? View.VISIBLE : View.GONE);
+        if (navForecast != null) navForecast.setVisibility(tablet ? View.VISIBLE : View.GONE);
+        if (navRadar != null) navRadar.setVisibility(tablet ? View.VISIBLE : View.GONE);
+        if (navElectricity != null) navElectricity.setVisibility(tablet ? View.VISIBLE : View.GONE);
+
         updateSettingsButtonVisibility();
         updatePlaceControls();
+        updateNavHighlight(PAGE_IDX_HOME);
     }
 
     private void toggleFavoriteForCurrentPlace() {
@@ -299,7 +323,7 @@ public class ClockController {
     public void start() {
         active.set(true);
         lastRefreshDay = Calendar.getInstance(FI).get(Calendar.DAY_OF_YEAR);
-        io = Executors.newSingleThreadExecutor();
+        if (io == null) io = Executors.newSingleThreadExecutor();
         SettingsManager.get().registerListener(prefsListener);
         renderStaticContent();
         updatePlaceControls();
@@ -331,6 +355,8 @@ public class ClockController {
             repo.removeListener(ruuviListener);
             repo.stop();
         } catch (Exception ignored) { }
+        if (radarPage != null) radarPage.onPageHidden();
+        if (electricityPage != null) electricityPage.onPageHidden();
         pixelShift.stop();
         brightness.stop();
         ui.removeCallbacks(returnHomeRunnable);
@@ -366,6 +392,7 @@ public class ClockController {
                 if (!active.get()) return;
                 ui.post(() -> {
                     renderElectricityHeader();
+                    if (electricityPage != null) electricityPage.refreshContent();
                     boolean haveTomorrow = ElectricityRepository.get(ctx).hasTomorrow();
                     Calendar c = Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"));
                     int hour = c.get(Calendar.HOUR_OF_DAY);
@@ -411,11 +438,6 @@ public class ClockController {
         sb.setSpan(new android.text.style.ForegroundColorSpan(ElectricityPageBuilder.priceColor(q.sntPerKwh)),
                 start, sb.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         electricityPriceText.setText(sb);
-    }
-
-    private void showElectricityDialog() {
-        if (io == null) return;
-        new ElectricityDialog(ctx, ElectricityRepository.get(ctx), io).show();
     }
 
     private final WarningsRepository.Listener warningsListener = warnings ->
@@ -503,12 +525,18 @@ public class ClockController {
 
     private void buildPages(FrameLayout pagesContainer) {
         pagesContainer.removeAllViews();
-        pages[0] = buildMainPageXml(pagesContainer);
-        pagesContainer.addView(pages[0]);
-        for (int i = 1; i < PAGE_COUNT; i++) {
+        pages[PAGE_IDX_HOME] = buildMainPageXml(pagesContainer);
+        pagesContainer.addView(pages[PAGE_IDX_HOME]);
+        for (int i = PAGE_IDX_FORECAST_START; i < PAGE_IDX_FORECAST_START + 7; i++) {
             pages[i] = buildDayPage(i);
             pagesContainer.addView(pages[i]);
         }
+        radarPage = new RadarPageBuilder(ctx, io, ui);
+        pages[PAGE_IDX_RADAR] = radarPage.buildPage();
+        pagesContainer.addView(pages[PAGE_IDX_RADAR]);
+        electricityPage = new ElectricityPageBuilder(ctx, ElectricityRepository.get(ctx), io);
+        pages[PAGE_IDX_ELECTRICITY] = electricityPage.buildPage();
+        pagesContainer.addView(pages[PAGE_IDX_ELECTRICITY]);
     }
 
     private View buildMainPageXml(ViewGroup parent) {
@@ -576,6 +604,16 @@ public class ClockController {
         }
     }
 
+    private void updateNavHighlight(int page) {
+        int active = 0xFFFFFFFF;
+        int inactive = 0xFF808080;
+        if (navKoti != null) navKoti.setTextColor(page == PAGE_IDX_HOME ? active : inactive);
+        if (navForecast != null) navForecast.setTextColor(
+                page >= PAGE_IDX_FORECAST_START && page < PAGE_IDX_RADAR ? active : inactive);
+        if (navRadar != null) navRadar.setTextColor(page == PAGE_IDX_RADAR ? active : inactive);
+        if (navElectricity != null) navElectricity.setTextColor(page == PAGE_IDX_ELECTRICITY ? active : inactive);
+    }
+
     private void updateSettingsButtonVisibility() {
         if (settingsButton != null) {
             settingsButton.setVisibility(settingsClickCallback == null ? View.GONE : View.VISIBLE);
@@ -592,8 +630,6 @@ public class ClockController {
         browsePlaceLabel.setText(currentPlaceLabel());
         browsePlaceButton.setVisibility(vis);
         favoriteButton.setVisibility(vis);
-        prevPageButton.setVisibility(vis);
-        nextPageButton.setVisibility(vis);
         if (pageIndicatorTop != null) pageIndicatorTop.setVisibility(vis);
         homePlaceButton.setVisibility(interactive && isBrowsingPlace() ? View.VISIBLE : View.GONE);
         refreshFavoriteHeaderIcon();
@@ -1745,11 +1781,11 @@ public class ClockController {
         dayKeys.addAll(fmiByDay.keySet());
         dayKeys.addAll(omByDay.keySet());
         Integer[] days = dayKeys.toArray(new Integer[0]);
-        int dayPagesAvailable = Math.min(days.length, PAGE_COUNT - 1);
-        pageController.setAvailablePages(1 + dayPagesAvailable);
+        int dayPagesAvailable = Math.min(days.length, 7);
+        pageController.setAvailablePages(PAGE_COUNT);
 
-        for (int pageIdx = 1; pageIdx < PAGE_COUNT; pageIdx++) {
-            int dayIdx = pageIdx - 1;
+        for (int pageIdx = PAGE_IDX_FORECAST_START; pageIdx < PAGE_IDX_FORECAST_START + 7; pageIdx++) {
+            int dayIdx = pageIdx - PAGE_IDX_FORECAST_START;
             if (dayIdx >= days.length) {
                 clearDayPage(pageIdx);
                 continue;
