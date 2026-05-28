@@ -67,7 +67,16 @@ final class MobileHolidayProvider {
             conn.setRequestProperty("Accept", "application/json");
             conn.setRequestProperty("User-Agent", "Arkikeskus Android");
             int code = conn.getResponseCode();
-            if (code != 200) throw new Exception("Vapaapaivat HTTP " + code);
+            if (code != 200) {
+                InputStream err = conn.getErrorStream();
+                if (err != null) {
+                    try (InputStream toClose = err) {
+                        byte[] buf = new byte[1024];
+                        while (toClose.read(buf) > 0) { /* discard */ }
+                    } catch (Exception ignored) { }
+                }
+                throw new Exception("Vapaapaivat HTTP " + code);
+            }
             in = conn.getInputStream();
             JSONObject root = new JSONObject(readFully(in));
             JSONArray holidays = root.getJSONArray("holidays");

@@ -81,16 +81,11 @@
                 android:tint="@color/mobile_text_primary" />
         </LinearLayout>
 
-        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-            android:id="@+id/mobile_swipe_refresh"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
         <ScrollView
             android:id="@+id/mobile_scroll"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:fillViewport="false"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
@@ -816,8 +811,6 @@
 
             </LinearLayout>
         </ScrollView>
-
-        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
     </LinearLayout>
 
     <ImageButton

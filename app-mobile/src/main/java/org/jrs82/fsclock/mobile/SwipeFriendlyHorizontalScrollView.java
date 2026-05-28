@@ -8,9 +8,8 @@ import android.widget.HorizontalScrollView;
 
 /**
  * HorizontalScrollView joka pyytää parent-puuta olemaan kaappaamatta touch-eventeja
- * heti kun sormi koskettaa. Tällä estetään parent SwipeRefreshLayout:in ja ScrollView:n
- * kilpailu horisontaalisen swipen kanssa, joka muuten aiheuttaa tökkimistä etusivun
- * tuntiennusteessa.
+ * heti kun sormi koskettaa. Tällä estetään parent ScrollView:n kilpailu horisontaalisen
+ * swipen kanssa, joka muuten aiheuttaa tökkimistä etusivun tuntiennusteessa.
  */
 public class SwipeFriendlyHorizontalScrollView extends HorizontalScrollView {
 
