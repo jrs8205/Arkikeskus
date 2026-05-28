@@ -19,7 +19,7 @@ import java.util.zip.GZIPInputStream;
 final class TrafficNoticesClient {
 
     private static final String BASE = "https://tie.digitraffic.fi/api/traffic-message/v2/";
-    private static final String DIGITRAFFIC_USER = "Arkikeskus/1.1.1-mobile";
+    private static final String DIGITRAFFIC_USER = "Arkikeskus/1.1.2-mobile";
     private static final int TIMEOUT_MS = 9000;
     private static final double BBOX_RADIUS_M = 50_000.0;
 
@@ -216,6 +216,7 @@ final class TrafficNoticesClient {
         try {
             int code = conn.getResponseCode();
             if (code != 200) {
+                drainStream(conn.getErrorStream());
                 throw new IOException("Digitraffic HTTP " + code + " " + conn.getResponseMessage());
             }
             InputStream raw = conn.getInputStream();
@@ -232,6 +233,14 @@ final class TrafficNoticesClient {
         } finally {
             conn.disconnect();
         }
+    }
+
+    private static void drainStream(InputStream is) {
+        if (is == null) return;
+        try (InputStream toClose = is) {
+            byte[] buf = new byte[1024];
+            while (toClose.read(buf) > 0) { /* discard */ }
+        } catch (IOException ignored) { }
     }
 
     private static double minDistanceMeters(Object geometry, double refLat, double refLon) {

@@ -367,6 +367,8 @@ final class MmlGeocodingClient {
         try {
             int code = conn.getResponseCode();
             if (code != 200) {
+                // Kuluta errorStream jotta socket vapautuu yhdistyspooliin.
+                drainStream(conn.getErrorStream());
                 throw new IOException("MML HTTP " + code + " " + conn.getResponseMessage());
             }
             try (InputStream is = conn.getInputStream();
@@ -379,6 +381,14 @@ final class MmlGeocodingClient {
         } finally {
             conn.disconnect();
         }
+    }
+
+    private static void drainStream(InputStream is) {
+        if (is == null) return;
+        try (InputStream toClose = is) {
+            byte[] buf = new byte[1024];
+            while (toClose.read(buf) > 0) { /* discard */ }
+        } catch (IOException ignored) { }
     }
 
     private static String basicAuthHeader() {

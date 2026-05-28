@@ -43,7 +43,6 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.preference.PreferenceManager;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.gms.location.CurrentLocationRequest;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -255,7 +254,6 @@ public class MobileMainActivity extends AppCompatActivity {
     private View drawer;
     private View drawerScrim;
     private View scroll;
-    private SwipeRefreshLayout swipeRefresh;
     private View homeView;
     private LinearLayout widgetsContainer;
     private View forecastView;
@@ -457,6 +455,10 @@ public class MobileMainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         destroyed = true;
+        if (placeSearchDialog != null && placeSearchDialog.isShowing()) {
+            try { placeSearchDialog.dismiss(); } catch (Exception ignored) { }
+        }
+        placeSearchDialog = null;
         io.shutdownNow();
         super.onDestroy();
     }
@@ -471,7 +473,6 @@ public class MobileMainActivity extends AppCompatActivity {
         drawer = findViewById(R.id.mobile_drawer);
         drawerScrim = findViewById(R.id.mobile_drawer_scrim);
         scroll = findViewById(R.id.mobile_scroll);
-        swipeRefresh = findViewById(R.id.mobile_swipe_refresh);
         homeView = findViewById(R.id.mobile_home_view);
         forecastView = findViewById(R.id.mobile_forecast_view);
         electricityView = findViewById(R.id.mobile_electricity_view);
@@ -609,13 +610,6 @@ public class MobileMainActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
             refreshAll(true);
         });
-        if (swipeRefresh != null) {
-            swipeRefresh.setColorSchemeColors(getColor(R.color.mobile_accent));
-            swipeRefresh.setOnRefreshListener(() -> refreshAll(true));
-            // Vaadi selvempi alas-veto ennen kuin pull-to-refresh aktivoituu — muuten
-            // sääkortin päältä alas swipettäminen jää kiinni refresh-eleeseen.
-            swipeRefresh.setDistanceToTriggerSync(dp(200));
-        }
         toolbarTitle.setOnClickListener(v -> showHome());
         searchButton.setOnClickListener(v -> showPlaceSearchDialog());
         locationButton.setOnClickListener(v -> {
@@ -757,9 +751,6 @@ public class MobileMainActivity extends AppCompatActivity {
         if (refreshInFlight) {
             if (forcedByUser) Toast.makeText(this, "Päivitys on jo käynnissä", Toast.LENGTH_SHORT).show();
             else scheduleAutoRefresh();
-            if (swipeRefresh != null && !swipeRefresh.isRefreshing()) {
-                swipeRefresh.setRefreshing(false);
-            }
             return;
         }
         refreshInFlight = true;
@@ -805,7 +796,6 @@ public class MobileMainActivity extends AppCompatActivity {
             main.post(() -> {
                 refreshInFlight = false;
                 stopRefreshAnimation();
-                if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
                 if (destroyed || isFinishing() || isDestroyed()) return;
                 if (finalWeather != null) {
                     weather = finalWeather;
@@ -884,16 +874,40 @@ public class MobileMainActivity extends AppCompatActivity {
     private void renderWeatherQuickStats(WeatherData.Current c) {
         if (weatherQuickStats == null) return;
         weatherQuickStats.removeAllViews();
+
+        // Jos havaintoasema ei mittaa sadetta/tuulta (NaN), fallbackataan
+        // FMI-ennustemallin nykyhetken tuntiarvoon.
+        WeatherData.Hour nowForecast = nearestForecastHour(System.currentTimeMillis());
+        double wind = !Double.isNaN(c.windSpeed) ? c.windSpeed
+                : (nowForecast != null ? nowForecast.windSpeed : Double.NaN);
+        double rain = !Double.isNaN(c.precip1h) ? c.precip1h
+                : (nowForecast != null ? nowForecast.precipitation : Double.NaN);
+
         weatherQuickStats.addView(quickStatTile(
                 R.drawable.mobile_ic_thermometer_24, "Tuntuu kuin",
                 Double.isNaN(c.feelsLike) ? "--" : formatTemp(c.feelsLike)));
         weatherQuickStats.addView(quickStatTile(
                 R.drawable.mobile_ic_wind_24, "Tuuli",
-                Double.isNaN(c.windSpeed) ? "-- m/s" : one(c.windSpeed) + " m/s"));
+                Double.isNaN(wind) ? "-- m/s" : one(wind) + " m/s"));
         weatherQuickStats.addView(quickStatTile(
                 R.drawable.mobile_ic_rain_24, "Sade 1h",
-                Double.isNaN(c.precip1h) ? "-- mm" : one(c.precip1h) + " mm"));
+                Double.isNaN(rain) ? "-- mm" : one(rain) + " mm"));
         weatherQuickStats.setVisibility(View.VISIBLE);
+    }
+
+    private WeatherData.Hour nearestForecastHour(long timestampMs) {
+        if (weather == null || weather.hours == null || weather.hours.isEmpty()) return null;
+        WeatherData.Hour closest = null;
+        long bestDelta = Long.MAX_VALUE;
+        for (WeatherData.Hour hour : weather.hours) {
+            long delta = Math.abs(hour.timestamp - timestampMs);
+            if (delta < bestDelta) {
+                bestDelta = delta;
+                closest = hour;
+            }
+        }
+        // Älä käytä tuntia joka on kauempana kuin 90 min nykyhetkestä
+        return bestDelta <= 90L * 60_000L ? closest : null;
     }
 
     private View quickStatTile(int iconRes, String label, String value) {
@@ -1216,7 +1230,11 @@ public class MobileMainActivity extends AppCompatActivity {
         if (lastGpsLocation == null || !lastGpsLocation.hasSpeed()) return 0f;
         long age = System.currentTimeMillis() - lastGpsLocation.getTime();
         if (age > 8_000L) return 0f;
-        return Math.max(0f, lastGpsLocation.getSpeed() * 3.6f);
+        float kmh = lastGpsLocation.getSpeed() * 3.6f;
+        // Suodata GPS-jitter: paikallaan oltaessa satunnaisvaihtelu antaa 1–3 km/h
+        // näennäisnopeuden. Alle 2 km/h näytetään 0.
+        if (kmh < 2f) return 0f;
+        return kmh;
     }
 
     private String signalLabel() {
