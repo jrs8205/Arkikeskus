@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="31" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT"
+        tools:targetApi="31" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
+    <application
+        android:name="org.jrs82.fsclock.FsClockApp"
+        android:allowBackup="false"
+        android:icon="@drawable/arkikeskus"
+        android:roundIcon="@drawable/arkikeskus"
+        android:label="@string/app_mobile_name"
+        android:theme="@style/MobileTheme">
+
+        <activity
+            android:name="org.jrs82.fsclock.mobile.MobileMainActivity"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
+            android:exported="true"
+            android:icon="@drawable/arkikeskus"
+            android:label="@string/app_mobile_name"
+            android:theme="@style/MobileTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="org.jrs82.fsclock.mobile.MobileSettingsActivity"
+            android:exported="false"
+            android:label="@string/mobile_settings_title"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
+            android:theme="@style/MobileSettingsTheme" />
+
+        <activity
+            android:name="org.jrs82.fsclock.mobile.MobileSystemActivity"
+            android:exported="false"
+            android:label="@string/mobile_menu_system"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
+            android:theme="@style/MobileSettingsTheme" />
+
+        <activity
+            android:name="org.jrs82.fsclock.mobile.MobileHistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
+            android:theme="@style/MobileSettingsTheme" />
+
+        <activity
+            android:name="org.jrs82.fsclock.history.HistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
+            android:theme="@style/MobileSettingsTheme" />
+    </application>
+</manifest>

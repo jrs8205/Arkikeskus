@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_mobile_name">Arkikeskus</string>
+    <string name="mobile_settings_title">Arkikeskus-asetukset</string>
+    <string name="mobile_menu_home">Etusivu</string>
+    <string name="mobile_menu_forecast">7 vrk sää</string>
+    <string name="mobile_menu_electricity">Sähkö</string>
+    <string name="mobile_menu_electricity_today">Tänään</string>
+    <string name="mobile_menu_electricity_tomorrow">Huomenna</string>
+    <string name="mobile_pref_cheap_electricity_notice">Halvan sähkön huomio</string>
+    <string name="mobile_pref_cheap_electricity_notice_summary">Näytä etusivulla ilmoitus, jos koko päivän sähkö on alle 5 c/kWh</string>
+    <string name="mobile_pref_cheap_electricity_threshold">Halvan sähkön raja</string>
+    <string name="mobile_pref_cheap_electricity_threshold_summary">c/kWh, ALV 0%</string>
+    <string name="mobile_pref_cheap_electricity_mode">Milloin huomio näytetään</string>
+    <string name="mobile_pref_cheap_electricity_mode_summary">Valitse tarkistetaanko nykyinen vartti, loppupäivä vai koko päivä</string>
+    <string name="mobile_pref_show_electricity_widget">Sähkö-widget etusivulla</string>
+    <string name="mobile_pref_show_electricity_widget_summary">Näytä nykyinen sähkön hinta etusivun korttina</string>
+    <string name="mobile_pref_cat_home_widgets">Etusivun widgetit</string>
+    <string name="mobile_pref_widget_order">Widgettien järjestys</string>
+    <string name="mobile_pref_widget_order_summary">Muuta etusivun widgettien järjestystä</string>
+    <string name="mobile_widget_weather">Sää</string>
+    <string name="mobile_widget_electricity">Sähkö</string>
+    <string name="mobile_widget_warnings">Säävaroitukset</string>
+    <string name="mobile_widget_sensors">Anturit</string>
+    <string name="mobile_widget_traffic">Liikenne</string>
+    <string name="mobile_widget_gps_speed">GPS-nopeus</string>
+    <string name="mobile_widget_road_cameras">Kelikamerat</string>
+    <string name="mobile_widget_move_up">Siirrä ylös</string>
+    <string name="mobile_widget_move_down">Siirrä alas</string>
+    <string name="mobile_pref_show_warnings_widget">Säävaroitukset etusivulla</string>
+    <string name="mobile_pref_show_warnings_widget_summary">Näytä aktiiviset säävaroitukset omina kortteinaan</string>
+    <string name="mobile_pref_show_sensors_widget">Anturit etusivulla</string>
+    <string name="mobile_pref_show_sensors_widget_summary">Näytä Ruuvi-antureiden yhteenveto etusivulla</string>
+    <string name="mobile_pref_show_traffic_widget">Liikenne etusivulla</string>
+    <string name="mobile_pref_show_traffic_widget_summary">Varaa etusivulle liikennetiedot, kun lähde on käytössä</string>
+    <string name="mobile_pref_show_gps_speed_widget">GPS-nopeus etusivulla</string>
+    <string name="mobile_pref_show_gps_speed_widget_summary">Näytä laitteen viimeisin sijaintinopeus, jos sijaintilupa ja nopeusdata ovat saatavilla</string>
+    <string name="mobile_pref_show_road_cameras_widget">Kelikamerat etusivulla</string>
+    <string name="mobile_pref_show_road_cameras_widget_summary">Varaa etusivulle kelikameratiedot, kun lähde on käytössä</string>
+    <string name="mobile_favorite_add">Lisää sääpaikka suosikkeihin</string>
+    <string name="mobile_favorite_remove">Poista sääpaikka suosikeista</string>
+    <string name="mobile_current_location">Paikanna nykyinen sijainti</string>
+    <string name="mobile_sensor_default_1">Anturi 1</string>
+    <string name="mobile_sensor_default_2">Anturi 2</string>
+    <string name="mobile_sensor_default_3">Anturi 3</string>
+    <string name="mobile_pref_sensor_name_bedroom">Anturi 1:n nimi</string>
+    <string name="mobile_pref_sensor_name_livingroom">Anturi 2:n nimi</string>
+    <string name="mobile_pref_sensor_name_balcony">Anturi 3:n nimi</string>
+    <string name="mobile_pref_auto_location">Automaattinen sijainti</string>
+    <string name="mobile_pref_auto_location_summary">Päivitä paikkakunta laitteen sijainnin perusteella, jos lupa on annettu</string>
+    <string name="mobile_pref_update_interval">Automaattinen päivitysväli</string>
+    <string name="mobile_pref_update_interval_summary">Kuinka usein sää, ennuste, Open-Meteo, sähkö ja juhlapäivät päivitetään taustalla</string>
+    <string name="mobile_menu_sensors">Anturit</string>
+    <string name="mobile_menu_traffic">Liikennetiedot</string>
+    <string name="mobile_menu_traffic_all">Lähialue</string>
+    <string name="mobile_menu_traffic_accidents">Onnettomuudet</string>
+    <string name="mobile_menu_traffic_roadworks">Tietyöt</string>
+    <string name="mobile_menu_traffic_weight">Painorajoitukset</string>
+    <string name="mobile_menu_traffic_incidents">Häiriöt</string>
+    <string name="mobile_menu_traffic_congestion">Ruuhkat</string>
+    <string name="mobile_menu_history">Historia</string>
+    <string name="mobile_menu_places">Suosikkipaikat</string>
+    <string name="mobile_menu_settings">Asetukset</string>
+    <string name="mobile_menu_system">Tilastot</string>
+    <string name="mobile_pref_theme">Teema</string>
+    <string name="mobile_pref_theme_summary">Valitse vaalea, tumma AMOLED tai järjestelmän teema</string>
+    <string-array name="mobile_update_interval_labels">
+        <item>10 minuuttia</item>
+        <item>15 minuuttia</item>
+        <item>30 minuuttia</item>
+        <item>60 minuuttia</item>
+        <item>120 minuuttia</item>
+    </string-array>
+    <string-array name="mobile_update_interval_values">
+        <item>10</item>
+        <item>15</item>
+        <item>30</item>
+        <item>60</item>
+        <item>120</item>
+    </string-array>
+    <string-array name="mobile_cheap_electricity_mode_labels">
+        <item>Nykyinen vartti</item>
+        <item>Koko loppupäivä</item>
+        <item>Koko päivä</item>
+    </string-array>
+    <string-array name="mobile_cheap_electricity_mode_values">
+        <item>current</item>
+        <item>remaining_day</item>
+        <item>all_day</item>
+    </string-array>
+    <string-array name="mobile_theme_labels">
+        <item>Järjestelmän mukaan</item>
+        <item>Vaalea</item>
+        <item>Tumma AMOLED</item>
+    </string-array>
+    <string-array name="mobile_theme_values">
+        <item>system</item>
+        <item>light</item>
+        <item>dark</item>
+    </string-array>
+</resources>

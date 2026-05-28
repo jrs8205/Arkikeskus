@@ -40,18 +40,18 @@
     <!-- Ruuvi -->
     <string name="pref_ruuvi_scan">Etsi antureita</string>
     <string name="pref_ruuvi_scan_summary">Avaa lista lähellä havaituista RuuviTag-antureista</string>
-    <string name="pref_ruuvi_slot_bedroom">Makuuhuoneen anturi</string>
-    <string name="pref_ruuvi_slot_livingroom">Olohuoneen anturi</string>
-    <string name="pref_ruuvi_slot_balcony">Parvekkeen anturi</string>
+    <string name="pref_ruuvi_slot_bedroom">Anturi 1</string>
+    <string name="pref_ruuvi_slot_livingroom">Anturi 2</string>
+    <string name="pref_ruuvi_slot_balcony">Anturi 3</string>
     <string name="ruuvi_slot_empty">Ei valittu</string>
     <string name="ruuvi_scan_dialog_title">Havaitut RuuviTagit</string>
     <string name="ruuvi_scan_dialog_empty">Etsitään antureita…</string>
-    <string name="ruuvi_scan_dialog_hint">Valitse anturi, niin voit kytkeä sen huoneeseen.</string>
+    <string name="ruuvi_scan_dialog_hint">Valitse anturi, niin voit kytkeä sen mihin tahansa anturipaikkaan.</string>
     <string name="ruuvi_assign_dialog_title">Kytke %1$s</string>
-    <string name="ruuvi_assign_to_bedroom">Makuuhuone</string>
-    <string name="ruuvi_assign_to_livingroom">Olohuone</string>
-    <string name="ruuvi_assign_to_balcony">Parveke</string>
-    <string name="ruuvi_assign_clear">Poista huone­kytkentä</string>
+    <string name="ruuvi_assign_to_bedroom">Anturi 1</string>
+    <string name="ruuvi_assign_to_livingroom">Anturi 2</string>
+    <string name="ruuvi_assign_to_balcony">Anturi 3</string>
+    <string name="ruuvi_assign_clear">Poista anturikytkentä</string>
     <string name="ruuvi_assigned_toast">%1$s → %2$s</string>
     <string name="ruuvi_card_format">%1$s · %2$s · RSSI %3$d</string>
     <string name="ruuvi_card_temp_format">%1$.1f °C</string>
@@ -174,9 +174,9 @@
     <string name="sun_symbol">☀</string>
 
     <!-- Anturit (RuuviTag — tilavaraus) -->
-    <string name="sensor_label_bedroom">Makuuhuone</string>
-    <string name="sensor_label_livingroom">Olohuone</string>
-    <string name="sensor_label_balcony">Parveke</string>
+    <string name="sensor_label_bedroom">Anturi 1</string>
+    <string name="sensor_label_livingroom">Anturi 2</string>
+    <string name="sensor_label_balcony">Anturi 3</string>
     <string name="sensor_temp_missing">—</string>
     <string name="sensor_temp_format">%+.1f°</string>
     <string name="sensor_temp_no_signal">offline</string>

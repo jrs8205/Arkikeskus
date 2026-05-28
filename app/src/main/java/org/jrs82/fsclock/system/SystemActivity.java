@@ -64,11 +64,11 @@ public class SystemActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setTheme(R.style.SettingsTheme);
+        setTheme(activityTheme());
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_system);
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle(R.string.system_title);
+            getSupportActionBar().setTitle(activityTitle());
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
 
@@ -89,6 +89,14 @@ public class SystemActivity extends AppCompatActivity {
         exportBatteryButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.BATTERY_HUMAN));
         openHistoryButton.setOnClickListener(v -> startActivity(
                 new Intent(this, org.jrs82.fsclock.history.HistoryActivity.class)));
+    }
+
+    protected int activityTheme() {
+        return R.style.SettingsTheme;
+    }
+
+    protected CharSequence activityTitle() {
+        return getString(R.string.system_title);
     }
 
     @Override

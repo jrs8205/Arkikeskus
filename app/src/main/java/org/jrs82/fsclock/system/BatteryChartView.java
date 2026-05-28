@@ -61,7 +61,6 @@ public class BatteryChartView extends View {
 
         int w = getWidth();
         int h = getHeight();
-        canvas.drawColor(COLOR_BG);
 
         if (samples.isEmpty() || rangeEndMs <= rangeStartMs) return;
 

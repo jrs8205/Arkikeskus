@@ -59,12 +59,16 @@ public final class FmiRepository {
      *  haetaan FMI:ltä ja pyöristetään havainnon timestamp slotin alkuun ennen
      *  DB-tallennusta. */
     public WeatherData fetchHome(WeatherData cached) throws Exception {
+        return fetchHome(cached, false);
+    }
+
+    public WeatherData fetchHome(WeatherData cached, boolean forceNetwork) throws Exception {
         SettingsManager sm = SettingsManager.get();
         String channel = sm.homeChannel();
         long now = System.currentTimeMillis();
         long slotStart = slotStartFor(now);
 
-        if (canServeFromDb(cached, now)) {
+        if (!forceNetwork && !sm.hasHomeCoordinates() && canServeFromDb(cached, now)) {
             WeatherSample slotSample = history.getLatestInSlot(channel, slotStart, slotStart + SLOT_MS);
             if (slotSample != null) {
                 Log.d(TAG, "fetchHome slot " + slotStart + " löytyi DB:stä, ei FMI-pyyntöä");
@@ -73,7 +77,10 @@ public final class FmiRepository {
         }
 
         String place = sm.getHomePlace();
-        WeatherData data = new FmiClient(place).fetch(cached);
+        FmiClient client = sm.hasHomeCoordinates()
+                ? new FmiClient(place, sm.getHomeLatitude(), sm.getHomeLongitude())
+                : new FmiClient(place);
+        WeatherData data = client.fetch(forceNetwork ? null : cached);
         roundCurrentToSlot(data);
         persistObservation(channel, data);
         return data;

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="@string/pref_cat_weather">
+        <SwitchPreferenceCompat
+            app:key="mobile_use_automatic_location"
+            app:title="@string/mobile_pref_auto_location"
+            app:summary="@string/mobile_pref_auto_location_summary"
+            app:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/mobile_pref_cat_home_widgets">
+        <Preference
+            app:key="mobile_widget_order"
+            app:title="@string/mobile_pref_widget_order"
+            app:summary="@string/mobile_pref_widget_order_summary" />
+        <SwitchPreferenceCompat
+            app:key="mobile_show_electricity_widget"
+            app:title="@string/mobile_pref_show_electricity_widget"
+            app:summary="@string/mobile_pref_show_electricity_widget_summary"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_show_warnings_widget"
+            app:title="@string/mobile_pref_show_warnings_widget"
+            app:summary="@string/mobile_pref_show_warnings_widget_summary"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_show_sensors_widget"
+            app:title="@string/mobile_pref_show_sensors_widget"
+            app:summary="@string/mobile_pref_show_sensors_widget_summary"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_show_traffic_widget"
+            app:title="@string/mobile_pref_show_traffic_widget"
+            app:summary="@string/mobile_pref_show_traffic_widget_summary"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_show_gps_speed_widget"
+            app:title="@string/mobile_pref_show_gps_speed_widget"
+            app:summary="@string/mobile_pref_show_gps_speed_widget_summary"
+            app:defaultValue="false" />
+        <SwitchPreferenceCompat
+            app:key="mobile_show_road_cameras_widget"
+            app:title="@string/mobile_pref_show_road_cameras_widget"
+            app:summary="@string/mobile_pref_show_road_cameras_widget_summary"
+            app:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/pref_cat_ruuvi">
+        <EditTextPreference
+            app:key="mobile_sensor_name_bedroom"
+            app:title="@string/mobile_pref_sensor_name_bedroom"
+            app:defaultValue="@string/mobile_sensor_default_1"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:key="mobile_sensor_name_livingroom"
+            app:title="@string/mobile_pref_sensor_name_livingroom"
+            app:defaultValue="@string/mobile_sensor_default_2"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:key="mobile_sensor_name_balcony"
+            app:title="@string/mobile_pref_sensor_name_balcony"
+            app:defaultValue="@string/mobile_sensor_default_3"
+            app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:key="ruuvi_scan"
+            app:title="@string/pref_ruuvi_scan"
+            app:summary="@string/pref_ruuvi_scan_summary" />
+        <Preference
+            app:key="ruuvi_slot_bedroom"
+            app:title="@string/pref_ruuvi_slot_bedroom" />
+        <Preference
+            app:key="ruuvi_slot_livingroom"
+            app:title="@string/pref_ruuvi_slot_livingroom" />
+        <Preference
+            app:key="ruuvi_slot_balcony"
+            app:title="@string/pref_ruuvi_slot_balcony" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/pref_cat_app">
+        <SwitchPreferenceCompat
+            app:key="mobile_cheap_electricity_notice"
+            app:title="@string/mobile_pref_cheap_electricity_notice"
+            app:summary="@string/mobile_pref_cheap_electricity_notice_summary"
+            app:defaultValue="true" />
+        <EditTextPreference
+            app:key="mobile_cheap_electricity_threshold"
+            app:title="@string/mobile_pref_cheap_electricity_threshold"
+            app:summary="@string/mobile_pref_cheap_electricity_threshold_summary"
+            android:inputType="numberDecimal"
+            app:defaultValue="5.0"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            app:key="mobile_cheap_electricity_mode"
+            app:title="@string/mobile_pref_cheap_electricity_mode"
+            app:summary="@string/mobile_pref_cheap_electricity_mode_summary"
+            app:entries="@array/mobile_cheap_electricity_mode_labels"
+            app:entryValues="@array/mobile_cheap_electricity_mode_values"
+            app:defaultValue="all_day"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            app:key="mobile_update_interval_minutes"
+            app:title="@string/mobile_pref_update_interval"
+            app:summary="@string/mobile_pref_update_interval_summary"
+            app:entries="@array/mobile_update_interval_labels"
+            app:entryValues="@array/mobile_update_interval_values"
+            app:defaultValue="15"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            app:key="mobile_theme_mode"
+            app:title="@string/mobile_pref_theme"
+            app:summary="@string/mobile_pref_theme_summary"
+            app:entries="@array/mobile_theme_labels"
+            app:entryValues="@array/mobile_theme_values"
+            app:defaultValue="system"
+            app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:key="version"
+            app:title="@string/pref_version"
+            app:selectable="false" />
+        <Preference
+            app:key="last_update"
+            app:title="@string/pref_last_update"
+            app:selectable="false" />
+        <Preference
+            app:key="time_check"
+            app:title="@string/pref_time_check"
+            app:summary="@string/pref_time_check_summary"
+            app:selectable="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/pref_cat_history">
+        <Preference
+            app:key="db_size"
+            app:title="@string/pref_db_size"
+            app:summary="@string/pref_db_size_loading"
+            app:selectable="false" />
+        <Preference
+            app:key="open_history"
+            app:title="@string/system_open_history" />
+        <ListPreference
+            app:key="retention_days"
+            app:title="@string/pref_retention_days"
+            app:entries="@array/retention_labels"
+            app:entryValues="@array/retention_values"
+            app:defaultValue="1095"
+            app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:key="export_csv"
+            app:title="@string/pref_export_csv" />
+        <Preference
+            app:key="clear_db"
+            app:title="@string/pref_clear_db"
+            app:summary="@string/pref_clear_db_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/pref_cat_test">
+        <Preference
+            app:key="test_warning"
+            app:title="@string/pref_test_warning"
+            app:summary="@string/pref_test_summary" />
+        <Preference
+            app:key="test_offline"
+            app:title="@string/pref_test_offline"
+            app:summary="@string/pref_test_summary" />
+    </PreferenceCategory>
+</PreferenceScreen>

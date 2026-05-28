@@ -22,7 +22,7 @@ public final class FmiPlaceSearch {
 
     private static final String TAG = "FmiPlaceSearch";
     private static final String BASE = "https://opendata.fmi.fi/wfs";
-    private static final int TIMEOUT_MS = 12000;
+    private static final int TIMEOUT_MS = 8000;
     private static final long CACHE_TTL_MS = 24L * 60L * 60_000L;
 
     private static String[] cachedNames;

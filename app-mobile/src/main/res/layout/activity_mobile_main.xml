@@ -1,0 +1,951 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mobile_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/mobile_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/mobile_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:background="@drawable/mobile_toolbar_bg"
+            android:elevation="3dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <TextView
+                android:id="@+id/mobile_menu_button"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:gravity="center"
+                android:text="☰"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="28sp" />
+
+            <TextView
+                android:id="@+id/mobile_toolbar_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:singleLine="true"
+                android:text="@string/app_mobile_name"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/mobile_search_button"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:contentDescription="@string/mobile_menu_places"
+                android:padding="13dp"
+                android:scaleType="center"
+                android:src="@drawable/mobile_ic_search_24"
+                android:tint="@color/mobile_text_primary" />
+
+            <ImageButton
+                android:id="@+id/mobile_location_button"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:contentDescription="@string/mobile_current_location"
+                android:padding="13dp"
+                android:scaleType="center"
+                android:src="@drawable/mobile_ic_my_location_24"
+                android:tint="@color/mobile_text_primary" />
+
+            <ImageButton
+                android:id="@+id/mobile_refresh_button"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:contentDescription="Päivitä"
+                android:padding="13dp"
+                android:scaleType="center"
+                android:src="@drawable/mobile_ic_refresh_24"
+                android:tint="@color/mobile_text_primary" />
+        </LinearLayout>
+
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/mobile_swipe_refresh"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+        <ScrollView
+            android:id="@+id/mobile_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="false"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="16dp">
+
+            <LinearLayout
+                android:id="@+id/mobile_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/mobile_home_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/mobile_clock"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:text="--:--"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="64sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/mobile_date"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center"
+                        android:textColor="@color/mobile_text_secondary"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/mobile_next_holiday"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:gravity="center"
+                        android:textColor="@color/mobile_text_secondary"
+                        android:textSize="15sp" />
+
+                    <LinearLayout
+                        android:id="@+id/mobile_weather_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/mobile_place"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:maxLines="2"
+                                android:singleLine="false"
+                                android:textColor="@color/mobile_text_primary"
+                                android:textSize="21sp"
+                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:gravity="center_vertical|end"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/mobile_weather_updated"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:textColor="@color/mobile_text_muted"
+                                    android:textSize="12sp" />
+
+                                <ImageButton
+                                    android:id="@+id/mobile_weather_favorite_button"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:layout_marginStart="4dp"
+                                    android:background="@drawable/mobile_menu_item_bg"
+                                    android:contentDescription="@string/mobile_favorite_add"
+                                    android:padding="12dp"
+                                    android:scaleType="center"
+                                    android:src="@drawable/mobile_ic_favorite_add_24" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <org.jrs82.fsclock.WeatherIconView
+                                android:id="@+id/mobile_weather_icon"
+                                android:layout_width="92dp"
+                                android:layout_height="92dp"
+                                android:layout_marginEnd="14dp" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/mobile_temperature"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="-- °C"
+                                    android:textColor="@color/mobile_accent"
+                                    android:textSize="42sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/mobile_condition"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:textColor="@color/mobile_text_body"
+                                    android:textSize="17sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/mobile_weather_quick_stats"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal" />
+
+                        <TextView
+                            android:id="@+id/mobile_weather_details"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="@color/mobile_text_secondary"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:id="@+id/mobile_hourly_forecast_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="Loppupäivän ennuste"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <HorizontalScrollView
+                            android:id="@+id/mobile_hourly_forecast_scroll"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fillViewport="false"
+                            android:scrollbars="none">
+
+                            <LinearLayout
+                                android:id="@+id/mobile_hourly_forecast"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal" />
+                        </HorizontalScrollView>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_electricity_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Sähkö"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/mobile_electricity"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/mobile_text_body"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:id="@+id/mobile_cheap_electricity"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/mobile_menu_item_bg"
+                            android:padding="10dp"
+                            android:textColor="@color/mobile_accent"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_warnings_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Säävaroitukset"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:id="@+id/mobile_warnings"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_sensors_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Anturit"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:id="@+id/mobile_sensors_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="vertical" />
+
+                        <TextView
+                            android:id="@+id/mobile_sensors_empty"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/mobile_text_body"
+                            android:textSize="15sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_traffic_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/mobile_menu_traffic"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/mobile_traffic_widget_status"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/mobile_text_body"
+                            android:textSize="15sp" />
+
+                        <LinearLayout
+                            android:id="@+id/mobile_traffic_widget_list"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_gps_speed_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="GPS-nopeus"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <org.jrs82.fsclock.mobile.GpsSpeedometerView
+                            android:id="@+id/mobile_gps_speedometer"
+                            android:layout_width="220dp"
+                            android:layout_height="220dp"
+                            android:layout_marginTop="8dp" />
+
+                        <TextView
+                            android:id="@+id/mobile_gps_speed_digital"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="0 km/h"
+                            android:textColor="@color/mobile_accent"
+                            android:textSize="40sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/mobile_gps_speed_signal"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:gravity="center"
+                            android:textColor="@color/mobile_text_secondary"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/mobile_gps_speed"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:gravity="center"
+                            android:textColor="@color/mobile_text_muted"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_road_cameras_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Kelikamerat"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="Kelikameratietolähde ei ole vielä käytössä."
+                            android:textColor="@color/mobile_text_body"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/mobile_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center"
+                        android:textColor="@color/mobile_text_muted"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/mobile_forecast_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mobile_menu_forecast"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/mobile_forecast_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/mobile_text_secondary"
+                        android:textSize="14sp" />
+
+                    <HorizontalScrollView
+                        android:id="@+id/mobile_forecast_day_scroll"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:fillViewport="false"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/mobile_forecast_days"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" />
+                    </HorizontalScrollView>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_forecast_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/mobile_electricity_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Sähkö"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/mobile_electricity_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/mobile_text_secondary"
+                        android:textSize="16sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/mobile_electricity_tab_today"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/mobile_electricity_tab_bg"
+                            android:gravity="center"
+                            android:text="@string/mobile_menu_electricity_today"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/mobile_electricity_tab_tomorrow"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/mobile_electricity_tab_bg"
+                            android:gravity="center"
+                            android:text="@string/mobile_menu_electricity_tomorrow"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_electricity_quarter_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/mobile_sensors_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Anturit"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:id="@+id/mobile_sensors_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/mobile_traffic_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/mobile_traffic_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mobile_menu_traffic"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/mobile_traffic_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:lineSpacingExtra="3dp"
+                        android:textColor="@color/mobile_text_secondary"
+                        android:textSize="15sp" />
+
+                    <LinearLayout
+                        android:id="@+id/mobile_traffic_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/mobile_speedometer_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="GPS-nopeus"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <org.jrs82.fsclock.mobile.GpsSpeedometerView
+                        android:id="@+id/mobile_speedometer_full"
+                        android:layout_width="340dp"
+                        android:layout_height="340dp"
+                        android:layout_marginTop="20dp" />
+
+                    <TextView
+                        android:id="@+id/mobile_speedometer_full_digital"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="0 km/h"
+                        android:textColor="@color/mobile_accent"
+                        android:textSize="72sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_marginEnd="8dp"
+                            android:contentDescription="GPS"
+                            android:src="@drawable/mobile_ic_satellite_24"
+                            android:tint="@color/mobile_text_secondary" />
+
+                        <TextView
+                            android:id="@+id/mobile_speedometer_full_signal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/mobile_text_secondary"
+                            android:textSize="16sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/mobile_speedometer_full_details"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:gravity="center"
+                        android:lineSpacingExtra="2dp"
+                        android:textColor="@color/mobile_text_muted"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/mobile_places_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mobile_menu_places"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/mobile_places_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:lineSpacingExtra="3dp"
+                        android:textColor="@color/mobile_text_body"
+                        android:textSize="16sp"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:id="@+id/mobile_place_auto_button"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/mobile_menu_item_bg"
+                            android:gravity="center"
+                            android:text="Käytä sijaintia"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/mobile_place_lock_button"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/mobile_menu_item_bg"
+                            android:gravity="center"
+                            android:text="Lukitse kaupunki"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/mobile_place_favorite_current_button"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_menu_item_bg"
+                        android:gravity="center"
+                        android:text="Lisää nykyinen suosikiksi"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="Suosikit"
+                        android:textColor="@color/mobile_text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/mobile_favorite_places"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/mobile_back_to_top"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/mobile_fab_bg"
+        android:contentDescription="Takaisin alkuun"
+        android:elevation="8dp"
+        android:padding="14dp"
+        android:scaleType="center"
+        android:src="@drawable/mobile_ic_arrow_up_24" />
+
+    <View
+        android:id="@+id/mobile_drawer_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/mobile_scrim"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/mobile_drawer"
+        android:layout_width="288dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/mobile_menu_bg"
+        android:elevation="12dp"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="16dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/app_mobile_name"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/mobile_drawer_close"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:gravity="center"
+                android:text="×"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="30sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/mobile_nav_home"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_home" />
+
+        <TextView
+            android:id="@+id/mobile_nav_forecast"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_forecast" />
+
+        <TextView
+            android:id="@+id/mobile_nav_places"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_places" />
+
+        <TextView
+            android:id="@+id/mobile_nav_electricity"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_electricity" />
+
+        <TextView
+            android:id="@+id/mobile_nav_sensors"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_sensors" />
+
+        <TextView
+            style="@style/MobileMenuSection"
+            android:text="@string/mobile_menu_traffic" />
+
+        <TextView
+            android:id="@+id/mobile_nav_traffic_accidents"
+            style="@style/MobileSubMenuItem"
+            android:text="@string/mobile_menu_traffic_accidents" />
+
+        <TextView
+            android:id="@+id/mobile_nav_traffic_roadworks"
+            style="@style/MobileSubMenuItem"
+            android:text="@string/mobile_menu_traffic_roadworks" />
+
+        <TextView
+            android:id="@+id/mobile_nav_traffic_weight"
+            style="@style/MobileSubMenuItem"
+            android:text="@string/mobile_menu_traffic_weight" />
+
+        <TextView
+            android:id="@+id/mobile_nav_traffic_incidents"
+            style="@style/MobileSubMenuItem"
+            android:text="@string/mobile_menu_traffic_incidents" />
+
+        <TextView
+            android:id="@+id/mobile_nav_traffic_congestion"
+            style="@style/MobileSubMenuItem"
+            android:text="@string/mobile_menu_traffic_congestion" />
+
+        <TextView
+            android:id="@+id/mobile_nav_speedometer"
+            style="@style/MobileMenuItem"
+            android:text="GPS-nopeus" />
+
+        <TextView
+            android:id="@+id/mobile_nav_history"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_history" />
+
+        <TextView
+            android:id="@+id/mobile_nav_settings"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_settings" />
+
+        <TextView
+            android:id="@+id/mobile_nav_system"
+            style="@style/MobileMenuItem"
+            android:text="@string/mobile_menu_system" />
+    </LinearLayout>
+</FrameLayout>

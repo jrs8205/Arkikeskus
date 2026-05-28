@@ -11,7 +11,8 @@ import java.util.TimeZone;
 /** Sähkönhinnan muistivälimuisti. Pidetään muistissa kaksi NordPool-päivää
  *  (tänään + huominen) ja päivitetään fetchillä taustasäikeestä.
  *
- *  Huomispäivän julkaisu tapahtuu n. klo 14 EET. Kun käyttäjä haluaa nähdä
+ *  Huomispäivän julkaisu päivittyy yleensä klo 14.30 jälkeen Suomen aikaa.
+ *  Kun käyttäjä haluaa nähdä
  *  huomenna heti kun saatavilla, ClockController kutsuu fetchTomorrowIfNeeded()
  *  toistuvasti, kunnes huomenna-vartteja löytyy. */
 public final class ElectricityRepository {

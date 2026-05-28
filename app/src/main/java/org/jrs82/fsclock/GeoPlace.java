@@ -77,6 +77,10 @@ public final class GeoPlace {
         return PLACES.get(normalize(SettingsManager.DEFAULT_HOME_PLACE));
     }
 
+    public static synchronized GeoPlace tryForPlace(String rawPlace) {
+        return PLACES.get(normalize(rawPlace));
+    }
+
     public static synchronized String[] placeNames() {
         List<String> names = new ArrayList<>();
         for (GeoPlace p : PLACES.values()) {
@@ -93,6 +97,13 @@ public final class GeoPlace {
         if (!PLACES.containsKey(key)) {
             PLACES.put(key, new GeoPlace(name, lat, lon));
         }
+    }
+
+    public static GeoPlace custom(String name, double lat, double lon) {
+        String safeName = (name == null || name.trim().isEmpty())
+                ? SettingsManager.DEFAULT_HOME_PLACE
+                : name.trim();
+        return new GeoPlace(safeName, lat, lon);
     }
 
     private static void add(String name, double lat, double lon) {

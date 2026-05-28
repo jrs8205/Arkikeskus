@@ -27,15 +27,25 @@ public class FmiClient {
     private static final long FORECAST_MAX_AGE_MS = 55L * 60_000L;
 
     private final String place;
+    private final double latitude;
+    private final double longitude;
 
     public FmiClient(String place) {
         this.place = (place == null || place.trim().isEmpty()) ? "Vantaa" : place.trim();
+        this.latitude = Double.NaN;
+        this.longitude = Double.NaN;
+    }
+
+    public FmiClient(String place, double latitude, double longitude) {
+        this.place = (place == null || place.trim().isEmpty()) ? "Vantaa" : place.trim();
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     /** Hae havainnot aina, ennuste vain jos cached on null tai > 55 min vanha. */
     public WeatherData fetch(WeatherData cached) throws Exception {
         WeatherData data = new WeatherData();
-        String encodedPlace = URLEncoder.encode(place, "UTF-8");
+        String locationParam = locationParam();
 
         SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
         iso.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -55,7 +65,7 @@ public class FmiClient {
         // 1) Havainnot viimeiselta 25h:lta - lasketaan 24h sade ja otetaan tuoreimmat arvot
         String obsUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                 + "&storedquery_id=fmi::observations::weather::simple"
-                + "&place=" + encodedPlace
+                + locationParam
                 + "&parameters=t2m,rh,ws_10min,wg_10min,wd_10min,r_1h,n_man,wawa"
                 + "&starttime=" + iso.format(obsStart)
                 + "&endtime=" + iso.format(now);
@@ -69,7 +79,7 @@ public class FmiClient {
             //    WeatherSymbol3 jaa fallbackiksi.
             String fcUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                     + "&storedquery_id=fmi::forecast::edited::weather::scandinavia::point::simple"
-                    + "&place=" + encodedPlace
+                    + locationParam
                     + "&parameters=Temperature,Precipitation1h,WindSpeedMS,WindGust,RadiationGlobal,SmartSymbol,WeatherSymbol3"
                     + "&timestep=60"
                     + "&starttime=" + iso.format(now)
@@ -98,6 +108,13 @@ public class FmiClient {
                     data.current.temperature, data.current.windSpeed, data.current.humidity);
         }
         return data;
+    }
+
+    private String locationParam() throws Exception {
+        if (!Double.isNaN(latitude) && !Double.isNaN(longitude)) {
+            return String.format(Locale.US, "&latlon=%.5f,%.5f", latitude, longitude);
+        }
+        return "&place=" + URLEncoder.encode(place, "UTF-8");
     }
 
     /** Vanha API-muoto: hae aina molemmat (käytetään ensimmäisessä haussa). */

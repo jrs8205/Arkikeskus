@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
+    android:background="?android:colorBackground"
     android:fillViewport="true">
 
     <LinearLayout
@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/system_title"
-            android:textColor="#FFFFFF"
+            android:textColor="?android:textColorPrimary"
             android:textSize="28sp"
             android:textStyle="bold" />
 
@@ -33,7 +33,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:textColor="#FFD89B"
+            android:textColor="?android:colorAccent"
             android:textSize="22sp"
             android:text="@string/system_battery_current_unknown" />
 
@@ -43,7 +43,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:text="@string/system_chart_label"
-            android:textColor="#B0B8C0"
+            android:textColor="?android:textColorSecondary"
             android:textSize="16sp" />
 
         <org.jrs82.fsclock.system.BatteryChartView
@@ -59,7 +59,7 @@
             android:layout_marginTop="6dp"
             android:visibility="gone"
             android:text="@string/system_chart_no_data"
-            android:textColor="#808890"
+            android:textColor="?android:textColorTertiary"
             android:textSize="14sp" />
 
         <TextView
@@ -68,14 +68,14 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:text="@string/system_today_label"
-            android:textColor="#B0B8C0"
+            android:textColor="?android:textColorSecondary"
             android:textSize="16sp" />
 
         <TextView
             android:id="@+id/today_minmax"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
+            android:textColor="?android:textColorPrimary"
             android:textSize="18sp"
             android:text="@string/system_today_no_data" />
 
@@ -84,7 +84,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:textColor="#808890"
+            android:textColor="?android:textColorTertiary"
             android:textSize="14sp" />
 
         <Button
