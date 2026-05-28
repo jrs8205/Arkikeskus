@@ -112,6 +112,7 @@
                         android:id="@+id/mobile_clock"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:gravity="center"
                         android:includeFontPadding="false"
                         android:text="--:--"
@@ -251,7 +252,7 @@
                             android:textSize="16sp"
                             android:textStyle="bold" />
 
-                        <HorizontalScrollView
+                        <org.jrs82.fsclock.mobile.SwipeFriendlyHorizontalScrollView
                             android:id="@+id/mobile_hourly_forecast_scroll"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -264,7 +265,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:orientation="horizontal" />
-                        </HorizontalScrollView>
+                        </org.jrs82.fsclock.mobile.SwipeFriendlyHorizontalScrollView>
                     </LinearLayout>
 
                     <LinearLayout
@@ -494,6 +495,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:text="@string/mobile_menu_forecast"
                         android:textColor="@color/mobile_text_primary"
                         android:textSize="24sp"
@@ -507,7 +509,7 @@
                         android:textColor="@color/mobile_text_secondary"
                         android:textSize="14sp" />
 
-                    <HorizontalScrollView
+                    <org.jrs82.fsclock.mobile.SwipeFriendlyHorizontalScrollView
                         android:id="@+id/mobile_forecast_day_scroll"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -520,7 +522,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal" />
-                    </HorizontalScrollView>
+                    </org.jrs82.fsclock.mobile.SwipeFriendlyHorizontalScrollView>
 
                     <LinearLayout
                         android:id="@+id/mobile_forecast_list"
@@ -540,6 +542,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:text="Sähkö"
                         android:textColor="@color/mobile_text_primary"
                         android:textSize="24sp"
@@ -604,6 +607,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:text="Anturit"
                         android:textColor="@color/mobile_text_primary"
                         android:textSize="24sp"
@@ -628,6 +632,7 @@
                         android:id="@+id/mobile_traffic_title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:text="@string/mobile_menu_traffic"
                         android:textColor="@color/mobile_text_primary"
                         android:textSize="24sp"
@@ -661,6 +666,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:text="GPS-nopeus"
                         android:textColor="@color/mobile_text_primary"
                         android:textSize="24sp"
@@ -726,6 +732,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
                         android:text="@string/mobile_menu_places"
                         android:textColor="@color/mobile_text_primary"
                         android:textSize="24sp"

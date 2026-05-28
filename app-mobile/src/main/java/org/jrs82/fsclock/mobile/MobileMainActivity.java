@@ -612,6 +612,9 @@ public class MobileMainActivity extends AppCompatActivity {
         if (swipeRefresh != null) {
             swipeRefresh.setColorSchemeColors(getColor(R.color.mobile_accent));
             swipeRefresh.setOnRefreshListener(() -> refreshAll(true));
+            // Vaadi selvempi alas-veto ennen kuin pull-to-refresh aktivoituu — muuten
+            // sääkortin päältä alas swipettäminen jää kiinni refresh-eleeseen.
+            swipeRefresh.setDistanceToTriggerSync(dp(200));
         }
         toolbarTitle.setOnClickListener(v -> showHome());
         searchButton.setOnClickListener(v -> showPlaceSearchDialog());
@@ -881,25 +884,16 @@ public class MobileMainActivity extends AppCompatActivity {
     private void renderWeatherQuickStats(WeatherData.Current c) {
         if (weatherQuickStats == null) return;
         weatherQuickStats.removeAllViews();
-        boolean any = false;
-        if (!Double.isNaN(c.feelsLike)) {
-            weatherQuickStats.addView(quickStatTile(
-                    R.drawable.mobile_ic_thermometer_24, "Tuntuu", formatTemp(c.feelsLike)));
-            any = true;
-        }
-        if (!Double.isNaN(c.windSpeed)) {
-            String wind = one(c.windSpeed) + " m/s";
-            weatherQuickStats.addView(quickStatTile(
-                    R.drawable.mobile_ic_wind_24, "Tuuli", wind));
-            any = true;
-        }
-        double rain = Double.isNaN(c.precip1h) ? Double.NaN : c.precip1h;
-        if (!Double.isNaN(rain)) {
-            weatherQuickStats.addView(quickStatTile(
-                    R.drawable.mobile_ic_rain_24, "Sade 1h", one(rain) + " mm"));
-            any = true;
-        }
-        weatherQuickStats.setVisibility(any ? View.VISIBLE : View.GONE);
+        weatherQuickStats.addView(quickStatTile(
+                R.drawable.mobile_ic_thermometer_24, "Tuntuu kuin",
+                Double.isNaN(c.feelsLike) ? "--" : formatTemp(c.feelsLike)));
+        weatherQuickStats.addView(quickStatTile(
+                R.drawable.mobile_ic_wind_24, "Tuuli",
+                Double.isNaN(c.windSpeed) ? "-- m/s" : one(c.windSpeed) + " m/s"));
+        weatherQuickStats.addView(quickStatTile(
+                R.drawable.mobile_ic_rain_24, "Sade 1h",
+                Double.isNaN(c.precip1h) ? "-- mm" : one(c.precip1h) + " mm"));
+        weatherQuickStats.setVisibility(View.VISIBLE);
     }
 
     private View quickStatTile(int iconRes, String label, String value) {
@@ -1312,16 +1306,32 @@ public class MobileMainActivity extends AppCompatActivity {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, gpsSpeedListener);
         } catch (SecurityException | IllegalArgumentException ignored) {
         }
+        // NETWORK_PROVIDER toimii myös sisätiloissa kun GPS ei näe taivasta.
+        // Nopeus tulee tyypillisesti vain GPS-providerilta, mutta sijainti
+        // päivittyy edes karkealla tarkkuudella.
+        try {
+            lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000L, 0f, gpsSpeedListener);
+        } catch (SecurityException | IllegalArgumentException ignored) {
+        }
         try {
             lm.registerGnssStatusCallback(gnssStatusCallback, main);
         } catch (SecurityException ignored) {
         }
-        Location last = null;
+        Location lastGps = null;
+        Location lastNet = null;
         try {
-            last = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            lastGps = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         } catch (SecurityException ignored) {
         }
-        if (last != null) lastGpsLocation = last;
+        try {
+            lastNet = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        } catch (SecurityException ignored) {
+        }
+        Location best = lastGps;
+        if (lastNet != null && (best == null || lastNet.getTime() > best.getTime())) {
+            best = lastNet;
+        }
+        if (best != null) lastGpsLocation = best;
         gpsListenerActive = true;
         renderGpsSpeed();
         renderSpeedometerView();
