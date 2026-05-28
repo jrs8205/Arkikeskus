@@ -22,6 +22,7 @@ final class MobileThemeController {
     static final String KEY_SHOW_TRAFFIC_WIDGET = "mobile_show_traffic_widget";
     static final String KEY_SHOW_GPS_SPEED_WIDGET = "mobile_show_gps_speed_widget";
     static final String KEY_SHOW_ROAD_CAMERAS_WIDGET = "mobile_show_road_cameras_widget";
+    static final String KEY_SHOW_NEWS_WIDGET = "mobile_show_news_widget";
     static final String KEY_WIDGET_ORDER = "mobile_widget_order";
     static final String KEY_LAST_DEVICE_LATITUDE = "mobile_last_device_latitude";
     static final String KEY_LAST_DEVICE_LONGITUDE = "mobile_last_device_longitude";
@@ -33,11 +34,13 @@ final class MobileThemeController {
     static final String WIDGET_TRAFFIC = "traffic";
     static final String WIDGET_GPS_SPEED = "gps_speed";
     static final String WIDGET_ROAD_CAMERAS = "road_cameras";
+    static final String WIDGET_NEWS = "news";
     static final String DEFAULT_WIDGET_ORDER = WIDGET_WEATHER + ","
             + WIDGET_ELECTRICITY + ","
             + WIDGET_WARNINGS + ","
             + WIDGET_SENSORS + ","
             + WIDGET_TRAFFIC + ","
+            + WIDGET_NEWS + ","
             + WIDGET_GPS_SPEED + ","
             + WIDGET_ROAD_CAMERAS;
     static final String KEY_USE_AUTOMATIC_LOCATION = "mobile_use_automatic_location";

@@ -20,8 +20,8 @@ android {
         applicationId 'org.jrs82.fsclock.mobile'
         minSdk 30
         targetSdk 35
-        versionCode 9
-        versionName '1.1.2-mobile'
+        versionCode 10
+        versionName '1.2.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
 
         javaCompileOptions {
@@ -91,6 +91,7 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.browser:browser:1.8.0'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
 
     def room_version = "2.6.1"

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.GnssStatus;
@@ -37,6 +38,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -304,6 +306,15 @@ public class MobileMainActivity extends AppCompatActivity {
     private View gpsSpeedCard;
     private TextView gpsSpeedText;
     private View roadCamerasCard;
+    private View newsCard;
+    private LinearLayout newsWidgetList;
+    private TextView newsWidgetStatus;
+    private View newsView;
+    private TextView newsViewStatus;
+    private LinearLayout newsViewList;
+    private List<NewsItem> newsItems = new ArrayList<>();
+    private long newsFetchedAt = 0L;
+    private boolean newsFetchInFlight = false;
     private TextView statusText;
     private TextView cheapElectricityText;
     private TextView forecastStatusText;
@@ -392,6 +403,26 @@ public class MobileMainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         MobileThemeController.apply(this);
         super.onCreate(savedInstanceState);
+        // Säilytä haetut tiedot teema-/orientaatio-recreate:n yli, jotta käyttäjä
+        // ei näe tyhjää sää-/sähkö-tilaa kun palaa asetuksista.
+        Object retained = getLastCustomNonConfigurationInstance();
+        if (retained instanceof Object[]) {
+            Object[] arr = (Object[]) retained;
+            if (arr.length >= 1 && arr[0] instanceof WeatherData) weather = (WeatherData) arr[0];
+            if (arr.length >= 2 && arr[1] instanceof OpenMeteoData) openMeteo = (OpenMeteoData) arr[1];
+            if (arr.length >= 3 && arr[2] instanceof ElectricityData) electricity = (ElectricityData) arr[2];
+            if (arr.length >= 4 && arr[3] instanceof List<?>) {
+                @SuppressWarnings("unchecked")
+                List<TrafficNotice> tn = (List<TrafficNotice>) arr[3];
+                trafficNotices = tn;
+            }
+            if (arr.length >= 5 && arr[4] instanceof List<?>) {
+                @SuppressWarnings("unchecked")
+                List<NewsItem> ni = (List<NewsItem>) arr[4];
+                newsItems = ni;
+            }
+            if (arr.length >= 6 && arr[5] instanceof Long) newsFetchedAt = (Long) arr[5];
+        }
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         clockFormat.setTimeZone(HELSINKI);
         dateFormat.setTimeZone(HELSINKI);
@@ -402,6 +433,12 @@ public class MobileMainActivity extends AppCompatActivity {
         applySystemBarInsets();
         bindActions();
         renderInitial();
+    }
+
+    @Override
+    public Object onRetainCustomNonConfigurationInstance() {
+        return new Object[]{weather, openMeteo, electricity, trafficNotices,
+                newsItems, newsFetchedAt};
     }
 
     @Override
@@ -521,6 +558,12 @@ public class MobileMainActivity extends AppCompatActivity {
         gpsSpeedCard = findViewById(R.id.mobile_gps_speed_card);
         gpsSpeedText = findViewById(R.id.mobile_gps_speed);
         roadCamerasCard = findViewById(R.id.mobile_road_cameras_card);
+        newsCard = findViewById(R.id.mobile_news_card);
+        newsWidgetList = findViewById(R.id.mobile_news_widget_list);
+        newsWidgetStatus = findViewById(R.id.mobile_news_widget_status);
+        newsView = findViewById(R.id.mobile_news_view);
+        newsViewStatus = findViewById(R.id.mobile_news_view_status);
+        newsViewList = findViewById(R.id.mobile_news_view_list);
         statusText = findViewById(R.id.mobile_status);
         cheapElectricityText = findViewById(R.id.mobile_cheap_electricity);
         forecastStatusText = findViewById(R.id.mobile_forecast_status);
@@ -669,6 +712,10 @@ public class MobileMainActivity extends AppCompatActivity {
             closeDrawer();
             showTrafficSection(TrafficNotice.Kind.CONGESTION);
         });
+        findViewById(R.id.mobile_nav_news).setOnClickListener(v -> {
+            closeDrawer();
+            showNews();
+        });
         findViewById(R.id.mobile_nav_speedometer).setOnClickListener(v -> {
             closeDrawer();
             showSpeedometer();
@@ -714,13 +761,23 @@ public class MobileMainActivity extends AppCompatActivity {
         renderClock();
         placeText.setText(currentDisplayPlace());
         updateFavoriteButton();
-        weatherUpdatedText.setText("");
-        currentWeatherIcon.setCondition(null);
-        temperatureText.setText("-- C");
-        conditionText.setText("Säätietoja haetaan");
-        weatherDetailsText.setText("Tuuli -- m/s\nKosteus -- %\nSade 1h -- mm");
-        renderHomeHourlyForecast();
-        electricityText.setText("Hintaa haetaan");
+        // Jos recreate (esim. teemavaihto asetuksista) säilytti edellisen säädatan,
+        // näytä se heti ilman "Säätietoja haetaan"-välitilaa.
+        if (weather != null && weather.current != null) {
+            renderWeather();
+        } else {
+            weatherUpdatedText.setText("");
+            currentWeatherIcon.setCondition(null);
+            temperatureText.setText("-- C");
+            conditionText.setText("Säätietoja haetaan");
+            weatherDetailsText.setText("Tuuli -- m/s\nKosteus -- %\nSade 1h -- mm");
+            renderHomeHourlyForecast();
+        }
+        if (electricity != null) {
+            renderElectricity(electricity);
+        } else {
+            electricityText.setText("Hintaa haetaan");
+        }
         renderWarnings(WarningsRepository.get().getLatest());
         renderSensors();
         renderForecastView();
@@ -730,6 +787,7 @@ public class MobileMainActivity extends AppCompatActivity {
         renderTrafficView();
         renderPlacesView();
         renderHomeWidgetVisibility();
+        renderNewsWidget();
         statusText.setText("Valmis");
     }
 
@@ -823,6 +881,7 @@ public class MobileMainActivity extends AppCompatActivity {
                 }
                 scheduleAutoRefresh();
                 refreshTrafficAsync(finalForcedByUser);
+                refreshNewsAsync(finalForcedByUser);
             });
         });
     }
@@ -842,6 +901,125 @@ public class MobileMainActivity extends AppCompatActivity {
                 });
             } catch (Exception ignored) {}
         });
+    }
+
+    private void refreshNewsAsync(boolean forced) {
+        if (newsFetchInFlight) return;
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean widgetWanted = prefs.getBoolean(MobileThemeController.KEY_SHOW_NEWS_WIDGET, true);
+        boolean viewVisible = newsView != null && newsView.getVisibility() == View.VISIBLE;
+        if (!widgetWanted && !viewVisible) return;
+        newsFetchInFlight = true;
+        io.execute(() -> {
+            List<NewsItem> fresh;
+            try {
+                fresh = RssRepository.get().fetchEnabled(prefs, forced);
+            } catch (Exception e) {
+                fresh = null;
+            }
+            List<NewsItem> finalFresh = fresh;
+            main.post(() -> {
+                newsFetchInFlight = false;
+                if (destroyed || isFinishing() || isDestroyed()) return;
+                if (finalFresh != null) {
+                    newsItems = finalFresh;
+                    newsFetchedAt = System.currentTimeMillis();
+                }
+                renderNewsWidget();
+                renderNewsView();
+            });
+        });
+    }
+
+    private void renderNewsWidget() {
+        if (newsCard == null || newsWidgetList == null || newsWidgetStatus == null) return;
+        if (newsCard.getVisibility() != View.VISIBLE) return;
+        newsWidgetList.removeAllViews();
+        if (newsItems == null || newsItems.isEmpty()) {
+            newsWidgetStatus.setText(newsFetchInFlight ? "Haetaan uutisia..." : "Ei uutisia");
+            return;
+        }
+        int max = Math.min(5, newsItems.size());
+        for (int i = 0; i < max; i++) {
+            newsWidgetList.addView(newsRow(newsItems.get(i), false));
+        }
+        newsWidgetStatus.setText(newsFetchedAt > 0
+                ? "Päivitetty " + ageText(newsFetchedAt)
+                : "");
+    }
+
+    private void renderNewsView() {
+        if (newsView == null || newsViewList == null || newsViewStatus == null) return;
+        if (newsView.getVisibility() != View.VISIBLE) return;
+        newsViewList.removeAllViews();
+        if (newsItems == null || newsItems.isEmpty()) {
+            newsViewStatus.setText(newsFetchInFlight
+                    ? "Haetaan uutisia..."
+                    : "Ei uutisia. Tarkista uutislähteet asetuksista.");
+            return;
+        }
+        newsViewStatus.setText("Päivitetty " + ageText(newsFetchedAt)
+                + " · " + newsItems.size() + " otsikkoa");
+        int max = Math.min(40, newsItems.size());
+        for (int i = 0; i < max; i++) {
+            newsViewList.addView(newsRow(newsItems.get(i), true));
+        }
+    }
+
+    private View newsRow(NewsItem item, boolean fullSize) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setBackgroundResource(R.drawable.mobile_warning_item_bg);
+        int pad = dp(10);
+        row.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(6);
+        row.setLayoutParams(lp);
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(v -> openUrlInCustomTab(item.link));
+
+        TextView title = rowText(item.title, fullSize ? 16 : 14, true);
+        title.setMaxLines(fullSize ? 3 : 2);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        row.addView(title);
+
+        TextView meta = rowText(metaLine(item), 12, false);
+        meta.setTextColor(getColor(R.color.mobile_text_muted));
+        LinearLayout.LayoutParams metaLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        metaLp.topMargin = dp(3);
+        meta.setLayoutParams(metaLp);
+        row.addView(meta);
+
+        return row;
+    }
+
+    private String metaLine(NewsItem item) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(item.source.displayName);
+        if (item.pubTimeMs > 0) {
+            sb.append(" · ").append(ageText(item.pubTimeMs));
+        }
+        return sb.toString();
+    }
+
+    private void openUrlInCustomTab(String url) {
+        if (url == null || url.trim().isEmpty()) return;
+        try {
+            CustomTabsIntent intent = new CustomTabsIntent.Builder()
+                    .setShowTitle(true)
+                    .build();
+            intent.launchUrl(this, Uri.parse(url));
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Exception ignored) {
+                Toast.makeText(this, "Linkkiä ei voitu avata", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void renderWeather() {
@@ -1122,9 +1300,14 @@ public class MobileMainActivity extends AppCompatActivity {
                 MobileThemeController.KEY_SHOW_GPS_SPEED_WIDGET, false) ? View.VISIBLE : View.GONE);
         roadCamerasCard.setVisibility(prefs.getBoolean(
                 MobileThemeController.KEY_SHOW_ROAD_CAMERAS_WIDGET, false) ? View.VISIBLE : View.GONE);
+        if (newsCard != null) {
+            newsCard.setVisibility(prefs.getBoolean(
+                    MobileThemeController.KEY_SHOW_NEWS_WIDGET, true) ? View.VISIBLE : View.GONE);
+        }
         applyHomeWidgetOrder();
         renderTrafficWidget();
         renderGpsSpeed();
+        renderNewsWidget();
         updateGpsListenerState();
     }
 
@@ -1181,6 +1364,7 @@ public class MobileMainActivity extends AppCompatActivity {
         if (MobileThemeController.WIDGET_TRAFFIC.equals(id)) return trafficCard;
         if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) return gpsSpeedCard;
         if (MobileThemeController.WIDGET_ROAD_CAMERAS.equals(id)) return roadCamerasCard;
+        if (MobileThemeController.WIDGET_NEWS.equals(id)) return newsCard;
         return null;
     }
 
@@ -2727,6 +2911,9 @@ public class MobileMainActivity extends AppCompatActivity {
         if (speedometerView != null) {
             speedometerView.setVisibility(section == speedometerView ? View.VISIBLE : View.GONE);
         }
+        if (newsView != null) {
+            newsView.setVisibility(section == newsView ? View.VISIBLE : View.GONE);
+        }
         toolbarTitle.setText(getString(R.string.app_mobile_name));
         scroll.scrollTo(0, 0);
         updateGpsListenerState();
@@ -2745,6 +2932,12 @@ public class MobileMainActivity extends AppCompatActivity {
     private void showSpeedometer() {
         showSection(speedometerView, "GPS-nopeus");
         renderSpeedometerView();
+    }
+
+    private void showNews() {
+        showSection(newsView, "Uutiset");
+        renderNewsView();
+        refreshNewsAsync(false);
     }
 
     private void startRefreshAnimation() {
