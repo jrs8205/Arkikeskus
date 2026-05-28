@@ -45,6 +45,46 @@
             app:title="@string/mobile_pref_show_road_cameras_widget"
             app:summary="@string/mobile_pref_show_road_cameras_widget_summary"
             app:defaultValue="false" />
+        <SwitchPreferenceCompat
+            app:key="mobile_show_news_widget"
+            app:title="Näytä uutiset etusivulla"
+            app:summary="Top-5 otsikkoa valituilta lähteiltä"
+            app:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Uutislähteet">
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_yle"
+            app:title="YLE"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_hs"
+            app:title="HS"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_is"
+            app:title="Ilta-Sanomat"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_il"
+            app:title="Iltalehti"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_mtv"
+            app:title="MTV Uutiset"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_tivi"
+            app:title="Tivi"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_tt"
+            app:title="Tekniikka &amp; Talous"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_mb"
+            app:title="Mikrobitti"
+            app:defaultValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_ruuvi">
