@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/mobile_bg"
+    android:fillViewport="false"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/history_title"
+            android:textColor="@color/mobile_text_primary"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/mobile_history_channel"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/mobile_history_prev"
+                android:layout_width="48dp"
+                android:layout_height="44dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:gravity="center"
+                android:text="‹"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="28sp" />
+
+            <TextView
+                android:id="@+id/mobile_history_month"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/mobile_history_next"
+                android:layout_width="48dp"
+                android:layout_height="44dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:gravity="center"
+                android:text="›"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="28sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/mobile_history_summary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/mobile_card_bg"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/mobile_text_body"
+            android:textSize="15sp" />
+
+        <LinearLayout
+            android:id="@+id/mobile_history_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="vertical" />
+    </LinearLayout>
+</ScrollView>

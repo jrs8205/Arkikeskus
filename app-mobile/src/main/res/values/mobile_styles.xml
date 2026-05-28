@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="MobileTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">@bool/mobile_light_status_bar</item>
+        <item name="android:windowLightNavigationBar">@bool/mobile_light_status_bar</item>
+        <item name="android:navigationBarColor">@color/mobile_nav_surface</item>
+        <item name="android:statusBarColor">@color/mobile_toolbar_bg</item>
+        <item name="android:colorAccent">@color/mobile_accent</item>
+    </style>
+
+    <style name="MobileSettingsTheme" parent="Theme.AppCompat.DayNight">
+        <item name="android:windowBackground">@color/mobile_bg</item>
+        <item name="android:colorBackground">@color/mobile_bg</item>
+        <item name="android:windowLightStatusBar">@bool/mobile_light_status_bar</item>
+        <item name="android:windowLightNavigationBar">@bool/mobile_light_status_bar</item>
+        <item name="android:navigationBarColor">@color/mobile_nav_surface</item>
+        <item name="android:statusBarColor">@color/mobile_toolbar_bg</item>
+        <item name="colorPrimary">@color/mobile_toolbar_bg</item>
+        <item name="colorPrimaryDark">@color/mobile_toolbar_bg</item>
+        <item name="android:colorAccent">@color/mobile_accent</item>
+        <item name="actionBarTheme">@style/MobileSettingsActionBarTheme</item>
+        <item name="actionBarStyle">@style/MobileSettingsActionBarStyle</item>
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+    </style>
+
+    <style name="MobileSettingsActionBarTheme" parent="@style/ThemeOverlay.AppCompat.ActionBar">
+        <item name="android:textColorPrimary">@color/mobile_text_primary</item>
+        <item name="android:colorControlNormal">@color/mobile_text_primary</item>
+    </style>
+
+    <style name="MobileSettingsActionBarStyle" parent="@style/Widget.AppCompat.ActionBar">
+        <item name="background">@color/mobile_toolbar_bg</item>
+        <item name="titleTextStyle">@style/MobileSettingsActionBarTitle</item>
+    </style>
+
+    <style name="MobileSettingsActionBarTitle" parent="@style/TextAppearance.AppCompat.Widget.ActionBar.Title">
+        <item name="android:textColor">@color/mobile_text_primary</item>
+    </style>
+</resources>

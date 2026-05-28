@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/mobile_card_bg" />
+    <stroke
+        android:width="2dp"
+        android:color="@color/mobile_card_stroke" />
+    <corners android:radius="8dp" />
+    <padding
+        android:bottom="14dp"
+        android:left="14dp"
+        android:right="14dp"
+        android:top="14dp" />
+</shape>

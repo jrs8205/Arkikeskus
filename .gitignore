@@ -8,3 +8,8 @@ local.properties
 *.iml
 captures/
 .cxx/
+
+# APK/AAB-tiedostot
+*.apk
+*.aab
+releases/

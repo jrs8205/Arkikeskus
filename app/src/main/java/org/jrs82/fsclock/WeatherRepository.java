@@ -34,6 +34,10 @@ public class WeatherRepository {
         return FmiRepository.get(appCtx).fetchHome(cached);
     }
 
+    public WeatherData fetchHome(WeatherData cached, boolean forceNetwork) throws Exception {
+        return FmiRepository.get(appCtx).fetchHome(cached, forceNetwork);
+    }
+
     /** Weather lookup for temporary place browsing. Does not persist to Room. */
     public WeatherData fetchBrowse(String place, WeatherData cached) throws Exception {
         return FmiRepository.get(appCtx).fetchBrowse(place, cached);

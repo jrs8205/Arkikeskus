@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mobile_bg">#000000</color>
+    <color name="mobile_card_bg">#0E141C</color>
+    <color name="mobile_toolbar_bg">#161E2A</color>
+    <color name="mobile_nav_surface">#161E2A</color>
+    <color name="mobile_drawer_bg">#11171F</color>
+    <color name="mobile_card_stroke">#2E3B4F</color>
+    <color name="mobile_menu_pressed">#1F2A3C</color>
+    <color name="mobile_scrim">#99000000</color>
+    <color name="mobile_text_primary">#F3F5F8</color>
+    <color name="mobile_text_body">#D8DDE6</color>
+    <color name="mobile_text_secondary">#B3BCC9</color>
+    <color name="mobile_text_muted">#8B95A5</color>
+    <color name="mobile_accent">#76A9FF</color>
+    <color name="mobile_warning_yellow">#FFE066</color>
+    <color name="mobile_warning_orange">#FFB060</color>
+    <color name="mobile_warning_red">#FF6E66</color>
+    <bool name="mobile_light_status_bar">false</bool>
+</resources>
