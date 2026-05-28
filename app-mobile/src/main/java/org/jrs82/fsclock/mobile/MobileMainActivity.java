@@ -958,9 +958,11 @@ public class MobileMainActivity extends AppCompatActivity {
                     : "Ei uutisia. Tarkista uutislähteet asetuksista.");
             return;
         }
-        newsViewStatus.setText("Päivitetty " + ageText(newsFetchedAt)
-                + " · " + newsItems.size() + " otsikkoa");
-        int max = Math.min(40, newsItems.size());
+        int max = Math.min(50, newsItems.size());
+        String shownNote = max < newsItems.size()
+                ? max + "/" + newsItems.size() + " otsikkoa (uusimmat)"
+                : newsItems.size() + " otsikkoa";
+        newsViewStatus.setText("Päivitetty " + ageText(newsFetchedAt) + " · " + shownNote);
         for (int i = 0; i < max; i++) {
             newsViewList.addView(newsRow(newsItems.get(i), true));
         }

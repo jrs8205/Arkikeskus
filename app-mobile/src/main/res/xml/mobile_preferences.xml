@@ -85,6 +85,14 @@
             app:key="mobile_news_src_mb"
             app:title="Mikrobitti"
             app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_mobiili"
+            app:title="Mobiili.fi"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="mobile_news_src_reddit_suomi"
+            app:title="Reddit r/Suomi"
+            app:defaultValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_ruuvi">
