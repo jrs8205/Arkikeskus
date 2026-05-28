@@ -21,7 +21,11 @@ enum NewsSource {
     TT("Tekniikka & Talous", "https://www.tekniikkatalous.fi/feeds/rss.xml",
             "mobile_news_src_tt"),
     MIKROBITTI("Mikrobitti", "https://www.mikrobitti.fi/feeds/rss.xml",
-            "mobile_news_src_mb");
+            "mobile_news_src_mb"),
+    MOBIILI("Mobiili.fi", "https://mobiili.fi/feed/",
+            "mobile_news_src_mobiili"),
+    REDDIT_SUOMI("r/Suomi", "https://www.reddit.com/r/Suomi/.rss",
+            "mobile_news_src_reddit_suomi");
 
     final String displayName;
     final String url;

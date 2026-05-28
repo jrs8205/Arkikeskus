@@ -54,7 +54,8 @@ final class RssClient {
         conn.setReadTimeout(TIMEOUT_MS);
         conn.setRequestProperty("Accept",
                 "application/rss+xml, application/atom+xml, application/xml, text/xml, */*");
-        conn.setRequestProperty("User-Agent", "Arkikeskus Android");
+        // Reddit blokkaa geneerisen User-Agent:in. Tämä on yksilöivämpi.
+        conn.setRequestProperty("User-Agent", "Arkikeskus/1.2 (Android; jrs8205/Arkikeskus)");
         conn.setInstanceFollowRedirects(true);
         try {
             int code = conn.getResponseCode();

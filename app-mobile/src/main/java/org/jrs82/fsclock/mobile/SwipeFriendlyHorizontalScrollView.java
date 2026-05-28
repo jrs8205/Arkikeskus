@@ -8,20 +8,25 @@ import android.view.ViewParent;
 import android.widget.HorizontalScrollView;
 
 /**
- * HorizontalScrollView joka kunnioittaa myös vertikaalista swipeä:
- * - ACTION_DOWN: ei vielä päätetä kummalle suunnalle touch kuuluu
- * - Ensimmäinen ACTION_MOVE joka ylittää touch-slopin: jos liike on
- *   vaakasuoraa, lukitaan parent (ei pääse kaappaamaan) ja itse scrollataan.
- *   Jos liike on pystysuoraa, parent ScrollView saa scrollata vapaasti.
+ * HorizontalScrollView joka kunnioittaa myös pystysuoraa swipeä.
  *
- * Tällä saadaan etusivun tuntiennusteen vaakaswipe toimimaan ilman että
- * pystysuora alas-veto sen päältä lukkiutuu.
+ * Logiikka onInterceptTouchEvent:ssä:
+ * - ACTION_DOWN: tallenna koordinaatit, älä vielä päätä.
+ * - ACTION_MOVE: kun touch-slop ylittyy ensimmäisen kerran, vertaa dx ja dy:
+ *     dy > dx -> liike on pystysuora. Palauta false jolloin tämä view ei
+ *                intercept-tä, parent ScrollView saa scrollata.
+ *     dx > dy -> liike on vaakasuora. Lukitse parent (ei voi intercept-tä)
+ *                ja anna super:n käsitellä horisontaalinen scroll.
+ *
+ * Vertikaalin tunnistus tapahtuu mahdollisimman aikaisin jotta parent
+ * ScrollView ehtii ottaa eventin haltuunsa ja scrollata pehmeästi.
  */
 public class SwipeFriendlyHorizontalScrollView extends HorizontalScrollView {
 
     private float downX;
     private float downY;
-    private boolean directionLocked;
+    private boolean directionDecided;
+    private boolean horizontalLocked;
     private int touchSlop;
 
     public SwipeFriendlyHorizontalScrollView(Context context) {
@@ -49,40 +54,44 @@ public class SwipeFriendlyHorizontalScrollView extends HorizontalScrollView {
             case MotionEvent.ACTION_DOWN:
                 downX = ev.getX();
                 downY = ev.getY();
-                directionLocked = false;
-                // Anna parentin myös prosessoida DOWN — emme vielä tiedä suuntaa.
+                directionDecided = false;
+                horizontalLocked = false;
                 requestDisallowAllParents(false);
                 break;
             case MotionEvent.ACTION_MOVE:
-                if (!directionLocked) {
+                if (!directionDecided) {
                     float dx = Math.abs(ev.getX() - downX);
                     float dy = Math.abs(ev.getY() - downY);
-                    if (dx > touchSlop || dy > touchSlop) {
-                        boolean horizontal = dx > dy;
-                        directionLocked = true;
-                        // Jos vaakasuora veto -> lukitse parent ettei ScrollView
-                        // varasta ja anna oman scrollin viedä event.
-                        // Jos pystysuora -> päästä parent ScrollView scrollata.
-                        requestDisallowAllParents(horizontal);
-                        if (!horizontal) {
-                            // Lähetä omalle viewille CANCEL, niin se ei jää
-                            // odottamaan vaakascrollaa.
-                            MotionEvent cancel = MotionEvent.obtain(ev);
-                            cancel.setAction(MotionEvent.ACTION_CANCEL);
-                            super.onTouchEvent(cancel);
-                            cancel.recycle();
-                            return false;
-                        }
+                    if (dy > touchSlop && dy > dx) {
+                        // Pystysuora veto. Tämä view ei intercept-tä.
+                        directionDecided = true;
+                        horizontalLocked = false;
+                        return false;
+                    }
+                    if (dx > touchSlop && dx > dy) {
+                        directionDecided = true;
+                        horizontalLocked = true;
+                        requestDisallowAllParents(true);
                     }
                 }
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 requestDisallowAllParents(false);
-                directionLocked = false;
+                directionDecided = false;
+                horizontalLocked = false;
                 break;
         }
         return super.onInterceptTouchEvent(ev);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        // Jos suunta on jo päätetty pystysuoraksi, älä reagoi lainkaan.
+        if (directionDecided && !horizontalLocked) {
+            return false;
+        }
+        return super.onTouchEvent(ev);
     }
 
     private void requestDisallowAllParents(boolean disallow) {
