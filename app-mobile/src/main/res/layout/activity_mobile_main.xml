@@ -580,40 +580,55 @@
                         android:id="@+id/mobile_electricity_summary"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="6dp"
+                        android:lineSpacingExtra="5dp"
                         android:textColor="@color/mobile_text_secondary"
                         android:textSize="16sp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="12dp"
                         android:orientation="horizontal">
 
                         <TextView
                             android:id="@+id/mobile_electricity_tab_today"
                             android:layout_width="0dp"
                             android:layout_height="44dp"
-                            android:layout_marginEnd="6dp"
+                            android:layout_marginEnd="4dp"
                             android:layout_weight="1"
                             android:background="@drawable/mobile_electricity_tab_bg"
                             android:gravity="center"
                             android:text="@string/mobile_menu_electricity_today"
                             android:textColor="@color/mobile_text_primary"
-                            android:textSize="17sp"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/mobile_electricity_tab_tomorrow"
                             android:layout_width="0dp"
                             android:layout_height="44dp"
-                            android:layout_marginStart="6dp"
+                            android:layout_marginStart="4dp"
+                            android:layout_marginEnd="4dp"
                             android:layout_weight="1"
                             android:background="@drawable/mobile_electricity_tab_bg"
                             android:gravity="center"
                             android:text="@string/mobile_menu_electricity_tomorrow"
                             android:textColor="@color/mobile_text_primary"
-                            android:textSize="17sp"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/mobile_electricity_tab_compare"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="4dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/mobile_electricity_tab_bg"
+                            android:gravity="center"
+                            android:text="@string/mobile_menu_electricity_compare"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -623,6 +638,14 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:orientation="vertical" />
+
+                    <LinearLayout
+                        android:id="@+id/mobile_electricity_compare_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -940,11 +963,6 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/mobile_nav_home"
-            style="@style/MobileMenuItem"
-            android:text="@string/mobile_menu_home" />
-
-        <TextView
             android:id="@+id/mobile_nav_forecast"
             style="@style/MobileMenuItem"
             android:text="@string/mobile_menu_forecast" />
@@ -953,11 +971,6 @@
             android:id="@+id/mobile_nav_places"
             style="@style/MobileMenuItem"
             android:text="@string/mobile_menu_places" />
-
-        <TextView
-            android:id="@+id/mobile_nav_electricity"
-            style="@style/MobileMenuItem"
-            android:text="@string/mobile_menu_electricity" />
 
         <TextView
             android:id="@+id/mobile_nav_sensors"
@@ -994,14 +1007,19 @@
             android:text="@string/mobile_menu_traffic_congestion" />
 
         <TextView
+            android:id="@+id/mobile_nav_speedometer"
+            style="@style/MobileMenuItem"
+            android:text="GPS-nopeus" />
+
+        <TextView
             android:id="@+id/mobile_nav_news"
             style="@style/MobileMenuItem"
             android:text="Uutiset" />
 
         <TextView
-            android:id="@+id/mobile_nav_speedometer"
+            android:id="@+id/mobile_nav_electricity"
             style="@style/MobileMenuItem"
-            android:text="GPS-nopeus" />
+            android:text="@string/mobile_menu_electricity" />
 
         <TextView
             android:id="@+id/mobile_nav_history"

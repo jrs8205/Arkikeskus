@@ -7,6 +7,7 @@
     <string name="mobile_menu_electricity">Sähkö</string>
     <string name="mobile_menu_electricity_today">Tänään</string>
     <string name="mobile_menu_electricity_tomorrow">Huomenna</string>
+    <string name="mobile_menu_electricity_compare">Vertailu</string>
     <string name="mobile_pref_cheap_electricity_notice">Halvan sähkön huomio</string>
     <string name="mobile_pref_cheap_electricity_notice_summary">Näytä etusivulla ilmoitus, jos koko päivän sähkö on alle 5 c/kWh</string>
     <string name="mobile_pref_cheap_electricity_threshold">Halvan sähkön raja</string>

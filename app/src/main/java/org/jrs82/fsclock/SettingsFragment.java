@@ -461,7 +461,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         showAssignDialog(mac);
                     }
                 })
-                .setNegativeButton(android.R.string.cancel, null);
+                .setNegativeButton(R.string.ruuvi_scan_dialog_close, null);
         if (targetSlot == null) {
             b.setMessage(R.string.ruuvi_scan_dialog_hint);
         }

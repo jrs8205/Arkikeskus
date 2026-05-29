@@ -176,15 +176,4 @@
             app:title="@string/pref_clear_db"
             app:summary="@string/pref_clear_db_summary" />
     </PreferenceCategory>
-
-    <PreferenceCategory app:title="@string/pref_cat_test">
-        <Preference
-            app:key="test_warning"
-            app:title="@string/pref_test_warning"
-            app:summary="@string/pref_test_summary" />
-        <Preference
-            app:key="test_offline"
-            app:title="@string/pref_test_offline"
-            app:summary="@string/pref_test_summary" />
-    </PreferenceCategory>
 </PreferenceScreen>

@@ -331,7 +331,10 @@ public class MobileMainActivity extends AppCompatActivity {
     private TextView electricitySummaryText;
     private TextView electricityTodayTab;
     private TextView electricityTomorrowTab;
+    private TextView electricityCompareTab;
     private LinearLayout electricityQuarterList;
+    private LinearLayout electricityCompareList;
+    private boolean compareFetchInFlight = false;
     private LinearLayout sensorsList;
     private TextView placesStatusText;
     private TextView placeSearchStatusText;
@@ -588,7 +591,9 @@ public class MobileMainActivity extends AppCompatActivity {
         electricitySummaryText = findViewById(R.id.mobile_electricity_summary);
         electricityTodayTab = findViewById(R.id.mobile_electricity_tab_today);
         electricityTomorrowTab = findViewById(R.id.mobile_electricity_tab_tomorrow);
+        electricityCompareTab = findViewById(R.id.mobile_electricity_tab_compare);
         electricityQuarterList = findViewById(R.id.mobile_electricity_quarter_list);
+        electricityCompareList = findViewById(R.id.mobile_electricity_compare_list);
         sensorsList = findViewById(R.id.mobile_sensors_list);
         placesStatusText = findViewById(R.id.mobile_places_status);
         favoritePlacesList = findViewById(R.id.mobile_favorite_places);
@@ -682,10 +687,6 @@ public class MobileMainActivity extends AppCompatActivity {
             // Eat taps inside the menu panel.
         });
 
-        findViewById(R.id.mobile_nav_home).setOnClickListener(v -> {
-            closeDrawer();
-            showHome();
-        });
         findViewById(R.id.mobile_nav_forecast).setOnClickListener(v -> {
             closeDrawer();
             showSection(forecastView, getString(R.string.mobile_menu_forecast));
@@ -701,6 +702,10 @@ public class MobileMainActivity extends AppCompatActivity {
         });
         electricityTomorrowTab.setOnClickListener(v -> {
             selectedElectricityDayOffset = 1;
+            renderElectricityView();
+        });
+        electricityCompareTab.setOnClickListener(v -> {
+            selectedElectricityDayOffset = 2;
             renderElectricityView();
         });
         findViewById(R.id.mobile_nav_sensors).setOnClickListener(v -> {
@@ -2332,6 +2337,17 @@ public class MobileMainActivity extends AppCompatActivity {
         if (electricityQuarterList == null) return;
         electricityQuarterList.removeAllViews();
         renderElectricityTabs();
+
+        // Vertailu-välilehti: kuukausi- ja vuosikeskiarvot, oma säiliönsä.
+        if (selectedElectricityDayOffset == 2) {
+            electricityQuarterList.setVisibility(View.GONE);
+            if (electricityCompareList != null) electricityCompareList.setVisibility(View.VISIBLE);
+            renderElectricityCompare();
+            return;
+        }
+        electricityQuarterList.setVisibility(View.VISIBLE);
+        if (electricityCompareList != null) electricityCompareList.setVisibility(View.GONE);
+
         ElectricityData data = electricity != null ? electricity : ElectricityRepository.get(this).peek();
         if (data == null || data.quarters.isEmpty()) {
             electricitySummaryText.setText("Sähkön hintaa ei ole vielä ladattu.");
@@ -2374,20 +2390,129 @@ public class MobileMainActivity extends AppCompatActivity {
         return "Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.";
     }
 
+    private static final String[] MONTH_NAMES_FI = {
+            "Tammikuu", "Helmikuu", "Maaliskuu", "Huhtikuu", "Toukokuu", "Kesäkuu",
+            "Heinäkuu", "Elokuu", "Syyskuu", "Lokakuu", "Marraskuu", "Joulukuu"
+    };
+
+    /** Vertailu-välilehti: edellisvuoden keskihinta + kuluvan vuoden kuukausikeskiarvot.
+     *  Data haetaan taustalla (Elering) ja välimuistitetaan; UI näyttää ensin
+     *  välimuistin ja täydentää verkosta. */
+    private void renderElectricityCompare() {
+        if (electricityCompareList == null) return;
+        electricitySummaryText.setText("Pörssisähkön keskihinnat (ALV 0 %). Lähde: Elering/Nord Pool.");
+        // Näytä heti välimuistista (ei verkkoa), jottei sivu ole tyhjä.
+        populateCompareList(false);
+        if (compareFetchInFlight) return;
+        compareFetchInFlight = true;
+        // Lisää "haetaan"-rivi loppuun jos lista on tyhjä.
+        if (electricityCompareList.getChildCount() == 0) {
+            electricityCompareList.addView(textCard("Haetaan keskiarvoja…"));
+        }
+        io.execute(() -> {
+            // Lämmitä välimuisti verkosta (edellisvuosi + kuluvan vuoden kuukaudet).
+            ElectricityAverages.previousYearAverage(this, true);
+            Calendar now = Calendar.getInstance(HELSINKI, FI);
+            int year = now.get(Calendar.YEAR);
+            int curMonth = now.get(Calendar.MONTH) + 1;
+            for (int m = 1; m <= curMonth; m++) {
+                ElectricityAverages.monthAverage(this, year, m, true);
+            }
+            main.post(() -> {
+                compareFetchInFlight = false;
+                if (destroyed || isFinishing() || isDestroyed()) return;
+                if (selectedElectricityDayOffset == 2) populateCompareList(false);
+            });
+        });
+    }
+
+    private void populateCompareList(boolean allowNetwork) {
+        if (electricityCompareList == null) return;
+        electricityCompareList.removeAllViews();
+        Calendar now = Calendar.getInstance(HELSINKI, FI);
+        int year = now.get(Calendar.YEAR);
+        int curMonth = now.get(Calendar.MONTH) + 1;
+
+        ElectricityAverages.MonthAverage prevYear =
+                ElectricityAverages.previousYearAverage(this, allowNetwork);
+        if (prevYear != null) {
+            electricityCompareList.addView(electricityCompareRow(
+                    (year - 1) + " keskihinta", prevYear.avgSntPerKwh, true));
+        }
+
+        electricityCompareList.addView(sectionLabel(year + " kuukausikeskiarvot"));
+        boolean any = false;
+        for (int m = 1; m <= curMonth; m++) {
+            ElectricityAverages.MonthAverage ma =
+                    ElectricityAverages.monthAverage(this, year, m, allowNetwork);
+            if (ma == null) continue;
+            any = true;
+            String label = MONTH_NAMES_FI[m - 1];
+            if (m == curMonth) label += " (kesken)";
+            electricityCompareList.addView(electricityCompareRow(label, ma.avgSntPerKwh, false));
+        }
+        if (!any && prevYear == null) {
+            electricityCompareList.addView(textCard(
+                    "Keskiarvoja ei ole vielä saatavilla. Päivitä uudelleen verkkoyhteydellä."));
+        }
+    }
+
+    private TextView sectionLabel(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(getColor(R.color.mobile_text_secondary));
+        tv.setTextSize(13f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(14);
+        lp.bottomMargin = dp(2);
+        tv.setLayoutParams(lp);
+        return tv;
+    }
+
+    private View electricityCompareRow(String label, double sntPerKwh, boolean highlight) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackgroundResource(R.drawable.mobile_card_bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(6);
+        row.setLayoutParams(lp);
+
+        TextView name = new TextView(this);
+        name.setText(label);
+        name.setTextColor(getColor(R.color.mobile_text_primary));
+        name.setTextSize(highlight ? 17f : 16f);
+        if (highlight) name.setTypeface(name.getTypeface(), android.graphics.Typeface.BOLD);
+        name.setLayoutParams(new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(name);
+
+        TextView value = new TextView(this);
+        value.setText(String.format(FI, "%.3f c/kWh", sntPerKwh));
+        value.setTextColor(getColor(highlight ? R.color.mobile_accent : R.color.mobile_text_primary));
+        value.setTextSize(highlight ? 17f : 16f);
+        value.setTypeface(value.getTypeface(), android.graphics.Typeface.BOLD);
+        row.addView(value);
+
+        return row;
+    }
+
     private void renderElectricityTabs() {
-        boolean today = selectedElectricityDayOffset == 0;
-        electricityTodayTab.setBackgroundResource(today
+        styleElectricityTab(electricityTodayTab, selectedElectricityDayOffset == 0);
+        styleElectricityTab(electricityTomorrowTab, selectedElectricityDayOffset == 1);
+        styleElectricityTab(electricityCompareTab, selectedElectricityDayOffset == 2);
+    }
+
+    private void styleElectricityTab(TextView tab, boolean selected) {
+        if (tab == null) return;
+        tab.setBackgroundResource(selected
                 ? R.drawable.mobile_electricity_tab_selected_bg
                 : R.drawable.mobile_electricity_tab_bg);
-        electricityTomorrowTab.setBackgroundResource(today
-                ? R.drawable.mobile_electricity_tab_bg
-                : R.drawable.mobile_electricity_tab_selected_bg);
-        electricityTodayTab.setTextColor(getColor(today ? R.color.mobile_accent : R.color.mobile_text_primary));
-        electricityTomorrowTab.setTextColor(getColor(today ? R.color.mobile_text_primary : R.color.mobile_accent));
-        electricityTodayTab.setTypeface(electricityTodayTab.getTypeface(),
-                today ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
-        electricityTomorrowTab.setTypeface(electricityTomorrowTab.getTypeface(),
-                today ? android.graphics.Typeface.NORMAL : android.graphics.Typeface.BOLD);
+        tab.setTextColor(getColor(selected ? R.color.mobile_accent : R.color.mobile_text_primary));
+        tab.setTypeface(tab.getTypeface(),
+                selected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
     }
 
     private String electricitySummary(ElectricityData data, List<ElectricityData.Quarter> quarters,
