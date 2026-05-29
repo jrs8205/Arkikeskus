@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile;
 
+import org.jrs82.fsclock.BuildConfig;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -19,7 +20,7 @@ import java.util.zip.GZIPInputStream;
 final class TrafficNoticesClient {
 
     private static final String BASE = "https://tie.digitraffic.fi/api/traffic-message/v2/";
-    private static final String DIGITRAFFIC_USER = "Arkikeskus/1.2.1-mobile";
+    private static final String DIGITRAFFIC_USER = "Arkikeskus/" + BuildConfig.VERSION_NAME;
     private static final int TIMEOUT_MS = 9000;
     private static final double BBOX_RADIUS_M = 50_000.0;
 
