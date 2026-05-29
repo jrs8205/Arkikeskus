@@ -14,42 +14,7 @@
         <Preference
             app:key="mobile_widget_order"
             app:title="@string/mobile_pref_widget_order"
-            app:summary="@string/mobile_pref_widget_order_summary" />
-        <SwitchPreferenceCompat
-            app:key="mobile_show_electricity_widget"
-            app:title="@string/mobile_pref_show_electricity_widget"
-            app:summary="@string/mobile_pref_show_electricity_widget_summary"
-            app:defaultValue="true" />
-        <SwitchPreferenceCompat
-            app:key="mobile_show_warnings_widget"
-            app:title="@string/mobile_pref_show_warnings_widget"
-            app:summary="@string/mobile_pref_show_warnings_widget_summary"
-            app:defaultValue="true" />
-        <SwitchPreferenceCompat
-            app:key="mobile_show_sensors_widget"
-            app:title="@string/mobile_pref_show_sensors_widget"
-            app:summary="@string/mobile_pref_show_sensors_widget_summary"
-            app:defaultValue="true" />
-        <SwitchPreferenceCompat
-            app:key="mobile_show_traffic_widget"
-            app:title="@string/mobile_pref_show_traffic_widget"
-            app:summary="@string/mobile_pref_show_traffic_widget_summary"
-            app:defaultValue="true" />
-        <SwitchPreferenceCompat
-            app:key="mobile_show_gps_speed_widget"
-            app:title="@string/mobile_pref_show_gps_speed_widget"
-            app:summary="@string/mobile_pref_show_gps_speed_widget_summary"
-            app:defaultValue="false" />
-        <SwitchPreferenceCompat
-            app:key="mobile_show_road_cameras_widget"
-            app:title="@string/mobile_pref_show_road_cameras_widget"
-            app:summary="@string/mobile_pref_show_road_cameras_widget_summary"
-            app:defaultValue="false" />
-        <SwitchPreferenceCompat
-            app:key="mobile_show_news_widget"
-            app:title="Näytä uutiset etusivulla"
-            app:summary="Top-5 otsikkoa valituilta lähteiltä"
-            app:defaultValue="true" />
+            app:summary="Järjestä etusivun widgetit raahaamalla ja valitse näkyvät" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="Uutislähteet">
@@ -93,6 +58,15 @@
             app:key="mobile_news_src_reddit_suomi"
             app:title="Reddit r/Suomi"
             app:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="mobile_custom_feeds_category"
+        app:title="Omat uutissyötteet">
+        <Preference
+            app:key="mobile_add_custom_feed"
+            app:title="Lisää oma syöte"
+            app:summary="Lisää oma RSS- tai Atom-syöte (nimi + osoite)" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_ruuvi">

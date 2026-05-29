@@ -49,9 +49,9 @@ final class RssClient {
 
     private RssClient() {}
 
-    static List<NewsItem> fetch(NewsSource source) throws Exception {
-        byte[] body = httpGet(source.url);
-        return parse(source, body);
+    static List<NewsItem> fetch(NewsFeed feed) throws Exception {
+        byte[] body = httpGet(feed.url);
+        return parse(feed, body);
     }
 
     private static byte[] httpGet(String urlStr) throws Exception {
@@ -88,7 +88,7 @@ final class RssClient {
         }
     }
 
-    private static List<NewsItem> parse(NewsSource source, byte[] body) throws Exception {
+    private static List<NewsItem> parse(NewsFeed feed, byte[] body) throws Exception {
         List<NewsItem> out = new ArrayList<>();
         XmlPullParser xpp = Xml.newPullParser();
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
@@ -137,7 +137,7 @@ final class RssClient {
                 if ("item".equalsIgnoreCase(local) || "entry".equalsIgnoreCase(local)) {
                     if (title != null && !title.trim().isEmpty()
                             && link != null && !link.trim().isEmpty()) {
-                        out.add(new NewsItem(source, cleanTitle(title),
+                        out.add(new NewsItem(feed, cleanTitle(title),
                                 link.trim(), parseDate(pubText), imageUrl));
                     }
                     inItem = false;
@@ -146,7 +146,7 @@ final class RssClient {
             try {
                 ev = xpp.next();
             } catch (Exception e) {
-                Log.w(TAG, source.displayName + " parsing error: " + e.getMessage());
+                Log.w(TAG, feed.name + " parsing error: " + e.getMessage());
                 break;
             }
         }

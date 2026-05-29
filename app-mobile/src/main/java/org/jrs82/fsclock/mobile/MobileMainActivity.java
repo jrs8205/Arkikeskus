@@ -75,6 +75,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -317,6 +318,11 @@ public class MobileMainActivity extends AppCompatActivity {
     private List<NewsItem> newsItems = new ArrayList<>();
     private long newsFetchedAt = 0L;
     private boolean newsFetchInFlight = false;
+    /** Per-lähde-uutiswidgettien kortit avaimella widget-id ("news:<feedId>").
+     *  Kierrätetään ettei recreate/uudelleenjärjestely luo duplikaatteja. */
+    private final Map<String, View> newsFeedCards = new HashMap<>();
+    private final Map<String, LinearLayout> newsFeedCardLists = new HashMap<>();
+    private final Map<String, TextView> newsFeedCardStatuses = new HashMap<>();
     private TextView statusText;
     private TextView cheapElectricityText;
     private TextView forecastStatusText;
@@ -469,6 +475,10 @@ public class MobileMainActivity extends AppCompatActivity {
             renderElectricity(electricity != null
                     ? electricity
                     : ElectricityRepository.get(this).peek());
+            // Päivitä widgettien näkyvyys + järjestys asetuksista palatessa, jotta
+            // juuri päälle laitettu (tai uudelleenjärjestetty) widget näkyy heti.
+            renderHomeWidgetVisibility();
+            refreshNewsAsync(false);
         }
         scheduleTomorrowPricePolling();
         scheduleAutoRefresh();
@@ -933,6 +943,7 @@ public class MobileMainActivity extends AppCompatActivity {
                     newsFetchedAt = System.currentTimeMillis();
                 }
                 renderNewsWidget();
+                renderNewsFeedCards();
                 renderNewsView();
             });
         });
@@ -1024,7 +1035,7 @@ public class MobileMainActivity extends AppCompatActivity {
 
     private String metaLine(NewsItem item) {
         StringBuilder sb = new StringBuilder();
-        sb.append(item.source.displayName);
+        sb.append(item.feedName);
         if (item.pubTimeMs > 0) {
             sb.append(" · ").append(ageText(item.pubTimeMs));
         }
@@ -1330,11 +1341,30 @@ public class MobileMainActivity extends AppCompatActivity {
             newsCard.setVisibility(prefs.getBoolean(
                     MobileThemeController.KEY_SHOW_NEWS_WIDGET, true) ? View.VISIBLE : View.GONE);
         }
+        applyNewsFeedWidgetVisibility(prefs);
         applyHomeWidgetOrder();
         renderTrafficWidget();
         renderGpsSpeed();
         renderNewsWidget();
+        renderNewsFeedCards();
         updateGpsListenerState();
+    }
+
+    /** Asettaa kunkin per-lähde-uutiswidgetin näkyvyyden asetusten mukaan.
+     *  Kortit luodaan vain kun ne ovat päällä, ja piilotetut merkitään GONE. */
+    private void applyNewsFeedWidgetVisibility(SharedPreferences prefs) {
+        for (NewsFeed feed : NewsFeedStore.allFeeds(prefs)) {
+            String widgetId = feed.widgetId();
+            boolean show = prefs.getBoolean(
+                    MobileThemeController.newsFeedVisibilityKey(feed.id), false);
+            if (show) {
+                View card = newsFeedCard(widgetId); // luo tarvittaessa
+                card.setVisibility(View.VISIBLE);
+            } else {
+                View card = newsFeedCards.get(widgetId);
+                if (card != null) card.setVisibility(View.GONE);
+            }
+        }
     }
 
     private void applyHomeWidgetOrder() {
@@ -1375,6 +1405,12 @@ public class MobileMainActivity extends AppCompatActivity {
         addMissingHomeWidget(order, MobileThemeController.WIDGET_TRAFFIC);
         addMissingHomeWidget(order, MobileThemeController.WIDGET_GPS_SPEED);
         addMissingHomeWidget(order, MobileThemeController.WIDGET_ROAD_CAMERAS);
+        // Lisää päällä olevat per-lähde-uutiswidgetit jotka eivät vielä ole listassa.
+        for (NewsFeed feed : NewsFeedStore.allFeeds(prefs)) {
+            if (prefs.getBoolean(MobileThemeController.newsFeedVisibilityKey(feed.id), false)) {
+                addMissingHomeWidget(order, feed.widgetId());
+            }
+        }
         return order;
     }
 
@@ -1391,7 +1427,81 @@ public class MobileMainActivity extends AppCompatActivity {
         if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) return gpsSpeedCard;
         if (MobileThemeController.WIDGET_ROAD_CAMERAS.equals(id)) return roadCamerasCard;
         if (MobileThemeController.WIDGET_NEWS.equals(id)) return newsCard;
+        if (MobileThemeController.isNewsFeedWidget(id)) return newsFeedCard(id);
         return null;
+    }
+
+    /** Luo (tai kierrättää) per-lähde-uutiswidgetin kortin. Kortti on ohjelmallisesti
+     *  rakennettu vastine XML:n yhdistetylle uutiskortille: otsikko + lista + status. */
+    private View newsFeedCard(String widgetId) {
+        View existing = newsFeedCards.get(widgetId);
+        if (existing != null) return existing;
+
+        String feedId = MobileThemeController.newsFeedIdFromWidget(widgetId);
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        NewsFeed feed = NewsFeedStore.feedById(prefs, feedId);
+        if (feed == null) return null; // poistettu syöte → ei haamukorttia
+        String title = feed.name;
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.mobile_card_bg);
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        cardLp.topMargin = dp(10);
+        card.setLayoutParams(cardLp);
+
+        TextView titleView = new TextView(this);
+        titleView.setText(title);
+        titleView.setTextColor(getColor(R.color.mobile_text_primary));
+        titleView.setTextSize(18f);
+        titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+        card.addView(titleView);
+
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        listLp.topMargin = dp(6);
+        list.setLayoutParams(listLp);
+        card.addView(list);
+
+        TextView status = new TextView(this);
+        status.setTextColor(getColor(R.color.mobile_text_muted));
+        status.setTextSize(12f);
+        LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        statusLp.topMargin = dp(4);
+        status.setLayoutParams(statusLp);
+        card.addView(status);
+
+        newsFeedCards.put(widgetId, card);
+        newsFeedCardLists.put(widgetId, list);
+        newsFeedCardStatuses.put(widgetId, status);
+        return card;
+    }
+
+    private void renderNewsFeedCards() {
+        for (Map.Entry<String, View> e : newsFeedCards.entrySet()) {
+            String widgetId = e.getKey();
+            View card = e.getValue();
+            if (card.getVisibility() != View.VISIBLE) continue;
+            String feedId = MobileThemeController.newsFeedIdFromWidget(widgetId);
+            LinearLayout list = newsFeedCardLists.get(widgetId);
+            TextView status = newsFeedCardStatuses.get(widgetId);
+            if (list == null || status == null) continue;
+            list.removeAllViews();
+            List<NewsItem> items = RssRepository.get().peekForFeed(feedId);
+            if (items.isEmpty()) {
+                status.setText(newsFetchInFlight ? "Haetaan uutisia..." : "Ei uutisia");
+                continue;
+            }
+            int max = Math.min(5, items.size());
+            for (int i = 0; i < max; i++) {
+                list.addView(newsRow(items.get(i), false));
+            }
+            status.setText(newsFetchedAt > 0 ? "Päivitetty " + ageText(newsFetchedAt) : "");
+        }
     }
 
     private void renderGpsSpeed() {
