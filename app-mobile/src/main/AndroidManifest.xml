@@ -66,6 +66,13 @@
             android:theme="@style/MobileSettingsTheme" />
 
         <activity
+            android:name="org.jrs82.fsclock.mobile.MobileWidgetOrderActivity"
+            android:exported="false"
+            android:label="@string/mobile_pref_widget_order"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileSettingsActivity"
+            android:theme="@style/MobileSettingsTheme" />
+
+        <activity
             android:name="org.jrs82.fsclock.history.HistoryActivity"
             android:exported="false"
             android:label="@string/history_title"
