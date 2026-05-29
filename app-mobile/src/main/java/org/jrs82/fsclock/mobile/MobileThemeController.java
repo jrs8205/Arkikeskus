@@ -35,6 +35,24 @@ final class MobileThemeController {
     static final String WIDGET_GPS_SPEED = "gps_speed";
     static final String WIDGET_ROAD_CAMERAS = "road_cameras";
     static final String WIDGET_NEWS = "news";
+    /** Per-lähde-uutiswidgetin id-etuliite: "news:<feedId>" (esim. "news:hs"). */
+    static final String WIDGET_NEWS_FEED_PREFIX = "news:";
+    /** Per-lähde-widgetin näkyvyysavaimen etuliite: "mobile_show_news_feed_<id>". */
+    static final String KEY_SHOW_NEWS_FEED_PREFIX = "mobile_show_news_feed_";
+
+    static boolean isNewsFeedWidget(String id) {
+        return id != null && id.startsWith(WIDGET_NEWS_FEED_PREFIX);
+    }
+
+    static String newsFeedIdFromWidget(String widgetId) {
+        return isNewsFeedWidget(widgetId)
+                ? widgetId.substring(WIDGET_NEWS_FEED_PREFIX.length()) : null;
+    }
+
+    static String newsFeedVisibilityKey(String feedId) {
+        return KEY_SHOW_NEWS_FEED_PREFIX + feedId;
+    }
+
     static final String DEFAULT_WIDGET_ORDER = WIDGET_WEATHER + ","
             + WIDGET_ELECTRICITY + ","
             + WIDGET_WARNINGS + ","

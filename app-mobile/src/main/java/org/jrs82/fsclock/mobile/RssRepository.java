@@ -6,7 +6,7 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -15,9 +15,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Pitää välimuistia uutislähteittäin. fetchEnabled() hakee rinnakkain kaikki
- * käyttäjän asetuksissa päällä olevat lähteet ja yhdistää tuloksen
- * aikajärjestykseen (uusin ensin).
+ * Pitää välimuistia uutislähteittäin (avaimena {@link NewsFeed#id}).
+ * fetchEnabled() hakee rinnakkain kaikki käyttäjän asetuksissa päällä olevat
+ * lähteet ja yhdistää tuloksen aikajärjestykseen (uusin ensin). peekForFeed()
+ * palauttaa yhden lähteen välimuistin per-lähde-widgettiä varten.
  */
 final class RssRepository {
 
@@ -27,7 +28,7 @@ final class RssRepository {
 
     private static volatile RssRepository INSTANCE;
 
-    private final Map<NewsSource, CacheEntry> cache = new EnumMap<>(NewsSource.class);
+    private final Map<String, CacheEntry> cache = new HashMap<>();
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
     private RssRepository() {}
@@ -41,39 +42,48 @@ final class RssRepository {
         return INSTANCE;
     }
 
+    /** Yhdistetty virta kaikista päällä olevista lähteistä, uusin ensin. */
     List<NewsItem> peekEnabled(SharedPreferences prefs) {
         List<NewsItem> out = new ArrayList<>();
-        for (NewsSource s : NewsSource.values()) {
-            if (!prefs.getBoolean(s.prefKey, true)) continue;
-            CacheEntry entry;
-            synchronized (cache) {
-                entry = cache.get(s);
-            }
-            if (entry != null && entry.items != null) {
-                out.addAll(entry.items);
-            }
+        for (NewsFeed f : NewsFeedStore.enabledFeeds(prefs)) {
+            appendCached(out, f.id);
         }
         sortByTime(out);
         return out;
     }
 
+    /** Yhden lähteen otsikot välimuistista (per-lähde-widget), uusin ensin. */
+    List<NewsItem> peekForFeed(String feedId) {
+        List<NewsItem> out = new ArrayList<>();
+        appendCached(out, feedId);
+        sortByTime(out);
+        return out;
+    }
+
+    private void appendCached(List<NewsItem> out, String feedId) {
+        CacheEntry entry;
+        synchronized (cache) {
+            entry = cache.get(feedId);
+        }
+        if (entry != null && entry.items != null) out.addAll(entry.items);
+    }
+
     List<NewsItem> fetchEnabled(SharedPreferences prefs, boolean forced) {
         long now = System.currentTimeMillis();
-        List<NewsSource> toFetch = new ArrayList<>();
-        for (NewsSource s : NewsSource.values()) {
-            if (!prefs.getBoolean(s.prefKey, true)) continue;
+        List<NewsFeed> toFetch = new ArrayList<>();
+        for (NewsFeed f : NewsFeedStore.enabledFeeds(prefs)) {
             CacheEntry entry;
             synchronized (cache) {
-                entry = cache.get(s);
+                entry = cache.get(f.id);
             }
             if (forced || entry == null || (now - entry.timestamp) >= CACHE_TTL_MS) {
-                toFetch.add(s);
+                toFetch.add(f);
             }
         }
         if (!toFetch.isEmpty()) {
             List<Future<?>> futures = new ArrayList<>();
-            for (NewsSource s : toFetch) {
-                futures.add(executor.submit(() -> refresh(s)));
+            for (NewsFeed f : toFetch) {
+                futures.add(executor.submit(() -> refresh(f)));
             }
             long deadline = System.currentTimeMillis() + HARD_TIMEOUT_MS;
             for (Future<?> f : futures) {
@@ -92,20 +102,20 @@ final class RssRepository {
         return peekEnabled(prefs);
     }
 
-    private void refresh(NewsSource source) {
+    private void refresh(NewsFeed feed) {
         try {
-            List<NewsItem> items = RssClient.fetch(source);
+            List<NewsItem> items = RssClient.fetch(feed);
             synchronized (cache) {
-                cache.put(source, new CacheEntry(items, System.currentTimeMillis()));
+                cache.put(feed.id, new CacheEntry(items, System.currentTimeMillis()));
             }
         } catch (Exception e) {
-            Log.w(TAG, source.displayName + " fetch failed: " + e.getMessage());
+            Log.w(TAG, feed.name + " fetch failed: " + e.getMessage());
             // Säilytetään aiempi cache jos sellainen on; muuten tallennetaan
             // tyhjä lista ettei hakua yritetä joka swipellä uudestaan.
             synchronized (cache) {
-                if (!cache.containsKey(source)) {
-                    cache.put(source, new CacheEntry(
-                            Collections.emptyList(), System.currentTimeMillis()));
+                if (!cache.containsKey(feed.id)) {
+                    cache.put(feed.id, new CacheEntry(
+                            Collections.<NewsItem>emptyList(), System.currentTimeMillis()));
                 }
             }
         }
