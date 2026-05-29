@@ -25,6 +25,7 @@
     <string name="mobile_widget_traffic">Liikenne</string>
     <string name="mobile_widget_gps_speed">GPS-nopeus</string>
     <string name="mobile_widget_road_cameras">Kelikamerat</string>
+    <string name="mobile_widget_news">Uutiset</string>
     <string name="mobile_widget_move_up">Siirrä ylös</string>
     <string name="mobile_widget_move_down">Siirrä alas</string>
     <string name="mobile_pref_show_warnings_widget">Säävaroitukset etusivulla</string>
