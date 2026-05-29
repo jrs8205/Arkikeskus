@@ -47,6 +47,7 @@
     <string name="ruuvi_scan_dialog_title">Havaitut RuuviTagit</string>
     <string name="ruuvi_scan_dialog_empty">Etsitään antureita…</string>
     <string name="ruuvi_scan_dialog_hint">Valitse anturi, niin voit kytkeä sen mihin tahansa anturipaikkaan.</string>
+    <string name="ruuvi_scan_dialog_close">Sulje</string>
     <string name="ruuvi_assign_dialog_title">Kytke %1$s</string>
     <string name="ruuvi_assign_to_bedroom">Anturi 1</string>
     <string name="ruuvi_assign_to_livingroom">Anturi 2</string>
