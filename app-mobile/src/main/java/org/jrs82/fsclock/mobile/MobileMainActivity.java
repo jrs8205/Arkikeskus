@@ -21,14 +21,12 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.HapticFeedbackConstants;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -272,6 +270,10 @@ public class MobileMainActivity extends AppCompatActivity {
     private TextView gpsSpeedFullSignal;
     private TextView gpsSpeedFullDetails;
     private Location lastGpsLocation;
+    /** Viimeisin onnistuneesti haettu sää. Staattinen, joten se säilyy prosessin
+     *  elinajan myös silloin kun aktiviteetti tuhotaan ("älä säilytä aktiviteetteja"),
+     *  jolloin onRetainCustomNonConfigurationInstance ei säilytä tilaa. */
+    private static WeatherData sLastWeather;
     private int gpsSatellitesUsed = 0;
     private int gpsSatellitesVisible = 0;
     private boolean gpsListenerActive = false;
@@ -423,6 +425,12 @@ public class MobileMainActivity extends AppCompatActivity {
             }
             if (arr.length >= 6 && arr[5] instanceof Long) newsFetchedAt = (Long) arr[5];
         }
+        // Jos retained-instanssia ei ollut (esim. "älä säilytä aktiviteetteja" tai
+        // taustalla tapahtunut recreate), näytä silti viimeisin haettu sää heti
+        // ilman "Säätietoja haetaan"-välitilaa.
+        if (weather == null) {
+            weather = sLastWeather;
+        }
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         clockFormat.setTimeZone(HELSINKI);
         dateFormat.setTimeZone(HELSINKI);
@@ -539,8 +547,6 @@ public class MobileMainActivity extends AppCompatActivity {
         weatherDetailsText = findViewById(R.id.mobile_weather_details);
         weatherQuickStats = findViewById(R.id.mobile_weather_quick_stats);
         hourlyForecastList = findViewById(R.id.mobile_hourly_forecast);
-        installSwipeFriendlyHorizontalScroll(findViewById(R.id.mobile_hourly_forecast_scroll));
-        installSwipeFriendlyHorizontalScroll(findViewById(R.id.mobile_forecast_day_scroll));
         weatherCard = findViewById(R.id.mobile_weather_card);
         electricityCard = findViewById(R.id.mobile_electricity_card);
         electricityText = findViewById(R.id.mobile_electricity);
@@ -857,6 +863,7 @@ public class MobileMainActivity extends AppCompatActivity {
                 if (destroyed || isFinishing() || isDestroyed()) return;
                 if (finalWeather != null) {
                     weather = finalWeather;
+                    sLastWeather = finalWeather;
                     SettingsManager.get().setLastSuccessfulFmiUpdate(
                             finalWeather.fetchedAt > 0 ? finalWeather.fetchedAt : System.currentTimeMillis());
                 }
@@ -960,8 +967,8 @@ public class MobileMainActivity extends AppCompatActivity {
         }
         int max = Math.min(50, newsItems.size());
         String shownNote = max < newsItems.size()
-                ? max + "/" + newsItems.size() + " otsikkoa (uusimmat)"
-                : newsItems.size() + " otsikkoa";
+                ? max + " uusinta uutista"
+                : newsItems.size() + " uutista";
         newsViewStatus.setText("Päivitetty " + ageText(newsFetchedAt) + " · " + shownNote);
         for (int i = 0; i < max; i++) {
             newsViewList.addView(newsRow(newsItems.get(i), true));
@@ -969,23 +976,39 @@ public class MobileMainActivity extends AppCompatActivity {
     }
 
     private View newsRow(NewsItem item, boolean fullSize) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setBackgroundResource(R.drawable.mobile_warning_item_bg);
+        LinearLayout outer = new LinearLayout(this);
+        outer.setOrientation(LinearLayout.HORIZONTAL);
+        outer.setGravity(Gravity.CENTER_VERTICAL);
+        outer.setBackgroundResource(R.drawable.mobile_warning_item_bg);
         int pad = dp(10);
-        row.setPadding(pad, pad, pad, pad);
+        outer.setPadding(pad, pad, pad, pad);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(6);
-        row.setLayoutParams(lp);
-        row.setClickable(true);
-        row.setFocusable(true);
-        row.setOnClickListener(v -> openUrlInCustomTab(item.link));
+        outer.setLayoutParams(lp);
+        outer.setClickable(true);
+        outer.setFocusable(true);
+        outer.setOnClickListener(v -> openUrlInCustomTab(item.link));
+
+        int thumbPx = dp(fullSize ? 64 : 52);
+        ImageView thumb = new ImageView(this);
+        LinearLayout.LayoutParams thumbLp = new LinearLayout.LayoutParams(thumbPx, thumbPx);
+        thumbLp.setMarginEnd(dp(10));
+        thumb.setLayoutParams(thumbLp);
+        thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        thumb.setImageResource(R.drawable.mobile_ic_news_placeholder);
+        ImageLoader.get().load(item.imageUrl, thumb, R.drawable.mobile_ic_news_placeholder);
+        outer.addView(thumb);
+
+        LinearLayout textCol = new LinearLayout(this);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+        textCol.setLayoutParams(new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView title = rowText(item.title, fullSize ? 16 : 14, true);
         title.setMaxLines(fullSize ? 3 : 2);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        row.addView(title);
+        textCol.addView(title);
 
         TextView meta = rowText(metaLine(item), 12, false);
         meta.setTextColor(getColor(R.color.mobile_text_muted));
@@ -993,9 +1016,10 @@ public class MobileMainActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         metaLp.topMargin = dp(3);
         meta.setLayoutParams(metaLp);
-        row.addView(meta);
+        textCol.addView(meta);
 
-        return row;
+        outer.addView(textCol);
+        return outer;
     }
 
     private String metaLine(NewsItem item) {
@@ -1478,6 +1502,15 @@ public class MobileMainActivity extends AppCompatActivity {
             gpsSpeedListener = new LocationListener() {
                 @Override
                 public void onLocationChanged(Location location) {
+                    if (location == null) return;
+                    // NETWORK_PROVIDER-sijainnilla ei ole nopeustietoa. Älä korvaa
+                    // tuoretta GPS-fixiä nopeudettomalla sijainnilla, jottei mittari
+                    // hyppää hetkellisesti nollaan ~20 s välein ajon aikana.
+                    if (!location.hasSpeed()
+                            && lastGpsLocation != null && lastGpsLocation.hasSpeed()
+                            && System.currentTimeMillis() - lastGpsLocation.getTime() < 8_000L) {
+                        return;
+                    }
                     lastGpsLocation = location;
                     renderGpsSpeed();
                     renderSpeedometerView();
@@ -3721,26 +3754,5 @@ public class MobileMainActivity extends AppCompatActivity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    private void installSwipeFriendlyHorizontalScroll(View hsv) {
-        if (hsv == null) return;
-        hsv.setOnTouchListener((v, ev) -> {
-            switch (ev.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                case MotionEvent.ACTION_MOVE:
-                    if (v.getParent() != null) {
-                        v.getParent().requestDisallowInterceptTouchEvent(true);
-                    }
-                    break;
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    if (v.getParent() != null) {
-                        v.getParent().requestDisallowInterceptTouchEvent(false);
-                    }
-                    break;
-            }
-            return false;
-        });
     }
 }

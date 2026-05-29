@@ -3,6 +3,7 @@ package org.jrs82.fsclock.mobile;
 import android.util.Log;
 import android.util.Xml;
 
+import org.jrs82.fsclock.BuildConfig;
 import org.xmlpull.v1.XmlPullParser;
 
 import java.io.ByteArrayInputStream;
@@ -28,6 +29,11 @@ final class RssClient {
     private static final String TAG = "RssClient";
     private static final int TIMEOUT_MS = 8000;
     private static final int MAX_BODY_BYTES = 1_500_000;
+
+    // Poimii ensimmäisen <img src="..."> -osoitteen description/content-HTML:stä.
+    private static final java.util.regex.Pattern IMG_SRC =
+            java.util.regex.Pattern.compile("<img[^>]+src\\s*=\\s*[\"']([^\"']+)[\"']",
+                    java.util.regex.Pattern.CASE_INSENSITIVE);
 
     // Yleisimmät RSS-pubDate-formaatit. Atomilla on omat ISO-8601-formaatit.
     private static final String[] DATE_PATTERNS = {
@@ -55,7 +61,9 @@ final class RssClient {
         conn.setRequestProperty("Accept",
                 "application/rss+xml, application/atom+xml, application/xml, text/xml, */*");
         // Reddit blokkaa geneerisen User-Agent:in. Tämä on yksilöivämpi.
-        conn.setRequestProperty("User-Agent", "Arkikeskus/1.2 (Android; jrs8205/Arkikeskus)");
+        // Versio johdetaan BuildConfigista, jottei se jää jälkeen versionbumpissa.
+        conn.setRequestProperty("User-Agent",
+                "Arkikeskus/" + BuildConfig.VERSION_NAME + " (Android; jrs8205/Arkikeskus)");
         conn.setInstanceFollowRedirects(true);
         try {
             int code = conn.getResponseCode();
@@ -90,6 +98,7 @@ final class RssClient {
         String title = null;
         String link = null;
         String pubText = null;
+        String imageUrl = null;
 
         int ev = xpp.getEventType();
         while (ev != XmlPullParser.END_DOCUMENT) {
@@ -101,6 +110,7 @@ final class RssClient {
                     title = null;
                     link = null;
                     pubText = null;
+                    imageUrl = null;
                 } else if (inItem) {
                     if ("title".equalsIgnoreCase(local) && title == null) {
                         title = xpp.nextText();
@@ -118,6 +128,8 @@ final class RssClient {
                             || "date".equalsIgnoreCase(local))
                             && pubText == null) {
                         pubText = xpp.nextText();
+                    } else if (imageUrl == null) {
+                        imageUrl = extractImage(xpp, local);
                     }
                 }
             } else if (ev == XmlPullParser.END_TAG && name != null) {
@@ -125,8 +137,8 @@ final class RssClient {
                 if ("item".equalsIgnoreCase(local) || "entry".equalsIgnoreCase(local)) {
                     if (title != null && !title.trim().isEmpty()
                             && link != null && !link.trim().isEmpty()) {
-                        out.add(new NewsItem(source,
-                                cleanTitle(title), link.trim(), parseDate(pubText)));
+                        out.add(new NewsItem(source, cleanTitle(title),
+                                link.trim(), parseDate(pubText), imageUrl));
                     }
                     inItem = false;
                 }
@@ -181,6 +193,65 @@ final class RssClient {
             }
         }
         return 0L;
+    }
+
+    /** Poimii item/entry-elementin kuvan eri syötemuodoista. Attribuuttipohjaiset
+     *  tagit (enclosure, media:content, media:thumbnail) eivät kuluta tekstiä;
+     *  description/content/summary luetaan ja niistä etsitään ensimmäinen img. */
+    private static String extractImage(XmlPullParser xpp, String local) {
+        if ("enclosure".equalsIgnoreCase(local)) {
+            String type = attribute(xpp, "type");
+            String url = attribute(xpp, "url");
+            if (url != null && (type == null || type.toLowerCase(Locale.US).startsWith("image"))) {
+                return url;
+            }
+            return null;
+        }
+        if ("thumbnail".equalsIgnoreCase(local)) {
+            return attribute(xpp, "url"); // media:thumbnail
+        }
+        if ("content".equalsIgnoreCase(local)) {
+            String url = attribute(xpp, "url");
+            if (url != null) { // media:content
+                String type = attribute(xpp, "type");
+                String medium = attribute(xpp, "medium");
+                if ("image".equalsIgnoreCase(medium)
+                        || (type != null && type.toLowerCase(Locale.US).startsWith("image"))
+                        || looksLikeImageUrl(url)) {
+                    return url;
+                }
+                return null;
+            }
+            return firstImgSrc(safeText(xpp)); // Atom <content> -runko
+        }
+        if ("description".equalsIgnoreCase(local)
+                || "encoded".equalsIgnoreCase(local)
+                || "summary".equalsIgnoreCase(local)) {
+            return firstImgSrc(safeText(xpp));
+        }
+        return null;
+    }
+
+    private static String safeText(XmlPullParser xpp) {
+        try {
+            return xpp.nextText();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String firstImgSrc(String html) {
+        if (html == null) return null;
+        java.util.regex.Matcher m = IMG_SRC.matcher(html);
+        return m.find() ? m.group(1) : null;
+    }
+
+    private static boolean looksLikeImageUrl(String url) {
+        String u = url.toLowerCase(Locale.US);
+        int q = u.indexOf('?');
+        if (q >= 0) u = u.substring(0, q);
+        return u.endsWith(".jpg") || u.endsWith(".jpeg") || u.endsWith(".png")
+                || u.endsWith(".webp") || u.endsWith(".gif");
     }
 
     private static void drainStream(InputStream is) {
