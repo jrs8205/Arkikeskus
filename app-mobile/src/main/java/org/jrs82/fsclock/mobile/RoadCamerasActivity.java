@@ -111,7 +111,7 @@ public class RoadCamerasActivity extends AppCompatActivity {
         CircleLayer points = new CircleLayer(LAYER_POINTS, SRC);
         points.setProperties(
                 PropertyFactory.circleColor(0xFFFFC107),
-                PropertyFactory.circleRadius(6f),
+                PropertyFactory.circleRadius(8f),
                 PropertyFactory.circleStrokeColor(0xFF000000),
                 PropertyFactory.circleStrokeWidth(1.5f));
         points.setFilter(Expression.not(Expression.has("point_count")));
@@ -120,9 +120,7 @@ public class RoadCamerasActivity extends AppCompatActivity {
         CircleLayer clusters = new CircleLayer(LAYER_CLUSTERS, SRC);
         clusters.setProperties(
                 PropertyFactory.circleColor(0xFF1E88E5),
-                PropertyFactory.circleRadius(Expression.step(Expression.get("point_count"),
-                        Expression.literal(14f),
-                        Expression.stop(20, 18f), Expression.stop(100, 24f))),
+                PropertyFactory.circleRadius(18f),
                 PropertyFactory.circleStrokeColor(0xFFFFFFFF),
                 PropertyFactory.circleStrokeWidth(2f));
         clusters.setFilter(Expression.has("point_count"));
@@ -178,6 +176,11 @@ public class RoadCamerasActivity extends AppCompatActivity {
             feats.add(f);
         }
         source.setGeoJson(FeatureCollection.fromFeatures(feats));
+        // Tilanneindikaattori (auttaa diagnoosissa: erottaa data- vs renderöintiongelman).
+        statusText.setText(feats.size() + " kameraa kartalla"
+                + (feats.size() < stations.size()
+                ? " (" + stations.size() + " asemaa)" : ""));
+        statusText.setVisibility(View.VISIBLE);
     }
 
     private boolean onMapClick(@NonNull LatLng point) {

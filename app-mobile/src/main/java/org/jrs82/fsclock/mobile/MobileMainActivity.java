@@ -765,6 +765,10 @@ public class MobileMainActivity extends AppCompatActivity {
             closeDrawer();
             showTrafficSection(TrafficNotice.Kind.CONGESTION);
         });
+        findViewById(R.id.mobile_nav_road_cameras).setOnClickListener(v -> {
+            closeDrawer();
+            startActivity(new android.content.Intent(this, RoadCamerasActivity.class));
+        });
         findViewById(R.id.mobile_nav_news).setOnClickListener(v -> {
             closeDrawer();
             showNews();
