@@ -503,7 +503,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
-                            android:text="Kelikameratietolähde ei ole vielä käytössä."
+                            android:text="Selaa kelikameroita kartalta — napauta avataksesi."
                             android:textColor="@color/mobile_text_body"
                             android:textSize="15sp" />
                     </LinearLayout>
@@ -1010,6 +1010,11 @@
             android:id="@+id/mobile_nav_traffic_congestion"
             style="@style/MobileSubMenuItem"
             android:text="@string/mobile_menu_traffic_congestion" />
+
+        <TextView
+            android:id="@+id/mobile_nav_road_cameras"
+            style="@style/MobileSubMenuItem"
+            android:text="@string/mobile_widget_road_cameras" />
 
         <TextView
             android:id="@+id/mobile_nav_speedometer"

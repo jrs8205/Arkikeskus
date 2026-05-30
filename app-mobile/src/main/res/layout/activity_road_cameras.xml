@@ -23,9 +23,9 @@
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:text="‹"
+            android:text="←"
             android:textColor="@color/mobile_text_primary"
-            android:textSize="30sp" />
+            android:textSize="24sp" />
 
         <EditText
             android:id="@+id/cam_search"
