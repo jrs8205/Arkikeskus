@@ -313,6 +313,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private TextView gpsSpeedText;
     private View roadCamerasCard;
     private View newsCard;
+    private TextView newsWidgetTitle;
     private LinearLayout newsWidgetList;
     private TextView newsWidgetStatus;
     private View newsView;
@@ -592,7 +593,20 @@ public class MobileMainActivity extends AppCompatActivity {
         gpsSpeedCard = findViewById(R.id.mobile_gps_speed_card);
         gpsSpeedText = findViewById(R.id.mobile_gps_speed);
         roadCamerasCard = findViewById(R.id.mobile_road_cameras_card);
+        if (roadCamerasCard != null) {
+            roadCamerasCard.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                startActivity(new android.content.Intent(this, RoadCamerasActivity.class));
+            });
+        }
         newsCard = findViewById(R.id.mobile_news_card);
+        newsWidgetTitle = findViewById(R.id.mobile_news_widget_title);
+        if (newsWidgetTitle != null) {
+            newsWidgetTitle.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                showNews();
+            });
+        }
         newsWidgetList = findViewById(R.id.mobile_news_widget_list);
         newsWidgetStatus = findViewById(R.id.mobile_news_widget_status);
         newsView = findViewById(R.id.mobile_news_view);
