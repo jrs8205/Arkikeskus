@@ -240,6 +240,9 @@ public class MobileMainActivity extends AppCompatActivity {
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    // Oma säie sähkön Vertailu-keskiarvoille: ensiavaus voi tehdä ~17 sarjallista
+    // HTTP-kutsua, eikä se saa blokata pää-io:n sää-/uutis-/liikennehakuja.
+    private final ExecutorService compareIo = Executors.newSingleThreadExecutor();
     private final TrafficNoticesRepository trafficRepository = new TrafficNoticesRepository();
     private final SimpleDateFormat clockFormat = new SimpleDateFormat("HH:mm:ss", FI);
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE d.M.yyyy", FI);
@@ -520,6 +523,7 @@ public class MobileMainActivity extends AppCompatActivity {
         }
         placeSearchDialog = null;
         io.shutdownNow();
+        compareIo.shutdownNow();
         super.onDestroy();
     }
 
@@ -2083,7 +2087,12 @@ public class MobileMainActivity extends AppCompatActivity {
                 sm.getRuuviMac(SettingsManager.RUUVI_SLOT_LIVINGROOM), repo);
         addSensorEntry(sensors, sensorName(SettingsManager.RUUVI_SLOT_BALCONY),
                 sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BALCONY), repo);
-        int nextSensor = 4;
+        // Auto-numerointi jatkaa korkeimmasta MÄÄRITETYSTÄ slotista (1/2/3), jottei
+        // "Anturi 1-3" jää väliin kun slotteja ei ole määritetty (silloin alkaa 1:stä).
+        int nextSensor = 1;
+        if (hasMac(sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BEDROOM))) nextSensor = 2;
+        if (hasMac(sm.getRuuviMac(SettingsManager.RUUVI_SLOT_LIVINGROOM))) nextSensor = 3;
+        if (hasMac(sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BALCONY))) nextSensor = 4;
         for (Map.Entry<String, RuuviSample> entry : sortedRuuviSnapshot(repo.snapshot())) {
             if (assignedMacs.contains(entry.getKey().toUpperCase(Locale.ROOT))) continue;
             sensors.add(new SensorEntry("Anturi " + nextSensor, entry.getValue()));
@@ -2192,6 +2201,11 @@ public class MobileMainActivity extends AppCompatActivity {
         if (mac != null && !mac.trim().isEmpty()) {
             assignedMacs.add(mac.trim().toUpperCase(Locale.ROOT));
         }
+    }
+
+    /** Onko slotille määritetty (ei-tyhjä) MAC. */
+    private static boolean hasMac(String mac) {
+        return mac != null && !mac.trim().isEmpty();
     }
 
     private static final class SensorEntry {
@@ -2444,15 +2458,12 @@ public class MobileMainActivity extends AppCompatActivity {
     private void renderElectricityCompare() {
         if (electricityCompareList == null) return;
         electricitySummaryText.setText("Pörssisähkön keskihinnat (ALV 0 %). Lähde: Elering/Nord Pool.");
-        // Näytä heti välimuistista (ei verkkoa), jottei sivu ole tyhjä.
+        boolean startFetch = !compareFetchInFlight;
+        if (startFetch) compareFetchInFlight = true;
+        // Näytä heti välimuistista; tyhjä-tila kertoo jos haku on käynnissä taustalla.
         populateCompareList(false);
-        if (compareFetchInFlight) return;
-        compareFetchInFlight = true;
-        // Lisää "haetaan"-rivi loppuun jos lista on tyhjä.
-        if (electricityCompareList.getChildCount() == 0) {
-            electricityCompareList.addView(textCard("Haetaan keskiarvoja…"));
-        }
-        io.execute(() -> {
+        if (!startFetch) return;
+        compareIo.execute(() -> {
             // Lämmitä välimuisti verkosta (edellisvuosi + kuluvan vuoden kuukaudet).
             ElectricityAverages.previousYearAverage(this, true);
             Calendar now = Calendar.getInstance(HELSINKI, FI);
@@ -2495,8 +2506,9 @@ public class MobileMainActivity extends AppCompatActivity {
             electricityCompareList.addView(electricityCompareRow(label, ma.avgSntPerKwh, false));
         }
         if (!any && prevYear == null) {
-            electricityCompareList.addView(textCard(
-                    "Keskiarvoja ei ole vielä saatavilla. Päivitä uudelleen verkkoyhteydellä."));
+            electricityCompareList.addView(textCard(compareFetchInFlight
+                    ? "Haetaan keskiarvoja…"
+                    : "Keskiarvoja ei ole vielä saatavilla. Päivitä uudelleen verkkoyhteydellä."));
         }
     }
 
