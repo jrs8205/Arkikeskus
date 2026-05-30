@@ -82,14 +82,21 @@ final class MobileThemeController {
     }
 
     static void applyValue(String value) {
-        int mode;
-        if (VALUE_LIGHT.equals(value)) {
-            mode = AppCompatDelegate.MODE_NIGHT_NO;
-        } else if (VALUE_DARK.equals(value)) {
-            mode = AppCompatDelegate.MODE_NIGHT_YES;
-        } else {
-            mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
-        }
-        AppCompatDelegate.setDefaultNightMode(mode);
+        AppCompatDelegate.setDefaultNightMode(nightModeFor(value));
+    }
+
+    /** Muuntaa teema-asetuksen ("light"/"dark"/"system") AppCompat-yötilavakioksi. */
+    static int nightModeFor(String value) {
+        if (VALUE_LIGHT.equals(value)) return AppCompatDelegate.MODE_NIGHT_NO;
+        if (VALUE_DARK.equals(value)) return AppCompatDelegate.MODE_NIGHT_YES;
+        return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+    }
+
+    /** Tallennettu teema-asetus AppCompat-yötilavakiona, Activityn
+     *  setLocalNightMode-pakotusta varten (ettei järjestelmän tumma vuoda läpi). */
+    static int nightMode(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(
+                context.getApplicationContext());
+        return nightModeFor(prefs.getString(KEY_THEME_MODE, VALUE_SYSTEM));
     }
 }
