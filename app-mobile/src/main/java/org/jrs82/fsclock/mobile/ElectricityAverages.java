@@ -15,17 +15,22 @@ import java.util.TimeZone;
  * Laskee pörssisähkön (Elering/Nord Pool FI, ALV 0 %) keskiarvot vertailua varten:
  * edellisen kokovuoden keskiarvo + kuluvan vuoden toteutuneet kuukausikeskiarvot.
  *
- * <p>Data haetaan {@link ElectricityClient#fetchRange} -metodilla kuukausi kerrallaan
- * ja keskiarvo lasketaan kaikkien kyseisen kuukauden varttihintojen aritmeettisena
- * keskiarvona. Tulokset tallennetaan SharedPreferencesiin JSON-välimuistiin, jotta
- * ~8760 datapistettä/vuosi ei haeta joka avauksella.
+ * <p>Data haetaan {@link ElectricityClient#fetchRange} -metodilla kuukausi kerrallaan.
+ * Keskiarvo lasketaan painottamattomana TUNTIkeskiarvona: ensin bucketoidaan tunneittain
+ * ja lasketaan kunkin tunnin keskiarvo, sitten tuntien keskiarvo. Tämä vastaa pörssin
+ * virallista keskihintaa myös sen jälkeen kun Nord Pool siirtyi 1.10.2025 vartteihin
+ * (15 min) — muuten varttitunnit painottuisivat 4x tuntidatan tunteihin nähden ja
+ * keskiarvo vääristyisi ylöspäin (2025 koko vuosi: 4,21 vs. oikea 4,05 snt/kWh).
+ * Tulokset tallennetaan SharedPreferencesiin JSON-välimuistiin, jotta dataa ei haeta
+ * joka avauksella.
  *
  * <p>Yksikkö snt/kWh, ALV 0 % — sama kuin sähkösivun muut hinnat.
  */
 final class ElectricityAverages {
 
     private static final String TAG = "ElectricityAverages";
-    private static final String PREFS = "mobile_electricity_averages";
+    // v2: tuntibucketointi (1.4.1) — vanha v1-cache oli varttipainotettu, hylätään.
+    private static final String PREFS = "mobile_electricity_averages_v2";
     private static final TimeZone HELSINKI = TimeZone.getTimeZone("Europe/Helsinki");
 
     /** Yhden kuukauden keskiarvo. */
@@ -87,17 +92,31 @@ final class ElectricityAverages {
         long[] range = monthRangeMs(year, month);
         try {
             ElectricityData data = new ElectricityClient().fetchRange(range[0], range[1]);
-            double sum = 0.0;
-            int count = 0;
+            // Bucketoi tunneittain (avain = päivä*100 + tunti, Helsingin aika): laske kunkin
+            // tunnin keskiarvo ja sitten tuntien painottamaton keskiarvo. Näin sekamuotoinen
+            // data (tuntihinnat + 1.10.2025 jälkeen varttihinnat) ei vääristä lukua, koska
+            // pörssin virallinen kuukausikeskiarvo on tuntipohjainen. Vrt. FMI r_1h -bucketointi.
+            java.util.HashMap<Integer, double[]> hourBuckets = new java.util.HashMap<>();
             for (ElectricityData.Quarter q : data.quarters) {
-                // Varmista että vartti kuuluu pyydettyyn kuukauteen (Helsingin aika).
+                // Varmista että hinta kuuluu pyydettyyn kuukauteen (Helsingin aika).
                 if (q.year == year && q.month == month) {
-                    sum += q.sntPerKwh;
-                    count++;
+                    int hourKey = q.dayOfMonth * 100 + q.hour;
+                    double[] acc = hourBuckets.get(hourKey);
+                    if (acc == null) {
+                        acc = new double[2];
+                        hourBuckets.put(hourKey, acc);
+                    }
+                    acc[0] += q.sntPerKwh;
+                    acc[1] += 1.0;
                 }
             }
-            if (count == 0) return null;
-            double avg = sum / count;
+            if (hourBuckets.isEmpty()) return null;
+            double sum = 0.0;
+            for (double[] acc : hourBuckets.values()) {
+                sum += acc[0] / acc[1];   // yhden tunnin keskiarvo (1 tuntihinta tai 4 varttia)
+            }
+            int count = hourBuckets.size();   // tuntien lukumäärä kuukaudessa
+            double avg = sum / count;         // tuntien painottamaton keskiarvo
 
             JSONObject o = new JSONObject();
             o.put("avg", avg);

@@ -315,6 +315,8 @@ public class MobileMainActivity extends AppCompatActivity {
     private View newsView;
     private TextView newsViewStatus;
     private LinearLayout newsViewList;
+    /** Per-lähde-uutissivun aktiivinen syöte; null = yhdistetty virta (kaikki lähteet). */
+    private String newsViewFeedId = null;
     private List<NewsItem> newsItems = new ArrayList<>();
     private long newsFetchedAt = 0L;
     private boolean newsFetchInFlight = false;
@@ -682,7 +684,10 @@ public class MobileMainActivity extends AppCompatActivity {
         });
         weatherFavoriteButton.setOnClickListener(v -> toggleCurrentFavorite());
         electricityCard.setOnClickListener(v -> openElectricitySection(0));
-        backToTopButton.setOnClickListener(v -> scroll.scrollTo(0, 0));
+        backToTopButton.setOnClickListener(v -> {
+            v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+            smoothScrollToTop();
+        });
         drawer.setOnClickListener(v -> {
             // Eat taps inside the menu panel.
         });
@@ -930,7 +935,10 @@ public class MobileMainActivity extends AppCompatActivity {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         boolean widgetWanted = prefs.getBoolean(MobileThemeController.KEY_SHOW_NEWS_WIDGET, true);
         boolean viewVisible = newsView != null && newsView.getVisibility() == View.VISIBLE;
-        if (!widgetWanted && !viewVisible) return;
+        // Huomioi myös per-lähde-uutiswidgetit: muuten refresh ei hae uutisia kun
+        // yhdistetty "Uutiset"-widget on pois päältä eikä uutisten kokosivu ole auki.
+        boolean anyFeedWidget = anyNewsFeedWidgetEnabled(prefs);
+        if (!widgetWanted && !viewVisible && !anyFeedWidget) return;
         newsFetchInFlight = true;
         io.execute(() -> {
             List<NewsItem> fresh;
@@ -975,6 +983,31 @@ public class MobileMainActivity extends AppCompatActivity {
         if (newsView == null || newsViewList == null || newsViewStatus == null) return;
         if (newsView.getVisibility() != View.VISIBLE) return;
         newsViewList.removeAllViews();
+
+        // Per-lähde-sivu: näytä vain valitun syötteen 50 uusinta (avataan widgetin otsikosta).
+        if (newsViewFeedId != null) {
+            SharedPreferences feedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+            NewsFeed feed = NewsFeedStore.feedById(feedPrefs, newsViewFeedId);
+            String feedName = feed != null ? feed.name : "Uutiset";
+            List<NewsItem> feedItems = RssRepository.get().peekForFeed(newsViewFeedId);
+            if (feedItems.isEmpty()) {
+                newsViewStatus.setText(newsFetchInFlight
+                        ? feedName + " · Haetaan uutisia..."
+                        : feedName + " · Ei uutisia. Tarkista syötteen osoite asetuksista.");
+                return;
+            }
+            int feedMax = Math.min(50, feedItems.size());
+            String feedNote = feedMax < feedItems.size()
+                    ? feedMax + " uusinta uutista"
+                    : feedItems.size() + " uutista";
+            newsViewStatus.setText(feedName + " · Päivitetty " + ageText(newsFetchedAt)
+                    + " · " + feedNote);
+            for (int i = 0; i < feedMax; i++) {
+                newsViewList.addView(newsRow(feedItems.get(i), true));
+            }
+            return;
+        }
+
         if (newsItems == null || newsItems.isEmpty()) {
             newsViewStatus.setText(newsFetchInFlight
                     ? "Haetaan uutisia..."
@@ -1456,11 +1489,21 @@ public class MobileMainActivity extends AppCompatActivity {
         cardLp.topMargin = dp(10);
         card.setLayoutParams(cardLp);
 
+        final String feedName = feed.name;
         TextView titleView = new TextView(this);
-        titleView.setText(title);
+        // "›" vihjaa että otsikkoa voi klikata → avaa syötteen oman sivun (50 uusinta).
+        titleView.setText(title + "  ›");
         titleView.setTextColor(getColor(R.color.mobile_text_primary));
         titleView.setTextSize(18f);
         titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+        titleView.setClickable(true);
+        titleView.setFocusable(true);
+        int titlePad = dp(4);
+        titleView.setPadding(0, titlePad, 0, titlePad);
+        titleView.setOnClickListener(v -> {
+            v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+            showNewsForFeed(feedId, feedName);
+        });
         card.addView(titleView);
 
         LinearLayout list = new LinearLayout(this);
@@ -3205,9 +3248,41 @@ public class MobileMainActivity extends AppCompatActivity {
     }
 
     private void showNews() {
+        newsViewFeedId = null;
         showSection(newsView, "Uutiset");
         renderNewsView();
         refreshNewsAsync(false);
+    }
+
+    /** Avaa yhden uutislähteen oman sivun (kuten Uutiset-kokosivu, mutta vain yksi
+     *  syöte, 50 uusinta). Toimii automaattisesti myös käyttäjän omille RSS-syötteille. */
+    private void showNewsForFeed(String feedId, String feedName) {
+        if (feedId == null) return;
+        newsViewFeedId = feedId;
+        showSection(newsView, feedName != null ? feedName : "Uutiset");
+        renderNewsView();
+        refreshNewsAsync(false);
+    }
+
+    /** Hidas, animoitu liuku sivun ylälaitaan (back-to-top -napille). */
+    private void smoothScrollToTop() {
+        if (scroll == null) return;
+        int from = scroll.getScrollY();
+        if (from <= 0) return;
+        ObjectAnimator anim = ObjectAnimator.ofInt(scroll, "scrollY", from, 0);
+        anim.setDuration(450L);
+        anim.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        anim.start();
+    }
+
+    /** Onko vähintään yksi per-lähde-uutiswidget asetettu näkyväksi etusivulle. */
+    private boolean anyNewsFeedWidgetEnabled(SharedPreferences prefs) {
+        for (NewsFeed f : NewsFeedStore.allFeeds(prefs)) {
+            if (prefs.getBoolean(MobileThemeController.newsFeedVisibilityKey(f.id), false)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void startRefreshAnimation() {
