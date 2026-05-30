@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FsClock</string>
+    <string name="app_name">Arkikeskus</string>
     <string name="dream_description">Kello, päivämäärä ja sää, ympärivuorokautinen infotaulu burn-in -suojalla</string>
     <string name="loading_weather">Ladataan säätietoja…</string>
     <string name="clock_time_placeholder">--:--:--</string>
@@ -28,7 +28,7 @@
     <string name="wind_missing">Tuuli —</string>
     <string name="humidity_missing">Kosteus —</string>
 
-    <string name="settings_title">FsClock-asetukset</string>
+    <string name="settings_title">Arkikeskus-asetukset</string>
 
     <!-- Asetussivun ryhmät -->
     <string name="pref_cat_display">Näyttö ja kirkkaus</string>
