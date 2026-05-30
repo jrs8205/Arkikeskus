@@ -85,20 +85,6 @@
                 android:textSize="@dimen/nav_button_text_size" />
 
             <TextView
-                android:id="@+id/nav_radar"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:background="?android:attr/selectableItemBackground"
-                android:gravity="center"
-                android:minWidth="52dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:text="@string/nav_radar"
-                android:textColor="#808080"
-                android:textStyle="bold"
-                android:textSize="@dimen/nav_button_text_size" />
-
-            <TextView
                 android:id="@+id/nav_electricity"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"

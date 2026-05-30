@@ -130,7 +130,6 @@
     <!-- Headerin navi-napit -->
     <string name="nav_koti">Koti</string>
     <string name="nav_forecast">Ennuste</string>
-    <string name="nav_radar">Sadetutka</string>
     <string name="nav_electricity">Sähkö</string>
     <string name="favorite_added">Lisätty suosikkeihin: %1$s</string>
     <string name="favorite_removed">Poistettu suosikeista: %1$s</string>

@@ -49,11 +49,10 @@ public class ClockController {
     private static final long TICK_MS = 1000L;
     private static final long TEMP_BROWSE_MS = 30L * 60L * 1000L;
     private static final long[] WEATHER_RETRY_MS = {30_000L, 60_000L, 5L * 60_000L};
-    private static final int PAGE_COUNT = 10;
+    private static final int PAGE_COUNT = 9;
     private static final int PAGE_IDX_HOME = 0;
     private static final int PAGE_IDX_FORECAST_START = 1;
-    private static final int PAGE_IDX_RADAR = 8;
-    private static final int PAGE_IDX_ELECTRICITY = 9;
+    private static final int PAGE_IDX_ELECTRICITY = 8;
 
     private final Context ctx;
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -72,6 +71,7 @@ public class ClockController {
     private View sensorTopGuideline, sensorTopDivider;
     private View sensorSectionRow, sensorSectionTopDivider, sensorSectionBottomDivider;
     private OpenMeteoData openMeteoData;
+    private volatile String pendingOpenMeteoPlace;
     private float forecastHeaderPx, forecastColHeaderPx, forecastHourPx, forecastValuePx, forecastDetailPx;
 
     // Yhteiset (jaettu globaali header näkyy joka sivulla)
@@ -81,8 +81,7 @@ public class ClockController {
     private android.widget.ImageButton settingsButton;
     private TextView electricityPriceText;
     private TextView pageIndicatorTop;
-    private TextView navKoti, navForecast, navRadar, navElectricity;
-    private RadarPageBuilder radarPage;
+    private TextView navKoti, navForecast, navElectricity;
     private ElectricityPageBuilder electricityPage;
     private final PixelShiftController pixelShift;
     private final BrightnessController brightness;
@@ -186,7 +185,6 @@ public class ClockController {
 
         navKoti = root.findViewById(R.id.nav_koti);
         navForecast = root.findViewById(R.id.nav_forecast);
-        navRadar = root.findViewById(R.id.nav_radar);
         navElectricity = root.findViewById(R.id.nav_electricity);
 
         browsePlaceButton.setOnClickListener(v -> showBrowsePlaceDialog());
@@ -208,13 +206,10 @@ public class ClockController {
         }
         if (navKoti != null) navKoti.setOnClickListener(v -> pageController.goTo(PAGE_IDX_HOME));
         if (navForecast != null) navForecast.setOnClickListener(v -> pageController.goTo(PAGE_IDX_FORECAST_START));
-        if (navRadar != null) navRadar.setOnClickListener(v -> pageController.goTo(PAGE_IDX_RADAR));
         if (navElectricity != null) navElectricity.setOnClickListener(v -> pageController.goTo(PAGE_IDX_ELECTRICITY));
 
         pageController.setPageChangeListener((oldPage, newPage) -> {
-            if (oldPage == PAGE_IDX_RADAR && radarPage != null) radarPage.onPageHidden();
             if (oldPage == PAGE_IDX_ELECTRICITY && electricityPage != null) electricityPage.onPageHidden();
-            if (newPage == PAGE_IDX_RADAR && radarPage != null) radarPage.onPageVisible();
             if (newPage == PAGE_IDX_ELECTRICITY && electricityPage != null) electricityPage.onPageVisible();
             updateNavHighlight(newPage);
         });
@@ -224,7 +219,6 @@ public class ClockController {
         boolean tablet = UiMetrics.isTabletLike(ctx.getResources());
         if (navKoti != null) navKoti.setVisibility(tablet ? View.VISIBLE : View.GONE);
         if (navForecast != null) navForecast.setVisibility(tablet ? View.VISIBLE : View.GONE);
-        if (navRadar != null) navRadar.setVisibility(tablet ? View.VISIBLE : View.GONE);
         if (navElectricity != null) navElectricity.setVisibility(tablet ? View.VISIBLE : View.GONE);
 
         updateSettingsButtonVisibility();
@@ -340,7 +334,6 @@ public class ClockController {
             repo.removeListener(ruuviListener);
             repo.stop();
         } catch (Exception ignored) { }
-        if (radarPage != null) radarPage.onPageHidden();
         if (electricityPage != null) electricityPage.onPageHidden();
         pixelShift.stop();
         brightness.stop();
@@ -516,9 +509,6 @@ public class ClockController {
             pages[i] = buildDayPage(i);
             pagesContainer.addView(pages[i]);
         }
-        radarPage = new RadarPageBuilder(ctx, io, ui);
-        pages[PAGE_IDX_RADAR] = radarPage.buildPage();
-        pagesContainer.addView(pages[PAGE_IDX_RADAR]);
         electricityPage = new ElectricityPageBuilder(ctx, ElectricityRepository.get(ctx), io);
         pages[PAGE_IDX_ELECTRICITY] = electricityPage.buildPage();
         pagesContainer.addView(pages[PAGE_IDX_ELECTRICITY]);
@@ -594,8 +584,7 @@ public class ClockController {
         int inactive = 0xFF808080;
         if (navKoti != null) navKoti.setTextColor(page == PAGE_IDX_HOME ? active : inactive);
         if (navForecast != null) navForecast.setTextColor(
-                page >= PAGE_IDX_FORECAST_START && page < PAGE_IDX_RADAR ? active : inactive);
-        if (navRadar != null) navRadar.setTextColor(page == PAGE_IDX_RADAR ? active : inactive);
+                page >= PAGE_IDX_FORECAST_START && page < PAGE_IDX_ELECTRICITY ? active : inactive);
         if (navElectricity != null) navElectricity.setTextColor(page == PAGE_IDX_ELECTRICITY ? active : inactive);
     }
 
@@ -1218,12 +1207,15 @@ public class ClockController {
 
     private void kickOpenMeteoFetch(final String placeName) {
         if (io == null || placeName == null) return;
+        pendingOpenMeteoPlace = placeName;
         io.execute(() -> {
             try {
                 OpenMeteoData om = OpenMeteoRepository.get(ctx).fetch(placeName);
                 if (!active.get()) return;
                 ui.post(() -> {
                     if (!active.get()) return;
+                    // Hylkää vanhentunut tulos jos näytettävä paikka on sittemmin vaihtunut.
+                    if (!placeName.equals(pendingOpenMeteoPlace)) return;
                     openMeteoData = om;
                     renderSuperWeather();
                     renderForecastAll();
