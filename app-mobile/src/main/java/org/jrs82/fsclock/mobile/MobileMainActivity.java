@@ -418,6 +418,9 @@ public class MobileMainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         MobileThemeController.apply(this);
+        // Pakota tämän näkymän yötila sovelluksen omaan asetukseen (ei järjestelmän),
+        // jottei vaalea sovellus vuoda Androidin tummaa tilaa recreate-/paluuhetkellä.
+        getDelegate().setLocalNightMode(MobileThemeController.nightMode(this));
         super.onCreate(savedInstanceState);
         // Säilytä haetut tiedot teema-/orientaatio-recreate:n yli, jotta käyttäjä
         // ei näe tyhjää sää-/sähkö-tilaa kun palaa asetuksista.
@@ -479,14 +482,20 @@ public class MobileMainActivity extends AppCompatActivity {
         if (shouldAutoRefreshNow()) {
             refreshAll(false);
         } else {
-            renderWeather();
-            renderElectricity(electricity != null
-                    ? electricity
-                    : ElectricityRepository.get(this).peek());
-            // Päivitä widgettien näkyvyys + järjestys asetuksista palatessa, jotta
-            // juuri päälle laitettu (tai uudelleenjärjestetty) widget näkyy heti.
-            renderHomeWidgetVisibility();
-            refreshNewsAsync(false);
+            // Lykkää render seuraavaan looper-sykliin, jotta AppCompatin yötila ehtii
+            // vakiintua (vaalea sovellus + tumma järjestelmä) ennen kuin widgetit
+            // renderöidään — muuten ne voivat hetkellisesti vuotaa järjestelmän tummaa.
+            main.post(() -> {
+                if (destroyed || isFinishing() || isDestroyed()) return;
+                renderWeather();
+                renderElectricity(electricity != null
+                        ? electricity
+                        : ElectricityRepository.get(this).peek());
+                // Päivitä widgettien näkyvyys + järjestys asetuksista palatessa, jotta
+                // juuri päälle laitettu (tai uudelleenjärjestetty) widget näkyy heti.
+                renderHomeWidgetVisibility();
+                refreshNewsAsync(false);
+            });
         }
         scheduleTomorrowPricePolling();
         scheduleAutoRefresh();
