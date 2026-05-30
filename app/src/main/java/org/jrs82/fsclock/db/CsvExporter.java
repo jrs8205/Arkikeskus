@@ -78,17 +78,17 @@ public final class CsvExporter {
             "Aika,Kanava,Akku %,Akun lämpö °C";
 
     private static final String RELATIVE_SUBDIR =
-            Environment.DIRECTORY_DOWNLOADS + "/FsClock";
+            Environment.DIRECTORY_DOWNLOADS + "/Arkikeskus";
 
     private CsvExporter() {}
 
-    /** Rakenna tiedostonimi muodossa fsclock_<kind>_<yyyyMMdd_HHmmss>_<MODEL>.csv. */
+    /** Rakenna tiedostonimi muodossa arkikeskus_<kind>_<yyyyMMdd_HHmmss>_<MODEL>.csv. */
     public static String buildFileName(Kind kind) {
         String prefix;
         switch (kind) {
-            case WEATHER_HUMAN: prefix = "fsclock_weather_"; break;
-            case BATTERY_HUMAN: prefix = "fsclock_battery_"; break;
-            case RAW_ALL: default: prefix = "fsclock_all_"; break;
+            case WEATHER_HUMAN: prefix = "arkikeskus_weather_"; break;
+            case BATTERY_HUMAN: prefix = "arkikeskus_battery_"; break;
+            case RAW_ALL: default: prefix = "arkikeskus_all_"; break;
         }
         return prefix + LocalDateTime.now(ZONE).format(STAMP)
                 + "_" + safeModel() + ".csv";

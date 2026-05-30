@@ -15,8 +15,8 @@ android {
         applicationId 'org.jrs82.fsclock'
         minSdk 30
         targetSdk 35
-        versionCode 201
-        versionName '2.0.1'
+        versionCode 202
+        versionName '2.0.2'
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -27,7 +27,7 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "FsClock-${variant.versionName}.apk"
+            outputFileName = "Arkikeskus-${variant.versionName}.apk"
         }
     }
 
