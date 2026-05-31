@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="mobile_bg">#000000</color>
-    <color name="mobile_card_bg">#0E141C</color>
+    <color name="mobile_card_bg">#131B27</color>
     <color name="mobile_toolbar_bg">#161E2A</color>
     <color name="mobile_nav_surface">#161E2A</color>
     <color name="mobile_drawer_bg">#11171F</color>
-    <color name="mobile_card_stroke">#2E3B4F</color>
+    <color name="mobile_card_stroke">#283440</color>
     <color name="mobile_menu_pressed">#1F2A3C</color>
     <color name="mobile_scrim">#99000000</color>
     <color name="mobile_text_primary">#F3F5F8</color>
