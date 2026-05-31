@@ -304,6 +304,10 @@ public class MobileMainActivity extends AppCompatActivity {
     private boolean hcAvailable;
     private boolean hcGranted;
     private TextView stepsHcConnect;
+    private TextView stepsRefreshButton;
+    private TextView stepsUpdated;
+    private long stepsLastRefreshMs = 0L;
+    private boolean stepsRefreshInFlight = false;
     private GpsSpeedometerView gpsSpeedometerWidget;
     private GpsSpeedometerView gpsSpeedometerFull;
     private TextView gpsSpeedDigital;
@@ -650,6 +654,8 @@ public class MobileMainActivity extends AppCompatActivity {
         stepsTabWeeks = findViewById(R.id.mobile_steps_tab_weeks);
         stepsTabMonths = findViewById(R.id.mobile_steps_tab_months);
         stepsHcConnect = findViewById(R.id.mobile_steps_hc_connect);
+        stepsRefreshButton = findViewById(R.id.mobile_steps_refresh);
+        stepsUpdated = findViewById(R.id.mobile_steps_updated);
         stepCounter = new StepCounter(this);
         stepCounter.setListener(steps -> {
             if (stepsWidgetToday != null && stepsEnabled()) {
@@ -897,6 +903,12 @@ public class MobileMainActivity extends AppCompatActivity {
                     hcLauncher.launch(new java.util.HashSet<>(
                             java.util.Arrays.asList(HealthConnectStepsBridge.permissions())));
                 }
+            });
+        }
+        if (stepsRefreshButton != null) {
+            stepsRefreshButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                refreshStepsNow(true);
             });
         }
         findViewById(R.id.mobile_nav_device_info).setOnClickListener(v -> {
@@ -3470,7 +3482,71 @@ public class MobileMainActivity extends AppCompatActivity {
         renderStepsWidget();
         selectStepsTab(stepsTab);
         maybeStartStepCounter();
-        refreshHealthConnectToday();
+        refreshStepsNow(false);
+    }
+
+    /** Yksi keskitetty askelpäivitys: lukee Health Connectin (tai raw-arvon) uudelleen ja
+     *  päivittää widgetin, ison luvun, historian ja aikaleiman yhtenäisesti. */
+    private void refreshStepsNow(boolean userRequested) {
+        if (stepsRefreshInFlight) return;
+        if (!stepsEnabled()) {
+            if (userRequested) {
+                android.widget.Toast.makeText(this, "Askelmittari ei ole päällä",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        if (useHealthConnect()) {
+            stepsRefreshInFlight = true;
+            if (stepsRefreshButton != null) {
+                stepsRefreshButton.setEnabled(false);
+                stepsRefreshButton.setText("Päivitetään…");
+            }
+            HealthConnectStepsBridge.todaySteps(this, steps -> {
+                if (destroyed) return;
+                stepsRefreshInFlight = false;
+                if (stepsRefreshButton != null) {
+                    stepsRefreshButton.setEnabled(true);
+                    stepsRefreshButton.setText("Päivitä Health Connectista");
+                }
+                if (steps >= 0) {
+                    if (stepsWidgetToday != null) stepsWidgetToday.setText(String.valueOf(steps));
+                    if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
+                    stepsLastRefreshMs = System.currentTimeMillis();
+                    updateStepsRefreshTime();
+                    if (stepsTab != 0) selectStepsTab(stepsTab);
+                } else if (userRequested) {
+                    android.widget.Toast.makeText(this, "Health Connect -tietoja ei voitu lukea",
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+            return;
+        }
+        // Raw fallback: arvo tulee anturitapahtumista, mutta UI virkistetään.
+        if (stepCounter != null) {
+            int steps = stepCounter.currentTodaySteps();
+            if (stepsWidgetToday != null) stepsWidgetToday.setText(String.valueOf(steps));
+            if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
+            if (stepsTab != 0) selectStepsTab(stepsTab);
+            stepsLastRefreshMs = System.currentTimeMillis();
+            updateStepsRefreshTime();
+        }
+    }
+
+    private void updateStepsRefreshTime() {
+        if (stepsUpdated == null || stepsLastRefreshMs <= 0L) return;
+        stepsUpdated.setVisibility(View.VISIBLE);
+        stepsUpdated.setText("Päivitetty klo "
+                + statusTimeFormat.format(new java.util.Date(stepsLastRefreshMs)));
+    }
+
+    private void updateStepsRefreshButton() {
+        if (stepsRefreshButton == null) return;
+        boolean visible = stepsEnabled() && useHealthConnect();
+        stepsRefreshButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (stepsUpdated != null) {
+            stepsUpdated.setVisibility(stepsLastRefreshMs > 0L && visible ? View.VISIBLE : View.GONE);
+        }
     }
 
     private boolean useHealthConnect() {
@@ -3571,7 +3647,8 @@ public class MobileMainActivity extends AppCompatActivity {
         } else if (!enabled) {
             stepsNote.setText("Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet.");
         } else if (useHealthConnect()) {
-            stepsNote.setText("Lähde: Health Connect (kello ja puhelin yhdistettynä, ilman tuplia).");
+            stepsNote.setText("Lähde: Health Connect. Päivitä-nappi lukee uusimman datan; jos Samsung "
+                    + "Health tai Oura ei ole vielä synkannut, avaa se ensin.");
         } else if (hcAvailable) {
             stepsNote.setText("Health Connect on saatavilla — myönnä lupa, niin askeleet luetaan "
                     + "sieltä. Kunnes lupa annetaan, käytetään puhelimen anturia.");
@@ -3579,6 +3656,7 @@ public class MobileMainActivity extends AppCompatActivity {
             stepsNote.setText("Lähde: Puhelimen askelanturi. Historia päivittyy vain kun sovellus on "
                     + "ollut käytössä; taustakatkot voivat puuttua.");
         }
+        updateStepsRefreshButton();
     }
 
     private void selectStepsTab(int tab) {
@@ -3633,7 +3711,7 @@ public class MobileMainActivity extends AppCompatActivity {
             if (stepsWidgetNote != null) stepsWidgetNote.setText("napauta ja ota käyttöön");
         } else if (useHealthConnect()) {
             if (stepsWidgetNote != null) stepsWidgetNote.setText("askelta tänään (Health Connect)");
-            refreshHealthConnectToday();
+            refreshStepsNow(false);
         } else {
             stepsWidgetToday.setText(String.valueOf(stepCounter.currentTodaySteps()));
             if (stepsWidgetNote != null) stepsWidgetNote.setText("askelta tänään");
