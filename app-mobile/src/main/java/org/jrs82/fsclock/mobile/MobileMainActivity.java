@@ -308,6 +308,13 @@ public class MobileMainActivity extends AppCompatActivity {
     private TextView stepsUpdated;
     private long stepsLastRefreshMs = 0L;
     private boolean stepsRefreshInFlight = false;
+    private TextView stepsCalories;
+    private TextView stepsProfileButton;
+    private static final String KEY_PROFILE_SEX = "mobile_profile_sex";
+    private static final String KEY_PROFILE_AGE = "mobile_profile_age";
+    private static final String KEY_PROFILE_HEIGHT = "mobile_profile_height_cm";
+    private static final String KEY_PROFILE_WEIGHT = "mobile_profile_weight_kg";
+    private static final String KEY_PROFILE_STEP = "mobile_profile_step_length_cm";
     private GpsSpeedometerView gpsSpeedometerWidget;
     private GpsSpeedometerView gpsSpeedometerFull;
     private TextView gpsSpeedDigital;
@@ -656,6 +663,8 @@ public class MobileMainActivity extends AppCompatActivity {
         stepsHcConnect = findViewById(R.id.mobile_steps_hc_connect);
         stepsRefreshButton = findViewById(R.id.mobile_steps_refresh);
         stepsUpdated = findViewById(R.id.mobile_steps_updated);
+        stepsCalories = findViewById(R.id.mobile_steps_calories);
+        stepsProfileButton = findViewById(R.id.mobile_steps_profile);
         stepCounter = new StepCounter(this);
         stepCounter.setListener(steps -> {
             if (stepsWidgetToday != null && stepsEnabled()) {
@@ -910,6 +919,9 @@ public class MobileMainActivity extends AppCompatActivity {
                 v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
                 refreshStepsNow(true);
             });
+        }
+        if (stepsProfileButton != null) {
+            stepsProfileButton.setOnClickListener(v -> showProfileDialog());
         }
         findViewById(R.id.mobile_nav_device_info).setOnClickListener(v -> {
             closeDrawer();
@@ -3512,6 +3524,7 @@ public class MobileMainActivity extends AppCompatActivity {
                 if (steps >= 0) {
                     if (stepsWidgetToday != null) stepsWidgetToday.setText(String.valueOf(steps));
                     if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
+                    renderStepsCalories(steps);
                     stepsLastRefreshMs = System.currentTimeMillis();
                     updateStepsRefreshTime();
                     if (stepsTab != 0) selectStepsTab(stepsTab);
@@ -3527,6 +3540,7 @@ public class MobileMainActivity extends AppCompatActivity {
             int steps = stepCounter.currentTodaySteps();
             if (stepsWidgetToday != null) stepsWidgetToday.setText(String.valueOf(steps));
             if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
+            renderStepsCalories(steps);
             if (stepsTab != 0) selectStepsTab(stepsTab);
             stepsLastRefreshMs = System.currentTimeMillis();
             updateStepsRefreshTime();
@@ -3549,6 +3563,81 @@ public class MobileMainActivity extends AppCompatActivity {
         }
     }
 
+    /** Päivittää kaloririvit tämän päivän askelmäärästä + profiilista (näkyy vain Tänään-välilehdellä).
+     *  Jos pituus/paino puuttuu, näytetään profiilipainike eikä nollakaloreita. */
+    private void renderStepsCalories(long steps) {
+        if (stepsCalories == null) return;
+        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        double h = p.getFloat(KEY_PROFILE_HEIGHT, 0f);
+        double w = p.getFloat(KEY_PROFILE_WEIGHT, 0f);
+        int age = p.getInt(KEY_PROFILE_AGE, 0);
+        String sex = p.getString(KEY_PROFILE_SEX, "");
+        double stepCm = p.getFloat(KEY_PROFILE_STEP, 0f);
+        if (h <= 0 || w <= 0) {
+            stepsCalories.setVisibility(View.GONE);
+            if (stepsProfileButton != null) stepsProfileButton.setVisibility(View.VISIBLE);
+            return;
+        }
+        if (stepsProfileButton != null) stepsProfileButton.setVisibility(View.GONE);
+        double km = StepCalorieEstimator.distanceKm(steps, h, stepCm);
+        int active = StepCalorieEstimator.activeKcal(steps, h, w, stepCm);
+        int total = StepCalorieEstimator.totalDailyKcal(StepCalorieEstimator.bmr(w, h, age, sex), active);
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format(java.util.Locale.US, "Matka-arvio: %.1f km", km).replace('.', ','));
+        sb.append("\nAktiivinen kulutus: noin ").append(active).append(" kcal");
+        if (total > 0) sb.append("\nPäivän kokonaisarvio: noin ").append(total).append(" kcal");
+        sb.append("\nArvio perustuu askeliin, painoon ja pituuteen.");
+        stepsCalories.setText(sb);
+        stepsCalories.setVisibility(View.VISIBLE);
+    }
+
+    private void showProfileDialog() {
+        View v = getLayoutInflater().inflate(R.layout.dialog_profile, null);
+        android.widget.RadioGroup sexGroup = v.findViewById(R.id.profile_sex);
+        EditText ageEt = v.findViewById(R.id.profile_age);
+        EditText heightEt = v.findViewById(R.id.profile_height);
+        EditText weightEt = v.findViewById(R.id.profile_weight);
+        EditText stepEt = v.findViewById(R.id.profile_step);
+        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        String sex = p.getString(KEY_PROFILE_SEX, "");
+        if ("female".equals(sex)) sexGroup.check(R.id.profile_sex_female);
+        else if ("male".equals(sex)) sexGroup.check(R.id.profile_sex_male);
+        if (p.getInt(KEY_PROFILE_AGE, 0) > 0) ageEt.setText(String.valueOf(p.getInt(KEY_PROFILE_AGE, 0)));
+        if (p.getFloat(KEY_PROFILE_HEIGHT, 0f) > 0) heightEt.setText(String.valueOf((int) p.getFloat(KEY_PROFILE_HEIGHT, 0f)));
+        if (p.getFloat(KEY_PROFILE_WEIGHT, 0f) > 0) weightEt.setText(trimNum(p.getFloat(KEY_PROFILE_WEIGHT, 0f)));
+        if (p.getFloat(KEY_PROFILE_STEP, 0f) > 0) stepEt.setText(String.valueOf((int) p.getFloat(KEY_PROFILE_STEP, 0f)));
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Profiili kaloriarviota varten")
+                .setView(v)
+                .setPositiveButton("Tallenna", (d, w2) -> {
+                    int sexId = sexGroup.getCheckedRadioButtonId();
+                    p.edit()
+                            .putString(KEY_PROFILE_SEX, sexId == R.id.profile_sex_female ? "female"
+                                    : sexId == R.id.profile_sex_male ? "male" : "")
+                            .putInt(KEY_PROFILE_AGE, parseIntSafe(ageEt.getText().toString()))
+                            .putFloat(KEY_PROFILE_HEIGHT, parseFloatSafe(heightEt.getText().toString()))
+                            .putFloat(KEY_PROFILE_WEIGHT, parseFloatSafe(weightEt.getText().toString()))
+                            .putFloat(KEY_PROFILE_STEP, parseFloatSafe(stepEt.getText().toString()))
+                            .apply();
+                    refreshStepsNow(false);
+                })
+                .setNegativeButton("Peruuta", null)
+                .show();
+    }
+
+    private static String trimNum(float f) {
+        if (f == Math.rint(f)) return String.valueOf((int) f);
+        return String.valueOf(f);
+    }
+
+    private static int parseIntSafe(String s) {
+        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return 0; }
+    }
+
+    private static float parseFloatSafe(String s) {
+        try { return Float.parseFloat(s.trim().replace(',', '.')); } catch (Exception e) { return 0f; }
+    }
+
     private boolean useHealthConnect() {
         return hcAvailable && hcGranted;
     }
@@ -3564,13 +3653,31 @@ public class MobileMainActivity extends AppCompatActivity {
         });
     }
 
-    private CharSequence formatHcHistory(String[] labels, long[] values) {
+    private CharSequence formatHcHistory(String[] labels, long[] values, int periodType) {
         if (labels.length == 0) return "Ei vielä askeldataa Health Connectissa.";
         StringBuilder sb = new StringBuilder();
         for (int i = labels.length - 1; i >= 0; i--) {
-            sb.append(labels[i]).append("   ").append(values[i]).append(" askelta\n");
+            sb.append(hcHistoryLabel(labels[i], periodType)).append("   ")
+                    .append(values[i]).append(" askelta\n");
         }
         return sb.toString().trim();
+    }
+
+    /** Muuntaa Health Connect -ämpärin ISO-alkupäivän näytettäväksi otsikoksi periodin mukaan:
+     *  päivä → d.M., viikko → "Viikko N" (ISO), kuukausi → kk-nimi + vuosi. */
+    private String hcHistoryLabel(String isoDate, int periodType) {
+        try {
+            java.time.LocalDate d = java.time.LocalDate.parse(isoDate);
+            if (periodType == HealthConnectStepsBridge.PERIOD_WEEKS) {
+                return "Viikko " + d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
+            }
+            if (periodType == HealthConnectStepsBridge.PERIOD_MONTHS) {
+                return StepsHistory.monthNameFi(d.getMonthValue()) + " " + d.getYear();
+            }
+            return d.getDayOfMonth() + "." + d.getMonthValue() + ".";
+        } catch (Exception e) {
+            return isoDate;
+        }
     }
 
     private boolean stepsEnabled() {
@@ -3669,11 +3776,14 @@ public class MobileMainActivity extends AppCompatActivity {
         if (stepsBig != null) stepsBig.setVisibility(today ? View.VISIBLE : View.GONE);
         if (stepsBigLabel != null) stepsBigLabel.setVisibility(today ? View.VISIBLE : View.GONE);
         if (stepsContent != null) stepsContent.setVisibility(today ? View.GONE : View.VISIBLE);
+        if (!today) {
+            if (stepsCalories != null) stepsCalories.setVisibility(View.GONE);
+            if (stepsProfileButton != null) stepsProfileButton.setVisibility(View.GONE);
+        }
         if (today) {
-            if (stepsBig != null) {
-                stepsBig.setText(String.valueOf(
-                        stepCounter != null ? stepCounter.currentTodaySteps() : 0));
-            }
+            int rawToday = stepCounter != null ? stepCounter.currentTodaySteps() : 0;
+            if (stepsBig != null) stepsBig.setText(String.valueOf(rawToday));
+            renderStepsCalories(rawToday);
             refreshHealthConnectToday();
             return;
         }
@@ -3684,9 +3794,10 @@ public class MobileMainActivity extends AppCompatActivity {
                     : (t == 3) ? HealthConnectStepsBridge.PERIOD_MONTHS
                     : HealthConnectStepsBridge.PERIOD_DAYS;
             int count = (t == 2) ? 8 : (t == 3) ? 6 : 14;
+            final int p = period;
             HealthConnectStepsBridge.history(this, period, count, (labels, values) -> {
                 if (destroyed || stepsContent == null || stepsTab != t) return;
-                stepsContent.setText(formatHcHistory(labels, values));
+                stepsContent.setText(formatHcHistory(labels, values, p));
             });
         } else {
             deviceInfoIo.execute(() -> {
