@@ -3606,7 +3606,7 @@ public class MobileMainActivity extends AppCompatActivity {
         // Oma askelarvio näytetään heti (fallback). Jos HC:ssä on kaloridataa, se korvaa rivit.
         stepsCalories.setText(buildCaloriesText(km, activeEst, false, totalEst, false));
         stepsCalories.setVisibility(View.VISIBLE);
-        if (useHealthConnect()) {
+        if (useHealthConnect() && hcCaloriesGranted) {
             HealthConnectStepsBridge.todayCalories(this, (active, total, has) -> {
                 if (destroyed || stepsCalories == null || !has) return;
                 int a = active > 0 ? (int) Math.round(active) : activeEst;
@@ -3700,14 +3700,37 @@ public class MobileMainActivity extends AppCompatActivity {
         });
     }
 
-    private CharSequence formatHcHistory(String[] labels, long[] values, int periodType) {
+    /** HC-historia askelten + kalorien kanssa per ämpäri. Kalorit Health Connectista jos saatavilla,
+     *  muuten oma arvio askelista (profiili) — lähteitä ei summata. */
+    private CharSequence formatHcHistoryWithCalories(String[] labels, long[] steps,
+            double[] active, double[] total, int periodType) {
         if (labels.length == 0) return "Ei vielä askeldataa Health Connectissa.";
+        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        double h = p.getFloat(KEY_PROFILE_HEIGHT, 0f);
+        double w = p.getFloat(KEY_PROFILE_WEIGHT, 0f);
+        double stepCm = p.getFloat(KEY_PROFILE_STEP, 0f);
+        boolean canEstimate = h > 0 && w > 0;
         StringBuilder sb = new StringBuilder();
         for (int i = labels.length - 1; i >= 0; i--) {
-            sb.append(hcHistoryLabel(labels[i], periodType)).append("   ")
-                    .append(values[i]).append(" askelta\n");
+            sb.append(hcHistoryLabel(labels[i], periodType)).append("\n  ")
+                    .append(formatStepsNum(steps[i])).append(" askelta");
+            int a = (int) Math.round(active[i]);
+            int tk = (int) Math.round(total[i]);
+            if (a > 0) {
+                sb.append("\n  aktiiviset ").append(a).append(" kcal");
+                if (tk > 0) sb.append(" · yhteensä ").append(tk).append(" kcal");
+            } else if (canEstimate && steps[i] > 0) {
+                sb.append("\n  aktiiviset ~")
+                        .append(StepCalorieEstimator.activeKcal(steps[i], h, w, stepCm))
+                        .append(" kcal (arvio)");
+            }
+            sb.append("\n\n");
         }
         return sb.toString().trim();
+    }
+
+    private static String formatStepsNum(long steps) {
+        return String.format(java.util.Locale.US, "%,d", steps).replace(',', ' ');
     }
 
     /** Muuntaa Health Connect -ämpärin ISO-alkupäivän näytettäväksi otsikoksi periodin mukaan:
@@ -3848,9 +3871,10 @@ public class MobileMainActivity extends AppCompatActivity {
                     : HealthConnectStepsBridge.PERIOD_DAYS;
             int count = (t == 2) ? 8 : (t == 3) ? 6 : 14;
             final int p = period;
-            HealthConnectStepsBridge.history(this, period, count, (labels, values) -> {
+            HealthConnectStepsBridge.historyWithCalories(this, period, count, hcCaloriesGranted,
+                    (labels, steps, active, total) -> {
                 if (destroyed || stepsContent == null || stepsTab != t) return;
-                stepsContent.setText(formatHcHistory(labels, values, p));
+                stepsContent.setText(formatHcHistoryWithCalories(labels, steps, active, total, p));
             });
         } else {
             deviceInfoIo.execute(() -> {
