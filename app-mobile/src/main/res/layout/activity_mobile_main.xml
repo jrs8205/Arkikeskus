@@ -878,6 +878,16 @@
 
             </LinearLayout>
         </ScrollView>
+
+        <!-- Kelikamerakartta omana näkymänä saman headerin alla. MapView ei voi olla
+             ScrollView:n sisällä, joten tämä on sen sisarus; fragment lisätään lazysti
+             showSection(roadCamerasView)-polulla. -->
+        <FrameLayout
+            android:id="@+id/mobile_road_cameras_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone" />
     </LinearLayout>
 
     <ImageButton

@@ -31,6 +31,7 @@ final class WeathercamRepository {
     private List<WeathercamStation> cache;
     private long fetchedAt = 0L;
     private boolean inFlight = false;
+    private final List<Callback> waiters = new ArrayList<>();
 
     private WeathercamRepository() {}
 
@@ -53,10 +54,13 @@ final class WeathercamRepository {
             return;
         }
         if (inFlight) {
-            if (cached != null) cb.onResult(cached, null);
+            // Jonota callback — haku on jo käynnissä (esim. etusivun esilataus). Ilman
+            // tätä toinen kutsuja (Kelikamerat-sivu) jäisi ilman tulosta jos cache==null.
+            waiters.add(cb);
             return;
         }
         inFlight = true;
+        waiters.add(cb);
         final File cacheFile = new File(ctx.getApplicationContext().getCacheDir(),
                 "weathercam_stations.json");
         io.execute(() -> {
@@ -89,7 +93,10 @@ final class WeathercamRepository {
                     cache = fr;
                     fetchedAt = System.currentTimeMillis();
                 }
-                cb.onResult(cache, (fr == null || fr.isEmpty()) ? fe : null);
+                String err = (fr == null || fr.isEmpty()) ? fe : null;
+                List<Callback> toNotify = new ArrayList<>(waiters);
+                waiters.clear();
+                for (Callback w : toNotify) w.onResult(cache, err);
             });
         });
     }

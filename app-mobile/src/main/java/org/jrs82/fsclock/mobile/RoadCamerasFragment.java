@@ -10,14 +10,18 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.Nullable;
 import androidx.appcompat.content.res.AppCompatResources;
+import androidx.fragment.app.Fragment;
 
 import org.jrs82.fsclock.BuildConfig;
 import org.jrs82.fsclock.R;
@@ -28,10 +32,8 @@ import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 import org.maplibre.android.maps.Style;
 import org.maplibre.android.style.expressions.Expression;
-import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.PropertyFactory;
 import org.maplibre.android.style.layers.SymbolLayer;
-import org.maplibre.android.style.sources.GeoJsonOptions;
 import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
 import org.maplibre.geojson.FeatureCollection;
@@ -45,14 +47,13 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Kelikamerakartta: MapLibre + MML-taustakartta, klusteroidut kamera-markerit,
- *  haku ja iso kamerakuva markeria napauttamalla. */
-public class RoadCamerasActivity extends AppCompatActivity {
+/** Kelikamerakartta sovelluksen sisäisenä näkymänä (MobileMainActivityn pääheaderin alla):
+ *  MapLibre + MML-taustakartta, kaikki kamera-ikonit kerralla, haku ja iso kamerakuva
+ *  markeria napauttamalla. MapView-lifecycle hoidetaan tämän fragmentin elinkaaressa. */
+public class RoadCamerasFragment extends Fragment {
 
     private static final String SRC = "cameras";
     private static final String LAYER_POINTS = "cam-points";
-    private static final String LAYER_CLUSTERS = "cam-clusters";
-    private static final String LAYER_COUNT = "cam-count";
     private static final String ICON_CAM = "cam-icon";
     private static final LatLng FINLAND = new LatLng(64.5, 26.0);
 
@@ -64,25 +65,28 @@ public class RoadCamerasActivity extends AppCompatActivity {
     private ImageView imageBig;
     private TextView imageTitle;
     private TextView statusText;
+    private OnBackPressedCallback backCallback;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
 
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        MobileThemeController.apply(this);
-        getDelegate().setLocalNightMode(MobileThemeController.nightMode(this));
-        MapLibre.getInstance(this);
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_road_cameras);
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        MapLibre.getInstance(requireContext());
+        return inflater.inflate(R.layout.fragment_road_cameras, container, false);
+    }
 
-        findViewById(R.id.cam_back).setOnClickListener(v -> finish());
-        searchField = findViewById(R.id.cam_search);
-        statusText = findViewById(R.id.cam_status);
-        imageOverlay = findViewById(R.id.cam_image_overlay);
-        imageBig = findViewById(R.id.cam_image_big);
-        imageTitle = findViewById(R.id.cam_image_title);
-        findViewById(R.id.cam_image_close).setOnClickListener(v -> hideImage());
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        searchField = view.findViewById(R.id.cam_search);
+        statusText = view.findViewById(R.id.cam_status);
+        imageOverlay = view.findViewById(R.id.cam_image_overlay);
+        imageBig = view.findViewById(R.id.cam_image_big);
+        imageTitle = view.findViewById(R.id.cam_image_title);
+        view.findViewById(R.id.cam_image_close).setOnClickListener(v -> hideImage());
         imageOverlay.setOnClickListener(v -> hideImage());
 
         searchField.addTextChangedListener(new TextWatcher() {
@@ -91,7 +95,14 @@ public class RoadCamerasActivity extends AppCompatActivity {
             @Override public void afterTextChanged(Editable s) { onSearch(s.toString()); }
         });
 
-        mapView = findViewById(R.id.cam_map);
+        // Takaisin-painallus sulkee ison kamerakuvan, jos se on auki (muuten normaali back).
+        backCallback = new OnBackPressedCallback(false) {
+            @Override public void handleOnBackPressed() { hideImage(); }
+        };
+        requireActivity().getOnBackPressedDispatcher()
+                .addCallback(getViewLifecycleOwner(), backCallback);
+
+        mapView = view.findViewById(R.id.cam_map);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(m -> {
             map = m;
@@ -101,9 +112,7 @@ public class RoadCamerasActivity extends AppCompatActivity {
             m.addOnMapClickListener(this::onMapClick);
             m.setStyle(new Style.Builder().fromJson(buildMmlStyleJson()), style -> {
                 source = new GeoJsonSource(SRC,
-                        FeatureCollection.fromFeatures(new ArrayList<>()),
-                        new GeoJsonOptions().withCluster(true)
-                                .withClusterRadius(50).withClusterMaxZoom(11));
+                        FeatureCollection.fromFeatures(new ArrayList<>()));
                 style.addSource(source);
                 addLayers(style);
                 loadCameras();
@@ -114,33 +123,19 @@ public class RoadCamerasActivity extends AppCompatActivity {
     private void addLayers(Style style) {
         style.addImage(ICON_CAM, drawableToBitmap(R.drawable.mobile_ic_camera_marker));
 
+        // Kaikki kamerat näkyvät ikoneina heti (ei klusterointia) — kuten Digitrafficilla;
+        // zoomaaminen vain lähentää. iconAllowOverlap → ikonit eivät katoa päällekkäin.
         SymbolLayer points = new SymbolLayer(LAYER_POINTS, SRC);
         points.setProperties(
                 PropertyFactory.iconImage(ICON_CAM),
                 PropertyFactory.iconAllowOverlap(true),
                 PropertyFactory.iconIgnorePlacement(true),
-                PropertyFactory.iconSize(0.85f));
-        points.setFilter(Expression.not(Expression.has("point_count")));
+                // Ikoni pienenee kaukana (koko Suomi ei tukkoinen) ja kasvaa lähellä.
+                PropertyFactory.iconSize(Expression.interpolate(Expression.linear(), Expression.zoom(),
+                        Expression.stop(4, 0.35f),
+                        Expression.stop(9, 0.7f),
+                        Expression.stop(13, 1.0f))));
         style.addLayer(points);
-
-        CircleLayer clusters = new CircleLayer(LAYER_CLUSTERS, SRC);
-        clusters.setProperties(
-                PropertyFactory.circleColor(0xFF1E88E5),
-                PropertyFactory.circleRadius(18f),
-                PropertyFactory.circleStrokeColor(0xFFFFFFFF),
-                PropertyFactory.circleStrokeWidth(2f));
-        clusters.setFilter(Expression.has("point_count"));
-        style.addLayer(clusters);
-
-        SymbolLayer count = new SymbolLayer(LAYER_COUNT, SRC);
-        count.setProperties(
-                PropertyFactory.textField(Expression.toString(Expression.get("point_count"))),
-                PropertyFactory.textSize(12f),
-                PropertyFactory.textColor(0xFFFFFFFF),
-                PropertyFactory.textIgnorePlacement(true),
-                PropertyFactory.textAllowOverlap(true));
-        count.setFilter(Expression.has("point_count"));
-        style.addLayer(count);
     }
 
     private String buildMmlStyleJson() {
@@ -156,9 +151,16 @@ public class RoadCamerasActivity extends AppCompatActivity {
     }
 
     private void loadCameras() {
-        statusText.setText("Kaikkia kameroita ladataan…");
-        statusText.setVisibility(View.VISIBLE);
-        WeathercamRepository.get().load(this, false, (stations, error) -> {
+        // Näytä ikonit heti, jos asemat ovat jo muistivälimuistissa; täydennä silti load():lla.
+        List<WeathercamStation> ready = WeathercamRepository.get().peek();
+        if (ready != null && !ready.isEmpty()) {
+            updateSource(ready);
+        } else {
+            statusText.setText("Kaikkia kameroita ladataan…");
+            statusText.setVisibility(View.VISIBLE);
+        }
+        WeathercamRepository.get().load(requireContext(), false, (stations, error) -> {
+            if (!isAdded() || statusText == null) return;
             if (stations == null || stations.isEmpty()) {
                 statusText.setText(error != null
                         ? "Kelikameroiden haku epäonnistui." : "Ei kelikameroita.");
@@ -185,11 +187,13 @@ public class RoadCamerasActivity extends AppCompatActivity {
             }
             final FeatureCollection fc = FeatureCollection.fromFeatures(feats);
             ui.post(() -> {
-                if (isFinishing() || isDestroyed() || source == null) return;
+                if (!isAdded() || source == null || statusText == null) return;
                 source.setGeoJson(fc);
                 statusText.setText("Kamerat ladattu");
                 statusText.setVisibility(View.VISIBLE);
-                ui.postDelayed(() -> statusText.setVisibility(View.GONE), 2500);
+                ui.postDelayed(() -> {
+                    if (statusText != null) statusText.setVisibility(View.GONE);
+                }, 2500);
             });
         });
     }
@@ -202,12 +206,6 @@ public class RoadCamerasActivity extends AppCompatActivity {
             Feature f = pts.get(0);
             showImage(f.getStringProperty("presetId"),
                     f.getStringProperty("name"), f.getStringProperty("presetName"));
-            return true;
-        }
-        List<Feature> cl = map.queryRenderedFeatures(screen, LAYER_CLUSTERS);
-        if (!cl.isEmpty()) {
-            double zoom = map.getCameraPosition().zoom + 2.0;
-            map.animateCamera(CameraUpdateFactory.newLatLngZoom(point, zoom));
             return true;
         }
         return false;
@@ -228,11 +226,13 @@ public class RoadCamerasActivity extends AppCompatActivity {
                 ? "" : " · " + presetName));
         imageBig.setImageDrawable(null);
         imageOverlay.setVisibility(View.VISIBLE);
+        if (backCallback != null) backCallback.setEnabled(true);
         final String url = "https://weathercam.digitraffic.fi/" + presetId + ".jpg";
         io.execute(() -> {
             Bitmap bmp = downloadFull(url);
             ui.post(() -> {
-                if (imageOverlay.getVisibility() == View.VISIBLE && bmp != null) {
+                if (imageOverlay != null && imageOverlay.getVisibility() == View.VISIBLE
+                        && bmp != null && imageBig != null) {
                     imageBig.setImageBitmap(bmp);
                 }
             });
@@ -240,8 +240,9 @@ public class RoadCamerasActivity extends AppCompatActivity {
     }
 
     private void hideImage() {
-        imageOverlay.setVisibility(View.GONE);
-        imageBig.setImageDrawable(null);
+        if (imageOverlay != null) imageOverlay.setVisibility(View.GONE);
+        if (imageBig != null) imageBig.setImageDrawable(null);
+        if (backCallback != null) backCallback.setEnabled(false);
     }
 
     /** Lataa täysikokoisen kamerakuvan (ei ImageLoaderin 160 px alinäytteistystä).
@@ -266,7 +267,7 @@ public class RoadCamerasActivity extends AppCompatActivity {
 
     /** Renderöi vektoridrawablen bitmapiksi MapLibren SymbolLayer-ikoniksi. */
     private Bitmap drawableToBitmap(int resId) {
-        Drawable d = AppCompatResources.getDrawable(this, resId);
+        Drawable d = AppCompatResources.getDrawable(requireContext(), resId);
         int w = Math.max(1, d.getIntrinsicWidth());
         int h = Math.max(1, d.getIntrinsicHeight());
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -276,29 +277,38 @@ public class RoadCamerasActivity extends AppCompatActivity {
         return bmp;
     }
 
-    // --- MapView lifecycle ---
-    @Override protected void onStart() { super.onStart(); if (mapView != null) mapView.onStart(); }
-    @Override protected void onResume() { super.onResume(); if (mapView != null) mapView.onResume(); }
-    @Override protected void onPause() { if (mapView != null) mapView.onPause(); super.onPause(); }
-    @Override protected void onStop() { if (mapView != null) mapView.onStop(); super.onStop(); }
+    // --- MapView lifecycle (fragmentin elinkaaressa) ---
+    @Override public void onStart() { super.onStart(); if (mapView != null) mapView.onStart(); }
+    @Override public void onResume() { super.onResume(); if (mapView != null) mapView.onResume(); }
+    @Override public void onPause() { if (mapView != null) mapView.onPause(); super.onPause(); }
+    @Override public void onStop() { if (mapView != null) mapView.onStop(); super.onStop(); }
     @Override public void onLowMemory() { super.onLowMemory(); if (mapView != null) mapView.onLowMemory(); }
 
-    @Override protected void onSaveInstanceState(@NonNull Bundle outState) {
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         if (mapView != null) mapView.onSaveInstanceState(outState);
     }
 
-    @Override protected void onDestroy() {
-        io.shutdownNow();
-        if (mapView != null) mapView.onDestroy();
-        super.onDestroy();
+    @Override
+    public void onDestroyView() {
+        if (mapView != null) {
+            mapView.onDestroy();
+            mapView = null;
+        }
+        map = null;
+        source = null;
+        statusText = null;
+        imageOverlay = null;
+        imageBig = null;
+        imageTitle = null;
+        searchField = null;
+        super.onDestroyView();
     }
 
-    @Override public void onBackPressed() {
-        if (imageOverlay != null && imageOverlay.getVisibility() == View.VISIBLE) {
-            hideImage();
-            return;
-        }
-        super.onBackPressed();
+    @Override
+    public void onDestroy() {
+        io.shutdownNow();
+        super.onDestroy();
     }
 }

@@ -73,13 +73,6 @@
             android:theme="@style/MobileSettingsTheme" />
 
         <activity
-            android:name="org.jrs82.fsclock.mobile.RoadCamerasActivity"
-            android:exported="false"
-            android:label="@string/mobile_widget_road_cameras"
-            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
-            android:theme="@style/MobileTheme" />
-
-        <activity
             android:name="org.jrs82.fsclock.history.HistoryActivity"
             android:exported="false"
             android:label="@string/history_title"
