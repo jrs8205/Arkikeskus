@@ -23,6 +23,12 @@ final class StepsHistory {
 
     private StepsHistory() {}
 
+    /** Suomenkielinen kuukauden nimi (1 = tammikuu). Jaettu HC-historian otsikoinnin kanssa. */
+    static String monthNameFi(int monthValue) {
+        if (monthValue < 1 || monthValue > 12) return "?";
+        return MONTHS_FI[monthValue - 1];
+    }
+
     static CharSequence build(Context ctx, int tab) {
         FsClockDb db = FsClockDb.get(ctx);
         Calendar now = Calendar.getInstance();

@@ -1324,6 +1324,31 @@
                         android:textColor="@color/mobile_text_muted"
                         android:textSize="14sp" />
 
+                    <TextView
+                        android:id="@+id/mobile_steps_calories"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:background="@drawable/mobile_card_bg"
+                        android:lineSpacingExtra="3dp"
+                        android:padding="14dp"
+                        android:textColor="@color/mobile_text_body"
+                        android:textSize="15sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/mobile_steps_profile"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/mobile_menu_item_bg"
+                        android:gravity="center"
+                        android:text="Lisää pituus ja paino kaloriarviota varten"
+                        android:textColor="@color/mobile_accent"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
