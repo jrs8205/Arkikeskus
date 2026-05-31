@@ -97,6 +97,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private static final int DEVINFO_LOCATION_REQUEST = 7108;
     private static final int DEVINFO_CELLULAR_REQUEST = 7109;
     private static final int DEVINFO_SIM_REQUEST = 7110;
+    private static final int STEPS_PERMISSION_REQUEST = 7111;
     private static final long TOMORROW_PRICE_POLL_MS = 10L * 60_000L;
     private static final long MIN_AUTO_REFRESH_MS = 5L * 60_000L;
     private static final long MAX_AUTO_REFRESH_MS = 180L * 60_000L;
@@ -284,6 +285,21 @@ public class MobileMainActivity extends AppCompatActivity {
     private TextView devInfoSimPerm;
     private final java.util.concurrent.ExecutorService deviceInfoIo =
             java.util.concurrent.Executors.newSingleThreadExecutor();
+    private StepCounter stepCounter;
+    private View stepsCard;
+    private TextView stepsWidgetToday;
+    private TextView stepsWidgetNote;
+    private View stepsView;
+    private androidx.appcompat.widget.SwitchCompat stepsSwitch;
+    private TextView stepsNote;
+    private TextView stepsBig;
+    private TextView stepsBigLabel;
+    private TextView stepsContent;
+    private TextView stepsTabToday;
+    private TextView stepsTabDays;
+    private TextView stepsTabWeeks;
+    private TextView stepsTabMonths;
+    private int stepsTab = 0;
     private GpsSpeedometerView gpsSpeedometerWidget;
     private GpsSpeedometerView gpsSpeedometerFull;
     private TextView gpsSpeedDigital;
@@ -521,6 +537,7 @@ public class MobileMainActivity extends AppCompatActivity {
         scheduleTomorrowPricePolling();
         scheduleAutoRefresh();
         updateGpsListenerState();
+        maybeStartStepCounter();
     }
 
     private boolean shouldAutoRefreshNow() {
@@ -542,6 +559,7 @@ public class MobileMainActivity extends AppCompatActivity {
         main.removeCallbacks(autoRefreshTick);
         main.removeCallbacks(placeSearchDebounce);
         stopGpsSpeedListener();
+        if (stepCounter != null) stepCounter.stop();
         super.onStop();
     }
 
@@ -587,6 +605,26 @@ public class MobileMainActivity extends AppCompatActivity {
         devInfoCellularPerm = findViewById(R.id.mobile_devinfo_cellular_perm);
         devInfoSim = findViewById(R.id.mobile_devinfo_sim);
         devInfoSimPerm = findViewById(R.id.mobile_devinfo_sim_perm);
+        stepsCard = findViewById(R.id.mobile_steps_card);
+        stepsWidgetToday = findViewById(R.id.mobile_steps_widget_today);
+        stepsWidgetNote = findViewById(R.id.mobile_steps_widget_note);
+        stepsView = findViewById(R.id.mobile_steps_view);
+        stepsSwitch = findViewById(R.id.mobile_steps_switch);
+        stepsNote = findViewById(R.id.mobile_steps_note);
+        stepsBig = findViewById(R.id.mobile_steps_big);
+        stepsBigLabel = findViewById(R.id.mobile_steps_big_label);
+        stepsContent = findViewById(R.id.mobile_steps_content);
+        stepsTabToday = findViewById(R.id.mobile_steps_tab_today);
+        stepsTabDays = findViewById(R.id.mobile_steps_tab_days);
+        stepsTabWeeks = findViewById(R.id.mobile_steps_tab_weeks);
+        stepsTabMonths = findViewById(R.id.mobile_steps_tab_months);
+        stepCounter = new StepCounter(this);
+        stepCounter.setListener(steps -> {
+            if (stepsWidgetToday != null && stepsEnabled()) {
+                stepsWidgetToday.setText(String.valueOf(steps));
+            }
+            if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
+        });
         gpsSpeedometerWidget = findViewById(R.id.mobile_gps_speedometer);
         gpsSpeedometerFull = findViewById(R.id.mobile_speedometer_full);
         gpsSpeedDigital = findViewById(R.id.mobile_gps_speed_digital);
@@ -803,6 +841,23 @@ public class MobileMainActivity extends AppCompatActivity {
             closeDrawer();
             showSpeedometer();
         });
+        findViewById(R.id.mobile_nav_steps).setOnClickListener(v -> {
+            closeDrawer();
+            showSteps();
+        });
+        if (stepsCard != null) {
+            stepsCard.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                showSteps();
+            });
+        }
+        if (stepsSwitch != null) {
+            stepsSwitch.setOnClickListener(v -> onStepsToggle(stepsSwitch.isChecked()));
+        }
+        if (stepsTabToday != null) stepsTabToday.setOnClickListener(v -> selectStepsTab(0));
+        if (stepsTabDays != null) stepsTabDays.setOnClickListener(v -> selectStepsTab(1));
+        if (stepsTabWeeks != null) stepsTabWeeks.setOnClickListener(v -> selectStepsTab(2));
+        if (stepsTabMonths != null) stepsTabMonths.setOnClickListener(v -> selectStepsTab(3));
         findViewById(R.id.mobile_nav_device_info).setOnClickListener(v -> {
             closeDrawer();
             showDeviceInfo();
@@ -1457,6 +1512,11 @@ public class MobileMainActivity extends AppCompatActivity {
             newsCard.setVisibility(prefs.getBoolean(
                     MobileThemeController.KEY_SHOW_NEWS_WIDGET, true) ? View.VISIBLE : View.GONE);
         }
+        if (stepsCard != null) {
+            stepsCard.setVisibility(prefs.getBoolean(
+                    MobileThemeController.KEY_SHOW_STEPS_WIDGET, false) ? View.VISIBLE : View.GONE);
+        }
+        renderStepsWidget();
         applyNewsFeedWidgetVisibility(prefs);
         applyHomeWidgetOrder();
         renderTrafficWidget();
@@ -1540,6 +1600,7 @@ public class MobileMainActivity extends AppCompatActivity {
         if (MobileThemeController.WIDGET_SENSORS.equals(id)) return sensorsCard;
         if (MobileThemeController.WIDGET_TRAFFIC.equals(id)) return trafficCard;
         if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) return gpsSpeedCard;
+        if (MobileThemeController.WIDGET_STEPS.equals(id)) return stepsCard;
         if (MobileThemeController.WIDGET_NEWS.equals(id)) return newsCard;
         if (MobileThemeController.isNewsFeedWidget(id)) return newsFeedCard(id);
         return null;
@@ -3319,6 +3380,9 @@ public class MobileMainActivity extends AppCompatActivity {
         if (deviceInfoView != null) {
             deviceInfoView.setVisibility(section == deviceInfoView ? View.VISIBLE : View.GONE);
         }
+        if (stepsView != null) {
+            stepsView.setVisibility(section == stepsView ? View.VISIBLE : View.GONE);
+        }
         if (newsView != null) {
             newsView.setVisibility(section == newsView ? View.VISIBLE : View.GONE);
         }
@@ -3357,6 +3421,117 @@ public class MobileMainActivity extends AppCompatActivity {
     private void showDeviceInfo() {
         showSection(deviceInfoView, "Puhelimen tiedot");
         renderDeviceInfo();
+    }
+
+    private void showSteps() {
+        showSection(stepsView, "Askeleet");
+        updateStepsSwitch();
+        renderStepsWidget();
+        selectStepsTab(stepsTab);
+        maybeStartStepCounter();
+    }
+
+    private boolean stepsEnabled() {
+        return PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean(MobileThemeController.KEY_STEPS_ENABLED, false);
+    }
+
+    private void setStepsEnabled(boolean on) {
+        PreferenceManager.getDefaultSharedPreferences(this).edit()
+                .putBoolean(MobileThemeController.KEY_STEPS_ENABLED, on).apply();
+    }
+
+    private void maybeStartStepCounter() {
+        if (stepCounter != null && stepCounter.isAvailable() && stepsEnabled()) {
+            stepCounter.start();
+        }
+    }
+
+    private void onStepsToggle(boolean on) {
+        if (stepCounter == null || !stepCounter.isAvailable()) {
+            updateStepsSwitch();
+            return;
+        }
+        if (on) {
+            if (ActivityCompat.checkSelfPermission(this,
+                    Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACTIVITY_RECOGNITION},
+                        STEPS_PERMISSION_REQUEST);
+                return; // jatketaan onRequestPermissionsResultissa
+            }
+            setStepsEnabled(true);
+            stepCounter.start();
+        } else {
+            setStepsEnabled(false);
+            stepCounter.stop();
+        }
+        updateStepsSwitch();
+        renderStepsWidget();
+    }
+
+    private void updateStepsSwitch() {
+        if (stepsSwitch == null) return;
+        boolean available = stepCounter != null && stepCounter.isAvailable();
+        boolean enabled = stepsEnabled() && available;
+        stepsSwitch.setEnabled(available);
+        stepsSwitch.setChecked(enabled);
+        if (stepsNote != null) {
+            if (!available) {
+                stepsNote.setText("Tässä laitteessa ei ole askelanturia, joten askelmittaria ei "
+                        + "voi ottaa käyttöön.");
+                stepsNote.setVisibility(View.VISIBLE);
+            } else if (!enabled) {
+                stepsNote.setText("Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet.");
+                stepsNote.setVisibility(View.VISIBLE);
+            } else {
+                stepsNote.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private void selectStepsTab(int tab) {
+        stepsTab = tab;
+        if (stepsTabToday != null) stepsTabToday.setSelected(tab == 0);
+        if (stepsTabDays != null) stepsTabDays.setSelected(tab == 1);
+        if (stepsTabWeeks != null) stepsTabWeeks.setSelected(tab == 2);
+        if (stepsTabMonths != null) stepsTabMonths.setSelected(tab == 3);
+        boolean today = (tab == 0);
+        if (stepsBig != null) stepsBig.setVisibility(today ? View.VISIBLE : View.GONE);
+        if (stepsBigLabel != null) stepsBigLabel.setVisibility(today ? View.VISIBLE : View.GONE);
+        if (stepsContent != null) stepsContent.setVisibility(today ? View.GONE : View.VISIBLE);
+        if (today) {
+            if (stepsBig != null) {
+                stepsBig.setText(String.valueOf(
+                        stepCounter != null ? stepCounter.currentTodaySteps() : 0));
+            }
+        } else {
+            final int t = tab;
+            if (stepsContent != null) stepsContent.setText("Ladataan…");
+            deviceInfoIo.execute(() -> {
+                final CharSequence text = StepsHistory.build(this, t);
+                main.post(() -> {
+                    if (!destroyed && stepsContent != null && stepsTab == t) {
+                        stepsContent.setText(text);
+                    }
+                });
+            });
+        }
+    }
+
+    private void renderStepsWidget() {
+        if (stepsWidgetToday == null) return;
+        boolean available = stepCounter != null && stepCounter.isAvailable();
+        if (!available) {
+            stepsWidgetToday.setText("–");
+            if (stepsWidgetNote != null) stepsWidgetNote.setText("ei askelanturia");
+        } else if (!stepsEnabled()) {
+            stepsWidgetToday.setText("0");
+            if (stepsWidgetNote != null) stepsWidgetNote.setText("napauta ja ota käyttöön");
+        } else {
+            stepsWidgetToday.setText(String.valueOf(stepCounter.currentTodaySteps()));
+            if (stepsWidgetNote != null) stepsWidgetNote.setText("askelta tänään");
+        }
     }
 
     /** Lukee laitetiedot taustasäikeessä ja päivittää lohkot. WiFi-lupapainike näytetään,
@@ -3866,6 +4041,17 @@ public class MobileMainActivity extends AppCompatActivity {
         if (requestCode == DEVINFO_LOCATION_REQUEST || requestCode == DEVINFO_CELLULAR_REQUEST
                 || requestCode == DEVINFO_SIM_REQUEST) {
             renderDeviceInfo();
+            return;
+        }
+        if (requestCode == STEPS_PERMISSION_REQUEST) {
+            boolean granted = permissionGranted(permissions, grantResults,
+                    Manifest.permission.ACTIVITY_RECOGNITION);
+            if (granted && stepCounter != null) {
+                setStepsEnabled(true);
+                stepCounter.start();
+            }
+            updateStepsSwitch();
+            renderStepsWidget();
             return;
         }
         if (requestCode != LOCATION_PERMISSION_REQUEST) return;

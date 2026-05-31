@@ -105,6 +105,7 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
         all.add(MobileThemeController.WIDGET_SENSORS);
         all.add(MobileThemeController.WIDGET_TRAFFIC);
         all.add(MobileThemeController.WIDGET_GPS_SPEED);
+        all.add(MobileThemeController.WIDGET_STEPS);
         all.add(MobileThemeController.WIDGET_NEWS);
         for (NewsFeed feed : NewsFeedStore.allFeeds(prefs)) {
             all.add(feed.widgetId());
@@ -156,6 +157,9 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
         if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) {
             return MobileThemeController.KEY_SHOW_GPS_SPEED_WIDGET;
         }
+        if (MobileThemeController.WIDGET_STEPS.equals(id)) {
+            return MobileThemeController.KEY_SHOW_STEPS_WIDGET;
+        }
         if (MobileThemeController.WIDGET_NEWS.equals(id)) {
             return MobileThemeController.KEY_SHOW_NEWS_WIDGET;
         }
@@ -168,6 +172,7 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
 
     private boolean defaultVisible(String id) {
         if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)
+                || MobileThemeController.WIDGET_STEPS.equals(id)
                 || MobileThemeController.isNewsFeedWidget(id)) {
             return false;
         }
@@ -187,6 +192,7 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
         if (MobileThemeController.WIDGET_SENSORS.equals(id)) return getString(R.string.mobile_widget_sensors);
         if (MobileThemeController.WIDGET_TRAFFIC.equals(id)) return getString(R.string.mobile_widget_traffic);
         if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) return getString(R.string.mobile_widget_gps_speed);
+        if (MobileThemeController.WIDGET_STEPS.equals(id)) return "Askeleet";
         if (MobileThemeController.WIDGET_NEWS.equals(id)) return getString(R.string.mobile_widget_news);
         if (MobileThemeController.isNewsFeedWidget(id)) {
             NewsFeed feed = NewsFeedStore.feedById(prefs,
