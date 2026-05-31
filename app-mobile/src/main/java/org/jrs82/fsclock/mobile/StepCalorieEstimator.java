@@ -25,12 +25,14 @@ final class StepCalorieEstimator {
         return (int) Math.round(0.5 * weightKg * distanceKm(steps, heightCm, customStepCm));
     }
 
-    /** Perusaineenvaihdunta (Mifflin-St Jeor). sex: "female" → naisen kaava, muuten miehen. */
+    /** Perusaineenvaihdunta (Mifflin-St Jeor). Vaatii sukupuolen: "female" → naisen kaava,
+     *  "male" → miehen. Muuten 0 — ei oleteta miestä, jottei kokonaisarvio ole harhaanjohtava. */
     static int bmr(double weightKg, double heightCm, int age, String sex) {
         if (weightKg <= 0 || heightCm <= 0 || age <= 0) return 0;
         double base = 10.0 * weightKg + 6.25 * heightCm - 5.0 * age;
         if ("female".equals(sex)) return (int) Math.round(base - 161.0);
-        return (int) Math.round(base + 5.0);
+        if ("male".equals(sex)) return (int) Math.round(base + 5.0);
+        return 0;
     }
 
     /** Päivän kokonaisarvio = BMR + aktiiviset askelkalorit. 0 jos BMR:ää ei voida laskea. */

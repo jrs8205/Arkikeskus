@@ -310,6 +310,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private boolean stepsRefreshInFlight = false;
     private TextView stepsCalories;
     private TextView stepsProfileButton;
+    private long lastTodaySteps = 0L;
     private static final String KEY_PROFILE_SEX = "mobile_profile_sex";
     private static final String KEY_PROFILE_AGE = "mobile_profile_age";
     private static final String KEY_PROFILE_HEIGHT = "mobile_profile_height_cm";
@@ -3522,6 +3523,7 @@ public class MobileMainActivity extends AppCompatActivity {
                     stepsRefreshButton.setText("Päivitä Health Connectista");
                 }
                 if (steps >= 0) {
+                    lastTodaySteps = steps;
                     if (stepsWidgetToday != null) stepsWidgetToday.setText(String.valueOf(steps));
                     if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
                     renderStepsCalories(steps);
@@ -3538,6 +3540,7 @@ public class MobileMainActivity extends AppCompatActivity {
         // Raw fallback: arvo tulee anturitapahtumista, mutta UI virkistetään.
         if (stepCounter != null) {
             int steps = stepCounter.currentTodaySteps();
+            lastTodaySteps = steps;
             if (stepsWidgetToday != null) stepsWidgetToday.setText(String.valueOf(steps));
             if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
             renderStepsCalories(steps);
@@ -3573,22 +3576,54 @@ public class MobileMainActivity extends AppCompatActivity {
         int age = p.getInt(KEY_PROFILE_AGE, 0);
         String sex = p.getString(KEY_PROFILE_SEX, "");
         double stepCm = p.getFloat(KEY_PROFILE_STEP, 0f);
+        // Profiilipainike pidetään aina näkyvissä, jotta painoa/pituutta voi myöhemmin muokata.
         if (h <= 0 || w <= 0) {
             stepsCalories.setVisibility(View.GONE);
-            if (stepsProfileButton != null) stepsProfileButton.setVisibility(View.VISIBLE);
+            if (stepsProfileButton != null) {
+                stepsProfileButton.setVisibility(View.VISIBLE);
+                stepsProfileButton.setText("Lisää pituus ja paino kaloriarviota varten");
+            }
             return;
         }
-        if (stepsProfileButton != null) stepsProfileButton.setVisibility(View.GONE);
-        double km = StepCalorieEstimator.distanceKm(steps, h, stepCm);
-        int active = StepCalorieEstimator.activeKcal(steps, h, w, stepCm);
-        int total = StepCalorieEstimator.totalDailyKcal(StepCalorieEstimator.bmr(w, h, age, sex), active);
+        if (stepsProfileButton != null) {
+            stepsProfileButton.setVisibility(View.VISIBLE);
+            stepsProfileButton.setText("Muokkaa profiilia");
+        }
+        final double km = StepCalorieEstimator.distanceKm(steps, h, stepCm);
+        final int activeEst = StepCalorieEstimator.activeKcal(steps, h, w, stepCm);
+        final int totalEst = StepCalorieEstimator.totalDailyKcal(
+                StepCalorieEstimator.bmr(w, h, age, sex), activeEst);
+        // Oma askelarvio näytetään heti (fallback). Jos HC:ssä on kaloridataa, se korvaa rivit.
+        stepsCalories.setText(buildCaloriesText(km, activeEst, false, totalEst, false));
+        stepsCalories.setVisibility(View.VISIBLE);
+        if (useHealthConnect()) {
+            HealthConnectStepsBridge.todayCalories(this, (active, total, has) -> {
+                if (destroyed || stepsCalories == null || !has) return;
+                int a = active > 0 ? (int) Math.round(active) : activeEst;
+                int t = total > 0 ? (int) Math.round(total) : totalEst;
+                stepsCalories.setText(buildCaloriesText(km, a, active > 0, t, total > 0));
+            });
+        }
+    }
+
+    /** Rakentaa kalori-tekstin. activeIsHc/totalIsHc = arvo Health Connectista (muuten oma arvio).
+     *  Lähteitä EI summata: kumpikin rivi näyttää joko HC-arvon tai arvion. */
+    private CharSequence buildCaloriesText(double km, int active, boolean activeIsHc,
+                                           int total, boolean totalIsHc) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format(java.util.Locale.US, "Matka-arvio: %.1f km", km).replace('.', ','));
-        sb.append("\nAktiivinen kulutus: noin ").append(active).append(" kcal");
-        if (total > 0) sb.append("\nPäivän kokonaisarvio: noin ").append(total).append(" kcal");
-        sb.append("\nArvio perustuu askeliin, painoon ja pituuteen.");
-        stepsCalories.setText(sb);
-        stepsCalories.setVisibility(View.VISIBLE);
+        sb.append("\nAktiivinen kulutus: ");
+        if (activeIsHc) sb.append(active).append(" kcal (Health Connect)");
+        else sb.append("noin ").append(active).append(" kcal (arvio)");
+        if (total > 0) {
+            if (totalIsHc) {
+                sb.append("\nPäivän kokonaiskulutus: ").append(total).append(" kcal (Health Connect)");
+            } else {
+                sb.append("\nPäivän kokonaisarvio: noin ").append(total).append(" kcal");
+            }
+        }
+        sb.append("\nKalorit: ").append((activeIsHc || totalIsHc) ? "Health Connect" : "Arkikeskus-arvio");
+        return sb;
     }
 
     private void showProfileDialog() {
@@ -3646,10 +3681,12 @@ public class MobileMainActivity extends AppCompatActivity {
         if (!useHealthConnect()) return;
         HealthConnectStepsBridge.todaySteps(this, steps -> {
             if (destroyed || steps < 0) return;
+            lastTodaySteps = steps;
             if (stepsWidgetToday != null && stepsEnabled()) {
                 stepsWidgetToday.setText(String.valueOf(steps));
             }
             if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
+            if (stepsTab == 0) renderStepsCalories(steps);
         });
     }
 
@@ -3781,9 +3818,12 @@ public class MobileMainActivity extends AppCompatActivity {
             if (stepsProfileButton != null) stepsProfileButton.setVisibility(View.GONE);
         }
         if (today) {
-            int rawToday = stepCounter != null ? stepCounter.currentTodaySteps() : 0;
-            if (stepsBig != null) stepsBig.setText(String.valueOf(rawToday));
-            renderStepsCalories(rawToday);
+            // HC-tilassa raw-anturi voi olla 0 → käytä viimeisintä tunnettua HC-lukua, jotta kalorit
+            // eivät katoa välilehteä vaihtaessa; refreshHealthConnectToday vahvistaa async.
+            long todaySteps = useHealthConnect() ? lastTodaySteps
+                    : (stepCounter != null ? stepCounter.currentTodaySteps() : 0);
+            if (stepsBig != null) stepsBig.setText(String.valueOf(todaySteps));
+            renderStepsCalories(todaySteps);
             refreshHealthConnectToday();
             return;
         }
