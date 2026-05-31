@@ -1269,6 +1269,19 @@
                         android:visibility="gone" />
 
                     <TextView
+                        android:id="@+id/mobile_steps_hc_connect"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/mobile_menu_item_bg"
+                        android:gravity="center"
+                        android:text="Yhdistä Health Connect"
+                        android:textColor="@color/mobile_accent"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                    <TextView
                         android:id="@+id/mobile_steps_big"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

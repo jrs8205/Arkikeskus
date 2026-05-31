@@ -303,6 +303,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private androidx.activity.result.ActivityResultLauncher<java.util.Set<String>> hcLauncher;
     private boolean hcAvailable;
     private boolean hcGranted;
+    private TextView stepsHcConnect;
     private GpsSpeedometerView gpsSpeedometerWidget;
     private GpsSpeedometerView gpsSpeedometerFull;
     private TextView gpsSpeedDigital;
@@ -648,6 +649,7 @@ public class MobileMainActivity extends AppCompatActivity {
         stepsTabDays = findViewById(R.id.mobile_steps_tab_days);
         stepsTabWeeks = findViewById(R.id.mobile_steps_tab_weeks);
         stepsTabMonths = findViewById(R.id.mobile_steps_tab_months);
+        stepsHcConnect = findViewById(R.id.mobile_steps_hc_connect);
         stepCounter = new StepCounter(this);
         stepCounter.setListener(steps -> {
             if (stepsWidgetToday != null && stepsEnabled()) {
@@ -888,6 +890,15 @@ public class MobileMainActivity extends AppCompatActivity {
         if (stepsTabDays != null) stepsTabDays.setOnClickListener(v -> selectStepsTab(1));
         if (stepsTabWeeks != null) stepsTabWeeks.setOnClickListener(v -> selectStepsTab(2));
         if (stepsTabMonths != null) stepsTabMonths.setOnClickListener(v -> selectStepsTab(3));
+        if (stepsHcConnect != null) {
+            stepsHcConnect.setOnClickListener(v -> {
+                if (hcLauncher != null) {
+                    setStepsEnabled(true);
+                    hcLauncher.launch(new java.util.HashSet<>(
+                            java.util.Arrays.asList(HealthConnectStepsBridge.permissions())));
+                }
+            });
+        }
         findViewById(R.id.mobile_nav_device_info).setOnClickListener(v -> {
             closeDrawer();
             showDeviceInfo();
@@ -3549,6 +3560,9 @@ public class MobileMainActivity extends AppCompatActivity {
         boolean enabled = stepsEnabled() && available;
         stepsSwitch.setEnabled(available);
         stepsSwitch.setChecked(enabled);
+        if (stepsHcConnect != null) {
+            stepsHcConnect.setVisibility(hcAvailable && !hcGranted ? View.VISIBLE : View.GONE);
+        }
         if (stepsNote == null) return;
         stepsNote.setVisibility(View.VISIBLE);
         if (!available) {
