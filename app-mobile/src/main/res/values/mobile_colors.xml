@@ -5,16 +5,16 @@
     <color name="mobile_toolbar_bg">#EAF2FF</color>
     <color name="mobile_nav_surface">#E4EAF2</color>
     <color name="mobile_drawer_bg">#FFFFFF</color>
-    <color name="mobile_card_stroke">#E2E8F0</color>
+    <color name="mobile_card_stroke">#CBD5E1</color>
     <color name="mobile_menu_pressed">#E6EEF9</color>
     <color name="mobile_scrim">#66000000</color>
     <color name="mobile_text_primary">#111827</color>
     <color name="mobile_text_body">#374151</color>
     <color name="mobile_text_secondary">#4B5563</color>
-    <color name="mobile_text_muted">#6B7280</color>
-    <color name="mobile_accent">#2563EB</color>
-    <color name="mobile_warning_yellow">#B57F00</color>
-    <color name="mobile_warning_orange">#C56812</color>
+    <color name="mobile_text_muted">#55606E</color>
+    <color name="mobile_accent">#1D4ED8</color>
+    <color name="mobile_warning_yellow">#8A6200</color>
+    <color name="mobile_warning_orange">#A14E10</color>
     <color name="mobile_warning_red">#C12018</color>
     <bool name="mobile_light_status_bar">true</bool>
 </resources>
