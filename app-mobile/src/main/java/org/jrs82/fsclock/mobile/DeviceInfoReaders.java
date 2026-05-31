@@ -27,6 +27,8 @@ import android.telephony.CellSignalStrength;
 import android.telephony.CellSignalStrengthLte;
 import android.telephony.CellSignalStrengthNr;
 import android.telephony.SignalStrength;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.view.Display;
@@ -345,6 +347,79 @@ final class DeviceInfoReaders {
         } catch (Exception ignored) { }
 
         return trimmed(sb, "Mobiiliverkon tietoja ei saatu.");
+    }
+
+    // ---- SIM / liittymät (best-effort; vaatii READ_PHONE_STATE; ei IMEI/IMSI Android 10+) ----
+    static CharSequence sim(Context ctx) {
+        PackageManager pm = ctx.getPackageManager();
+        if (pm == null || !pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) {
+            return "Laitteessa ei ole SIM-tukea.";
+        }
+        SubscriptionManager sm = (SubscriptionManager)
+                ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        if (sm == null) return "SIM-tietoja ei saatu.";
+        int dataSub = defaultSubId(0), voiceSub = defaultSubId(1), smsSub = defaultSubId(2);
+        StringBuilder sb = new StringBuilder();
+        try {
+            List<SubscriptionInfo> subs = sm.getActiveSubscriptionInfoList();
+            if (subs == null || subs.isEmpty()) {
+                sb.append("Ei aktiivisia SIM-liittymiä.");
+            } else {
+                int n = 0;
+                for (SubscriptionInfo s : subs) {
+                    if (n > 0) sb.append('\n');
+                    n++;
+                    CharSequence carrier = s.getCarrierName();
+                    CharSequence disp = s.getDisplayName();
+                    sb.append("SIM ").append(n).append(": ")
+                            .append(carrier != null ? carrier : "?");
+                    if (disp != null && !disp.toString().equals(String.valueOf(carrier))) {
+                        sb.append("  (").append(disp).append(")");
+                    }
+                    sb.append('\n');
+                    row(sb, "  Tyyppi", s.isEmbedded() ? "eSIM" : "fyysinen SIM");
+                    row(sb, "  Slotti", String.valueOf(s.getSimSlotIndex()));
+                    String mcc = s.getMccString();
+                    String mnc = s.getMncString();
+                    if (mcc != null && mnc != null) row(sb, "  MCC/MNC", mcc + " / " + mnc);
+                    if (!TextUtils.isEmpty(s.getCountryIso())) {
+                        row(sb, "  Maa", s.getCountryIso().toUpperCase(Locale.ROOT));
+                    }
+                    row(sb, "  Roaming", s.getDataRoaming() == SubscriptionManager.DATA_ROAMING_ENABLE
+                            ? "sallittu" : "estetty");
+                    int subId = s.getSubscriptionId();
+                    StringBuilder roles = new StringBuilder();
+                    if (subId == dataSub) roles.append("data");
+                    if (subId == voiceSub) {
+                        if (roles.length() > 0) roles.append(", ");
+                        roles.append("puhelut");
+                    }
+                    if (subId == smsSub) {
+                        if (roles.length() > 0) roles.append(", ");
+                        roles.append("SMS");
+                    }
+                    if (roles.length() > 0) row(sb, "  Oletus", roles.toString());
+                }
+            }
+        } catch (SecurityException e) {
+            return "SIM-tiedot vaativat puhelimen tila -luvan.";
+        } catch (Exception e) {
+            return "SIM-tietoja ei saatu.";
+        }
+        sb.append("\n\nIMEI / sarjanumero: ei saatavilla (Android 10+ rajoitus)");
+        return trimmed(sb, "SIM-tietoja ei saatu.");
+    }
+
+    private static int defaultSubId(int which) {
+        try {
+            switch (which) {
+                case 0: return SubscriptionManager.getActiveDataSubscriptionId();
+                case 1: return SubscriptionManager.getDefaultVoiceSubscriptionId();
+                default: return SubscriptionManager.getDefaultSmsSubscriptionId();
+            }
+        } catch (Throwable t) {
+            return -1;
+        }
     }
 
     private static boolean valid(int v) {
