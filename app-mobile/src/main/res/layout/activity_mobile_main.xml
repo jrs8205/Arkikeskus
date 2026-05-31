@@ -482,32 +482,6 @@
                             android:textSize="12sp" />
                     </LinearLayout>
 
-                    <LinearLayout
-                        android:id="@+id/mobile_road_cameras_card"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:background="@drawable/mobile_card_bg"
-                        android:orientation="vertical"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Kelikamerat  ›"
-                            android:textColor="@color/mobile_text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="Selaa kelikameroita kartalta — napauta avataksesi."
-                            android:textColor="@color/mobile_text_body"
-                            android:textSize="15sp" />
-                    </LinearLayout>
-
                     <TextView
                         android:id="@+id/mobile_status"
                         android:layout_width="match_parent"

@@ -1,8 +1,13 @@
 package org.jrs82.fsclock.mobile;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +45,7 @@ final class WeathercamRepository {
 
     /** Palauttaa välimuistin heti jos tuore; muuten hakee taustalla ja kutsuu callbackin
      *  pääsäikeessä. */
-    void load(boolean forced, Callback cb) {
+    void load(Context ctx, boolean forced, Callback cb) {
         List<WeathercamStation> cached = cache;
         boolean fresh = cached != null && (System.currentTimeMillis() - fetchedAt) < TTL_MS;
         if (!forced && fresh) {
@@ -52,13 +57,29 @@ final class WeathercamRepository {
             return;
         }
         inFlight = true;
+        final File cacheFile = new File(ctx.getApplicationContext().getCacheDir(),
+                "weathercam_stations.json");
         io.execute(() -> {
             List<WeathercamStation> result = null;
             String error = null;
-            try {
-                result = WeathercamClient.fetchStations();
-            } catch (Exception e) {
-                error = e.getMessage();
+            // 1) Levycache, jos tuore — ei verkkohakua joka sovelluskäynnistyksellä.
+            if (!forced && cacheFile.exists()
+                    && (System.currentTimeMillis() - cacheFile.lastModified()) < TTL_MS) {
+                try {
+                    result = WeathercamClient.parseStations(readFile(cacheFile));
+                } catch (Exception ignored) {
+                    result = null;
+                }
+            }
+            // 2) Muuten verkosta ja talleta levylle seuraavaa käynnistystä varten.
+            if (result == null || result.isEmpty()) {
+                try {
+                    String raw = WeathercamClient.fetchRawStations();
+                    result = WeathercamClient.parseStations(raw);
+                    if (result != null && !result.isEmpty()) writeFile(cacheFile, raw);
+                } catch (Exception e) {
+                    error = e.getMessage();
+                }
             }
             final List<WeathercamStation> fr = result;
             final String fe = error;
@@ -123,5 +144,22 @@ final class WeathercamRepository {
                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
                 * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private static String readFile(File f) throws Exception {
+        try (FileInputStream in = new FileInputStream(f);
+             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) bos.write(buf, 0, n);
+            return bos.toString("UTF-8");
+        }
+    }
+
+    private static void writeFile(File f, String data) {
+        try (FileOutputStream out = new FileOutputStream(f)) {
+            out.write(data.getBytes("UTF-8"));
+        } catch (Exception ignored) {
+        }
     }
 }

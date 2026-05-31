@@ -27,7 +27,17 @@ final class WeathercamClient {
     /** Kaikki julkiset kelikamera-asemat. Lista muuttuu harvoin → välimuistita pitkään
      *  (ks. {@link WeathercamRepository}). */
     static List<WeathercamStation> fetchStations() throws Exception {
-        JSONObject root = new JSONObject(httpGet(STATIONS_URL));
+        return parseStations(httpGet(STATIONS_URL));
+    }
+
+    /** Hakee raa'an GeoJSON-vastauksen levycachea varten (ks. {@link WeathercamRepository}). */
+    static String fetchRawStations() throws Exception {
+        return httpGet(STATIONS_URL);
+    }
+
+    /** Jäsentää asemat GeoJSONista — sama data tulee joko verkosta tai levycachelta. */
+    static List<WeathercamStation> parseStations(String json) throws Exception {
+        JSONObject root = new JSONObject(json);
         JSONArray features = root.optJSONArray("features");
         List<WeathercamStation> out = new ArrayList<>();
         if (features == null) return out;
