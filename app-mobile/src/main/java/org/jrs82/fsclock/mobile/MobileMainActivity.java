@@ -300,6 +300,9 @@ public class MobileMainActivity extends AppCompatActivity {
     private TextView stepsTabWeeks;
     private TextView stepsTabMonths;
     private int stepsTab = 0;
+    private androidx.activity.result.ActivityResultLauncher<java.util.Set<String>> hcLauncher;
+    private boolean hcAvailable;
+    private boolean hcGranted;
     private GpsSpeedometerView gpsSpeedometerWidget;
     private GpsSpeedometerView gpsSpeedometerFull;
     private TextView gpsSpeedDigital;
@@ -495,6 +498,31 @@ public class MobileMainActivity extends AppCompatActivity {
         // Esilataa kelikamera-asemat taustalla (24 h levycache), jotta kartan avaus on
         // nopea ilman verkkoviivettä.
         WeathercamRepository.get().load(getApplicationContext(), false, (s, e) -> { });
+        registerHealthConnect();
+    }
+
+    /** Tarkistaa Health Connectin saatavuuden ja rekisteröi sen oman lupanäkymä-launcherin.
+     *  Jos HC on käytössä ja READ_STEPS myönnetty, siitä tulee ensisijainen askellähde. */
+    private void registerHealthConnect() {
+        hcAvailable = HealthConnectStepsBridge.isAvailable(this);
+        hcLauncher = registerForActivityResult(
+                HealthConnectStepsBridge.permissionContract(),
+                granted -> {
+                    hcGranted = granted != null && granted.containsAll(
+                            java.util.Arrays.asList(HealthConnectStepsBridge.permissions()));
+                    updateStepsSwitch();
+                    renderStepsWidget();
+                    if (stepsView != null && stepsView.getVisibility() == View.VISIBLE) {
+                        selectStepsTab(stepsTab);
+                    }
+                });
+        if (hcAvailable) {
+            HealthConnectStepsBridge.hasPermission(this, granted -> {
+                hcGranted = granted;
+                updateStepsSwitch();
+                renderStepsWidget();
+            });
+        }
     }
 
     @Override
@@ -572,6 +600,8 @@ public class MobileMainActivity extends AppCompatActivity {
         placeSearchDialog = null;
         io.shutdownNow();
         compareIo.shutdownNow();
+        deviceInfoIo.shutdownNow();
+        if (stepCounter != null) stepCounter.shutdown();
         super.onDestroy();
     }
 
@@ -3429,6 +3459,31 @@ public class MobileMainActivity extends AppCompatActivity {
         renderStepsWidget();
         selectStepsTab(stepsTab);
         maybeStartStepCounter();
+        refreshHealthConnectToday();
+    }
+
+    private boolean useHealthConnect() {
+        return hcAvailable && hcGranted;
+    }
+
+    private void refreshHealthConnectToday() {
+        if (!useHealthConnect()) return;
+        HealthConnectStepsBridge.todaySteps(this, steps -> {
+            if (destroyed || steps < 0) return;
+            if (stepsWidgetToday != null && stepsEnabled()) {
+                stepsWidgetToday.setText(String.valueOf(steps));
+            }
+            if (stepsBig != null && stepsTab == 0) stepsBig.setText(String.valueOf(steps));
+        });
+    }
+
+    private CharSequence formatHcHistory(String[] labels, long[] values) {
+        if (labels.length == 0) return "Ei vielä askeldataa Health Connectissa.";
+        StringBuilder sb = new StringBuilder();
+        for (int i = labels.length - 1; i >= 0; i--) {
+            sb.append(labels[i]).append("   ").append(values[i]).append(" askelta\n");
+        }
+        return sb.toString().trim();
     }
 
     private boolean stepsEnabled() {
@@ -3442,51 +3497,73 @@ public class MobileMainActivity extends AppCompatActivity {
     }
 
     private void maybeStartStepCounter() {
-        if (stepCounter != null && stepCounter.isAvailable() && stepsEnabled()) {
+        if (stepCounter != null && stepCounter.isAvailable() && stepsEnabled()
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)
+                == PackageManager.PERMISSION_GRANTED) {
             stepCounter.start();
         }
     }
 
     private void onStepsToggle(boolean on) {
+        if (!on) {
+            setStepsEnabled(false);
+            if (stepCounter != null) stepCounter.stop();
+            updateStepsSwitch();
+            renderStepsWidget();
+            return;
+        }
+        // Ensisijaisesti Health Connect, jos saatavilla.
+        if (hcAvailable) {
+            setStepsEnabled(true);
+            if (!hcGranted && hcLauncher != null) {
+                hcLauncher.launch(new java.util.HashSet<>(
+                        java.util.Arrays.asList(HealthConnectStepsBridge.permissions())));
+                return; // tulos käsitellään launcher-callbackissa
+            }
+            updateStepsSwitch();
+            renderStepsWidget();
+            refreshHealthConnectToday();
+            return;
+        }
+        // Raw fallback: vaatii anturin + ACTIVITY_RECOGNITION-luvan.
         if (stepCounter == null || !stepCounter.isAvailable()) {
             updateStepsSwitch();
             return;
         }
-        if (on) {
-            if (ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.ACTIVITY_RECOGNITION},
-                        STEPS_PERMISSION_REQUEST);
-                return; // jatketaan onRequestPermissionsResultissa
-            }
-            setStepsEnabled(true);
-            stepCounter.start();
-        } else {
-            setStepsEnabled(false);
-            stepCounter.stop();
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACTIVITY_RECOGNITION}, STEPS_PERMISSION_REQUEST);
+            return;
         }
+        setStepsEnabled(true);
+        stepCounter.start();
         updateStepsSwitch();
         renderStepsWidget();
     }
 
     private void updateStepsSwitch() {
         if (stepsSwitch == null) return;
-        boolean available = stepCounter != null && stepCounter.isAvailable();
+        boolean rawAvail = stepCounter != null && stepCounter.isAvailable();
+        boolean available = hcAvailable || rawAvail;
         boolean enabled = stepsEnabled() && available;
         stepsSwitch.setEnabled(available);
         stepsSwitch.setChecked(enabled);
-        if (stepsNote != null) {
-            if (!available) {
-                stepsNote.setText("Tässä laitteessa ei ole askelanturia, joten askelmittaria ei "
-                        + "voi ottaa käyttöön.");
-                stepsNote.setVisibility(View.VISIBLE);
-            } else if (!enabled) {
-                stepsNote.setText("Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet.");
-                stepsNote.setVisibility(View.VISIBLE);
-            } else {
-                stepsNote.setVisibility(View.GONE);
-            }
+        if (stepsNote == null) return;
+        stepsNote.setVisibility(View.VISIBLE);
+        if (!available) {
+            stepsNote.setText("Tässä laitteessa ei ole askelanturia eikä Health Connectia, joten "
+                    + "askelmittaria ei voi ottaa käyttöön.");
+        } else if (!enabled) {
+            stepsNote.setText("Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet.");
+        } else if (useHealthConnect()) {
+            stepsNote.setText("Lähde: Health Connect (kello ja puhelin yhdistettynä, ilman tuplia).");
+        } else if (hcAvailable) {
+            stepsNote.setText("Health Connect on saatavilla — myönnä lupa, niin askeleet luetaan "
+                    + "sieltä. Kunnes lupa annetaan, käytetään puhelimen anturia.");
+        } else {
+            stepsNote.setText("Lähde: Puhelimen askelanturi. Historia päivittyy vain kun sovellus on "
+                    + "ollut käytössä; taustakatkot voivat puuttua.");
         }
     }
 
@@ -3505,9 +3582,21 @@ public class MobileMainActivity extends AppCompatActivity {
                 stepsBig.setText(String.valueOf(
                         stepCounter != null ? stepCounter.currentTodaySteps() : 0));
             }
+            refreshHealthConnectToday();
+            return;
+        }
+        if (stepsContent != null) stepsContent.setText("Ladataan…");
+        final int t = tab;
+        if (useHealthConnect()) {
+            int period = (t == 2) ? HealthConnectStepsBridge.PERIOD_WEEKS
+                    : (t == 3) ? HealthConnectStepsBridge.PERIOD_MONTHS
+                    : HealthConnectStepsBridge.PERIOD_DAYS;
+            int count = (t == 2) ? 8 : (t == 3) ? 6 : 14;
+            HealthConnectStepsBridge.history(this, period, count, (labels, values) -> {
+                if (destroyed || stepsContent == null || stepsTab != t) return;
+                stepsContent.setText(formatHcHistory(labels, values));
+            });
         } else {
-            final int t = tab;
-            if (stepsContent != null) stepsContent.setText("Ladataan…");
             deviceInfoIo.execute(() -> {
                 final CharSequence text = StepsHistory.build(this, t);
                 main.post(() -> {
@@ -3521,13 +3610,16 @@ public class MobileMainActivity extends AppCompatActivity {
 
     private void renderStepsWidget() {
         if (stepsWidgetToday == null) return;
-        boolean available = stepCounter != null && stepCounter.isAvailable();
+        boolean available = hcAvailable || (stepCounter != null && stepCounter.isAvailable());
         if (!available) {
             stepsWidgetToday.setText("–");
             if (stepsWidgetNote != null) stepsWidgetNote.setText("ei askelanturia");
         } else if (!stepsEnabled()) {
             stepsWidgetToday.setText("0");
             if (stepsWidgetNote != null) stepsWidgetNote.setText("napauta ja ota käyttöön");
+        } else if (useHealthConnect()) {
+            if (stepsWidgetNote != null) stepsWidgetNote.setText("askelta tänään (Health Connect)");
+            refreshHealthConnectToday();
         } else {
             stepsWidgetToday.setText(String.valueOf(stepCounter.currentTodaySteps()));
             if (stepsWidgetNote != null) stepsWidgetNote.setText("askelta tänään");

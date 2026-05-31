@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 def localProps = new Properties()
 def localPropsFile = rootProject.file('local.properties')
@@ -20,8 +21,8 @@ android {
         applicationId 'org.jrs82.fsclock.mobile'
         minSdk 30
         targetSdk 35
-        versionCode 26
-        versionName '1.7.0-mobile'
+        versionCode 27
+        versionName '1.7.1-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
 
         // MapLibren natiivikirjastot vain ARM-laitteille (ei x86-emulaattoreita) —
@@ -56,6 +57,10 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
     signingConfigs {
         release {
             def ksPw = localProps.getProperty('KEYSTORE_PASSWORD') ?: System.getenv('KEYSTORE_PASSWORD')
@@ -85,9 +90,9 @@ android {
 
 configurations.all {
     resolutionStrategy {
-        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
     }
 }
 
@@ -100,6 +105,8 @@ dependencies {
     implementation 'androidx.browser:browser:1.8.0'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
     implementation 'org.maplibre.gl:android-sdk:11.5.2'
+    implementation 'androidx.health.connect:connect-client:1.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
