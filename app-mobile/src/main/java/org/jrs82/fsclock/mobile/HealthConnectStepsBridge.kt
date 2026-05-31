@@ -45,6 +45,10 @@ object HealthConnectStepsBridge {
     fun interface StepsCallback { fun onResult(steps: Long) }
     fun interface HistoryCallback { fun onResult(labels: Array<String>, values: LongArray) }
     fun interface CaloriesCallback { fun onResult(activeKcal: Double, totalKcal: Double, has: Boolean) }
+    fun interface CalorieHistoryCallback {
+        fun onResult(labels: Array<String>, steps: LongArray,
+                     activeKcal: DoubleArray, totalKcal: DoubleArray)
+    }
 
     @JvmStatic
     fun isAvailable(context: Context): Boolean =
@@ -182,6 +186,65 @@ object HealthConnectStepsBridge {
                 cb.onResult(labels.toTypedArray(), values.toLongArray())
             } catch (e: Exception) {
                 cb.onResult(emptyArray(), LongArray(0))
+            }
+        }
+    }
+
+    /** Historia askeleet + kalorit ämpäreittäin (sama jako kuin historyssa). includeCalories=false →
+     *  vain askeleet (kaloriluvat puuttuvat), activeKcal/totalKcal = 0. Kalorit kilokaloreina;
+     *  0 jos ämpärissä ei ole kaloridataa → kutsuja näyttää tarvittaessa oman arvion. */
+    @JvmStatic
+    fun historyWithCalories(context: Context, periodType: Int, count: Int, includeCalories: Boolean,
+                            cb: CalorieHistoryCallback) {
+        if (!isAvailable(context)) {
+            cb.onResult(emptyArray(), LongArray(0), DoubleArray(0), DoubleArray(0)); return
+        }
+        scope.launch {
+            try {
+                val client = HealthConnectClient.getOrCreate(context)
+                val slicer = when (periodType) {
+                    PERIOD_WEEKS -> Period.ofWeeks(1)
+                    PERIOD_MONTHS -> Period.ofMonths(1)
+                    else -> Period.ofDays(1)
+                }
+                val today = LocalDate.now()
+                val startDate = when (periodType) {
+                    PERIOD_WEEKS -> today.minusWeeks((count - 1).toLong())
+                    PERIOD_MONTHS -> today.withDayOfMonth(1).minusMonths((count - 1).toLong())
+                    else -> today.minusDays((count - 1).toLong())
+                }
+                val metrics = if (includeCalories) setOf(
+                    StepsRecord.COUNT_TOTAL,
+                    ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+                    TotalCaloriesBurnedRecord.ENERGY_TOTAL
+                ) else setOf(StepsRecord.COUNT_TOTAL)
+                val buckets = client.aggregateGroupByPeriod(
+                    AggregateGroupByPeriodRequest(
+                        metrics = metrics,
+                        timeRangeFilter = TimeRangeFilter.between(
+                            startDate.atStartOfDay(), LocalDateTime.now()
+                        ),
+                        timeRangeSlicer = slicer
+                    )
+                )
+                val labels = ArrayList<String>(buckets.size)
+                val steps = ArrayList<Long>(buckets.size)
+                val active = ArrayList<Double>(buckets.size)
+                val total = ArrayList<Double>(buckets.size)
+                for (b in buckets) {
+                    labels.add(b.startTime.toLocalDate().toString())
+                    steps.add(b.result[StepsRecord.COUNT_TOTAL] ?: 0L)
+                    active.add(if (includeCalories)
+                        b.result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories ?: 0.0
+                    else 0.0)
+                    total.add(if (includeCalories)
+                        b.result[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
+                    else 0.0)
+                }
+                cb.onResult(labels.toTypedArray(), steps.toLongArray(),
+                    active.toDoubleArray(), total.toDoubleArray())
+            } catch (e: Exception) {
+                cb.onResult(emptyArray(), LongArray(0), DoubleArray(0), DoubleArray(0))
             }
         }
     }
