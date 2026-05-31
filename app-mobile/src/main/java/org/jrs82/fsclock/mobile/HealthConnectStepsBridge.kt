@@ -5,7 +5,9 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -28,19 +30,28 @@ object HealthConnectStepsBridge {
     const val PERIOD_WEEKS = 2
     const val PERIOD_MONTHS = 3
 
-    private val READ = setOf(HealthPermission.getReadPermission(StepsRecord::class))
+    // Askellupa on pakollinen HC-lähteelle; kaloriluvat ovat valinnaisia, joten ne pidetään
+    // erillään: hasPermission vaatii vain askeleet, jottei vanha käyttäjä (vain Steps-luvalla)
+    // menetä HC-askeldataa kun kaloriluvat lisätään pyyntöön.
+    private val READ_STEPS = setOf(HealthPermission.getReadPermission(StepsRecord::class))
+    private val READ_ALL = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
+    )
     private val scope = CoroutineScope(Dispatchers.Main)
 
     fun interface BoolCallback { fun onResult(value: Boolean) }
     fun interface StepsCallback { fun onResult(steps: Long) }
     fun interface HistoryCallback { fun onResult(labels: Array<String>, values: LongArray) }
+    fun interface CaloriesCallback { fun onResult(activeKcal: Double, totalKcal: Double, has: Boolean) }
 
     @JvmStatic
     fun isAvailable(context: Context): Boolean =
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
 
     @JvmStatic
-    fun permissions(): Array<String> = READ.toTypedArray()
+    fun permissions(): Array<String> = READ_ALL.toTypedArray()
 
     /** Health Connectin oma lupanäkymä-contract Javan registerForActivityResultille. */
     @JvmStatic
@@ -53,7 +64,7 @@ object HealthConnectStepsBridge {
         scope.launch {
             val granted = try {
                 HealthConnectClient.getOrCreate(context)
-                    .permissionController.getGrantedPermissions().containsAll(READ)
+                    .permissionController.getGrantedPermissions().containsAll(READ_STEPS)
             } catch (e: Exception) {
                 false
             }
@@ -81,6 +92,34 @@ object HealthConnectStepsBridge {
                 -1L
             }
             cb.onResult(steps)
+        }
+    }
+
+    /** Tämän päivän kalorit Health Connectista: aktiivinen (ilman BMR:ää) + kokonais (sis. BMR).
+     *  has=false jos dataa/lupaa ei ole → kutsuja käyttää omaa askelarviota. ÄLÄ summaa arvioon. */
+    @JvmStatic
+    fun todayCalories(context: Context, cb: CaloriesCallback) {
+        if (!isAvailable(context)) { cb.onResult(0.0, 0.0, false); return }
+        scope.launch {
+            try {
+                val client = HealthConnectClient.getOrCreate(context)
+                val res = client.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(
+                            ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+                            TotalCaloriesBurnedRecord.ENERGY_TOTAL
+                        ),
+                        timeRangeFilter = TimeRangeFilter.between(
+                            LocalDate.now().atStartOfDay(), LocalDateTime.now()
+                        )
+                    )
+                )
+                val active = res[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories ?: 0.0
+                val total = res[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
+                cb.onResult(active, total, active > 0.0 || total > 0.0)
+            } catch (e: Exception) {
+                cb.onResult(0.0, 0.0, false)
+            }
         }
     }
 
