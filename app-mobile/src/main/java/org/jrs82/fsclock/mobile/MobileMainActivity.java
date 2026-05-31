@@ -95,6 +95,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private static final int TOMORROW_PRICE_POLL_END_HOUR = 22;
     private static final int LOCATION_PERMISSION_REQUEST = 7107;
     private static final int DEVINFO_LOCATION_REQUEST = 7108;
+    private static final int DEVINFO_CELLULAR_REQUEST = 7109;
     private static final long TOMORROW_PRICE_POLL_MS = 10L * 60_000L;
     private static final long MIN_AUTO_REFRESH_MS = 5L * 60_000L;
     private static final long MAX_AUTO_REFRESH_MS = 180L * 60_000L;
@@ -276,6 +277,8 @@ public class MobileMainActivity extends AppCompatActivity {
     private TextView devInfoMemory;
     private TextView devInfoDisplay;
     private TextView devInfoSensors;
+    private TextView devInfoCellular;
+    private TextView devInfoCellularPerm;
     private final java.util.concurrent.ExecutorService deviceInfoIo =
             java.util.concurrent.Executors.newSingleThreadExecutor();
     private GpsSpeedometerView gpsSpeedometerWidget;
@@ -577,6 +580,8 @@ public class MobileMainActivity extends AppCompatActivity {
         devInfoMemory = findViewById(R.id.mobile_devinfo_memory);
         devInfoDisplay = findViewById(R.id.mobile_devinfo_display);
         devInfoSensors = findViewById(R.id.mobile_devinfo_sensors);
+        devInfoCellular = findViewById(R.id.mobile_devinfo_cellular);
+        devInfoCellularPerm = findViewById(R.id.mobile_devinfo_cellular_perm);
         gpsSpeedometerWidget = findViewById(R.id.mobile_gps_speedometer);
         gpsSpeedometerFull = findViewById(R.id.mobile_speedometer_full);
         gpsSpeedDigital = findViewById(R.id.mobile_gps_speed_digital);
@@ -803,6 +808,12 @@ public class MobileMainActivity extends AppCompatActivity {
                         Manifest.permission.ACCESS_FINE_LOCATION,
                         Manifest.permission.ACCESS_COARSE_LOCATION
                 }, DEVINFO_LOCATION_REQUEST));
+        findViewById(R.id.mobile_devinfo_cellular_perm).setOnClickListener(v ->
+                ActivityCompat.requestPermissions(this, new String[]{
+                        Manifest.permission.READ_PHONE_STATE,
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                }, DEVINFO_CELLULAR_REQUEST));
         findViewById(R.id.mobile_nav_history).setOnClickListener(v -> {
             closeDrawer();
             startActivity(new Intent(this, MobileHistoryActivity.class));
@@ -3343,8 +3354,12 @@ public class MobileMainActivity extends AppCompatActivity {
         if (devInfoWifiPerm != null) {
             devInfoWifiPerm.setVisibility(hasPreciseLocationPermission() ? View.GONE : View.VISIBLE);
         }
+        if (devInfoCellularPerm != null) {
+            devInfoCellularPerm.setVisibility(hasReadPhoneState() ? View.GONE : View.VISIBLE);
+        }
         deviceInfoIo.execute(() -> {
             final CharSequence battery = DeviceInfoReaders.battery(this);
+            final CharSequence cellular = DeviceInfoReaders.cellular(this);
             final CharSequence hardware = DeviceInfoReaders.hardware();
             final CharSequence memory = DeviceInfoReaders.memory(this);
             final CharSequence display = DeviceInfoReaders.display(this);
@@ -3353,6 +3368,7 @@ public class MobileMainActivity extends AppCompatActivity {
             main.post(() -> {
                 if (destroyed || isFinishing() || isDestroyed()) return;
                 if (devInfoBattery != null) devInfoBattery.setText(battery);
+                if (devInfoCellular != null) devInfoCellular.setText(cellular);
                 if (devInfoHardware != null) devInfoHardware.setText(hardware);
                 if (devInfoMemory != null) devInfoMemory.setText(memory);
                 if (devInfoDisplay != null) devInfoDisplay.setText(display);
@@ -3629,6 +3645,11 @@ public class MobileMainActivity extends AppCompatActivity {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean hasReadPhoneState() {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     private boolean hasApproximateLocationPermission() {
         return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;
@@ -3825,7 +3846,7 @@ public class MobileMainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == DEVINFO_LOCATION_REQUEST) {
+        if (requestCode == DEVINFO_LOCATION_REQUEST || requestCode == DEVINFO_CELLULAR_REQUEST) {
             renderDeviceInfo();
             return;
         }
