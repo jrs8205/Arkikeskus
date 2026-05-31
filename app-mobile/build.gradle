@@ -20,8 +20,8 @@ android {
         applicationId 'org.jrs82.fsclock.mobile'
         minSdk 30
         targetSdk 35
-        versionCode 25
-        versionName '1.6.2-mobile'
+        versionCode 26
+        versionName '1.7.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
 
         // MapLibren natiivikirjastot vain ARM-laitteille (ei x86-emulaattoreita) —

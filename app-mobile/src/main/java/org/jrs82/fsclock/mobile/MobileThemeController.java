@@ -21,6 +21,8 @@ final class MobileThemeController {
     static final String KEY_SHOW_SENSORS_WIDGET = "mobile_show_sensors_widget";
     static final String KEY_SHOW_TRAFFIC_WIDGET = "mobile_show_traffic_widget";
     static final String KEY_SHOW_GPS_SPEED_WIDGET = "mobile_show_gps_speed_widget";
+    static final String KEY_SHOW_STEPS_WIDGET = "mobile_show_steps_widget";
+    static final String KEY_STEPS_ENABLED = "mobile_steps_enabled";
     static final String KEY_SHOW_NEWS_WIDGET = "mobile_show_news_widget";
     static final String KEY_WIDGET_ORDER = "mobile_widget_order";
     static final String KEY_LAST_DEVICE_LATITUDE = "mobile_last_device_latitude";
@@ -32,6 +34,7 @@ final class MobileThemeController {
     static final String WIDGET_SENSORS = "sensors";
     static final String WIDGET_TRAFFIC = "traffic";
     static final String WIDGET_GPS_SPEED = "gps_speed";
+    static final String WIDGET_STEPS = "steps";
     static final String WIDGET_NEWS = "news";
     /** Per-lähde-uutiswidgetin id-etuliite: "news:<feedId>" (esim. "news:hs"). */
     static final String WIDGET_NEWS_FEED_PREFIX = "news:";
@@ -57,7 +60,8 @@ final class MobileThemeController {
             + WIDGET_SENSORS + ","
             + WIDGET_TRAFFIC + ","
             + WIDGET_NEWS + ","
-            + WIDGET_GPS_SPEED;
+            + WIDGET_GPS_SPEED + ","
+            + WIDGET_STEPS;
     static final String KEY_USE_AUTOMATIC_LOCATION = "mobile_use_automatic_location";
     static final String KEY_INITIAL_LOCATION_PERMISSION_ASKED = "mobile_initial_location_permission_asked";
     static final String KEY_AUTO_LOCATION_DISPLAY_NAME = "mobile_auto_location_display_name";
