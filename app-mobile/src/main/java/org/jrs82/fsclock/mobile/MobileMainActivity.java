@@ -311,7 +311,6 @@ public class MobileMainActivity extends AppCompatActivity {
     private LinearLayout trafficList;
     private View gpsSpeedCard;
     private TextView gpsSpeedText;
-    private View roadCamerasCard;
     private View newsCard;
     private TextView newsWidgetTitle;
     private LinearLayout newsWidgetList;
@@ -459,6 +458,9 @@ public class MobileMainActivity extends AppCompatActivity {
         applySystemBarInsets();
         bindActions();
         renderInitial();
+        // Esilataa kelikamera-asemat taustalla (24 h levycache), jotta kartan avaus on
+        // nopea ilman verkkoviivettä.
+        WeathercamRepository.get().load(getApplicationContext(), false, (s, e) -> { });
     }
 
     @Override
@@ -592,13 +594,6 @@ public class MobileMainActivity extends AppCompatActivity {
         trafficList = findViewById(R.id.mobile_traffic_list);
         gpsSpeedCard = findViewById(R.id.mobile_gps_speed_card);
         gpsSpeedText = findViewById(R.id.mobile_gps_speed);
-        roadCamerasCard = findViewById(R.id.mobile_road_cameras_card);
-        if (roadCamerasCard != null) {
-            roadCamerasCard.setOnClickListener(v -> {
-                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
-                startActivity(new android.content.Intent(this, RoadCamerasActivity.class));
-            });
-        }
         newsCard = findViewById(R.id.mobile_news_card);
         newsWidgetTitle = findViewById(R.id.mobile_news_widget_title);
         if (newsWidgetTitle != null) {
@@ -1404,8 +1399,6 @@ public class MobileMainActivity extends AppCompatActivity {
                 MobileThemeController.KEY_SHOW_TRAFFIC_WIDGET, true) ? View.VISIBLE : View.GONE);
         gpsSpeedCard.setVisibility(prefs.getBoolean(
                 MobileThemeController.KEY_SHOW_GPS_SPEED_WIDGET, false) ? View.VISIBLE : View.GONE);
-        roadCamerasCard.setVisibility(prefs.getBoolean(
-                MobileThemeController.KEY_SHOW_ROAD_CAMERAS_WIDGET, false) ? View.VISIBLE : View.GONE);
         if (newsCard != null) {
             newsCard.setVisibility(prefs.getBoolean(
                     MobileThemeController.KEY_SHOW_NEWS_WIDGET, true) ? View.VISIBLE : View.GONE);
@@ -1473,7 +1466,6 @@ public class MobileMainActivity extends AppCompatActivity {
         addMissingHomeWidget(order, MobileThemeController.WIDGET_SENSORS);
         addMissingHomeWidget(order, MobileThemeController.WIDGET_TRAFFIC);
         addMissingHomeWidget(order, MobileThemeController.WIDGET_GPS_SPEED);
-        addMissingHomeWidget(order, MobileThemeController.WIDGET_ROAD_CAMERAS);
         // Lisää päällä olevat per-lähde-uutiswidgetit jotka eivät vielä ole listassa.
         for (NewsFeed feed : NewsFeedStore.allFeeds(prefs)) {
             if (prefs.getBoolean(MobileThemeController.newsFeedVisibilityKey(feed.id), false)) {
@@ -1494,7 +1486,6 @@ public class MobileMainActivity extends AppCompatActivity {
         if (MobileThemeController.WIDGET_SENSORS.equals(id)) return sensorsCard;
         if (MobileThemeController.WIDGET_TRAFFIC.equals(id)) return trafficCard;
         if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) return gpsSpeedCard;
-        if (MobileThemeController.WIDGET_ROAD_CAMERAS.equals(id)) return roadCamerasCard;
         if (MobileThemeController.WIDGET_NEWS.equals(id)) return newsCard;
         if (MobileThemeController.isNewsFeedWidget(id)) return newsFeedCard(id);
         return null;

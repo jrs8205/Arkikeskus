@@ -2,7 +2,9 @@ package org.jrs82.fsclock.mobile;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.PointF;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -15,6 +17,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.content.res.AppCompatResources;
 
 import org.jrs82.fsclock.BuildConfig;
 import org.jrs82.fsclock.R;
@@ -50,6 +53,7 @@ public class RoadCamerasActivity extends AppCompatActivity {
     private static final String LAYER_POINTS = "cam-points";
     private static final String LAYER_CLUSTERS = "cam-clusters";
     private static final String LAYER_COUNT = "cam-count";
+    private static final String ICON_CAM = "cam-icon";
     private static final LatLng FINLAND = new LatLng(64.5, 26.0);
 
     private MapView mapView;
@@ -108,12 +112,14 @@ public class RoadCamerasActivity extends AppCompatActivity {
     }
 
     private void addLayers(Style style) {
-        CircleLayer points = new CircleLayer(LAYER_POINTS, SRC);
+        style.addImage(ICON_CAM, drawableToBitmap(R.drawable.mobile_ic_camera_marker));
+
+        SymbolLayer points = new SymbolLayer(LAYER_POINTS, SRC);
         points.setProperties(
-                PropertyFactory.circleColor(0xFFFFC107),
-                PropertyFactory.circleRadius(8f),
-                PropertyFactory.circleStrokeColor(0xFF000000),
-                PropertyFactory.circleStrokeWidth(1.5f));
+                PropertyFactory.iconImage(ICON_CAM),
+                PropertyFactory.iconAllowOverlap(true),
+                PropertyFactory.iconIgnorePlacement(true),
+                PropertyFactory.iconSize(0.85f));
         points.setFilter(Expression.not(Expression.has("point_count")));
         style.addLayer(points);
 
@@ -150,9 +156,9 @@ public class RoadCamerasActivity extends AppCompatActivity {
     }
 
     private void loadCameras() {
-        statusText.setText("Ladataan kelikameroita…");
+        statusText.setText("Kaikkia kameroita ladataan…");
         statusText.setVisibility(View.VISIBLE);
-        WeathercamRepository.get().load(false, (stations, error) -> {
+        WeathercamRepository.get().load(this, false, (stations, error) -> {
             if (stations == null || stations.isEmpty()) {
                 statusText.setText(error != null
                         ? "Kelikameroiden haku epäonnistui." : "Ei kelikameroita.");
@@ -166,21 +172,26 @@ public class RoadCamerasActivity extends AppCompatActivity {
 
     private void updateSource(List<WeathercamStation> stations) {
         if (source == null) return;
-        List<Feature> feats = new ArrayList<>();
-        for (WeathercamStation s : stations) {
-            if (s.presets.isEmpty()) continue;
-            Feature f = Feature.fromGeometry(Point.fromLngLat(s.lon, s.lat));
-            f.addStringProperty("name", s.name);
-            f.addStringProperty("presetId", s.presets.get(0).id);
-            f.addStringProperty("presetName", s.presets.get(0).presentationName);
-            feats.add(f);
-        }
-        source.setGeoJson(FeatureCollection.fromFeatures(feats));
-        // Tilanneindikaattori (auttaa diagnoosissa: erottaa data- vs renderöintiongelman).
-        statusText.setText(feats.size() + " kameraa kartalla"
-                + (feats.size() < stations.size()
-                ? " (" + stations.size() + " asemaa)" : ""));
-        statusText.setVisibility(View.VISIBLE);
+        // Rakenna FeatureCollection taustasäikeessä (n. 800 asemaa) — ei nykimistä pääsäikeellä.
+        io.execute(() -> {
+            List<Feature> feats = new ArrayList<>();
+            for (WeathercamStation s : stations) {
+                if (s.presets.isEmpty()) continue;
+                Feature f = Feature.fromGeometry(Point.fromLngLat(s.lon, s.lat));
+                f.addStringProperty("name", s.name);
+                f.addStringProperty("presetId", s.presets.get(0).id);
+                f.addStringProperty("presetName", s.presets.get(0).presentationName);
+                feats.add(f);
+            }
+            final FeatureCollection fc = FeatureCollection.fromFeatures(feats);
+            ui.post(() -> {
+                if (isFinishing() || isDestroyed() || source == null) return;
+                source.setGeoJson(fc);
+                statusText.setText("Kamerat ladattu");
+                statusText.setVisibility(View.VISIBLE);
+                ui.postDelayed(() -> statusText.setVisibility(View.GONE), 2500);
+            });
+        });
     }
 
     private boolean onMapClick(@NonNull LatLng point) {
@@ -251,6 +262,18 @@ public class RoadCamerasActivity extends AppCompatActivity {
         } finally {
             if (conn != null) conn.disconnect();
         }
+    }
+
+    /** Renderöi vektoridrawablen bitmapiksi MapLibren SymbolLayer-ikoniksi. */
+    private Bitmap drawableToBitmap(int resId) {
+        Drawable d = AppCompatResources.getDrawable(this, resId);
+        int w = Math.max(1, d.getIntrinsicWidth());
+        int h = Math.max(1, d.getIntrinsicHeight());
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        d.setBounds(0, 0, w, h);
+        d.draw(c);
+        return bmp;
     }
 
     // --- MapView lifecycle ---

@@ -37,8 +37,6 @@
     <string name="mobile_pref_show_traffic_widget_summary">Varaa etusivulle liikennetiedot, kun lähde on käytössä</string>
     <string name="mobile_pref_show_gps_speed_widget">GPS-nopeus etusivulla</string>
     <string name="mobile_pref_show_gps_speed_widget_summary">Näytä laitteen viimeisin sijaintinopeus, jos sijaintilupa ja nopeusdata ovat saatavilla</string>
-    <string name="mobile_pref_show_road_cameras_widget">Kelikamerat etusivulla</string>
-    <string name="mobile_pref_show_road_cameras_widget_summary">Varaa etusivulle kelikameratiedot, kun lähde on käytössä</string>
     <string name="mobile_favorite_add">Lisää sääpaikka suosikkeihin</string>
     <string name="mobile_favorite_remove">Poista sääpaikka suosikeista</string>
     <string name="mobile_current_location">Paikanna nykyinen sijainti</string>

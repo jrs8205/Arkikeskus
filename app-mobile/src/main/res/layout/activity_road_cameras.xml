@@ -1,38 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Juuri on FrameLayout, jotta iso kamerakuva -overlay peittää myös yläpalkin. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <org.maplibre.android.maps.MapView
-        android:id="@+id/cam_map"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    android:layout_height="match_parent"
+    android:background="@color/mobile_bg">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="8dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/cam_back"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/mobile_card_bg"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:text="←"
-            android:textColor="@color/mobile_text_primary"
-            android:textSize="24sp" />
+        <!-- Kiinteä yläpalkki samaan tyyliin kuin sovelluksen muut sivut. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:background="@drawable/mobile_toolbar_bg"
+            android:elevation="3dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="12dp">
+
+            <TextView
+                android:id="@+id/cam_back"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="←"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="26sp" />
+
+            <TextView
+                android:id="@+id/cam_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:singleLine="true"
+                android:text="@string/mobile_widget_road_cameras"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <!-- Tasapainottaa otsikon keskelle (samanlevyinen kuin takaisin-nappi). -->
+            <View
+                android:layout_width="44dp"
+                android:layout_height="44dp" />
+        </LinearLayout>
 
         <EditText
             android:id="@+id/cam_search"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/mobile_card_bg"
             android:hint="Hae tie tai paikka"
             android:imeOptions="actionSearch"
@@ -42,18 +69,30 @@
             android:paddingEnd="12dp"
             android:textColor="@color/mobile_text_primary"
             android:textColorHint="@color/mobile_text_muted" />
-    </LinearLayout>
 
-    <TextView
-        android:id="@+id/cam_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="24dp"
-        android:background="@drawable/mobile_card_bg"
-        android:padding="10dp"
-        android:textColor="@color/mobile_text_primary"
-        android:visibility="gone" />
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="10dp"
+            android:layout_weight="1">
+
+            <org.maplibre.android.maps.MapView
+                android:id="@+id/cam_map"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <TextView
+                android:id="@+id/cam_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="24dp"
+                android:background="@drawable/mobile_card_bg"
+                android:padding="10dp"
+                android:textColor="@color/mobile_text_primary"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
 
     <FrameLayout
         android:id="@+id/cam_image_overlay"
