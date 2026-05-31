@@ -64,8 +64,14 @@ final class StepCounter implements SensorEventListener {
 
     void start() {
         if (sensor == null || running) return;
+        try {
+            if (!sm.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL)) {
+                return; // anturi ei hyväksynyt rekisteröintiä
+            }
+        } catch (SecurityException e) {
+            return; // ACTIVITY_RECOGNITION-lupa puuttuu/peruttu
+        }
         running = true;
-        sm.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
         io.execute(() -> {
             int t = readDay(FsClockDb.get(ctx), todayKey());
             todaySteps = t;
@@ -77,6 +83,12 @@ final class StepCounter implements SensorEventListener {
         if (sensor == null || !running) return;
         running = false;
         sm.unregisterListener(this);
+    }
+
+    /** Sammuttaa taustasuorittajan lopullisesti (kutsu Activityn onDestroyssä). */
+    void shutdown() {
+        stop();
+        io.shutdownNow();
     }
 
     @Override
@@ -92,11 +104,14 @@ final class StepCounter implements SensorEventListener {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
         int today = todayKey();
         float lastCum = prefs.getFloat(KEY_LAST_CUM, -1f);
+        int lastDay = prefs.getInt(KEY_LAST_DAY, today);
         FsClockDb db = FsClockDb.get(ctx);
         int current = readDay(db, today);
         // lastCum < 0: ensimmäinen lukema. total < lastCum: laite buutattiin (counter nollautui).
-        // Kummassakin vain päivitetään baseline, ei lisätä askelia (vältetään hyppy).
-        if (lastCum >= 0f && total >= lastCum) {
+        // lastDay != today: päivä vaihtui edellisen lukeman jälkeen (esim. sovellus oli kiinni yön
+        // yli) — deltaa ei kohdisteta sokkona tälle päivälle, vaan aloitetaan uusi baseline.
+        // Kaikissa näissä tapauksissa vain päivitetään baseline, ei lisätä askelia.
+        if (lastCum >= 0f && total >= lastCum && lastDay == today) {
             int delta = (int) (total - lastCum);
             if (delta > 0) {
                 current += delta;
