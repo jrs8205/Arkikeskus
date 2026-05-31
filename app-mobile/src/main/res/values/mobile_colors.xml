@@ -2,7 +2,7 @@
 <resources>
     <color name="mobile_bg">#EDF1F6</color>
     <color name="mobile_card_bg">#FFFFFF</color>
-    <color name="mobile_toolbar_bg">#EAF2FF</color>
+    <color name="mobile_toolbar_bg">#C2D6F7</color>
     <color name="mobile_nav_surface">#E4EAF2</color>
     <color name="mobile_drawer_bg">#FFFFFF</color>
     <color name="mobile_card_stroke">#CBD5E1</color>
