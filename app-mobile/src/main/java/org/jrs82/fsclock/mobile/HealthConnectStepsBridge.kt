@@ -53,6 +53,14 @@ object HealthConnectStepsBridge {
     @JvmStatic
     fun permissions(): Array<String> = READ_ALL.toTypedArray()
 
+    /** Vain askelluvat (pakollinen HC-lähteelle). */
+    @JvmStatic
+    fun stepPermissions(): Array<String> = READ_STEPS.toTypedArray()
+
+    /** Vain kaloriluvat (valinnaiset, aktiivinen + kokonais). */
+    @JvmStatic
+    fun caloriePermissions(): Array<String> = (READ_ALL - READ_STEPS).toTypedArray()
+
     /** Health Connectin oma lupanäkymä-contract Javan registerForActivityResultille. */
     @JvmStatic
     fun permissionContract(): ActivityResultContract<Set<String>, Set<String>> =
@@ -65,6 +73,21 @@ object HealthConnectStepsBridge {
             val granted = try {
                 HealthConnectClient.getOrCreate(context)
                     .permissionController.getGrantedPermissions().containsAll(READ_STEPS)
+            } catch (e: Exception) {
+                false
+            }
+            cb.onResult(granted)
+        }
+    }
+
+    /** Onko kaloriluvat (aktiivinen + kokonais) myönnetty? Erillinen askelluvasta. */
+    @JvmStatic
+    fun hasCaloriePermission(context: Context, cb: BoolCallback) {
+        if (!isAvailable(context)) { cb.onResult(false); return }
+        scope.launch {
+            val granted = try {
+                HealthConnectClient.getOrCreate(context)
+                    .permissionController.getGrantedPermissions().containsAll(READ_ALL - READ_STEPS)
             } catch (e: Exception) {
                 false
             }

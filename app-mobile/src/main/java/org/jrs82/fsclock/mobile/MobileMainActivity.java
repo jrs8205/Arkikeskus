@@ -303,6 +303,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private androidx.activity.result.ActivityResultLauncher<java.util.Set<String>> hcLauncher;
     private boolean hcAvailable;
     private boolean hcGranted;
+    private boolean hcCaloriesGranted;
     private TextView stepsHcConnect;
     private TextView stepsRefreshButton;
     private TextView stepsUpdated;
@@ -521,8 +522,13 @@ public class MobileMainActivity extends AppCompatActivity {
         hcLauncher = registerForActivityResult(
                 HealthConnectStepsBridge.permissionContract(),
                 granted -> {
-                    hcGranted = granted != null && granted.containsAll(
-                            java.util.Arrays.asList(HealthConnectStepsBridge.permissions()));
+                    java.util.Set<String> g = granted != null ? granted : java.util.Collections.emptySet();
+                    // Askel- ja kaloriluvat erikseen: askellupa riittää HC-lähteelle (ei vaadita
+                    // kaikkia, jottei pelkän askelluvan myöntäminen pudota raw-lähteeseen).
+                    hcGranted = g.containsAll(
+                            java.util.Arrays.asList(HealthConnectStepsBridge.stepPermissions()));
+                    hcCaloriesGranted = g.containsAll(
+                            java.util.Arrays.asList(HealthConnectStepsBridge.caloriePermissions()));
                     updateStepsSwitch();
                     renderStepsWidget();
                     if (stepsView != null && stepsView.getVisibility() == View.VISIBLE) {
@@ -534,6 +540,10 @@ public class MobileMainActivity extends AppCompatActivity {
                 hcGranted = granted;
                 updateStepsSwitch();
                 renderStepsWidget();
+            });
+            HealthConnectStepsBridge.hasCaloriePermission(this, granted -> {
+                hcCaloriesGranted = granted;
+                updateStepsSwitch();
             });
         }
     }
@@ -3781,7 +3791,10 @@ public class MobileMainActivity extends AppCompatActivity {
         stepsSwitch.setEnabled(available);
         stepsSwitch.setChecked(enabled);
         if (stepsHcConnect != null) {
-            stepsHcConnect.setVisibility(hcAvailable && !hcGranted ? View.VISIBLE : View.GONE);
+            boolean needConnect = hcAvailable && (!hcGranted || !hcCaloriesGranted);
+            stepsHcConnect.setVisibility(needConnect ? View.VISIBLE : View.GONE);
+            stepsHcConnect.setText(!hcGranted ? "Yhdistä Health Connect"
+                    : "Lue myös kalorit Health Connectista");
         }
         if (stepsNote == null) return;
         stepsNote.setVisibility(View.VISIBLE);
