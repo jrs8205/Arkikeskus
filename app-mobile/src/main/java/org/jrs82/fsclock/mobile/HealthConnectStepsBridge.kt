@@ -164,7 +164,9 @@ object HealthConnectStepsBridge {
                 }
                 val today = LocalDate.now()
                 val startDate = when (periodType) {
-                    PERIOD_WEEKS -> today.minusWeeks((count - 1).toLong())
+                    // Aloita ISO-viikon maanantaista (ei rullaava 7 pv tästä viikonpäivästä).
+                    PERIOD_WEEKS -> today.with(java.time.temporal.WeekFields.ISO.dayOfWeek(), 1)
+                        .minusWeeks((count - 1).toLong())
                     PERIOD_MONTHS -> today.withDayOfMonth(1).minusMonths((count - 1).toLong())
                     else -> today.minusDays((count - 1).toLong())
                 }
@@ -209,7 +211,9 @@ object HealthConnectStepsBridge {
                 }
                 val today = LocalDate.now()
                 val startDate = when (periodType) {
-                    PERIOD_WEEKS -> today.minusWeeks((count - 1).toLong())
+                    // Aloita ISO-viikon maanantaista (ei rullaava 7 pv tästä viikonpäivästä).
+                    PERIOD_WEEKS -> today.with(java.time.temporal.WeekFields.ISO.dayOfWeek(), 1)
+                        .minusWeeks((count - 1).toLong())
                     PERIOD_MONTHS -> today.withDayOfMonth(1).minusMonths((count - 1).toLong())
                     else -> today.minusDays((count - 1).toLong())
                 }

@@ -3586,32 +3586,35 @@ public class MobileMainActivity extends AppCompatActivity {
         int age = p.getInt(KEY_PROFILE_AGE, 0);
         String sex = p.getString(KEY_PROFILE_SEX, "");
         double stepCm = p.getFloat(KEY_PROFILE_STEP, 0f);
-        // Profiilipainike pidetään aina näkyvissä, jotta painoa/pituutta voi myöhemmin muokata.
-        if (h <= 0 || w <= 0) {
-            stepsCalories.setVisibility(View.GONE);
-            if (stepsProfileButton != null) {
-                stepsProfileButton.setVisibility(View.VISIBLE);
-                stepsProfileButton.setText("Lisää pituus ja paino kaloriarviota varten");
-            }
-            return;
-        }
+        boolean hasProfile = h > 0 && w > 0;
+        // Profiilipainike aina näkyvissä (Muokkaa / Lisää).
         if (stepsProfileButton != null) {
             stepsProfileButton.setVisibility(View.VISIBLE);
-            stepsProfileButton.setText("Muokkaa profiilia");
+            stepsProfileButton.setText(hasProfile ? "Muokkaa profiilia"
+                    : "Lisää pituus ja paino kaloriarviota varten");
         }
-        final double km = StepCalorieEstimator.distanceKm(steps, h, stepCm);
-        final int activeEst = StepCalorieEstimator.activeKcal(steps, h, w, stepCm);
-        final int totalEst = StepCalorieEstimator.totalDailyKcal(
-                StepCalorieEstimator.bmr(w, h, age, sex), activeEst);
-        // Oma askelarvio näytetään heti (fallback). Jos HC:ssä on kaloridataa, se korvaa rivit.
-        stepsCalories.setText(buildCaloriesText(km, activeEst, false, totalEst, false));
-        stepsCalories.setVisibility(View.VISIBLE);
-        if (useHealthConnect() && hcCaloriesGranted) {
+        boolean canHcCalories = useHealthConnect() && hcCaloriesGranted;
+        // Ilman profiilia oma arvio ei onnistu, mutta HC-kalorit voidaan silti näyttää.
+        if (!hasProfile && !canHcCalories) {
+            stepsCalories.setVisibility(View.GONE);
+            return;
+        }
+        final double km = hasProfile ? StepCalorieEstimator.distanceKm(steps, h, stepCm) : 0;
+        final int activeEst = hasProfile ? StepCalorieEstimator.activeKcal(steps, h, w, stepCm) : 0;
+        final int totalEst = hasProfile ? StepCalorieEstimator.totalDailyKcal(
+                StepCalorieEstimator.bmr(w, h, age, sex), activeEst) : 0;
+        if (hasProfile) {
+            // Oma arvio näytetään heti (fallback). HC-kalorit korvaavat rivit jos niitä on.
+            stepsCalories.setText(buildCaloriesText(km, activeEst, false, totalEst, false));
+            stepsCalories.setVisibility(View.VISIBLE);
+        }
+        if (canHcCalories) {
             HealthConnectStepsBridge.todayCalories(this, (active, total, has) -> {
                 if (destroyed || stepsCalories == null || !has) return;
                 int a = active > 0 ? (int) Math.round(active) : activeEst;
                 int t = total > 0 ? (int) Math.round(total) : totalEst;
                 stepsCalories.setText(buildCaloriesText(km, a, active > 0, t, total > 0));
+                stepsCalories.setVisibility(View.VISIBLE);
             });
         }
     }
@@ -3621,18 +3624,24 @@ public class MobileMainActivity extends AppCompatActivity {
     private CharSequence buildCaloriesText(double km, int active, boolean activeIsHc,
                                            int total, boolean totalIsHc) {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format(java.util.Locale.US, "Matka-arvio: %.1f km", km).replace('.', ','));
-        sb.append("\nAktiivinen kulutus: ");
-        if (activeIsHc) sb.append(active).append(" kcal (Health Connect)");
-        else sb.append("noin ").append(active).append(" kcal (arvio)");
-        if (total > 0) {
-            if (totalIsHc) {
-                sb.append("\nPäivän kokonaiskulutus: ").append(total).append(" kcal (Health Connect)");
-            } else {
-                sb.append("\nPäivän kokonaisarvio: noin ").append(total).append(" kcal");
-            }
+        if (km > 0) {
+            sb.append(String.format(java.util.Locale.US, "Matka-arvio: %.1f km", km).replace('.', ','));
         }
-        sb.append("\nKalorit: ").append((activeIsHc || totalIsHc) ? "Health Connect" : "Arkikeskus-arvio");
+        if (activeIsHc || active > 0) {
+            if (sb.length() > 0) sb.append("\n");
+            sb.append("Aktiivinen kulutus: ");
+            if (activeIsHc) sb.append(active).append(" kcal (Health Connect)");
+            else sb.append("noin ").append(active).append(" kcal (arvio)");
+        }
+        if (totalIsHc || total > 0) {
+            if (sb.length() > 0) sb.append("\n");
+            if (totalIsHc) sb.append("Päivän kokonaiskulutus: ").append(total).append(" kcal (Health Connect)");
+            else sb.append("Päivän kokonaisarvio: noin ").append(total).append(" kcal");
+        }
+        if (activeIsHc || active > 0 || totalIsHc || total > 0) {
+            if (sb.length() > 0) sb.append("\n");
+            sb.append("Kalorit: ").append((activeIsHc || totalIsHc) ? "Health Connect" : "Arkikeskus-arvio");
+        }
         return sb;
     }
 
@@ -3716,9 +3725,13 @@ public class MobileMainActivity extends AppCompatActivity {
                     .append(formatStepsNum(steps[i])).append(" askelta");
             int a = (int) Math.round(active[i]);
             int tk = (int) Math.round(total[i]);
-            if (a > 0) {
-                sb.append("\n  aktiiviset ").append(a).append(" kcal");
-                if (tk > 0) sb.append(" · yhteensä ").append(tk).append(" kcal");
+            if (a > 0 || tk > 0) {
+                if (a > 0) {
+                    sb.append("\n  aktiiviset ").append(a).append(" kcal");
+                    if (tk > 0) sb.append(" · yhteensä ").append(tk).append(" kcal");
+                } else {
+                    sb.append("\n  yhteensä ").append(tk).append(" kcal");
+                }
             } else if (canEstimate && steps[i] > 0) {
                 sb.append("\n  aktiiviset ~")
                         .append(StepCalorieEstimator.activeKcal(steps[i], h, w, stepCm))
