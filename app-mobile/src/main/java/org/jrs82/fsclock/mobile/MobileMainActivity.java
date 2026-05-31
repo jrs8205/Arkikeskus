@@ -258,6 +258,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private View drawer;
     private View drawerScrim;
     private View scroll;
+    private View roadCamerasView;
     private View homeView;
     private LinearLayout widgetsContainer;
     private View forecastView;
@@ -549,6 +550,7 @@ public class MobileMainActivity extends AppCompatActivity {
         drawer = findViewById(R.id.mobile_drawer);
         drawerScrim = findViewById(R.id.mobile_drawer_scrim);
         scroll = findViewById(R.id.mobile_scroll);
+        roadCamerasView = findViewById(R.id.mobile_road_cameras_view);
         homeView = findViewById(R.id.mobile_home_view);
         forecastView = findViewById(R.id.mobile_forecast_view);
         electricityView = findViewById(R.id.mobile_electricity_view);
@@ -762,7 +764,7 @@ public class MobileMainActivity extends AppCompatActivity {
         });
         findViewById(R.id.mobile_nav_road_cameras).setOnClickListener(v -> {
             closeDrawer();
-            startActivity(new android.content.Intent(this, RoadCamerasActivity.class));
+            showRoadCameras();
         });
         findViewById(R.id.mobile_nav_news).setOnClickListener(v -> {
             closeDrawer();
@@ -3240,6 +3242,14 @@ public class MobileMainActivity extends AppCompatActivity {
     }
 
     private void showSection(View section, String title) {
+        // Kelikamerat on MapView-näkymä ScrollView:n ulkopuolella — vaihda koko scroll-alue
+        // ja karttanäkymä keskenään, ja luo karttafragment lazysti ensiavauksella.
+        boolean cameras = (roadCamerasView != null && section == roadCamerasView);
+        scroll.setVisibility(cameras ? View.GONE : View.VISIBLE);
+        if (roadCamerasView != null) {
+            roadCamerasView.setVisibility(cameras ? View.VISIBLE : View.GONE);
+        }
+        if (cameras) ensureRoadCamerasFragment();
         if (placesView != null
                 && placesView.getVisibility() == View.VISIBLE
                 && section != placesView) {
@@ -3270,6 +3280,18 @@ public class MobileMainActivity extends AppCompatActivity {
 
     private void showHome() {
         showSection(homeView, getString(R.string.app_mobile_name));
+    }
+
+    private void showRoadCameras() {
+        showSection(roadCamerasView, getString(R.string.mobile_widget_road_cameras));
+    }
+
+    private void ensureRoadCamerasFragment() {
+        if (getSupportFragmentManager().findFragmentById(R.id.mobile_road_cameras_view) == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.mobile_road_cameras_view, new RoadCamerasFragment())
+                    .commit();
+        }
     }
 
     private void showSpeedometer() {

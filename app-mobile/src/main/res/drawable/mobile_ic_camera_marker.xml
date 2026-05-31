@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Kelikamera-markeri: keltainen ympyrä + tumma kamerasymboli. Erottuu vaalealta
-     MML-taustakartalta. Renderöidään bitmapiksi RoadCamerasActivityssä SymbolLayerille. -->
+     MML-taustakartalta. Renderöidään bitmapiksi RoadCamerasFragmentissa SymbolLayerille. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="32dp"
     android:height="32dp"
