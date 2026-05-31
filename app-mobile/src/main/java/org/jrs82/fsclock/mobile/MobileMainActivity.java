@@ -94,6 +94,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private static final int TOMORROW_PRICE_PUBLISH_MINUTE = 30;
     private static final int TOMORROW_PRICE_POLL_END_HOUR = 22;
     private static final int LOCATION_PERMISSION_REQUEST = 7107;
+    private static final int DEVINFO_LOCATION_REQUEST = 7108;
     private static final long TOMORROW_PRICE_POLL_MS = 10L * 60_000L;
     private static final long MIN_AUTO_REFRESH_MS = 5L * 60_000L;
     private static final long MAX_AUTO_REFRESH_MS = 180L * 60_000L;
@@ -267,6 +268,16 @@ public class MobileMainActivity extends AppCompatActivity {
     private View trafficView;
     private View placesView;
     private View speedometerView;
+    private View deviceInfoView;
+    private TextView devInfoBattery;
+    private TextView devInfoWifi;
+    private TextView devInfoWifiPerm;
+    private TextView devInfoHardware;
+    private TextView devInfoMemory;
+    private TextView devInfoDisplay;
+    private TextView devInfoSensors;
+    private final java.util.concurrent.ExecutorService deviceInfoIo =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
     private GpsSpeedometerView gpsSpeedometerWidget;
     private GpsSpeedometerView gpsSpeedometerFull;
     private TextView gpsSpeedDigital;
@@ -558,6 +569,14 @@ public class MobileMainActivity extends AppCompatActivity {
         trafficView = findViewById(R.id.mobile_traffic_view);
         placesView = findViewById(R.id.mobile_places_view);
         speedometerView = findViewById(R.id.mobile_speedometer_view);
+        deviceInfoView = findViewById(R.id.mobile_device_info_view);
+        devInfoBattery = findViewById(R.id.mobile_devinfo_battery);
+        devInfoWifi = findViewById(R.id.mobile_devinfo_wifi);
+        devInfoWifiPerm = findViewById(R.id.mobile_devinfo_wifi_perm);
+        devInfoHardware = findViewById(R.id.mobile_devinfo_hardware);
+        devInfoMemory = findViewById(R.id.mobile_devinfo_memory);
+        devInfoDisplay = findViewById(R.id.mobile_devinfo_display);
+        devInfoSensors = findViewById(R.id.mobile_devinfo_sensors);
         gpsSpeedometerWidget = findViewById(R.id.mobile_gps_speedometer);
         gpsSpeedometerFull = findViewById(R.id.mobile_speedometer_full);
         gpsSpeedDigital = findViewById(R.id.mobile_gps_speed_digital);
@@ -774,6 +793,16 @@ public class MobileMainActivity extends AppCompatActivity {
             closeDrawer();
             showSpeedometer();
         });
+        findViewById(R.id.mobile_nav_device_info).setOnClickListener(v -> {
+            closeDrawer();
+            showDeviceInfo();
+        });
+        findViewById(R.id.mobile_devinfo_refresh).setOnClickListener(v -> renderDeviceInfo());
+        findViewById(R.id.mobile_devinfo_wifi_perm).setOnClickListener(v ->
+                ActivityCompat.requestPermissions(this, new String[]{
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                }, DEVINFO_LOCATION_REQUEST));
         findViewById(R.id.mobile_nav_history).setOnClickListener(v -> {
             closeDrawer();
             startActivity(new Intent(this, MobileHistoryActivity.class));
@@ -3264,6 +3293,9 @@ public class MobileMainActivity extends AppCompatActivity {
         if (speedometerView != null) {
             speedometerView.setVisibility(section == speedometerView ? View.VISIBLE : View.GONE);
         }
+        if (deviceInfoView != null) {
+            deviceInfoView.setVisibility(section == deviceInfoView ? View.VISIBLE : View.GONE);
+        }
         if (newsView != null) {
             newsView.setVisibility(section == newsView ? View.VISIBLE : View.GONE);
         }
@@ -3297,6 +3329,37 @@ public class MobileMainActivity extends AppCompatActivity {
     private void showSpeedometer() {
         showSection(speedometerView, "GPS-nopeus");
         renderSpeedometerView();
+    }
+
+    private void showDeviceInfo() {
+        showSection(deviceInfoView, "Puhelimen tiedot");
+        renderDeviceInfo();
+    }
+
+    /** Lukee laitetiedot taustasäikeessä ja päivittää lohkot. WiFi-lupapainike näytetään,
+     *  jos tarkka sijaintilupa puuttuu (verkon nimi/skannaus vaativat sen). */
+    private void renderDeviceInfo() {
+        if (deviceInfoView == null) return;
+        if (devInfoWifiPerm != null) {
+            devInfoWifiPerm.setVisibility(hasPreciseLocationPermission() ? View.GONE : View.VISIBLE);
+        }
+        deviceInfoIo.execute(() -> {
+            final CharSequence battery = DeviceInfoReaders.battery(this);
+            final CharSequence hardware = DeviceInfoReaders.hardware();
+            final CharSequence memory = DeviceInfoReaders.memory(this);
+            final CharSequence display = DeviceInfoReaders.display(this);
+            final CharSequence sensors = DeviceInfoReaders.sensors(this);
+            final CharSequence wifi = DeviceInfoReaders.wifi(this);
+            main.post(() -> {
+                if (destroyed || isFinishing() || isDestroyed()) return;
+                if (devInfoBattery != null) devInfoBattery.setText(battery);
+                if (devInfoHardware != null) devInfoHardware.setText(hardware);
+                if (devInfoMemory != null) devInfoMemory.setText(memory);
+                if (devInfoDisplay != null) devInfoDisplay.setText(display);
+                if (devInfoSensors != null) devInfoSensors.setText(sensors);
+                if (devInfoWifi != null) devInfoWifi.setText(wifi);
+            });
+        });
     }
 
     private void showNews() {
@@ -3762,6 +3825,10 @@ public class MobileMainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == DEVINFO_LOCATION_REQUEST) {
+            renderDeviceInfo();
+            return;
+        }
         if (requestCode != LOCATION_PERMISSION_REQUEST) return;
         boolean precise = permissionGranted(permissions, grantResults,
                 Manifest.permission.ACCESS_FINE_LOCATION);
