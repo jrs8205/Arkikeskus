@@ -4,6 +4,7 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.net.ConnectivityManager;
@@ -17,6 +18,16 @@ import android.os.Build;
 import android.os.Debug;
 import android.os.Environment;
 import android.os.StatFs;
+import android.telephony.CellIdentityLte;
+import android.telephony.CellIdentityNr;
+import android.telephony.CellInfo;
+import android.telephony.CellInfoLte;
+import android.telephony.CellInfoNr;
+import android.telephony.CellSignalStrength;
+import android.telephony.CellSignalStrengthLte;
+import android.telephony.CellSignalStrengthNr;
+import android.telephony.SignalStrength;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.view.Display;
 
@@ -242,6 +253,118 @@ final class DeviceInfoReaders {
                 if (up > 0) row(sb, "Arvioitu lähetys", (up / 1000) + " Mbps");
             }
         } catch (Exception ignored) { }
+    }
+
+    // ---- Mobiiliverkko (best-effort; verkkotyyppi vaatii READ_PHONE_STATE, solutiedot FINE) ----
+    static CharSequence cellular(Context ctx) {
+        PackageManager pm = ctx.getPackageManager();
+        if (pm == null || !pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) {
+            return "Laitteessa ei ole mobiiliverkkoa.";
+        }
+        TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
+        if (tm == null) return "Mobiiliverkon tietoja ei saatu.";
+        StringBuilder sb = new StringBuilder();
+        try {
+            String op = tm.getNetworkOperatorName();
+            if (!TextUtils.isEmpty(op)) row(sb, "Operaattori", op);
+        } catch (Exception ignored) { }
+        try {
+            String mm = tm.getNetworkOperator();
+            if (mm != null && mm.length() >= 5) {
+                row(sb, "MCC / MNC", mm.substring(0, 3) + " / " + mm.substring(3));
+            }
+        } catch (Exception ignored) { }
+        try {
+            row(sb, "Roaming", tm.isNetworkRoaming() ? "kyllä" : "ei");
+        } catch (Exception ignored) { }
+
+        boolean nrSignal = false;
+        try {
+            SignalStrength ss = tm.getSignalStrength();
+            if (ss != null) {
+                for (CellSignalStrength c : ss.getCellSignalStrengths()) {
+                    if (c instanceof CellSignalStrengthLte) {
+                        CellSignalStrengthLte lte = (CellSignalStrengthLte) c;
+                        if (valid(lte.getDbm())) row(sb, "LTE-signaali", lte.getDbm() + " dBm");
+                        if (valid(lte.getRsrp())) row(sb, "  RSRP", lte.getRsrp() + " dBm");
+                        if (valid(lte.getRsrq())) row(sb, "  RSRQ", lte.getRsrq() + " dB");
+                        if (valid(lte.getRssnr())) row(sb, "  RSSNR", lte.getRssnr() + " dB");
+                    } else if (c instanceof CellSignalStrengthNr) {
+                        nrSignal = true;
+                        CellSignalStrengthNr nr = (CellSignalStrengthNr) c;
+                        if (valid(nr.getDbm())) row(sb, "5G-signaali", nr.getDbm() + " dBm");
+                        if (valid(nr.getSsRsrp())) row(sb, "  SS-RSRP", nr.getSsRsrp() + " dBm");
+                        if (valid(nr.getSsRsrq())) row(sb, "  SS-RSRQ", nr.getSsRsrq() + " dB");
+                        if (valid(nr.getSsSinr())) row(sb, "  SS-SINR", nr.getSsSinr() + " dB");
+                    } else if (valid(c.getDbm())) {
+                        row(sb, "Signaali", c.getDbm() + " dBm");
+                    }
+                }
+            }
+        } catch (Exception ignored) { }
+
+        try {
+            int nt = tm.getDataNetworkType();
+            if (nt == TelephonyManager.NETWORK_TYPE_NR) {
+                row(sb, "Verkkotyyppi", "5G (SA, arvio)");
+            } else if (nrSignal && nt == TelephonyManager.NETWORK_TYPE_LTE) {
+                row(sb, "Verkkotyyppi", "5G (NSA, arvio) · LTE");
+            } else {
+                row(sb, "Verkkotyyppi", networkTypeName(nt));
+            }
+        } catch (SecurityException e) {
+            row(sb, "Verkkotyyppi", "vaatii puhelimen tila -luvan");
+        } catch (Exception ignored) { }
+
+        try {
+            List<CellInfo> cells = tm.getAllCellInfo();
+            if (cells != null) {
+                for (CellInfo info : cells) {
+                    if (!info.isRegistered()) continue;
+                    if (info instanceof CellInfoLte) {
+                        CellIdentityLte id = ((CellInfoLte) info).getCellIdentity();
+                        if (valid(id.getCi())) row(sb, "Solu-ID (LTE)", String.valueOf(id.getCi()));
+                        if (valid(id.getPci())) row(sb, "  PCI", String.valueOf(id.getPci()));
+                        if (valid(id.getTac())) row(sb, "  TAC", String.valueOf(id.getTac()));
+                        if (valid(id.getEarfcn())) row(sb, "  EARFCN", String.valueOf(id.getEarfcn()));
+                    } else if (info instanceof CellInfoNr) {
+                        CellIdentityNr id = (CellIdentityNr) ((CellInfoNr) info).getCellIdentity();
+                        long nci = id.getNci();
+                        if (nci != Long.MAX_VALUE && nci != CellInfo.UNAVAILABLE_LONG) {
+                            row(sb, "Solu-ID (NR)", String.valueOf(nci));
+                        }
+                        if (valid(id.getPci())) row(sb, "  PCI", String.valueOf(id.getPci()));
+                        if (valid(id.getTac())) row(sb, "  TAC", String.valueOf(id.getTac()));
+                        if (valid(id.getNrarfcn())) row(sb, "  NRARFCN", String.valueOf(id.getNrarfcn()));
+                    }
+                    break;
+                }
+            }
+        } catch (SecurityException ignored) {
+            // FINE-lupa puuttuu → solutiedot jätetään pois
+        } catch (Exception ignored) { }
+
+        return trimmed(sb, "Mobiiliverkon tietoja ei saatu.");
+    }
+
+    private static boolean valid(int v) {
+        return v != Integer.MAX_VALUE && v != Integer.MIN_VALUE;
+    }
+
+    private static String networkTypeName(int t) {
+        switch (t) {
+            case TelephonyManager.NETWORK_TYPE_NR: return "5G NR";
+            case TelephonyManager.NETWORK_TYPE_LTE: return "LTE (4G)";
+            case TelephonyManager.NETWORK_TYPE_HSPAP:
+            case TelephonyManager.NETWORK_TYPE_HSPA:
+            case TelephonyManager.NETWORK_TYPE_HSDPA:
+            case TelephonyManager.NETWORK_TYPE_HSUPA:
+            case TelephonyManager.NETWORK_TYPE_UMTS: return "3G";
+            case TelephonyManager.NETWORK_TYPE_EDGE:
+            case TelephonyManager.NETWORK_TYPE_GPRS: return "2G";
+            case TelephonyManager.NETWORK_TYPE_UNKNOWN: return "ei yhteyttä";
+            default: return "tyyppi " + t;
+        }
     }
 
     // ---- Apurit ----
