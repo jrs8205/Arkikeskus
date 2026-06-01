@@ -54,6 +54,16 @@ final class DigitransitApi {
             + " gtfsId name code vehicleMode"
             + " stoptimesWithoutPatterns(numberOfDepartures: 5) { " + STOPTIME_FIELDS + " } } }";
 
+    private static final String ROUTE_PATTERNS_QUERY =
+            "query RP($id: String!) { route(id: $id) {"
+            + " shortName longName mode patterns { code directionId headsign } } }";
+
+    private static final String PATTERN_TIMETABLE_QUERY =
+            "query PT($id: String!) { pattern(id: $id) { headsign directionId"
+            + " vehiclePositions { trip { gtfsId } stopRelationship { status stop { gtfsId } } }"
+            + " stops { gtfsId name stoptimesForPatterns(numberOfDepartures: 1) {"
+            + " stoptimes { scheduledDeparture realtimeDeparture realtime serviceDay } } } } }";
+
     private DigitransitApi() {}
 
     // --- Lähimmät lähdöt ---
@@ -228,7 +238,89 @@ final class DigitransitApi {
                 break;
             }
         }
-        return new TripTimeline(routeShortName, headsign, mode, stops, currentIndex, boardIndex, incoming);
+        List<Integer> vehIdx = new ArrayList<>();
+        if (currentIndex >= 0) vehIdx.add(currentIndex);
+        return new TripTimeline(routeShortName, headsign, mode, stops, vehIdx, boardIndex, incoming);
+    }
+
+    // --- Linjanäkymä: suunnat + suunnan aikataulu (seuraava lähtö per pysäkki) + live-ajoneuvot ---
+
+    static RoutePatterns routePatterns(String routeGtfsId) throws Exception {
+        JSONObject variables = new JSONObject();
+        variables.put("id", routeGtfsId);
+        JSONObject data = postQuery(ROUTE_PATTERNS_QUERY, variables);
+        JSONObject route = data == null ? null : data.optJSONObject("route");
+        if (route == null) return null;
+        List<RoutePatterns.Pat> pats = new ArrayList<>();
+        JSONArray arr = route.optJSONArray("patterns");
+        if (arr != null) {
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject p = arr.optJSONObject(i);
+                if (p == null) continue;
+                pats.add(new RoutePatterns.Pat(p.optString("code", ""),
+                        p.optInt("directionId", 0), p.optString("headsign", "")));
+            }
+        }
+        return new RoutePatterns(route.optString("shortName", ""),
+                route.optString("longName", ""), route.optString("mode", ""), pats);
+    }
+
+    static TripTimeline patternTimetable(String patternCode, String routeShortName, String mode)
+            throws Exception {
+        JSONObject variables = new JSONObject();
+        variables.put("id", patternCode);
+        JSONObject data = postQuery(PATTERN_TIMETABLE_QUERY, variables);
+        JSONObject pattern = data == null ? null : data.optJSONObject("pattern");
+        if (pattern == null) return null;
+        String headsign = pattern.optString("headsign", "");
+
+        List<TimelineStop> stops = new ArrayList<>();
+        JSONArray sarr = pattern.optJSONArray("stops");
+        if (sarr != null) {
+            for (int i = 0; i < sarr.length(); i++) {
+                JSONObject s = sarr.optJSONObject(i);
+                if (s == null) continue;
+                String sid = s.optString("gtfsId", "");
+                String sname = s.optString("name", "");
+                long epoch = 0L;
+                boolean realtime = false;
+                JSONArray groups = s.optJSONArray("stoptimesForPatterns");
+                if (groups != null && groups.length() > 0) {
+                    JSONObject g0 = groups.optJSONObject(0);
+                    JSONArray times = g0 == null ? null : g0.optJSONArray("stoptimes");
+                    if (times != null && times.length() > 0) {
+                        JSONObject t0 = times.optJSONObject(0);
+                        long sd = t0.optLong("serviceDay", 0L);
+                        boolean r = t0.optBoolean("realtime", false);
+                        int sch = t0.optInt("scheduledDeparture", -1);
+                        int rtd = t0.optInt("realtimeDeparture", sch);
+                        int chosen = r && rtd >= 0 ? rtd : sch;
+                        if (chosen >= 0) { epoch = sd + chosen; realtime = r; }
+                    }
+                }
+                stops.add(new TimelineStop(sid, sname, "", epoch, realtime));
+            }
+        }
+
+        List<Integer> vehIdx = new ArrayList<>();
+        JSONArray vps = pattern.optJSONArray("vehiclePositions");
+        if (vps != null) {
+            for (int i = 0; i < vps.length(); i++) {
+                JSONObject vp = vps.optJSONObject(i);
+                if (vp == null) continue;
+                JSONObject rel = vp.optJSONObject("stopRelationship");
+                if (rel == null) continue;
+                JSONObject vstop = rel.optJSONObject("stop");
+                String vsid = vstop == null ? "" : vstop.optString("gtfsId", "");
+                for (int k = 0; k < stops.size(); k++) {
+                    if (stops.get(k).gtfsId.equals(vsid)) {
+                        if (!vehIdx.contains(k)) vehIdx.add(k);
+                        break;
+                    }
+                }
+            }
+        }
+        return new TripTimeline(routeShortName, headsign, mode, stops, vehIdx, -1, true);
     }
 
     // --- HTTP ---

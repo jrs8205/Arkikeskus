@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -41,13 +42,15 @@ import org.jrs82.fsclock.R;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /** Joukkoliikennesivu: GPS:n lähimmät HSL-lähdöt, haku (suodatus + koko HSL), suosikit (linjat +
- *  pysäkit) ja vuoron aikajana live-sijainnilla. Malli: {@link RoadCamerasFragment}. */
+ *  pysäkit), vuoron aikajana live-sijainnilla ja linjanäkymä (reitti + aikataulu + live-vuorot). */
 public class TransitFragment extends Fragment implements TransitAdapter.Listener {
 
     private static final long AUTO_REFRESH_MS = 25_000L;
@@ -64,7 +67,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private TransitAdapter adapter;
 
     private View detailOverlay;
-    private TextView detailTitle, detailBanner;
+    private TextView detailBadge, detailDest, detailBanner, detailSwap;
     private TransitTimelineAdapter timelineAdapter;
     private OnBackPressedCallback backCallback;
 
@@ -78,13 +81,16 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private String query = "";
     private List<RouteHit> searchResults = null;
 
-    // Avoinna olevan vuoron aikajana (auto-refresh liikuttaa live-sijaintia).
-    private String openTrip, openPattern, openBoardStop, openMode;
+    // Avoinna oleva näkymä: joko vuoro (trip) tai linja (route).
+    private boolean openIsRoute = false;
+    private String openTrip, openPattern, openBoardStop, openMode, openShort;
+    private RoutePatterns openRoutePatterns;
+    private int openPatternIdx;
 
     private final Runnable autoRefresh = new Runnable() {
         @Override public void run() {
             if (detailOverlay != null && detailOverlay.getVisibility() == View.VISIBLE) {
-                if (openTrip != null) reloadTimeline();
+                if (openIsRoute || openTrip != null) reloadTimeline();
             } else {
                 View v = getView();
                 if (v != null && v.isShown()) refresh(false);
@@ -122,13 +128,16 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         swipe.setOnRefreshListener(() -> refresh(true));
 
         detailOverlay = view.findViewById(R.id.transit_detail_overlay);
-        detailTitle = view.findViewById(R.id.transit_detail_title);
+        detailBadge = view.findViewById(R.id.transit_detail_badge);
+        detailDest = view.findViewById(R.id.transit_detail_dest);
         detailBanner = view.findViewById(R.id.transit_detail_banner);
+        detailSwap = view.findViewById(R.id.transit_detail_swap);
         RecyclerView detailList = view.findViewById(R.id.transit_detail_list);
         detailList.setLayoutManager(new LinearLayoutManager(requireContext()));
         timelineAdapter = new TransitTimelineAdapter();
         detailList.setAdapter(timelineAdapter);
         view.findViewById(R.id.transit_detail_back).setOnClickListener(v -> closeDetail());
+        detailSwap.setOnClickListener(v -> swapDirection());
 
         backCallback = new OnBackPressedCallback(false) {
             @Override public void handleOnBackPressed() { closeDetail(); }
@@ -252,13 +261,10 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         List<Object> items = buildItems();
         adapter.submit(items);
         if (items.isEmpty()) {
-            if (searchResults != null) {
-                showStatus("Ei linjoja haulla \"" + query + "\".");
-            } else if (!query.isEmpty()) {
-                showStatus("Ei osumia haulla \"" + query + "\".\nPaina hakunäppäintä hakeaksesi koko HSL:stä.");
-            } else {
-                showStatus("Ei lähtöjä 700 m säteellä.\nHSL-alue kattaa pääkaupunkiseudun.");
-            }
+            if (searchResults != null) showStatus("Ei linjoja haulla \"" + query + "\".");
+            else if (!query.isEmpty()) showStatus("Ei osumia haulla \"" + query
+                    + "\".\nPaina hakunäppäintä hakeaksesi koko HSL:stä.");
+            else showStatus("Ei lähtöjä 700 m säteellä.\nHSL-alue kattaa pääkaupunkiseudun.");
         } else {
             hideStatus();
         }
@@ -269,7 +275,6 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         Context ctx = getContext();
         if (ctx == null) return items;
 
-        // Globaali linjahaku korvaa listan kunnes haku tyhjennetään.
         if (searchResults != null) {
             items.add(new TransitAdapter.Header("Linjahaku: " + query, "FAV"));
             items.addAll(searchResults);
@@ -278,7 +283,6 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
 
         String q = query.toLowerCase(FI);
 
-        // Suosikkipysäkit (live-lähdöt).
         for (NearbyStop fs : favStopData) {
             List<Departure> deps = new ArrayList<>(fs.departures);
             deps.sort(Comparator.comparingLong(d -> d.departureEpochSec));
@@ -288,14 +292,12 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             for (int i = 0; i < n; i++) items.add(deps.get(i));
         }
 
-        // Suosikkilinjat hallintariveinä (näkyvät myös lähilistassa kun lähistöllä).
         List<RouteHit> favLines = TransitFavorites.getLines(ctx);
         if (!favLines.isEmpty()) {
             items.add(new TransitAdapter.Header("Suosikkilinjat", "FAV"));
             items.addAll(favLines);
         }
 
-        // Lähilähdöt moodeittain (suodatettuna hakutekstillä).
         for (int g = 0; g < GROUP_MODES.length; g++) {
             String mode = GROUP_MODES[g];
             List<Departure> group = new ArrayList<>();
@@ -322,7 +324,6 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private void runGlobalSearch(String name) {
         hideKeyboard();
         if (name == null || name.trim().isEmpty()) { searchResults = null; renderFromCache(); return; }
-        final Context app = requireContext().getApplicationContext();
         final String q = name.trim();
         showStatus("Haetaan linjaa \"" + q + "\"…");
         io.execute(() -> {
@@ -340,10 +341,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
 
     // --- TransitAdapter.Listener ---
 
-    @Override
-    public void onDepartureClick(Departure d) {
-        openTimeline(d);
-    }
+    @Override public void onDepartureClick(Departure d) { openTimeline(d); }
 
     @Override
     public void onDepartureLongClick(Departure d) {
@@ -362,7 +360,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
                         renderFromCache();
                     } else {
                         TransitFavorites.toggleStopFav(ctx, d.stopGtfsId, d.stopName);
-                        refresh(false); // hae suosikkipysäkin lähdöt
+                        refresh(false);
                     }
                 })
                 .show();
@@ -380,8 +378,8 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
 
     @Override
     public void onRouteClick(RouteHit r) {
-        // Hakutuloksen napautus toggleaa suosikin (sama kuin tähti, iso kosketusalue).
-        onLineStar(r.gtfsId, r.shortName, r.longName, r.mode);
+        // Napautus AVAA linjan (reitti + aikataulu); suosikki hoidetaan tähdellä.
+        openRoute(r.gtfsId, r.shortName, r.mode);
     }
 
     @Override
@@ -390,54 +388,121 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         return ctx != null && TransitFavorites.isLineFav(ctx, routeGtfsId);
     }
 
-    // --- Aikajana-overlay ---
+    // --- Aikajana: vuoronäkymä ---
 
     private void openTimeline(Departure d) {
         if (d == null || d.tripGtfsId == null || d.tripGtfsId.isEmpty()) return;
-        openTrip = d.tripGtfsId;
-        openPattern = d.patternCode;
-        openBoardStop = d.stopGtfsId;
-        openMode = d.mode;
-        String head = d.headsign == null || d.headsign.isEmpty() ? "" : " → " + d.headsign;
-        detailTitle.setText((d.routeShortName == null ? "" : d.routeShortName) + head);
+        openIsRoute = false;
+        openTrip = d.tripGtfsId; openPattern = d.patternCode; openBoardStop = d.stopGtfsId;
+        openMode = d.mode; openShort = d.routeShortName;
+        openRoutePatterns = null;
+        showDetailHeader(d.routeShortName, d.headsign == null ? "" : d.headsign, d.mode, false);
         detailBanner.setText("Haetaan vuoron tietoja…");
-        timelineAdapter.submit(new ArrayList<>(), -1, -1, openMode);
+        timelineAdapter.submit(new ArrayList<>(), null, -1, -1, openMode);
         detailOverlay.setVisibility(View.VISIBLE);
         if (backCallback != null) backCallback.setEnabled(true);
         reloadTimeline();
     }
 
-    private void reloadTimeline() {
-        final String trip = openTrip, pat = openPattern, board = openBoardStop, mode = openMode;
-        if (trip == null) return;
+    // --- Linjanäkymä: reitti + aikataulu + live-vuorot ---
+
+    private void openRoute(String routeGtfsId, String shortName, String mode) {
+        if (routeGtfsId == null || routeGtfsId.isEmpty()) return;
+        openIsRoute = true;
+        openMode = mode; openShort = shortName; openTrip = null;
+        openRoutePatterns = null; openPatternIdx = 0;
+        showDetailHeader(shortName, "", mode, false);
+        detailBanner.setText("Haetaan linjan tietoja…");
+        timelineAdapter.submit(new ArrayList<>(), null, -1, -1, openMode);
+        detailOverlay.setVisibility(View.VISIBLE);
+        if (backCallback != null) backCallback.setEnabled(true);
         io.execute(() -> {
-            TripTimeline tl;
-            try { tl = DigitransitApi.tripTimeline(trip, pat, board); }
-            catch (Exception e) { tl = null; }
-            final TripTimeline result = tl;
+            RoutePatterns rp;
+            try { rp = DigitransitApi.routePatterns(routeGtfsId); }
+            catch (Exception e) { rp = null; }
+            final RoutePatterns result = rp;
             ui.post(() -> {
-                if (!isAdded() || detailOverlay == null
-                        || detailOverlay.getVisibility() != View.VISIBLE
-                        || !trip.equals(openTrip)) return;
-                if (result == null || result.stops.isEmpty()) {
-                    detailBanner.setText("Vuoron tietoja ei saatu.");
+                if (!isAdded() || !openIsRoute || detailOverlay == null
+                        || detailOverlay.getVisibility() != View.VISIBLE) return;
+                if (result == null || result.patterns.isEmpty()) {
+                    detailBanner.setText("Linjan tietoja ei saatu.");
                     return;
                 }
-                timelineAdapter.submit(result.stops, result.currentStopIndex, result.boardStopIndex, mode);
-                detailBanner.setText(bannerText(result, mode));
+                openRoutePatterns = result;
+                openPatternIdx = 0;
+                detailSwap.setVisibility(result.patterns.size() > 1 ? View.VISIBLE : View.GONE);
+                loadPattern();
             });
         });
     }
 
-    private String bannerText(TripTimeline tl, String mode) {
-        String word = modeWord(mode);
-        if (tl.currentStopIndex < 0) {
-            return "Ei live-sijaintia — vuoro ei ole vielä liikkeellä.";
+    private void loadPattern() {
+        if (openRoutePatterns == null || openRoutePatterns.patterns.isEmpty()) return;
+        RoutePatterns.Pat p = openRoutePatterns.patterns.get(openPatternIdx);
+        detailDest.setText(p.headsign);
+        detailBanner.setText("Haetaan aikataulua…");
+        reloadTimeline();
+    }
+
+    private void swapDirection() {
+        if (openRoutePatterns == null || openRoutePatterns.patterns.size() < 2) return;
+        openPatternIdx = (openPatternIdx + 1) % openRoutePatterns.patterns.size();
+        loadPattern();
+    }
+
+    private void reloadTimeline() {
+        if (openIsRoute) {
+            if (openRoutePatterns == null || openRoutePatterns.patterns.isEmpty()) return;
+            final String code = openRoutePatterns.patterns.get(openPatternIdx).code;
+            final String shortN = openShort, mode = openMode;
+            io.execute(() -> {
+                TripTimeline tl;
+                try { tl = DigitransitApi.patternTimetable(code, shortN, mode); }
+                catch (Exception e) { tl = null; }
+                final TripTimeline res = tl;
+                ui.post(() -> {
+                    if (!isAdded() || detailOverlay == null
+                            || detailOverlay.getVisibility() != View.VISIBLE || !openIsRoute) return;
+                    applyTimeline(res, true);
+                });
+            });
+        } else {
+            final String trip = openTrip, pat = openPattern, board = openBoardStop;
+            if (trip == null) return;
+            io.execute(() -> {
+                TripTimeline tl;
+                try { tl = DigitransitApi.tripTimeline(trip, pat, board); }
+                catch (Exception e) { tl = null; }
+                final TripTimeline res = tl;
+                ui.post(() -> {
+                    if (!isAdded() || detailOverlay == null
+                            || detailOverlay.getVisibility() != View.VISIBLE
+                            || openIsRoute || !trip.equals(openTrip)) return;
+                    applyTimeline(res, false);
+                });
+            });
         }
-        String at = tl.currentStopIndex < tl.stops.size()
-                ? tl.stops.get(tl.currentStopIndex).name : "";
+    }
+
+    private void applyTimeline(TripTimeline tl, boolean isRoute) {
+        if (tl == null || tl.stops.isEmpty()) {
+            detailBanner.setText(isRoute ? "Linjan aikataulua ei saatu." : "Vuoron tietoja ei saatu.");
+            return;
+        }
+        Set<Integer> veh = new HashSet<>(tl.vehicleStopIndices);
+        int passedBefore = (!isRoute && tl.vehicleStopIndices.size() == 1)
+                ? tl.vehicleStopIndices.get(0) : -1;
+        timelineAdapter.submit(tl.stops, veh, tl.boardStopIndex, passedBefore, openMode);
+        detailBanner.setText(isRoute ? routeBanner(tl) : tripBanner(tl));
+    }
+
+    private String tripBanner(TripTimeline tl) {
+        String word = modeWord(openMode);
+        if (tl.vehicleStopIndices.isEmpty()) return "Ei live-sijaintia — vuoro ei ole vielä liikkeellä.";
+        int idx = tl.vehicleStopIndices.get(0);
+        String at = idx >= 0 && idx < tl.stops.size() ? tl.stops.get(idx).name : "";
         if (tl.boardStopIndex >= 0) {
-            int n = tl.boardStopIndex - tl.currentStopIndex;
+            int n = tl.boardStopIndex - idx;
             if (n > 0) return word + " on " + n + " pysäkän päässä pysäkistäsi (nyt: " + at + ").";
             if (n == 0) return word + " on pysäkilläsi (" + at + ").";
             return word + " on jo ohittanut pysäkkisi (nyt: " + at + ").";
@@ -445,10 +510,29 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         return word + (tl.vehicleIncoming ? " on tulossa pysäkille " : " on pysäkillä ") + at + ".";
     }
 
+    private String routeBanner(TripTimeline tl) {
+        int c = tl.vehicleStopIndices.size();
+        if (c == 0) return "Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat.";
+        return c + (c == 1 ? " vuoro liikkeellä" : " vuoroa liikkeellä")
+                + " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä.";
+    }
+
+    private void showDetailHeader(String shortName, String dest, String mode, boolean swapVisible) {
+        Context ctx = getContext();
+        detailBadge.setText(shortName == null || shortName.isEmpty() ? "?" : shortName);
+        if (ctx != null) {
+            detailBadge.setBackgroundTintList(ColorStateList.valueOf(TransitAdapter.modeColor(ctx, mode)));
+        }
+        detailDest.setText(dest == null ? "" : dest);
+        detailSwap.setVisibility(swapVisible ? View.VISIBLE : View.GONE);
+    }
+
     private void closeDetail() {
         if (detailOverlay != null) detailOverlay.setVisibility(View.GONE);
         if (backCallback != null) backCallback.setEnabled(false);
         openTrip = null;
+        openIsRoute = false;
+        openRoutePatterns = null;
     }
 
     // --- Apurit ---
@@ -496,8 +580,10 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         status = null;
         adapter = null;
         detailOverlay = null;
-        detailTitle = null;
+        detailBadge = null;
+        detailDest = null;
         detailBanner = null;
+        detailSwap = null;
         timelineAdapter = null;
         super.onDestroyView();
     }
