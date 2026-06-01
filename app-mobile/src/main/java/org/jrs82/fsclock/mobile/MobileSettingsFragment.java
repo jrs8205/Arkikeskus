@@ -119,13 +119,6 @@ public class MobileSettingsFragment extends SettingsFragment {
                 return true;
             });
         }
-        Preference openHistory = findPreference("open_history");
-        if (openHistory != null) {
-            openHistory.setOnPreferenceClickListener(preference -> {
-                startActivity(new Intent(requireContext(), MobileHistoryActivity.class));
-                return true;
-            });
-        }
         Preference addCustomFeed = findPreference("mobile_add_custom_feed");
         if (addCustomFeed != null) {
             addCustomFeed.setOnPreferenceClickListener(preference -> {

@@ -311,6 +311,8 @@ public class MobileMainActivity extends AppCompatActivity {
     private boolean stepsRefreshInFlight = false;
     private TextView stepsCalories;
     private TextView stepsProfileButton;
+    private TextView stepsExportButton;
+    private boolean stepsExportInFlight = false;
     private long lastTodaySteps = 0L;
     private static final String KEY_PROFILE_SEX = "mobile_profile_sex";
     private static final String KEY_PROFILE_AGE = "mobile_profile_age";
@@ -676,6 +678,7 @@ public class MobileMainActivity extends AppCompatActivity {
         stepsUpdated = findViewById(R.id.mobile_steps_updated);
         stepsCalories = findViewById(R.id.mobile_steps_calories);
         stepsProfileButton = findViewById(R.id.mobile_steps_profile);
+        stepsExportButton = findViewById(R.id.mobile_steps_export_html);
         stepCounter = new StepCounter(this);
         stepCounter.setListener(steps -> {
             if (stepsWidgetToday != null && stepsEnabled()) {
@@ -934,6 +937,12 @@ public class MobileMainActivity extends AppCompatActivity {
         if (stepsProfileButton != null) {
             stepsProfileButton.setOnClickListener(v -> showProfileDialog());
         }
+        if (stepsExportButton != null) {
+            stepsExportButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                exportStepsHtml();
+            });
+        }
         findViewById(R.id.mobile_nav_device_info).setOnClickListener(v -> {
             closeDrawer();
             showDeviceInfo();
@@ -957,10 +966,6 @@ public class MobileMainActivity extends AppCompatActivity {
                 ActivityCompat.requestPermissions(this, new String[]{
                         Manifest.permission.READ_PHONE_STATE
                 }, DEVINFO_SIM_REQUEST));
-        findViewById(R.id.mobile_nav_history).setOnClickListener(v -> {
-            closeDrawer();
-            startActivity(new Intent(this, MobileHistoryActivity.class));
-        });
         findViewById(R.id.mobile_nav_places).setOnClickListener(v -> {
             closeDrawer();
             showSection(placesView, getString(R.string.mobile_menu_places));
@@ -969,10 +974,6 @@ public class MobileMainActivity extends AppCompatActivity {
         findViewById(R.id.mobile_nav_settings).setOnClickListener(v -> {
             closeDrawer();
             startActivity(new Intent(this, MobileSettingsActivity.class));
-        });
-        findViewById(R.id.mobile_nav_system).setOnClickListener(v -> {
-            closeDrawer();
-            startActivity(new Intent(this, MobileSystemActivity.class));
         });
         placeAutoButton.setOnClickListener(v -> {
             PreferenceManager.getDefaultSharedPreferences(this).edit()
@@ -3849,6 +3850,9 @@ public class MobileMainActivity extends AppCompatActivity {
             stepsNote.setText("Lähde: Puhelimen askelanturi. Historia päivittyy vain kun sovellus on "
                     + "ollut käytössä; taustakatkot voivat puuttua.");
         }
+        if (stepsExportButton != null) {
+            stepsExportButton.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        }
         updateStepsRefreshButton();
     }
 
@@ -3917,6 +3921,211 @@ public class MobileMainActivity extends AppCompatActivity {
             stepsWidgetToday.setText(String.valueOf(stepCounter.currentTodaySteps()));
             if (stepsWidgetNote != null) stepsWidgetNote.setText("askelta tänään");
         }
+    }
+
+    /** Vie koko askel- ja kalorihistorian itsenäiseksi HTML-sivuksi Download/Arkikeskus-kansioon.
+     *  HC-tilassa data luetaan Health Connectista (deduplikoitu, kertyy 24/7), raw-tilassa Roomista. */
+    private void exportStepsHtml() {
+        if (stepsExportInFlight) return;
+        if (!stepsEnabled()) {
+            android.widget.Toast.makeText(this, "Askelmittari ei ole päällä",
+                    android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        stepsExportInFlight = true;
+        if (stepsExportButton != null) {
+            stepsExportButton.setEnabled(false);
+            stepsExportButton.setText("Viedään…");
+        }
+        if (useHealthConnect()) {
+            gatherHcReportThenExport();
+        } else {
+            deviceInfoIo.execute(() -> {
+                final StepsHtmlExporter.Report report = buildRawReport();
+                main.post(() -> finishExport(report));
+            });
+        }
+    }
+
+    /** Ketjuttaa HC-historiakutsut (päivät → viikot → kuukaudet → tänään → kalorit) ja rakentaa
+     *  raportin. Callbackit tulevat pääsäikeessä; raportti rakennetaan siellä, kirjoitus io-säikeessä. */
+    private void gatherHcReportThenExport() {
+        final java.util.List<StepsHtmlExporter.Row> days = new java.util.ArrayList<>();
+        final java.util.List<StepsHtmlExporter.Row> weeks = new java.util.ArrayList<>();
+        final java.util.List<StepsHtmlExporter.Row> months = new java.util.ArrayList<>();
+        HealthConnectStepsBridge.historyWithCalories(this, HealthConnectStepsBridge.PERIOD_DAYS,
+                365, hcCaloriesGranted, (l1, s1, a1, t1) -> {
+            if (destroyed) { stepsExportInFlight = false; return; }
+            fillHcRows(days, l1, s1, a1, t1, HealthConnectStepsBridge.PERIOD_DAYS);
+            HealthConnectStepsBridge.historyWithCalories(this, HealthConnectStepsBridge.PERIOD_WEEKS,
+                    104, hcCaloriesGranted, (l2, s2, a2, t2) -> {
+                if (destroyed) { stepsExportInFlight = false; return; }
+                fillHcRows(weeks, l2, s2, a2, t2, HealthConnectStepsBridge.PERIOD_WEEKS);
+                HealthConnectStepsBridge.historyWithCalories(this, HealthConnectStepsBridge.PERIOD_MONTHS,
+                        36, hcCaloriesGranted, (l3, s3, a3, t3) -> {
+                    if (destroyed) { stepsExportInFlight = false; return; }
+                    fillHcRows(months, l3, s3, a3, t3, HealthConnectStepsBridge.PERIOD_MONTHS);
+                    HealthConnectStepsBridge.todaySteps(this, todaySteps -> {
+                        if (destroyed) { stepsExportInFlight = false; return; }
+                        final long ts = todaySteps < 0 ? 0L : todaySteps;
+                        HealthConnectStepsBridge.todayCalories(this, (active, total, has) -> {
+                            if (destroyed) { stepsExportInFlight = false; return; }
+                            int ta, tt;
+                            boolean estd;
+                            if (has && (active > 0 || total > 0)) {
+                                ta = active > 0 ? (int) Math.round(active) : 0;
+                                tt = total > 0 ? (int) Math.round(total) : 0;
+                                estd = false;
+                            } else {
+                                ta = estimateActiveKcal(ts);
+                                tt = 0;
+                                estd = ta > 0;
+                            }
+                            finishExport(new StepsHtmlExporter.Report("Health Connect",
+                                    ts, ta, tt, estd, days, weeks, months));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /** Lisää HC-ämpärit raporttiriveiksi uusin ensin; nolla-askelämpärit jätetään pois. Jos ämpärissä
+     *  ei ole HC-kaloridataa, käytetään omaa askelarviota (estimated=true). */
+    private void fillHcRows(java.util.List<StepsHtmlExporter.Row> out, String[] labels, long[] steps,
+                            double[] active, double[] total, int periodType) {
+        for (int i = labels.length - 1; i >= 0; i--) {
+            if (steps[i] <= 0) continue;
+            int a = (int) Math.round(active[i]);
+            int t = (int) Math.round(total[i]);
+            boolean estimated = false;
+            if (a <= 0 && t <= 0) {
+                int est = estimateActiveKcal(steps[i]);
+                if (est > 0) { a = est; estimated = true; }
+            }
+            out.add(new StepsHtmlExporter.Row(exportLabel(labels[i], periodType), steps[i], a, t, estimated));
+        }
+    }
+
+    /** Raw-lähteen raportti Room-päiväsummista (kaikki rivit). Kalorit = oma arvio jos profiili. */
+    private StepsHtmlExporter.Report buildRawReport() {
+        java.util.List<org.jrs82.fsclock.db.DailyStepsEntity> rows =
+                org.jrs82.fsclock.db.FsClockDb.get(this).dailyStepsDao().range(0, 99999999);
+        if (rows == null) rows = new java.util.ArrayList<>();
+        java.util.Collections.sort(rows, (x, y) -> Integer.compare(x.dateKey, y.dateKey));
+
+        java.util.List<StepsHtmlExporter.Row> days = new java.util.ArrayList<>();
+        java.util.LinkedHashMap<String, long[]> weekSteps = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, String> weekLabel = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, long[]> monthSteps = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<String, String> monthLabel = new java.util.LinkedHashMap<>();
+
+        for (org.jrs82.fsclock.db.DailyStepsEntity e : rows) {
+            int key = e.dateKey;
+            java.time.LocalDate d = java.time.LocalDate.of(key / 10000, (key / 100) % 100, key % 100);
+            int ae = estimateActiveKcal(e.steps);
+            days.add(new StepsHtmlExporter.Row(
+                    d.getDayOfMonth() + "." + d.getMonthValue() + "." + d.getYear(),
+                    e.steps, ae, 0, ae > 0));
+            int wk = d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
+            int wky = d.get(java.time.temporal.WeekFields.ISO.weekBasedYear());
+            String wkey = wky + "-" + (wk < 10 ? "0" + wk : "" + wk);
+            weekSteps.computeIfAbsent(wkey, k -> new long[1])[0] += e.steps;
+            weekLabel.put(wkey, "Vk " + wk + "/" + wky);
+            String mkey = d.getYear() + "-" + (d.getMonthValue() < 10 ? "0" + d.getMonthValue() : "" + d.getMonthValue());
+            monthSteps.computeIfAbsent(mkey, k -> new long[1])[0] += e.steps;
+            monthLabel.put(mkey, StepsHistory.monthNameFi(d.getMonthValue()) + " " + d.getYear());
+        }
+        java.util.Collections.reverse(days);
+
+        long todaySteps = stepCounter != null ? stepCounter.currentTodaySteps() : 0L;
+        int todayActive = estimateActiveKcal(todaySteps);
+        return new StepsHtmlExporter.Report("Puhelimen askelanturi", todaySteps, todayActive, 0,
+                todayActive > 0, days, mapToRows(weekSteps, weekLabel), mapToRows(monthSteps, monthLabel));
+    }
+
+    private java.util.List<StepsHtmlExporter.Row> mapToRows(
+            java.util.LinkedHashMap<String, long[]> steps, java.util.LinkedHashMap<String, String> labels) {
+        java.util.List<StepsHtmlExporter.Row> out = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, long[]> e : steps.entrySet()) {
+            long s = e.getValue()[0];
+            int a = estimateActiveKcal(s);
+            out.add(new StepsHtmlExporter.Row(labels.get(e.getKey()), s, a, 0, a > 0));
+        }
+        java.util.Collections.reverse(out);
+        return out;
+    }
+
+    /** Oma aktiivisten kalorien arvio askelista profiilin perusteella; 0 jos pituus/paino puuttuu. */
+    private int estimateActiveKcal(long steps) {
+        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        double h = p.getFloat(KEY_PROFILE_HEIGHT, 0f);
+        double w = p.getFloat(KEY_PROFILE_WEIGHT, 0f);
+        double stepCm = p.getFloat(KEY_PROFILE_STEP, 0f);
+        if (h <= 0 || w <= 0 || steps <= 0) return 0;
+        return StepCalorieEstimator.activeKcal(steps, h, w, stepCm);
+    }
+
+    /** ISO-alkupäivästä näytettävä otsikko: päivä d.M.yyyy, viikko "Vk N/yyyy (väli)", kk kk-nimi+vuosi. */
+    private String exportLabel(String isoDate, int periodType) {
+        try {
+            java.time.LocalDate d = java.time.LocalDate.parse(isoDate);
+            if (periodType == HealthConnectStepsBridge.PERIOD_WEEKS) {
+                int wk = d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
+                int wky = d.get(java.time.temporal.WeekFields.ISO.weekBasedYear());
+                java.time.LocalDate end = d.plusDays(6);
+                return "Vk " + wk + "/" + wky + " (" + d.getDayOfMonth() + "." + d.getMonthValue()
+                        + ".–" + end.getDayOfMonth() + "." + end.getMonthValue() + ".)";
+            }
+            if (periodType == HealthConnectStepsBridge.PERIOD_MONTHS) {
+                return StepsHistory.monthNameFi(d.getMonthValue()) + " " + d.getYear();
+            }
+            return d.getDayOfMonth() + "." + d.getMonthValue() + "." + d.getYear();
+        } catch (Exception e) {
+            return isoDate;
+        }
+    }
+
+    /** Kirjoittaa raportin io-säikeessä ja näyttää tuloksen pääsäikeessä. */
+    private void finishExport(StepsHtmlExporter.Report report) {
+        final String fileName = StepsHtmlExporter.buildFileName();
+        deviceInfoIo.execute(() -> {
+            final StepsHtmlExporter.Result result =
+                    StepsHtmlExporter.export(getApplicationContext(), report, fileName);
+            main.post(() -> {
+                stepsExportInFlight = false;
+                if (stepsExportButton != null) {
+                    stepsExportButton.setEnabled(true);
+                    stepsExportButton.setText("Lataa HTML-yhteenveto");
+                }
+                if (destroyed || isFinishing() || isDestroyed()) return;
+                if (result != null && result.ok) {
+                    showStepsExportDialog(result);
+                } else {
+                    android.widget.Toast.makeText(this, "HTML-vienti epäonnistui",
+                            android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+    }
+
+    private void showStepsExportDialog(StepsHtmlExporter.Result result) {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("HTML tallennettu")
+                .setMessage("Tallennettu kansioon Download/Arkikeskus:\n" + result.fileName)
+                .setPositiveButton("Avaa", (d, w) -> {
+                    try {
+                        Intent view = new Intent(Intent.ACTION_VIEW);
+                        view.setDataAndType(result.uri, "text/html");
+                        view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        startActivity(view);
+                    } catch (Exception e) {
+                        android.widget.Toast.makeText(this, "Avaamiseen ei löytynyt sovellusta",
+                                android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Sulje", null)
+                .show();
     }
 
     /** Lukee laitetiedot taustasäikeessä ja päivittää lohkot. WiFi-lupapainike näytetään,
