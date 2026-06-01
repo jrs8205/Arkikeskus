@@ -263,6 +263,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private View drawerScrim;
     private View scroll;
     private View roadCamerasView;
+    private View transitView;
     private View homeView;
     private LinearLayout widgetsContainer;
     private View forecastView;
@@ -641,6 +642,7 @@ public class MobileMainActivity extends AppCompatActivity {
         drawerScrim = findViewById(R.id.mobile_drawer_scrim);
         scroll = findViewById(R.id.mobile_scroll);
         roadCamerasView = findViewById(R.id.mobile_road_cameras_view);
+        transitView = findViewById(R.id.mobile_transit_view);
         homeView = findViewById(R.id.mobile_home_view);
         forecastView = findViewById(R.id.mobile_forecast_view);
         electricityView = findViewById(R.id.mobile_electricity_view);
@@ -893,6 +895,10 @@ public class MobileMainActivity extends AppCompatActivity {
         findViewById(R.id.mobile_nav_road_cameras).setOnClickListener(v -> {
             closeDrawer();
             showRoadCameras();
+        });
+        findViewById(R.id.mobile_nav_transit).setOnClickListener(v -> {
+            closeDrawer();
+            showTransit();
         });
         findViewById(R.id.mobile_nav_news).setOnClickListener(v -> {
             closeDrawer();
@@ -3435,11 +3441,16 @@ public class MobileMainActivity extends AppCompatActivity {
         // Kelikamerat on MapView-näkymä ScrollView:n ulkopuolella — vaihda koko scroll-alue
         // ja karttanäkymä keskenään, ja luo karttafragment lazysti ensiavauksella.
         boolean cameras = (roadCamerasView != null && section == roadCamerasView);
-        scroll.setVisibility(cameras ? View.GONE : View.VISIBLE);
+        boolean transit = (transitView != null && section == transitView);
+        scroll.setVisibility(cameras || transit ? View.GONE : View.VISIBLE);
         if (roadCamerasView != null) {
             roadCamerasView.setVisibility(cameras ? View.VISIBLE : View.GONE);
         }
+        if (transitView != null) {
+            transitView.setVisibility(transit ? View.VISIBLE : View.GONE);
+        }
         if (cameras) ensureRoadCamerasFragment();
+        if (transit) ensureTransitFragment();
         if (placesView != null
                 && placesView.getVisibility() == View.VISIBLE
                 && section != placesView) {
@@ -3486,6 +3497,22 @@ public class MobileMainActivity extends AppCompatActivity {
         if (getSupportFragmentManager().findFragmentById(R.id.mobile_road_cameras_view) == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.mobile_road_cameras_view, new RoadCamerasFragment())
+                    .commit();
+        }
+    }
+
+    private void showTransit() {
+        showSection(transitView, "Joukkoliikenne");
+        // Jos fragmentti on jo olemassa (paluu sivulle), pyydä tuore haku.
+        androidx.fragment.app.Fragment f =
+                getSupportFragmentManager().findFragmentById(R.id.mobile_transit_view);
+        if (f instanceof TransitFragment) ((TransitFragment) f).onSectionShown();
+    }
+
+    private void ensureTransitFragment() {
+        if (getSupportFragmentManager().findFragmentById(R.id.mobile_transit_view) == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.mobile_transit_view, new TransitFragment())
                     .commit();
         }
     }

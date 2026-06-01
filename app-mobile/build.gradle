@@ -7,6 +7,7 @@ if (localPropsFile.exists()) {
     localPropsFile.withInputStream { localProps.load(it) }
 }
 def mmlApiKey = localProps.getProperty('MML_API_KEY') ?: System.getenv('MML_API_KEY') ?: ""
+def digitransitKey = localProps.getProperty('digitransit_subscription_key') ?: System.getenv('DIGITRANSIT_KEY') ?: ""
 
 android {
     namespace 'org.jrs82.fsclock'
@@ -21,9 +22,10 @@ android {
         applicationId 'org.jrs82.fsclock.mobile'
         minSdk 30
         targetSdk 35
-        versionCode 40
-        versionName '1.9.0-mobile'
+        versionCode 41
+        versionName '1.10.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
+        buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
 
         // MapLibren natiivikirjastot vain ARM-laitteille (ei x86-emulaattoreita) —
         // muuten APK paisuu ~53 MB:iin. arm64-v8a + armeabi-v7a kattaa oikeat laitteet.
@@ -102,6 +104,7 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'androidx.browser:browser:1.8.0'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
     implementation 'org.maplibre.gl:android-sdk:11.5.2'
