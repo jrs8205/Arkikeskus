@@ -15,6 +15,66 @@ Molemmat moduulit jakavat yhteistä koodia `app/`-moduulista
 `org.jrs82.fsclock.mobile`-pakettiin ja resurssit `app-mobile/src/main/res/`
 alle.
 
+## Kuvankaappaukset
+
+Arkikeskus-mobiilisovelluksen näkymiä:
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="etusivu_vaalea.png" width="250" alt="Etusivu, vaalea teema"><br>
+      <sub>Etusivu (vaalea)</sub>
+    </td>
+    <td align="center">
+      <img src="etusivu_tumma.png" width="250" alt="Etusivu, tumma teema"><br>
+      <sub>Etusivu (tumma)</sub>
+    </td>
+    <td align="center">
+      <img src="7vrk_saa.png" width="250" alt="7 vrk sää"><br>
+      <sub>7 vrk sää</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="sahkon_hinnat.png" width="250" alt="Sähkön hinnat"><br>
+      <sub>Sähkön hinnat</sub>
+    </td>
+    <td align="center">
+      <img src="uutiset.png" width="250" alt="Uutiset"><br>
+      <sub>Uutiset</sub>
+    </td>
+    <td align="center">
+      <img src="tietyot.png" width="250" alt="Tietyöt"><br>
+      <sub>Tietyöt</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="kelikamerat.png" width="250" alt="Kelikamerat kartalla"><br>
+      <sub>Kelikamerat</sub>
+    </td>
+    <td align="center">
+      <img src="gps_nopeus.png" width="250" alt="GPS-nopeusmittari"><br>
+      <sub>GPS-nopeus</sub>
+    </td>
+    <td align="center">
+      <img src="askelmittari.png" width="250" alt="Askelmittari"><br>
+      <sub>Askeleet</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="puhelimen_tiedot.png" width="250" alt="Puhelimen tiedot"><br>
+      <sub>Puhelimen tiedot</sub>
+    </td>
+    <td align="center">
+      <img src="valikko.png" width="250" alt="Sivuvalikko"><br>
+      <sub>Valikko</sub>
+    </td>
+    <td></td>
+  </tr>
+</table>
+
 ## Build
 
 Tarvitset Android SDK:n ja Java 17:n. Konfiguroi `local.properties`:
