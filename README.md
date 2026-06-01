@@ -54,13 +54,15 @@ Arkikeskus-mobiilisovelluksen näkymiä:
       <sub>Kelikamerat</sub>
     </td>
     <td align="center">
-      <img src="joukkoliikenne_1.png" width="250" alt="HSL reitit"><br>
-      <sub>Joukkoliikenne</sub>
+      <img src="joukkoliikenne_1.png" width="250" alt="Joukkoliikenne kartalla"><br>
+      <sub>Joukkoliikenne (kartta)</sub>
     </td>
     <td align="center">
-      <img src="joukkoliikenne_2.png" width="250" alt="HSL reitit ja haku"><br>
-      <sub>Joukkoliikenne</sub>
+      <img src="joukkoliikenne_2.png" width="250" alt="Joukkoliikenteen haku"><br>
+      <sub>Joukkoliikenne (haku)</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <img src="gps_nopeus.png" width="250" alt="GPS-nopeusmittari"><br>
       <sub>GPS-nopeus</sub>
@@ -69,16 +71,17 @@ Arkikeskus-mobiilisovelluksen näkymiä:
       <img src="askelmittari.png" width="250" alt="Askelmittari"><br>
       <sub>Askeleet</sub>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <img src="puhelimen_tiedot.png" width="250" alt="Puhelimen tiedot"><br>
       <sub>Puhelimen tiedot</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <img src="valikko.png" width="250" alt="Sivuvalikko"><br>
       <sub>Valikko</sub>
     </td>
+    <td></td>
     <td></td>
   </tr>
 </table>
