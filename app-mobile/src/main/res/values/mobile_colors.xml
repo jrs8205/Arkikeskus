@@ -16,5 +16,10 @@
     <color name="mobile_warning_yellow">#8A6200</color>
     <color name="mobile_warning_orange">#A14E10</color>
     <color name="mobile_warning_red">#C12018</color>
+    <!-- HSL-moodivärit (brändivärit, samat molemmissa teemoissa; badge-tausta valkoisella tekstillä) -->
+    <color name="mobile_transit_bus">#007AC9</color>
+    <color name="mobile_transit_tram">#00985F</color>
+    <color name="mobile_transit_rail">#8C4799</color>
+    <color name="mobile_transit_subway">#FF6319</color>
     <bool name="mobile_light_status_bar">true</bool>
 </resources>

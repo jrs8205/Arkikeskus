@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="18dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="6dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <FrameLayout
+        android:id="@+id/transit_header_badge"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:background="@drawable/mobile_transit_badge_bg">
+
+        <ImageView
+            android:id="@+id/transit_header_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/transit_header_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:textColor="@color/mobile_text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+</LinearLayout>

@@ -1446,6 +1446,15 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:visibility="gone" />
+
+        <!-- Joukkoliikenne omana näkymänä saman headerin alla (RecyclerView + SwipeRefresh).
+             ScrollView:n sisarus; fragment lisätään lazysti showSection(transitView)-polulla. -->
+        <FrameLayout
+            android:id="@+id/mobile_transit_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone" />
     </LinearLayout>
 
     <ImageButton
@@ -1568,6 +1577,11 @@
             android:id="@+id/mobile_nav_road_cameras"
             style="@style/MobileSubMenuItem"
             android:text="@string/mobile_widget_road_cameras" />
+
+        <TextView
+            android:id="@+id/mobile_nav_transit"
+            style="@style/MobileMenuItem"
+            android:text="Joukkoliikenne" />
 
         <TextView
             android:id="@+id/mobile_nav_speedometer"
