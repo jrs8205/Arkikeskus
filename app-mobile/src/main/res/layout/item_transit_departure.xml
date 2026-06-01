@@ -74,4 +74,14 @@
             android:textSize="12sp"
             android:visibility="gone" />
     </LinearLayout>
+
+    <ImageView
+        android:id="@+id/transit_dep_star"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="6dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Suosikki"
+        android:padding="8dp"
+        android:src="@drawable/mobile_ic_star_outline" />
 </LinearLayout>
