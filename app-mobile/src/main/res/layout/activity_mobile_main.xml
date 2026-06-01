@@ -274,7 +274,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Sähkö"
+                            android:text="Pörssisähkö"
                             android:textColor="@color/mobile_text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -591,7 +591,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="20dp"
-                        android:text="Sähkö"
+                        android:text="Pörssisähkö"
                         android:textColor="@color/mobile_text_primary"
                         android:textSize="24sp"
                         android:textStyle="bold" />
@@ -1419,6 +1419,19 @@
                         android:textColor="@color/mobile_text_body"
                         android:textSize="15sp"
                         android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/mobile_steps_export_html"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="20dp"
+                        android:background="@drawable/mobile_menu_item_bg"
+                        android:gravity="center"
+                        android:text="Lataa HTML-yhteenveto"
+                        android:textColor="@color/mobile_accent"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
                 </LinearLayout>
 
             </LinearLayout>
@@ -1582,19 +1595,9 @@
             android:text="Puhelimen tiedot" />
 
         <TextView
-            android:id="@+id/mobile_nav_history"
-            style="@style/MobileMenuItem"
-            android:text="@string/mobile_menu_history" />
-
-        <TextView
             android:id="@+id/mobile_nav_settings"
             style="@style/MobileMenuItem"
             android:text="@string/mobile_menu_settings" />
-
-        <TextView
-            android:id="@+id/mobile_nav_system"
-            style="@style/MobileMenuItem"
-            android:text="@string/mobile_menu_system" />
             </LinearLayout>
         </ScrollView>
     </LinearLayout>

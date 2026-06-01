@@ -80,20 +80,6 @@
             android:theme="@style/MobileSettingsTheme" />
 
         <activity
-            android:name="org.jrs82.fsclock.mobile.MobileSystemActivity"
-            android:exported="false"
-            android:label="@string/mobile_menu_system"
-            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
-            android:theme="@style/MobileSettingsTheme" />
-
-        <activity
-            android:name="org.jrs82.fsclock.mobile.MobileHistoryActivity"
-            android:exported="false"
-            android:label="@string/history_title"
-            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
-            android:theme="@style/MobileSettingsTheme" />
-
-        <activity
             android:name="org.jrs82.fsclock.mobile.MobileWidgetOrderActivity"
             android:exported="false"
             android:label="@string/mobile_pref_widget_order"

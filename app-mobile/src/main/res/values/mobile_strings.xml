@@ -4,7 +4,7 @@
     <string name="mobile_settings_title">Arkikeskus-asetukset</string>
     <string name="mobile_menu_home">Etusivu</string>
     <string name="mobile_menu_forecast">7 vrk sää</string>
-    <string name="mobile_menu_electricity">Sähkö</string>
+    <string name="mobile_menu_electricity">Pörssisähkö</string>
     <string name="mobile_menu_electricity_today">Tänään</string>
     <string name="mobile_menu_electricity_tomorrow">Huomenna</string>
     <string name="mobile_menu_electricity_compare">Vertailu</string>
@@ -14,13 +14,13 @@
     <string name="mobile_pref_cheap_electricity_threshold_summary">c/kWh, ALV 0%</string>
     <string name="mobile_pref_cheap_electricity_mode">Milloin huomio näytetään</string>
     <string name="mobile_pref_cheap_electricity_mode_summary">Valitse tarkistetaanko nykyinen vartti, loppupäivä vai koko päivä</string>
-    <string name="mobile_pref_show_electricity_widget">Sähkö-widget etusivulla</string>
+    <string name="mobile_pref_show_electricity_widget">Pörssisähkö-widget etusivulla</string>
     <string name="mobile_pref_show_electricity_widget_summary">Näytä nykyinen sähkön hinta etusivun korttina</string>
     <string name="mobile_pref_cat_home_widgets">Etusivun widgetit</string>
     <string name="mobile_pref_widget_order">Widgettien järjestys</string>
     <string name="mobile_pref_widget_order_summary">Muuta etusivun widgettien järjestystä</string>
     <string name="mobile_widget_weather">Sää</string>
-    <string name="mobile_widget_electricity">Sähkö</string>
+    <string name="mobile_widget_electricity">Pörssisähkö</string>
     <string name="mobile_widget_warnings">Säävaroitukset</string>
     <string name="mobile_widget_sensors">Anturit</string>
     <string name="mobile_widget_traffic">Liikenne</string>
@@ -58,10 +58,8 @@
     <string name="mobile_menu_traffic_weight">Painorajoitukset</string>
     <string name="mobile_menu_traffic_incidents">Häiriöt</string>
     <string name="mobile_menu_traffic_congestion">Ruuhkat</string>
-    <string name="mobile_menu_history">Historia</string>
     <string name="mobile_menu_places">Suosikkipaikat</string>
     <string name="mobile_menu_settings">Asetukset</string>
-    <string name="mobile_menu_system">Tilastot</string>
     <string name="mobile_pref_theme">Teema</string>
     <string name="mobile_pref_theme_summary">Valitse vaalea, tumma AMOLED tai järjestelmän teema</string>
     <string-array name="mobile_update_interval_labels">
