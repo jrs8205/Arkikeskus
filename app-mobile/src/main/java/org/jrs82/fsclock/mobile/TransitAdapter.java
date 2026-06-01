@@ -20,9 +20,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/** RecyclerView-adapteri joukkoliikennelistalle: osio-otsikot (moodi-ikoni + nimi) ja lähtörivit
- *  (linjanumero-badge moodivärillä, määränpää, lähtöaika, viive, etäisyys). Litteä item-lista. */
+/** RecyclerView-adapteri joukkoliikennelistalle: osio-otsikot, lähtörivit (linjabadge moodivärillä,
+ *  määränpää, aika, viive, etäisyys, suosikkitähti) ja linjahaun tulokset. Litteä item-lista. */
 class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+
+    interface Listener {
+        void onDepartureClick(Departure d);
+        void onDepartureLongClick(Departure d);
+        void onLineStar(String routeGtfsId, String shortName, String longName, String mode);
+        void onRouteClick(RouteHit r);
+        boolean isLineFav(String routeGtfsId);
+    }
 
     static final class Header {
         final String title;
@@ -32,10 +40,14 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_DEPARTURE = 1;
+    private static final int TYPE_ROUTE = 2;
     private static final Locale FI = new Locale("fi", "FI");
     private static final SimpleDateFormat CLOCK = new SimpleDateFormat("HH:mm", FI);
 
     private final List<Object> items = new ArrayList<>();
+    private final Listener listener;
+
+    TransitAdapter(Listener listener) { this.listener = listener; }
 
     void submit(List<Object> newItems) {
         items.clear();
@@ -45,7 +57,10 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override
     public int getItemViewType(int position) {
-        return items.get(position) instanceof Header ? TYPE_HEADER : TYPE_DEPARTURE;
+        Object it = items.get(position);
+        if (it instanceof Header) return TYPE_HEADER;
+        if (it instanceof RouteHit) return TYPE_ROUTE;
+        return TYPE_DEPARTURE;
     }
 
     @NonNull
@@ -54,6 +69,9 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         LayoutInflater inf = LayoutInflater.from(parent.getContext());
         if (viewType == TYPE_HEADER) {
             return new HeaderVH(inf.inflate(R.layout.item_transit_header, parent, false));
+        }
+        if (viewType == TYPE_ROUTE) {
+            return new RouteVH(inf.inflate(R.layout.item_transit_route, parent, false));
         }
         return new DepartureVH(inf.inflate(R.layout.item_transit_departure, parent, false));
     }
@@ -67,20 +85,46 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             HeaderVH vh = (HeaderVH) holder;
             vh.title.setText(h.title);
             vh.icon.setImageResource(modeIcon(h.mode));
+            vh.icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
             vh.badge.setBackgroundTintList(ColorStateList.valueOf(modeColor(ctx, h.mode)));
+        } else if (item instanceof RouteHit) {
+            RouteHit r = (RouteHit) item;
+            RouteVH vh = (RouteVH) holder;
+            vh.line.setText(r.shortName == null || r.shortName.isEmpty() ? "?" : r.shortName);
+            vh.line.setBackgroundTintList(ColorStateList.valueOf(modeColor(ctx, r.mode)));
+            vh.name.setText(r.longName == null ? "" : r.longName);
+            boolean fav = listener != null && listener.isLineFav(r.gtfsId);
+            vh.star.setImageResource(fav ? R.drawable.mobile_ic_star : R.drawable.mobile_ic_star_outline);
+            vh.star.setOnClickListener(v -> {
+                if (listener != null) listener.onLineStar(r.gtfsId, r.shortName, r.longName, r.mode);
+            });
+            vh.itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onRouteClick(r);
+            });
+            vh.itemView.setOnLongClickListener(null);
         } else {
             Departure d = (Departure) item;
             DepartureVH vh = (DepartureVH) holder;
-            vh.line.setText(d.routeShortName == null || d.routeShortName.isEmpty()
-                    ? "?" : d.routeShortName);
+            vh.line.setText(d.routeShortName == null || d.routeShortName.isEmpty() ? "?" : d.routeShortName);
             vh.line.setBackgroundTintList(ColorStateList.valueOf(modeColor(ctx, d.mode)));
-            vh.headsign.setText(d.headsign == null || d.headsign.isEmpty()
-                    ? "—" : d.headsign);
+            vh.headsign.setText(d.headsign == null || d.headsign.isEmpty() ? "—" : d.headsign);
             vh.sub.setText(subLine(d));
             vh.time.setText(timeText(d));
             vh.time.setTextColor(ContextCompat.getColor(ctx, d.realtime
                     ? R.color.mobile_transit_tram : R.color.mobile_text_secondary));
             bindDelay(ctx, vh.delay, d);
+            boolean fav = listener != null && listener.isLineFav(d.routeGtfsId);
+            vh.star.setImageResource(fav ? R.drawable.mobile_ic_star : R.drawable.mobile_ic_star_outline);
+            vh.star.setOnClickListener(v -> {
+                if (listener != null) listener.onLineStar(d.routeGtfsId, d.routeShortName, "", d.mode);
+            });
+            vh.itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onDepartureClick(d);
+            });
+            vh.itemView.setOnLongClickListener(v -> {
+                if (listener != null) listener.onDepartureLongClick(d);
+                return true;
+            });
         }
     }
 
@@ -101,7 +145,6 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return String.format(FI, "%.1f km", meters / 1000.0);
     }
 
-    /** "nyt" / "X min" alle tunnin, muuten kellonaika HH:mm. */
     private static String timeText(Departure d) {
         long nowSec = System.currentTimeMillis() / 1000L;
         long diffSec = d.departureEpochSec - nowSec;
@@ -138,6 +181,7 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private static int modeIcon(String mode) {
+        if ("FAV".equals(mode)) return R.drawable.mobile_ic_star;
         if ("TRAM".equals(mode)) return R.drawable.mobile_ic_transit_tram;
         if ("RAIL".equals(mode)) return R.drawable.mobile_ic_transit_rail;
         if ("SUBWAY".equals(mode)) return R.drawable.mobile_ic_transit_subway;
@@ -157,11 +201,8 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     static final class DepartureVH extends RecyclerView.ViewHolder {
-        final TextView line;
-        final TextView headsign;
-        final TextView sub;
-        final TextView time;
-        final TextView delay;
+        final TextView line, headsign, sub, time, delay;
+        final ImageView star;
         DepartureVH(@NonNull View v) {
             super(v);
             line = v.findViewById(R.id.transit_dep_line);
@@ -169,6 +210,18 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             sub = v.findViewById(R.id.transit_dep_sub);
             time = v.findViewById(R.id.transit_dep_time);
             delay = v.findViewById(R.id.transit_dep_delay);
+            star = v.findViewById(R.id.transit_dep_star);
+        }
+    }
+
+    static final class RouteVH extends RecyclerView.ViewHolder {
+        final TextView line, name;
+        final ImageView star;
+        RouteVH(@NonNull View v) {
+            super(v);
+            line = v.findViewById(R.id.transit_route_line);
+            name = v.findViewById(R.id.transit_route_name);
+            star = v.findViewById(R.id.transit_route_star);
         }
     }
 }

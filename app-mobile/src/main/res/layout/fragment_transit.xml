@@ -4,20 +4,70 @@
     android:layout_height="match_parent"
     android:background="@color/mobile_bg">
 
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/transit_swipe"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/transit_list"
+        <!-- Hakupalkki: kirjoittaessa suodattaa lähilistaa; hakunäppäin hakee koko HSL-linjastosta. -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingTop="4dp"
-            android:paddingBottom="20dp"
-            android:scrollbars="vertical" />
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+            android:layout_height="wrap_content"
+            android:background="@color/mobile_nav_surface"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="8dp">
+
+            <EditText
+                android:id="@+id/transit_search"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/mobile_card_bg"
+                android:hint="Hae linja (esim. 550) tai määränpää"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:paddingStart="14dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="10dp"
+                android:textColor="@color/mobile_text_primary"
+                android:textColorHint="@color/mobile_text_muted"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/transit_search_clear"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="×"
+                android:textColor="@color/mobile_text_secondary"
+                android:textSize="24sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/transit_swipe"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/transit_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingTop="4dp"
+                android:paddingBottom="20dp"
+                android:scrollbars="vertical" />
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+    </LinearLayout>
 
     <TextView
         android:id="@+id/transit_status"
@@ -30,4 +80,66 @@
         android:textColor="@color/mobile_text_muted"
         android:textSize="15sp"
         android:visibility="gone" />
+
+    <!-- Aikajana-overlay (vuoron pysäkit + bussin live-sijainti). Oma header takaisin-napilla. -->
+    <LinearLayout
+        android:id="@+id/transit_detail_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/mobile_bg"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/mobile_toolbar_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingEnd="14dp">
+
+            <TextView
+                android:id="@+id/transit_detail_back"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="←"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="24sp" />
+
+            <TextView
+                android:id="@+id/transit_detail_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/mobile_text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/transit_detail_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/mobile_nav_surface"
+            android:lineSpacingExtra="2dp"
+            android:padding="14dp"
+            android:textColor="@color/mobile_text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/transit_detail_list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingTop="8dp"
+            android:paddingBottom="20dp"
+            android:scrollbars="vertical" />
+    </LinearLayout>
 </FrameLayout>
