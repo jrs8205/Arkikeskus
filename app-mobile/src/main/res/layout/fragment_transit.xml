@@ -92,33 +92,62 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:background="@color/mobile_toolbar_bg"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="6dp"
-            android:paddingEnd="14dp">
+            android:paddingStart="4dp"
+            android:paddingEnd="12dp">
 
-            <TextView
+            <ImageView
                 android:id="@+id/transit_detail_back"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:gravity="center"
-                android:text="←"
-                android:textColor="@color/mobile_text_primary"
-                android:textSize="24sp" />
+                android:contentDescription="Takaisin"
+                android:padding="12dp"
+                android:src="@drawable/mobile_ic_arrow_back" />
 
             <TextView
-                android:id="@+id/transit_detail_title"
+                android:id="@+id/transit_detail_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/mobile_transit_badge_bg"
+                android:gravity="center"
+                android:minWidth="42dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/transit_detail_dest"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/mobile_text_primary"
-                android:textSize="18sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/transit_detail_swap"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/mobile_menu_item_bg"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="Suunta"
+                android:textColor="@color/mobile_accent"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </LinearLayout>
 
         <TextView
