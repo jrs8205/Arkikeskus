@@ -54,6 +54,14 @@ Arkikeskus-mobiilisovelluksen näkymiä:
       <sub>Kelikamerat</sub>
     </td>
     <td align="center">
+      <img src="joukkoliikenne_1.png" width="250" alt="HSL reitit"><br>
+      <sub>Joukkoliikenne</sub>
+    </td>
+    <td align="center">
+      <img src="joukkoliikenne_2.png" width="250" alt="HSL reitit ja haku"><br>
+      <sub>Joukkoliikenne</sub>
+    </td>
+    <td align="center">
       <img src="gps_nopeus.png" width="250" alt="GPS-nopeusmittari"><br>
       <sub>GPS-nopeus</sub>
     </td>
