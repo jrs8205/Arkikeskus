@@ -27,7 +27,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:background="@drawable/mobile_card_bg"
-                android:hint="Hae linja (esim. 550) tai määränpää"
+                android:hint="Hae linja (esim. 550), pysäkki tai asema"
                 android:imeOptions="actionSearch"
                 android:inputType="text"
                 android:maxLines="1"

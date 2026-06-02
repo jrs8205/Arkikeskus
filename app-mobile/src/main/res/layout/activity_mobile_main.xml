@@ -1581,7 +1581,7 @@
         <TextView
             android:id="@+id/mobile_nav_transit"
             style="@style/MobileMenuItem"
-            android:text="Joukkoliikenne" />
+            android:text="Joukkoliikenne (HSL)" />
 
         <TextView
             android:id="@+id/mobile_nav_speedometer"

@@ -23,7 +23,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /** Aikajana: pysäkit järjestyksessä. Korostaa ajoneuvojen pysäkit (moodiväri, "bussi tässä") ja
- *  käyttäjän nousupysäkän (accent). Vuoronäkymässä ohitetut pysäkit himmennetään (passedBefore). */
+ *  käyttäjän nousupysäkin (accent). Vuoronäkymässä ohitetut pysäkit himmennetään (passedBefore). */
 class TransitTimelineAdapter extends RecyclerView.Adapter<TransitTimelineAdapter.VH> {
 
     private static final SimpleDateFormat CLOCK = new SimpleDateFormat("HH:mm", new Locale("fi", "FI"));

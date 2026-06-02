@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -29,6 +30,7 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onDepartureLongClick(Departure d);
         void onLineStar(String routeGtfsId, String shortName, String longName, String mode);
         void onRouteClick(RouteHit r);
+        void onPlaceClick(PlaceHit p);
         boolean isLineFav(String routeGtfsId);
     }
 
@@ -41,6 +43,7 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_DEPARTURE = 1;
     private static final int TYPE_ROUTE = 2;
+    private static final int TYPE_PLACE = 3;
     private static final Locale FI = new Locale("fi", "FI");
     private static final SimpleDateFormat CLOCK = new SimpleDateFormat("HH:mm", FI);
 
@@ -60,6 +63,7 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         Object it = items.get(position);
         if (it instanceof Header) return TYPE_HEADER;
         if (it instanceof RouteHit) return TYPE_ROUTE;
+        if (it instanceof PlaceHit) return TYPE_PLACE;
         return TYPE_DEPARTURE;
     }
 
@@ -72,6 +76,9 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         if (viewType == TYPE_ROUTE) {
             return new RouteVH(inf.inflate(R.layout.item_transit_route, parent, false));
+        }
+        if (viewType == TYPE_PLACE) {
+            return new PlaceVH(inf.inflate(R.layout.item_transit_place, parent, false));
         }
         return new DepartureVH(inf.inflate(R.layout.item_transit_departure, parent, false));
     }
@@ -100,6 +107,17 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             });
             vh.itemView.setOnClickListener(v -> {
                 if (listener != null) listener.onRouteClick(r);
+            });
+            vh.itemView.setOnLongClickListener(null);
+        } else if (item instanceof PlaceHit) {
+            PlaceHit p = (PlaceHit) item;
+            PlaceVH vh = (PlaceVH) holder;
+            vh.name.setText(p.name == null || p.name.isEmpty() ? "?" : p.name);
+            vh.locality.setText(p.locality == null ? "" : p.locality);
+            vh.locality.setVisibility(p.locality == null || p.locality.isEmpty() ? View.GONE : View.VISIBLE);
+            bindModes(vh.modes, p.modes);
+            vh.itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onPlaceClick(p);
             });
             vh.itemView.setOnLongClickListener(null);
         } else {
@@ -188,6 +206,32 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return R.drawable.mobile_ic_transit_bus;
     }
 
+    /** Lisää moodi-ikonit (tintattuna) paikkahaun riville. Tyhjä lista → laatikko piiloon. */
+    private static void bindModes(LinearLayout box, List<String> modes) {
+        box.removeAllViews();
+        if (modes == null || modes.isEmpty()) {
+            box.setVisibility(View.GONE);
+            return;
+        }
+        box.setVisibility(View.VISIBLE);
+        Context ctx = box.getContext();
+        int sz = dp(ctx, 19);
+        int gap = dp(ctx, 5);
+        for (String m : modes) {
+            ImageView iv = new ImageView(ctx);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(sz, sz);
+            lp.setMarginStart(box.getChildCount() == 0 ? 0 : gap);
+            iv.setLayoutParams(lp);
+            iv.setImageResource(modeIcon(m));
+            iv.setImageTintList(ColorStateList.valueOf(modeColor(ctx, m)));
+            box.addView(iv);
+        }
+    }
+
+    private static int dp(Context ctx, int v) {
+        return Math.round(v * ctx.getResources().getDisplayMetrics().density);
+    }
+
     static final class HeaderVH extends RecyclerView.ViewHolder {
         final View badge;
         final ImageView icon;
@@ -222,6 +266,17 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             line = v.findViewById(R.id.transit_route_line);
             name = v.findViewById(R.id.transit_route_name);
             star = v.findViewById(R.id.transit_route_star);
+        }
+    }
+
+    static final class PlaceVH extends RecyclerView.ViewHolder {
+        final TextView name, locality;
+        final LinearLayout modes;
+        PlaceVH(@NonNull View v) {
+            super(v);
+            name = v.findViewById(R.id.transit_place_name);
+            locality = v.findViewById(R.id.transit_place_locality);
+            modes = v.findViewById(R.id.transit_place_modes);
         }
     }
 }
