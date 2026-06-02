@@ -5,6 +5,7 @@ import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -100,10 +101,9 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         box.removeAllViews();
         boolean any = false;
         for (Leg leg : it.legs) {
-            if (leg.isWalk()) continue;
+            // Näytä kaikki osat moodi-ikonein (myös kävely), myös kun reitillä on vain yksi kulkuneuvo.
             if (any) box.addView(sep(ctx));
-            box.addView(badge(ctx, leg.routeShortName == null || leg.routeShortName.isEmpty()
-                    ? modeWord(leg.mode) : leg.routeShortName, TransitAdapter.modeColor(ctx, leg.mode)));
+            box.addView(legChip(ctx, leg));
             any = true;
         }
         if (!any) {
@@ -115,23 +115,40 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         }
     }
 
-    private static TextView badge(Context ctx, String text, int color) {
-        TextView t = new TextView(ctx);
-        t.setText(text == null || text.isEmpty() ? "?" : text);
-        t.setTextColor(0xFFFFFFFF);
-        t.setTextSize(13);
-        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
-        t.setGravity(android.view.Gravity.CENTER);
-        int padH = dp(ctx, 7);
-        t.setPadding(padH, dp(ctx, 2), padH, dp(ctx, 2));
-        t.setBackgroundResource(R.drawable.mobile_transit_badge_bg);
-        t.setBackgroundTintList(ColorStateList.valueOf(color));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+    /** Reittikortin osachip: moodi-ikoni + (joukkoliikenteellä) linjanumero, moodivärillä. */
+    private static View legChip(Context ctx, Leg leg) {
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        int color = leg.isWalk()
+                ? ContextCompat.getColor(ctx, R.color.mobile_text_muted)
+                : TransitAdapter.modeColor(ctx, leg.mode);
+
+        ImageView icon = new ImageView(ctx);
+        int sz = dp(ctx, 20);
+        icon.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
+        icon.setImageResource(TransitAdapter.modeIcon(leg.mode));
+        icon.setImageTintList(ColorStateList.valueOf(color));
+        row.addView(icon);
+
+        if (!leg.isWalk() && leg.routeShortName != null && !leg.routeShortName.isEmpty()) {
+            TextView num = new TextView(ctx);
+            num.setText(leg.routeShortName);
+            num.setTextColor(color);
+            num.setTextSize(13);
+            num.setTypeface(num.getTypeface(), android.graphics.Typeface.BOLD);
+            LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            nlp.setMarginStart(dp(ctx, 3));
+            num.setLayoutParams(nlp);
+            row.addView(num);
+        }
+
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.setMarginEnd(dp(ctx, 4));
-        t.setLayoutParams(lp);
-        t.setMinWidth(dp(ctx, 34));
-        return t;
+        rlp.setMarginEnd(dp(ctx, 4));
+        row.setLayoutParams(rlp);
+        return row;
     }
 
     private static TextView sep(Context ctx) {
@@ -164,10 +181,19 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             vh.badge.setBackgroundTintList(ColorStateList.valueOf(TransitAdapter.modeColor(ctx, leg.mode)));
             String head = leg.headsign == null || leg.headsign.isEmpty() ? "" : " → " + leg.headsign;
             vh.primary.setText(modeWord(leg.mode) + head);
+            String stop = stopInfo(leg);
             String sec = (leg.fromName == null ? "" : leg.fromName)
+                    + (stop.isEmpty() ? "" : " (" + stop + ")")
                     + "  ·  " + minutes(leg.durationSec);
             vh.secondary.setText(sec);
         }
+    }
+
+    /** Lähtöpaikan tarkenne reitin osaan: laituri (juna/metro) tai pysäkkikoodi, jos tiedossa. */
+    private static String stopInfo(Leg leg) {
+        if (leg.fromPlatform != null && !leg.fromPlatform.isEmpty()) return "laituri " + leg.fromPlatform;
+        if (leg.fromStopCode != null && !leg.fromStopCode.isEmpty()) return "pysäkki " + leg.fromStopCode;
+        return "";
     }
 
     // --- Apurit ---

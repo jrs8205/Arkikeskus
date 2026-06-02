@@ -1287,6 +1287,9 @@
                         android:layout_height="44dp"
                         android:layout_marginTop="8dp"
                         android:background="@drawable/mobile_menu_item_bg"
+                        android:drawableEnd="@drawable/mobile_ic_refresh_24"
+                        android:drawablePadding="8dp"
+                        android:drawableTint="@color/mobile_text_primary"
                         android:gravity="center"
                         android:text="Päivitä Health Connectista"
                         android:textColor="@color/mobile_text_primary"
@@ -1588,14 +1591,18 @@
             android:text="@string/mobile_widget_road_cameras" />
 
         <TextView
-            android:id="@+id/mobile_nav_transit"
-            style="@style/MobileMenuItem"
+            style="@style/MobileMenuSection"
             android:text="Joukkoliikenne (HSL)" />
 
         <TextView
+            android:id="@+id/mobile_nav_transit"
+            style="@style/MobileSubMenuItem"
+            android:text="Lähilähdöt" />
+
+        <TextView
             android:id="@+id/mobile_nav_route_planner"
-            style="@style/MobileMenuItem"
-            android:text="Reittihaku (HSL)" />
+            style="@style/MobileSubMenuItem"
+            android:text="Reittihaku" />
 
         <TextView
             android:id="@+id/mobile_nav_speedometer"

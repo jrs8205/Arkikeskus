@@ -12,9 +12,12 @@ final class Leg {
     final String routeShortName;  // tyhjä kävelyllä
     final String headsign;
     final boolean realtime;       // aika perustuu reaaliaika-arvioon
+    final String fromStopCode;    // lähtöpysäkin koodi (esim. H1234), tyhjä jos ei tiedossa
+    final String fromPlatform;    // lähtölaituri (juna/metro), tyhjä jos ei laituria
 
     Leg(String mode, long startEpochMs, long endEpochMs, int durationSec, int distanceMeters,
-        String fromName, String toName, String routeShortName, String headsign, boolean realtime) {
+        String fromName, String toName, String routeShortName, String headsign, boolean realtime,
+        String fromStopCode, String fromPlatform) {
         this.mode = mode;
         this.startEpochMs = startEpochMs;
         this.endEpochMs = endEpochMs;
@@ -25,6 +28,8 @@ final class Leg {
         this.routeShortName = routeShortName;
         this.headsign = headsign;
         this.realtime = realtime;
+        this.fromStopCode = fromStopCode == null ? "" : fromStopCode;
+        this.fromPlatform = fromPlatform == null ? "" : fromPlatform;
     }
 
     boolean isWalk() { return "WALK".equals(mode); }

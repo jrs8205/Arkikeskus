@@ -22,8 +22,8 @@ android {
         applicationId 'org.jrs82.fsclock.mobile'
         minSdk 30
         targetSdk 35
-        versionCode 46
-        versionName '1.13.1-mobile'
+        versionCode 47
+        versionName '1.14.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
 

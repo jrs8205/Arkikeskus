@@ -59,6 +59,10 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private static final long DEBOUNCE_MS = 280L;
     private static final Locale FI = new Locale("fi", "FI");
     private static final SimpleDateFormat TIME_LABEL = new SimpleDateFormat("EEE d.M. 'klo' HH:mm", FI);
+    private static final String MY_LOCATION = "Oma sijainti";
+    /** Erikoisehdotus, jonka valinta tarkoittaa "käytä GPS-sijaintia" (lat/lon NaN). */
+    private static final GeoPlace MY_LOC =
+            new GeoPlace(MY_LOCATION, "Nykyinen sijaintisi (GPS)", Double.NaN, Double.NaN, "my-location");
 
     private EditText fromField, toField;
     private TextView swapBtn, timeBtn, searchBtn, status;
@@ -130,9 +134,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         };
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
 
-        fromField.setText("Oma sijainti");
-        fromField.setOnFocusChangeListener((v, f) -> { if (f) activeField = 1; });
-        toField.setOnFocusChangeListener((v, f) -> { if (f) activeField = 2; });
+        fromField.setText(MY_LOCATION);
+        fromField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 1; offerMyLocationIfEmpty(fromField); } });
+        toField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 2; offerMyLocationIfEmpty(toField); } });
         fromField.addTextChangedListener(new SimpleWatcher(1));
         toField.addTextChangedListener(new SimpleWatcher(2));
 
@@ -170,7 +174,8 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private void runSuggest() {
         final int field = activeField;
         final String q = (field == 2 ? toField : fromField).getText().toString().trim();
-        if (q.length() < 2 || q.equals("Oma sijainti")) return;
+        if (q.isEmpty()) { adapter.submit(java.util.Collections.singletonList(MY_LOC)); return; }
+        if (q.length() < 2 || q.equals(MY_LOCATION)) return;
         searchIo.execute(() -> {
             List<GeoPlace> res;
             try { res = DigitransitApi.geocodePlaces(q, gpsLat, gpsLon); }
@@ -189,15 +194,17 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     @Override
     public void onSuggestClick(GeoPlace p) {
+        boolean my = "my-location".equals(p.layer);
+        String label = my ? MY_LOCATION : p.name;
         suppressWatch = true;
         if (activeField == 2) {
-            toPlace = p;
-            toField.setText(p.name);
-            toField.setSelection(p.name.length());
+            toPlace = my ? null : p;
+            toField.setText(label);
+            toField.setSelection(label.length());
         } else {
-            fromPlace = p;
-            fromField.setText(p.name);
-            fromField.setSelection(p.name.length());
+            fromPlace = my ? null : p;
+            fromField.setText(label);
+            fromField.setSelection(label.length());
         }
         suppressWatch = false;
         hideKeyboard();
@@ -212,12 +219,15 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     }
 
     private void swap() {
-        GeoPlace t = fromPlace;
+        GeoPlace tp = fromPlace;
         fromPlace = toPlace;
-        toPlace = t;
+        toPlace = tp;
+        // Vaihda myös näkyvät tekstit, jotta "Oma sijainti" tai vapaa teksti seuraa suuntaa.
+        String ft = fromField.getText().toString();
+        String tt = toField.getText().toString();
         suppressWatch = true;
-        fromField.setText(fromPlace != null ? fromPlace.name : "Oma sijainti");
-        toField.setText(toPlace != null ? toPlace.name : "");
+        fromField.setText(tt);
+        toField.setText(ft);
         suppressWatch = false;
     }
 
@@ -273,11 +283,21 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         hideKeyboard();
         fromField.clearFocus();
         toField.clearFocus();
-        if (toPlace == null) {
+        final boolean fromMy = (fromPlace == null) && isMyLocation(fromField);
+        final boolean toMy = (toPlace == null) && isMyLocation(toField);
+        if (toPlace == null && !toMy) {
             showStatus("Valitse määränpää: kirjoita Minne-kenttään ja valitse ehdotus.");
             return;
         }
-        if (fromPlace == null) {
+        if (fromPlace == null && !fromMy) {
+            showStatus("Valitse lähtö: kirjoita Mistä-kenttään ja valitse ehdotus, tai valitse Oma sijainti.");
+            return;
+        }
+        if (fromMy && toMy) {
+            showStatus("Lähtö ja määränpää eivät voi molemmat olla oma sijainti.");
+            return;
+        }
+        if (fromMy || toMy) {
             if (!hasLocationPermission()) {
                 pendingSearch = true;
                 showStatus("Salli sijainti, jotta reitti voidaan laskea omasta sijainnistasi.");
@@ -290,7 +310,11 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 if (Double.isNaN(lat)) { showStatus("Sijaintia ei saatu. Yritä uudelleen."); return; }
                 gpsLat = lat;
                 gpsLon = lon;
-                runPlan(lat, lon, toPlace.lat, toPlace.lon);
+                double fLat = fromMy ? lat : fromPlace.lat;
+                double fLon = fromMy ? lon : fromPlace.lon;
+                double tLat = toMy ? lat : toPlace.lat;
+                double tLon = toMy ? lon : toPlace.lon;
+                runPlan(fLat, fLon, tLat, tLon);
             });
         } else {
             runPlan(fromPlace.lat, fromPlace.lon, toPlace.lat, toPlace.lon);
@@ -384,6 +408,17 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean isMyLocation(EditText field) {
+        return field != null && MY_LOCATION.equalsIgnoreCase(field.getText().toString().trim());
+    }
+
+    /** Tyhjään kenttään fokusoitaessa tarjoa "Oma sijainti" ensimmäisenä ehdotuksena. */
+    private void offerMyLocationIfEmpty(EditText field) {
+        if (field != null && field.getText().toString().trim().isEmpty() && adapter != null) {
+            adapter.submit(java.util.Collections.singletonList(MY_LOC));
+        }
     }
 
     // --- Apurit ---
