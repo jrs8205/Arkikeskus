@@ -44,7 +44,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,11 +53,12 @@ import java.util.concurrent.Executors;
 public class TransitFragment extends Fragment implements TransitAdapter.Listener {
 
     private static final long AUTO_REFRESH_MS = 25_000L;
+    private static final long SEARCH_DEBOUNCE_MS = 280L;
     private static final String[] GROUP_MODES = {"BUS", "RAIL", "TRAM", "SUBWAY"};
     private static final String[] GROUP_TITLES = {"Bussit", "Junat", "Raitiovaunut", "Metro"};
     private static final int MAX_PER_GROUP = 15;
     private static final int MAX_PER_FAV_STOP = 5;
-    private static final Locale FI = new Locale("fi", "FI");
+    private static final int MAX_PER_SELECTED_STOP = 8;
 
     private EditText searchField;
     private View searchClear;
@@ -72,6 +72,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private OnBackPressedCallback backCallback;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService searchIo = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean inFlight = false;
     private boolean ticking = false;
@@ -80,6 +81,9 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private List<NearbyStop> favStopData = new ArrayList<>();
     private String query = "";
     private List<RouteHit> searchResults = null;
+    private List<PlaceHit> placeResults = null;
+    private NearbyStop selectedStop = null;   // haun tuloksesta avattu pysäkki/asema
+    private double lastLat = Double.NaN, lastLon = Double.NaN;  // geokoodauksen focus.point
 
     // Avoinna oleva näkymä: joko vuoro (trip) tai linja (route).
     private boolean openIsRoute = false;
@@ -96,6 +100,14 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
                 if (v != null && v.isShown()) refresh(false);
             }
             ui.postDelayed(this, AUTO_REFRESH_MS);
+        }
+    };
+
+    // Ennakoiva haku: kirjoituksen tauottua haetaan linjat + pysäkit/asemat.
+    private final Runnable searchDebounce = new Runnable() {
+        @Override public void run() {
+            final String q = query;
+            if (q.length() >= 2) runLiveSearch(q);
         }
     };
 
@@ -150,12 +162,25 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             @Override public void afterTextChanged(Editable s) {
                 query = s.toString().trim();
                 searchClear.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
-                if (query.isEmpty()) searchResults = null;
-                renderFromCache();
+                selectedStop = null;             // tekstin muokkaus poistaa valitun pysäkin
+                ui.removeCallbacks(searchDebounce);
+                if (query.isEmpty()) {
+                    searchResults = null;
+                    placeResults = null;
+                    renderFromCache();
+                } else {
+                    renderFromCache();           // näyttää "Haetaan…" kunnes tulokset saapuvat
+                    ui.postDelayed(searchDebounce, SEARCH_DEBOUNCE_MS);
+                }
             }
         });
         searchField.setOnEditorActionListener((v, actionId, ev) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) { runGlobalSearch(query); return true; }
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                ui.removeCallbacks(searchDebounce);
+                hideKeyboard();
+                if (query.length() >= 2) runLiveSearch(query);
+                return true;
+            }
             return false;
         });
         searchClear.setOnClickListener(v -> { searchField.setText(""); hideKeyboard(); });
@@ -164,7 +189,10 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     }
 
     void onSectionShown() {
-        if (isAdded() && getView() != null) refresh(false);
+        if (isAdded() && getView() != null) {
+            selectedStop = null;   // palaa lähilistaan kun sivu avataan valikosta
+            refresh(false);
+        }
     }
 
     @Override
@@ -222,6 +250,8 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     }
 
     private void fetch(double lat, double lon) {
+        lastLat = lat;
+        lastLon = lon;
         final Context app = requireContext().getApplicationContext();
         io.execute(() -> {
             try {
@@ -261,10 +291,17 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         List<Object> items = buildItems();
         adapter.submit(items);
         if (items.isEmpty()) {
-            if (searchResults != null) showStatus("Ei linjoja haulla \"" + query + "\".");
-            else if (!query.isEmpty()) showStatus("Ei osumia haulla \"" + query
-                    + "\".\nPaina hakunäppäintä hakeaksesi koko HSL:stä.");
-            else showStatus("Ei lähtöjä 700 m säteellä.\nHSL-alue kattaa pääkaupunkiseudun.");
+            if (selectedStop != null) {
+                showStatus("Ei tulevia lähtöjä tältä pysäkiltä.");
+            } else if (!query.isEmpty()) {
+                if (query.length() < 2) showStatus("Kirjoita vähintään 2 merkkiä.");
+                else if (searchResults == null && placeResults == null)
+                    showStatus("Haetaan \"" + query + "\"…");
+                else showStatus("Ei osumia haulla \"" + query
+                        + "\".\nKokeile pysäkin, aseman tai linjan nimeä/numeroa.");
+            } else {
+                showStatus("Ei lähtöjä 700 m säteellä.\nHSL-alue kattaa pääkaupunkiseudun.");
+            }
         } else {
             hideStatus();
         }
@@ -275,14 +312,32 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         Context ctx = getContext();
         if (ctx == null) return items;
 
-        if (searchResults != null) {
-            items.add(new TransitAdapter.Header("Linjahaku: " + query, "FAV"));
-            items.addAll(searchResults);
+        // Haun tuloksesta avattu pysäkki/asema: näytä sen lähdöt.
+        if (selectedStop != null) {
+            List<Departure> deps = new ArrayList<>(selectedStop.departures);
+            deps.sort(Comparator.comparingLong(d -> d.departureEpochSec));
+            String title = selectedStop.name == null || selectedStop.name.isEmpty()
+                    ? "Pysäkki" : selectedStop.name;
+            items.add(new TransitAdapter.Header(title, headerMode(selectedStop)));
+            int n = Math.min(deps.size(), MAX_PER_SELECTED_STOP);
+            for (int i = 0; i < n; i++) items.add(deps.get(i));
             return items;
         }
 
-        String q = query.toLowerCase(FI);
+        // Ennakoiva haku: linjat (numerolla) + pysäkit/asemat (paikan nimellä).
+        if (!query.isEmpty()) {
+            if (searchResults != null && !searchResults.isEmpty()) {
+                items.add(new TransitAdapter.Header("Linjat", "FAV"));
+                items.addAll(searchResults);
+            }
+            if (placeResults != null && !placeResults.isEmpty()) {
+                items.add(new TransitAdapter.Header("Pysäkit ja asemat", "BUS"));
+                items.addAll(placeResults);
+            }
+            return items;
+        }
 
+        // Oletus: suosikit + lähimmät lähdöt ryhmiteltyinä.
         for (NearbyStop fs : favStopData) {
             List<Departure> deps = new ArrayList<>(fs.departures);
             deps.sort(Comparator.comparingLong(d -> d.departureEpochSec));
@@ -303,7 +358,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             List<Departure> group = new ArrayList<>();
             for (NearbyStop stop : lastStops) {
                 for (Departure d : stop.departures) {
-                    if (mode.equals(d.mode) && matchesQuery(d, q)) group.add(d);
+                    if (mode.equals(d.mode)) group.add(d);
                 }
             }
             if (group.isEmpty()) continue;
@@ -315,25 +370,30 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         return items;
     }
 
-    private boolean matchesQuery(Departure d, String q) {
-        if (q.isEmpty()) return true;
-        return (d.routeShortName != null && d.routeShortName.toLowerCase(FI).contains(q))
-                || (d.headsign != null && d.headsign.toLowerCase(FI).contains(q));
+    private static String headerMode(NearbyStop s) {
+        if (s.vehicleMode != null && !s.vehicleMode.isEmpty()) return s.vehicleMode;
+        for (Departure d : s.departures) {
+            if (d.mode != null && !d.mode.isEmpty()) return d.mode;
+        }
+        return "BUS";
     }
 
-    private void runGlobalSearch(String name) {
-        hideKeyboard();
-        if (name == null || name.trim().isEmpty()) { searchResults = null; renderFromCache(); return; }
-        final String q = name.trim();
-        showStatus("Haetaan linjaa \"" + q + "\"…");
-        io.execute(() -> {
-            List<RouteHit> hits;
-            try { hits = DigitransitApi.searchRoutes(q); }
-            catch (Exception e) { hits = new ArrayList<>(); }
-            final List<RouteHit> result = hits;
+    /** Ennakoiva haku: linjat (routes) + pysäkit/asemat (geokoodaus) rinnakkain samalla kyselyllä. */
+    private void runLiveSearch(String q) {
+        searchIo.execute(() -> {
+            List<RouteHit> routes;
+            try { routes = DigitransitApi.searchRoutes(q); }
+            catch (Exception e) { routes = new ArrayList<>(); }
+            List<PlaceHit> places;
+            try { places = DigitransitApi.searchPlaces(q, lastLat, lastLon); }
+            catch (Exception e) { places = new ArrayList<>(); }
+            final List<RouteHit> fr = routes;
+            final List<PlaceHit> fp = places;
             ui.post(() -> {
                 if (!isAdded()) return;
-                searchResults = result;
+                if (selectedStop != null || !q.equals(query)) return;  // vanhentunut tulos
+                searchResults = fr;
+                placeResults = fp;
                 renderFromCache();
             });
         });
@@ -380,6 +440,41 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     public void onRouteClick(RouteHit r) {
         // Napautus AVAA linjan (reitti + aikataulu); suosikki hoidetaan tähdellä.
         openRoute(r.gtfsId, r.shortName, r.mode);
+    }
+
+    @Override
+    public void onPlaceClick(PlaceHit p) {
+        if (p == null) return;
+        hideKeyboard();
+        if (p.gtfsId == null || p.gtfsId.isEmpty()) {
+            Toast.makeText(requireContext(), "Tälle kohteelle ei ole lähtötietoja.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        showStatus("Haetaan lähtöjä: " + p.name + "…");
+        final String id = p.gtfsId;
+        final boolean station = p.station;
+        final String nm = p.name;
+        searchIo.execute(() -> {
+            NearbyStop ns;
+            try {
+                ns = station ? DigitransitApi.stationDepartures(id) : DigitransitApi.stopDepartures(id);
+            } catch (Exception e) {
+                ns = null;
+            }
+            final NearbyStop res = ns;
+            ui.post(() -> {
+                if (!isAdded()) return;
+                if (res == null || res.departures.isEmpty()) {
+                    showStatus("Ei tulevia lähtöjä: " + nm);
+                    return;
+                }
+                searchResults = null;
+                placeResults = null;
+                selectedStop = res;
+                renderFromCache();
+            });
+        });
     }
 
     @Override
@@ -503,7 +598,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         String at = idx >= 0 && idx < tl.stops.size() ? tl.stops.get(idx).name : "";
         if (tl.boardStopIndex >= 0) {
             int n = tl.boardStopIndex - idx;
-            if (n > 0) return word + " on " + n + " pysäkän päässä pysäkistäsi (nyt: " + at + ").";
+            if (n > 0) return word + " on " + n + " pysäkin päässä pysäkistäsi (nyt: " + at + ").";
             if (n == 0) return word + " on pysäkilläsi (" + at + ").";
             return word + " on jo ohittanut pysäkkisi (nyt: " + at + ").";
         }
@@ -573,6 +668,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     @Override
     public void onDestroyView() {
         ui.removeCallbacks(autoRefresh);
+        ui.removeCallbacks(searchDebounce);
         ticking = false;
         searchField = null;
         searchClear = null;
@@ -591,6 +687,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     @Override
     public void onDestroy() {
         io.shutdownNow();
+        searchIo.shutdownNow();
         super.onDestroy();
     }
 }

@@ -10,9 +10,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 
 /** Digitransit/HSL-reitittimen GraphQL-kyselyt: lähimmät pysäkit + lähdöt, linjahaku, vuoron
@@ -31,7 +33,7 @@ final class DigitransitApi {
 
     private static final String NEAREST_QUERY =
             "query Nearest($lat: Float!, $lon: Float!) {"
-            + " nearest(lat: $lat, lon: $lon, maxResults: 12, maxDistance: 700,"
+            + " nearest(lat: $lat, lon: $lon, maxResults: 20, maxDistance: 700,"
             + " filterByPlaceTypes: [STOP]) {"
             + " edges { node { distance place { ... on Stop {"
             + " gtfsId name code vehicleMode"
@@ -53,6 +55,17 @@ final class DigitransitApi {
             "query Stop($id: String!) { stop(id: $id) {"
             + " gtfsId name code vehicleMode"
             + " stoptimesWithoutPatterns(numberOfDepartures: 5) { " + STOPTIME_FIELDS + " } } }";
+
+    // Asema (station) on oma tyyppinsä: stop(id:) palauttaa null asema-id:lle → käytä station(id:).
+    private static final String STATION_QUERY =
+            "query Station($id: String!) { station(id: $id) {"
+            + " gtfsId name code"
+            + " stoptimesWithoutPatterns(numberOfDepartures: 6) { " + STOPTIME_FIELDS + " } } }";
+
+    // Paikkahaun geokoodaus (Pelias-autocomplete). sources=gtfshsl → vain HSL-pysäkit/asemat,
+    // jolloin addendum.GTFS.modes kertoo moodit (ikoneita varten).
+    private static final String GEOCODE_URL =
+            "https://api.digitransit.fi/geocoding/v1/autocomplete";
 
     private static final String ROUTE_PATTERNS_QUERY =
             "query RP($id: String!) { route(id: $id) {"
@@ -99,6 +112,17 @@ final class DigitransitApi {
         JSONObject stop = data == null ? null : data.optJSONObject("stop");
         if (stop == null) return null;
         return parseStop(stop, Double.NaN);
+    }
+
+    // --- Aseman lähdöt (station aggregoi laiturit; moodi tulee per lähtö trip.route.mode:sta) ---
+
+    static NearbyStop stationDepartures(String stationGtfsId) throws Exception {
+        JSONObject variables = new JSONObject();
+        variables.put("id", stationGtfsId);
+        JSONObject data = postQuery(STATION_QUERY, variables);
+        JSONObject station = data == null ? null : data.optJSONObject("station");
+        if (station == null) return null;
+        return parseStop(station, Double.NaN);
     }
 
     private static NearbyStop parseStop(JSONObject place, double distance) {
@@ -172,6 +196,77 @@ final class DigitransitApi {
             return byLen != 0 ? byLen : a.shortName.compareToIgnoreCase(b.shortName);
         });
         return out;
+    }
+
+    // --- Paikkahaku: HSL-pysäkit ja -asemat moodeineen (ennakoiva, sources=gtfshsl) ---
+
+    static List<PlaceHit> searchPlaces(String text, double lat, double lon) throws Exception {
+        double flat = Double.isNaN(lat) ? 60.17 : lat;
+        double flon = Double.isNaN(lon) ? 24.94 : lon;
+        String url = GEOCODE_URL + "?text=" + URLEncoder.encode(text, "UTF-8")
+                + "&lang=fi&size=10&sources=gtfshsl"
+                + "&focus.point.lat=" + flat + "&focus.point.lon=" + flon;
+        String raw = httpGet(url);
+        JSONArray features = new JSONObject(raw).optJSONArray("features");
+        List<PlaceHit> out = new ArrayList<>();
+        if (features == null) return out;
+        for (int i = 0; i < features.length(); i++) {
+            JSONObject f = features.optJSONObject(i);
+            JSONObject p = f == null ? null : f.optJSONObject("properties");
+            if (p == null) continue;
+            String layer = p.optString("layer", "");
+            boolean station = "station".equals(layer);
+            if (!station && !"stop".equals(layer)) continue;
+            String name = p.optString("name", "");
+            if (name.isEmpty()) continue;
+            String gtfsId = gtfsIdFromGeocode(p.optString("id", ""));
+            out.add(new PlaceHit(gtfsId, name, localityOf(p, name), station, modesOf(p)));
+        }
+        return out;
+    }
+
+    private static String localityOf(JSONObject p, String name) {
+        String label = p.optString("label", "");
+        if (label.startsWith(name + ", ")) return label.substring(name.length() + 2);
+        String la = p.optString("localadmin", "");
+        return la.isEmpty() ? p.optString("region", "") : la;
+    }
+
+    private static List<String> modesOf(JSONObject p) {
+        List<String> modes = new ArrayList<>();
+        JSONObject add = p.optJSONObject("addendum");
+        JSONObject gtfs = add == null ? null : add.optJSONObject("GTFS");
+        JSONArray arr = gtfs == null ? null : gtfs.optJSONArray("modes");
+        if (arr != null) {
+            for (int i = 0; i < arr.length(); i++) {
+                String c = canonMode(arr.optString(i, ""));
+                if (c != null && !modes.contains(c)) modes.add(c);
+            }
+        }
+        return modes;
+    }
+
+    /** RAWv2-tyyppiset moodit (BUS-LOCAL, BUS-EXPRESS…) kanonisoidaan ikoneja varten. */
+    private static String canonMode(String m) {
+        if (m == null || m.isEmpty()) return null;
+        String u = m.toUpperCase(Locale.ROOT);
+        if (u.startsWith("BUS")) return "BUS";
+        if (u.startsWith("TRAM")) return "TRAM";
+        if (u.startsWith("RAIL")) return "RAIL";
+        if (u.startsWith("SUBWAY")) return "SUBWAY";
+        if (u.startsWith("FERRY")) return "FERRY";
+        return null;
+    }
+
+    /** "GTFS:HSL:2131551#E1331" → "HSL:2131551" (reititin-API:n stop/station-id). */
+    private static String gtfsIdFromGeocode(String rawId) {
+        if (rawId == null) return "";
+        String s = rawId;
+        int g = s.indexOf("GTFS:");
+        if (g >= 0) s = s.substring(g + 5);
+        int hash = s.indexOf('#');
+        if (hash >= 0) s = s.substring(0, hash);
+        return s;
     }
 
     // --- Vuoron aikajana + ajoneuvon live-sijainti ---
@@ -358,6 +453,35 @@ final class DigitransitApi {
             if (code != 200) {
                 drainStream(conn.getErrorStream());
                 throw new IOException("Digitransit HTTP " + code + " " + conn.getResponseMessage());
+            }
+            InputStream rawStream = conn.getInputStream();
+            String encoding = conn.getContentEncoding();
+            try (InputStream is = "gzip".equalsIgnoreCase(encoding)
+                    ? new GZIPInputStream(rawStream) : rawStream;
+                 ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) > 0) baos.write(buf, 0, n);
+                return baos.toString("UTF-8");
+            }
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private static String httpGet(String urlString) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
+        conn.setConnectTimeout(TIMEOUT_MS);
+        conn.setReadTimeout(TIMEOUT_MS);
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setRequestProperty("Accept-Encoding", "gzip");
+        conn.setRequestProperty("digitransit-subscription-key", BuildConfig.DIGITRANSIT_KEY);
+        try {
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                drainStream(conn.getErrorStream());
+                throw new IOException("Geocoding HTTP " + code + " " + conn.getResponseMessage());
             }
             InputStream rawStream = conn.getInputStream();
             String encoding = conn.getContentEncoding();

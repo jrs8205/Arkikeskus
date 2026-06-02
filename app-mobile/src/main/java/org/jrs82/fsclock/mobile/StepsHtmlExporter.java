@@ -242,10 +242,10 @@ public final class StepsHtmlExporter {
         for (Row row : rows) {
             int pct = (int) Math.round(row.steps * 100.0 / max);
             sb.append("<tr><td class=\"period\">").append(esc(row.label)).append("</td>")
-                    .append("<td class=\"r steps\"><div class=\"bar\" style=\"width:").append(pct)
+                    .append("<td class=\"r steps\" data-label=\"Askeleet\"><div class=\"bar\" style=\"width:").append(pct)
                     .append("%\"></div><span>").append(num(row.steps)).append("</span></td>")
-                    .append("<td class=\"r kcal\">").append(kcalCell(row.activeKcal, row.estimated)).append("</td>")
-                    .append("<td class=\"r\">").append(kcalCell(row.totalKcal, row.estimated)).append("</td>")
+                    .append("<td class=\"r kcal\" data-label=\"Aktiiviset\">").append(kcalCell(row.activeKcal, row.estimated)).append("</td>")
+                    .append("<td class=\"r\" data-label=\"Yhteensä\">").append(kcalCell(row.totalKcal, row.estimated)).append("</td>")
                     .append("</tr>\n");
         }
         sb.append("</tbody>\n</table></div>\n</section>\n");
@@ -367,5 +367,17 @@ public final class StepsHtmlExporter {
             + "footer{margin:26px 2px 0;color:var(--muted);font-size:12px;text-align:center;line-height:1.5}"
             + "footer em{color:var(--amber-d);font-style:normal}"
             + "@media(max-width:430px){.stats{grid-template-columns:1fr 1fr}.tnum{font-size:54px}"
-            + "th,td{padding:9px 10px;font-size:13px}}";
+            + "th,td{padding:9px 10px;font-size:13px}}"
+            // Kapeilla näytöillä (puhelin) taulukot pinotaan korteiksi: ei vaakavieritystä eikä
+            // oikean reunan leikkautumista. data-label tuo sarakeotsikon jokaiselle riville.
+            + "@media(max-width:560px){.tw{overflow:visible;border:0;background:transparent;"
+            + "box-shadow:none;border-radius:0}table,tbody,tr,td{display:block;width:100%}thead{display:none}"
+            + "tr{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 0 10px;"
+            + "padding:8px 14px;box-shadow:0 4px 14px rgba(16,36,28,.05)}"
+            + "tbody tr:nth-child(even){background:var(--card)}"
+            + "td{border:0;padding:5px 0;text-align:right;overflow:hidden}"
+            + "td::before{content:attr(data-label);float:left;color:var(--muted);font-weight:600;font-size:12.5px}"
+            + "td.period{text-align:left;font-weight:800;font-size:15px;border-bottom:1px solid var(--line);"
+            + "padding:2px 0 7px;margin-bottom:4px;white-space:normal}td.period::before{content:''}"
+            + "td.steps{min-width:0;position:static}td.steps .bar{display:none}}";
 }
