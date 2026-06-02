@@ -11,6 +11,17 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"
+            android:text="Reittihaku"
+            android:textColor="@color/mobile_text_primary"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
         <!-- Hakukortti: Mistä/Minne + swap + aika + hae -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -86,6 +97,9 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@drawable/mobile_menu_item_bg"
+                    android:drawableEnd="@drawable/mobile_ic_unfold_more"
+                    android:drawablePadding="8dp"
+                    android:drawableTint="@color/mobile_text_muted"
                     android:gravity="center_vertical"
                     android:paddingStart="14dp"
                     android:paddingTop="11dp"

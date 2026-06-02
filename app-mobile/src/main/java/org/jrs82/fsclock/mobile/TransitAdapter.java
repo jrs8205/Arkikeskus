@@ -198,8 +198,9 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return ContextCompat.getColor(ctx, res);
     }
 
-    private static int modeIcon(String mode) {
+    static int modeIcon(String mode) {
         if ("FAV".equals(mode)) return R.drawable.mobile_ic_star;
+        if ("WALK".equals(mode)) return R.drawable.mobile_ic_transit_walk;
         if ("TRAM".equals(mode)) return R.drawable.mobile_ic_transit_tram;
         if ("RAIL".equals(mode)) return R.drawable.mobile_ic_transit_rail;
         if ("SUBWAY".equals(mode)) return R.drawable.mobile_ic_transit_subway;

@@ -188,9 +188,22 @@ public final class StepsHtmlExporter {
         }
         sb.append("</section>\n");
 
+        // Välilehdet (Päivät/Viikot/Kuukaudet) ilman skriptiä: piilotettu radio-input ohjaa
+        // CSS:n :checked-säännöillä näkyvää paneelia. Toimii offline myös tietokoneella.
+        sb.append("<div class=\"tabs\">\n")
+                .append("<input type=\"radio\" name=\"period\" id=\"t-days\" class=\"tabin\" checked>")
+                .append("<input type=\"radio\" name=\"period\" id=\"t-weeks\" class=\"tabin\">")
+                .append("<input type=\"radio\" name=\"period\" id=\"t-months\" class=\"tabin\">\n")
+                .append("<div class=\"tabbar\"><label for=\"t-days\">Päivät</label>")
+                .append("<label for=\"t-weeks\">Viikot</label>")
+                .append("<label for=\"t-months\">Kuukaudet</label></div>\n")
+                .append("<div class=\"panel p-days\">");
         appendBlock(sb, "Päivät", "day", r.days);
+        sb.append("</div>\n<div class=\"panel p-weeks\">");
         appendBlock(sb, "Viikot", "week", r.weeks);
+        sb.append("</div>\n<div class=\"panel p-months\">");
         appendBlock(sb, "Kuukaudet", "month", r.months);
+        sb.append("</div>\n</div>\n");
 
         sb.append("<footer>Luotu Arkikeskus-sovelluksella. Data Health Connectista tai puhelimen "
                 + "askelanturista. Merkintä <em>~arvio</em> on Arkikeskuksen oma kalorilaskelma "
@@ -364,6 +377,17 @@ public final class StepsHtmlExporter {
             + "td.steps .bar{position:absolute;left:0;top:6px;bottom:6px;border-radius:6px;z-index:0;"
             + "background:linear-gradient(90deg,rgba(16,185,129,.18),rgba(14,165,164,.32))}"
             + "td.steps span{position:relative;z-index:1;font-weight:700;font-variant-numeric:tabular-nums}"
+            // Välilehdet (CSS-only, radio-hack)
+            + ".tabin{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}"
+            + ".tabbar{display:flex;gap:8px;margin:22px 0 0}"
+            + ".tabbar label{flex:1;text-align:center;padding:11px 6px;border-radius:12px;background:var(--card);"
+            + "border:1px solid var(--line);font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;"
+            + "box-shadow:0 4px 14px rgba(16,36,28,.05)}"
+            + ".panel{display:none}.panel .block{margin-top:14px}"
+            + "#t-days:checked~.tabbar label[for=t-days],#t-weeks:checked~.tabbar label[for=t-weeks],"
+            + "#t-months:checked~.tabbar label[for=t-months]{background:linear-gradient(135deg,var(--green),"
+            + "var(--teal));color:#fff;border-color:transparent}"
+            + "#t-days:checked~.p-days,#t-weeks:checked~.p-weeks,#t-months:checked~.p-months{display:block}"
             + "footer{margin:26px 2px 0;color:var(--muted);font-size:12px;text-align:center;line-height:1.5}"
             + "footer em{color:var(--amber-d);font-style:normal}"
             + "@media(max-width:430px){.stats{grid-template-columns:1fr 1fr}.tnum{font-size:54px}"

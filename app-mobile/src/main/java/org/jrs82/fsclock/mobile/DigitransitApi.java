@@ -313,7 +313,7 @@ final class DigitransitApi {
                 + "dateTime:{" + dtField + ":\"" + dateTimeIso + "\"},first:" + first + "){"
                 + "edges{node{duration numberOfTransfers start end walkDistance "
                 + "legs{mode duration distance start{scheduledTime estimated{time}} "
-                + "end{scheduledTime estimated{time}} from{name} to{name} route{shortName} "
+                + "end{scheduledTime estimated{time}} from{name stop{code platformCode}} to{name} route{shortName} "
                 + "trip{tripHeadsign}}}}}}";
         JSONObject data = postQuery(q, new JSONObject());
         List<Itinerary> out = new ArrayList<>();
@@ -348,6 +348,10 @@ final class DigitransitApi {
         JSONObject to = lg.optJSONObject("to");
         JSONObject route = lg.optJSONObject("route");
         JSONObject trip = lg.optJSONObject("trip");
+        JSONObject fromStop = from == null ? null : from.optJSONObject("stop");
+        String fCode = (fromStop == null || fromStop.isNull("code")) ? "" : fromStop.optString("code", "");
+        String fPlat = (fromStop == null || fromStop.isNull("platformCode"))
+                ? "" : fromStop.optString("platformCode", "");
         return new Leg(lg.optString("mode", ""), st[0], en[0],
                 (int) Math.round(lg.optDouble("duration", 0)),
                 (int) Math.round(lg.optDouble("distance", 0)),
@@ -355,7 +359,7 @@ final class DigitransitApi {
                 to == null ? "" : to.optString("name", ""),
                 route == null ? "" : route.optString("shortName", ""),
                 trip == null ? "" : trip.optString("tripHeadsign", ""),
-                st[1] == 1L);
+                st[1] == 1L, fCode, fPlat);
     }
 
     /** start/end-objektista [epochMs, realtimeFlag]; käyttää reaaliaika-arviota jos saatavilla. */
