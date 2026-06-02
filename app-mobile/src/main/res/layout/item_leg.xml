@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Yksi matkan osa reitin osat -näkymässä: aika + linjabadge/kävely + kuvaus. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="16dp"
+    android:paddingTop="7dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="7dp"
+    android:baselineAligned="false"
+    android:orientation="horizontal">
+
+    <TextView
+        android:id="@+id/leg_time"
+        android:layout_width="52dp"
+        android:layout_height="wrap_content"
+        android:textColor="@color/mobile_text_secondary"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/leg_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="28dp"
+        android:background="@drawable/mobile_transit_badge_bg"
+        android:gravity="center"
+        android:minWidth="40dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/leg_primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/mobile_text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/leg_secondary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="@color/mobile_text_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

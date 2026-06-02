@@ -12,6 +12,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -267,6 +268,114 @@ final class DigitransitApi {
         int hash = s.indexOf('#');
         if (hash >= 0) s = s.substring(0, hash);
         return s;
+    }
+
+    // --- Reittihaku: määränpääpaikat (oletuslähteet, koordinaatit) + matkasuunnittelu ---
+
+    /** Geokoodaus reittihaun Mistä/Minne-valintaan: oletuslähteet (paikat, osoitteet, POI:t,
+     *  pysäkit) koordinaatteineen. Eri kuin {@link #searchPlaces} (joka rajaa gtfshsl-pysäkkeihin). */
+    static List<GeoPlace> geocodePlaces(String text, double lat, double lon) throws Exception {
+        double flat = Double.isNaN(lat) ? 60.17 : lat;
+        double flon = Double.isNaN(lon) ? 24.94 : lon;
+        String url = GEOCODE_URL + "?text=" + URLEncoder.encode(text, "UTF-8")
+                + "&lang=fi&size=8"
+                + "&focus.point.lat=" + flat + "&focus.point.lon=" + flon;
+        String raw = httpGet(url);
+        JSONArray features = new JSONObject(raw).optJSONArray("features");
+        List<GeoPlace> out = new ArrayList<>();
+        if (features == null) return out;
+        for (int i = 0; i < features.length(); i++) {
+            JSONObject f = features.optJSONObject(i);
+            if (f == null) continue;
+            JSONObject p = f.optJSONObject("properties");
+            JSONObject geo = f.optJSONObject("geometry");
+            JSONArray coord = geo == null ? null : geo.optJSONArray("coordinates");
+            if (p == null || coord == null || coord.length() < 2) continue;
+            double plon = coord.optDouble(0, Double.NaN);  // GeoJSON: [lon, lat]
+            double plat = coord.optDouble(1, Double.NaN);
+            if (Double.isNaN(plat) || Double.isNaN(plon)) continue;
+            String name = p.optString("name", "");
+            if (name.isEmpty()) name = p.optString("label", "");
+            if (name.isEmpty()) continue;
+            out.add(new GeoPlace(name, localityOf(p, name), plat, plon, p.optString("layer", "")));
+        }
+        return out;
+    }
+
+    /** Matkasuunnittelu A→B (planConnection). dateTimeIso = ISO-aika offsetilla; arriveBy=true →
+     *  "perillä viimeistään", false → "lähde aikaisintaan". Palauttaa reittiehdotukset. */
+    static List<Itinerary> planRoutes(double fromLat, double fromLon, double toLat, double toLon,
+                                      String dateTimeIso, boolean arriveBy, int first) throws Exception {
+        String dtField = arriveBy ? "latestArrival" : "earliestDeparture";
+        String q = "query{planConnection("
+                + "origin:{location:{coordinate:{latitude:" + fromLat + ",longitude:" + fromLon + "}}},"
+                + "destination:{location:{coordinate:{latitude:" + toLat + ",longitude:" + toLon + "}}},"
+                + "dateTime:{" + dtField + ":\"" + dateTimeIso + "\"},first:" + first + "){"
+                + "edges{node{duration numberOfTransfers start end walkDistance "
+                + "legs{mode duration distance start{scheduledTime estimated{time}} "
+                + "end{scheduledTime estimated{time}} from{name} to{name} route{shortName} "
+                + "trip{tripHeadsign}}}}}}";
+        JSONObject data = postQuery(q, new JSONObject());
+        List<Itinerary> out = new ArrayList<>();
+        JSONObject pc = data == null ? null : data.optJSONObject("planConnection");
+        JSONArray edges = pc == null ? null : pc.optJSONArray("edges");
+        if (edges == null) return out;
+        for (int i = 0; i < edges.length(); i++) {
+            JSONObject node = edges.optJSONObject(i);
+            node = node == null ? null : node.optJSONObject("node");
+            if (node == null) continue;
+            List<Leg> legs = new ArrayList<>();
+            JSONArray la = node.optJSONArray("legs");
+            if (la != null) {
+                for (int j = 0; j < la.length(); j++) {
+                    JSONObject lg = la.optJSONObject(j);
+                    if (lg != null) legs.add(parseLeg(lg));
+                }
+            }
+            out.add(new Itinerary(epochMs(node.optString("start", "")),
+                    epochMs(node.optString("end", "")),
+                    (int) Math.round(node.optDouble("duration", 0)),
+                    node.optInt("numberOfTransfers", 0),
+                    (int) Math.round(node.optDouble("walkDistance", 0)), legs));
+        }
+        return out;
+    }
+
+    private static Leg parseLeg(JSONObject lg) {
+        long[] st = legTime(lg.optJSONObject("start"));
+        long[] en = legTime(lg.optJSONObject("end"));
+        JSONObject from = lg.optJSONObject("from");
+        JSONObject to = lg.optJSONObject("to");
+        JSONObject route = lg.optJSONObject("route");
+        JSONObject trip = lg.optJSONObject("trip");
+        return new Leg(lg.optString("mode", ""), st[0], en[0],
+                (int) Math.round(lg.optDouble("duration", 0)),
+                (int) Math.round(lg.optDouble("distance", 0)),
+                from == null ? "" : from.optString("name", ""),
+                to == null ? "" : to.optString("name", ""),
+                route == null ? "" : route.optString("shortName", ""),
+                trip == null ? "" : trip.optString("tripHeadsign", ""),
+                st[1] == 1L);
+    }
+
+    /** start/end-objektista [epochMs, realtimeFlag]; käyttää reaaliaika-arviota jos saatavilla. */
+    private static long[] legTime(JSONObject t) {
+        if (t == null) return new long[]{0L, 0L};
+        String iso = "";
+        boolean rt = false;
+        JSONObject est = t.optJSONObject("estimated");
+        if (est != null) {
+            String e = est.optString("time", "");
+            if (!e.isEmpty()) { iso = e; rt = true; }
+        }
+        if (iso.isEmpty()) iso = t.optString("scheduledTime", "");
+        return new long[]{epochMs(iso), rt ? 1L : 0L};
+    }
+
+    private static long epochMs(String iso) {
+        if (iso == null || iso.isEmpty()) return 0L;
+        try { return OffsetDateTime.parse(iso).toInstant().toEpochMilli(); }
+        catch (Exception e) { return 0L; }
     }
 
     // --- Vuoron aikajana + ajoneuvon live-sijainti ---
