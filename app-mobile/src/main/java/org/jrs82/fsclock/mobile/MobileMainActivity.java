@@ -264,6 +264,7 @@ public class MobileMainActivity extends AppCompatActivity {
     private View scroll;
     private View roadCamerasView;
     private View transitView;
+    private View routePlannerView;
     private View homeView;
     private LinearLayout widgetsContainer;
     private View forecastView;
@@ -643,6 +644,7 @@ public class MobileMainActivity extends AppCompatActivity {
         scroll = findViewById(R.id.mobile_scroll);
         roadCamerasView = findViewById(R.id.mobile_road_cameras_view);
         transitView = findViewById(R.id.mobile_transit_view);
+        routePlannerView = findViewById(R.id.mobile_route_planner_view);
         homeView = findViewById(R.id.mobile_home_view);
         forecastView = findViewById(R.id.mobile_forecast_view);
         electricityView = findViewById(R.id.mobile_electricity_view);
@@ -899,6 +901,10 @@ public class MobileMainActivity extends AppCompatActivity {
         findViewById(R.id.mobile_nav_transit).setOnClickListener(v -> {
             closeDrawer();
             showTransit();
+        });
+        findViewById(R.id.mobile_nav_route_planner).setOnClickListener(v -> {
+            closeDrawer();
+            showRoutePlanner();
         });
         findViewById(R.id.mobile_nav_news).setOnClickListener(v -> {
             closeDrawer();
@@ -3442,15 +3448,20 @@ public class MobileMainActivity extends AppCompatActivity {
         // ja karttanäkymä keskenään, ja luo karttafragment lazysti ensiavauksella.
         boolean cameras = (roadCamerasView != null && section == roadCamerasView);
         boolean transit = (transitView != null && section == transitView);
-        scroll.setVisibility(cameras || transit ? View.GONE : View.VISIBLE);
+        boolean routePlanner = (routePlannerView != null && section == routePlannerView);
+        scroll.setVisibility(cameras || transit || routePlanner ? View.GONE : View.VISIBLE);
         if (roadCamerasView != null) {
             roadCamerasView.setVisibility(cameras ? View.VISIBLE : View.GONE);
         }
         if (transitView != null) {
             transitView.setVisibility(transit ? View.VISIBLE : View.GONE);
         }
+        if (routePlannerView != null) {
+            routePlannerView.setVisibility(routePlanner ? View.VISIBLE : View.GONE);
+        }
         if (cameras) ensureRoadCamerasFragment();
         if (transit) ensureTransitFragment();
+        if (routePlanner) ensureRoutePlannerFragment();
         if (placesView != null
                 && placesView.getVisibility() == View.VISIBLE
                 && section != placesView) {
@@ -3513,6 +3524,21 @@ public class MobileMainActivity extends AppCompatActivity {
         if (getSupportFragmentManager().findFragmentById(R.id.mobile_transit_view) == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.mobile_transit_view, new TransitFragment())
+                    .commit();
+        }
+    }
+
+    private void showRoutePlanner() {
+        showSection(routePlannerView, "Reittihaku");
+        androidx.fragment.app.Fragment f =
+                getSupportFragmentManager().findFragmentById(R.id.mobile_route_planner_view);
+        if (f instanceof RoutePlannerFragment) ((RoutePlannerFragment) f).onSectionShown();
+    }
+
+    private void ensureRoutePlannerFragment() {
+        if (getSupportFragmentManager().findFragmentById(R.id.mobile_route_planner_view) == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.mobile_route_planner_view, new RoutePlannerFragment())
                     .commit();
         }
     }

@@ -1455,6 +1455,15 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:visibility="gone" />
+
+        <!-- Reittihaku (HSL) omana näkymänä saman headerin alla; fragment lazysti
+             showSection(routePlannerView)-polulla (kuten Joukkoliikenne). -->
+        <FrameLayout
+            android:id="@+id/mobile_route_planner_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone" />
     </LinearLayout>
 
     <ImageButton
@@ -1582,6 +1591,11 @@
             android:id="@+id/mobile_nav_transit"
             style="@style/MobileMenuItem"
             android:text="Joukkoliikenne (HSL)" />
+
+        <TextView
+            android:id="@+id/mobile_nav_route_planner"
+            style="@style/MobileMenuItem"
+            android:text="Reittihaku (HSL)" />
 
         <TextView
             android:id="@+id/mobile_nav_speedometer"
