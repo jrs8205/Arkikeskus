@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 15:n edge-to-edge -pakotuksen opt-out: ActionBar pysyy
+         asetussivulla erillään sisällöstä, eikä ensimmäinen preference
+         jää sen alle. Attribuutti vaatii API 35:n, joten määrittely on
+         vain values-v35:ssä — base values/styles.xml jää ilman, mikä
+         pitää lintin NewApi-tarkistuksen tyytyväisenä minSdk 30:llä. -->
+    <style name="SettingsTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

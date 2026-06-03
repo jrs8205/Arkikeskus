@@ -42,8 +42,10 @@ android {
 
     sourceSets {
         main {
-            java.srcDirs = ['src/main/java', '../app/src/main/java']
-            res.srcDirs = ['src/main/res', '../app/src/main/res']
+            // Mobiili on itsenäinen: jaettu logiikka/res siirretty app-mobilen omaan core/-puuhun,
+            // ei enää riippuvuutta tabletin ../app-moduuliin. Tabletti pysyy jäädytettynä (tablet-2.0).
+            java.srcDirs = ['src/main/java', 'core/java']
+            res.srcDirs = ['src/main/res', 'core/res']
         }
     }
 
