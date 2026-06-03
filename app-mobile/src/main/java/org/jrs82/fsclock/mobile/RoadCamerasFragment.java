@@ -61,6 +61,7 @@ public class RoadCamerasFragment extends Fragment {
     private MapLibreMap map;
     private GeoJsonSource source;
     private EditText searchField;
+    private View searchClear;
     private View imageOverlay;
     private ImageView imageBig;
     private TextView imageTitle;
@@ -82,6 +83,8 @@ public class RoadCamerasFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         searchField = view.findViewById(R.id.cam_search);
+        searchClear = view.findViewById(R.id.cam_search_clear);
+        searchClear.setOnClickListener(v -> searchField.setText(""));
         statusText = view.findViewById(R.id.cam_status);
         imageOverlay = view.findViewById(R.id.cam_image_overlay);
         imageBig = view.findViewById(R.id.cam_image_big);
@@ -92,7 +95,10 @@ public class RoadCamerasFragment extends Fragment {
         searchField.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
-            @Override public void afterTextChanged(Editable s) { onSearch(s.toString()); }
+            @Override public void afterTextChanged(Editable s) {
+                searchClear.setVisibility(s.length() == 0 ? View.GONE : View.VISIBLE);
+                onSearch(s.toString());
+            }
         });
 
         // Takaisin-painallus sulkee ison kamerakuvan, jos se on auki (muuten normaali back).
@@ -303,6 +309,7 @@ public class RoadCamerasFragment extends Fragment {
         imageBig = null;
         imageTitle = null;
         searchField = null;
+        searchClear = null;
         super.onDestroyView();
     }
 

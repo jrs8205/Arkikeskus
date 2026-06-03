@@ -66,11 +66,13 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     private EditText fromField, toField;
     private TextView swapBtn, timeBtn, searchBtn, status;
+    private TextView fromClear, toClear;
     private RecyclerView list;
     private RoutePlannerAdapter adapter;
 
     private View detailOverlay;
     private TextView detailTitle, detailSummary;
+    private RecyclerView detailList;
     private RoutePlannerAdapter detailAdapter;
     private OnBackPressedCallback backCallback;
 
@@ -119,11 +121,15 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
         adapter = new RoutePlannerAdapter(this);
         list.setAdapter(adapter);
+        fromClear = view.findViewById(R.id.route_from_clear);
+        toClear = view.findViewById(R.id.route_to_clear);
+        fromClear.setOnClickListener(v -> clearField(1));
+        toClear.setOnClickListener(v -> clearField(2));
 
         detailOverlay = view.findViewById(R.id.route_detail_overlay);
         detailTitle = view.findViewById(R.id.route_detail_title);
         detailSummary = view.findViewById(R.id.route_detail_summary);
-        RecyclerView detailList = view.findViewById(R.id.route_detail_list);
+        detailList = view.findViewById(R.id.route_detail_list);
         detailList.setLayoutManager(new LinearLayoutManager(requireContext()));
         detailAdapter = new RoutePlannerAdapter(this);
         detailList.setAdapter(detailAdapter);
@@ -135,8 +141,8 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
 
         fromField.setText(MY_LOCATION);
-        fromField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 1; offerMyLocationIfEmpty(fromField); } });
-        toField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 2; offerMyLocationIfEmpty(toField); } });
+        fromField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 1; offerMyLocationIfEmpty(fromField, 1); } });
+        toField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 2; offerMyLocationIfEmpty(toField, 2); } });
         fromField.addTextChangedListener(new SimpleWatcher(1));
         toField.addTextChangedListener(new SimpleWatcher(2));
 
@@ -145,6 +151,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         searchBtn.setOnClickListener(v -> doSearch());
 
         updateTimeButton();
+        updateClearButtons();
         showStatus("Anna määränpää ja hae reitit.\nLähtö on oletuksena oma sijaintisi.");
     }
 
@@ -166,6 +173,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             if (suppressWatch) return;
             activeField = field;
             if (field == 1) fromPlace = null; else toPlace = null;
+            updateClearButtons();
             ui.removeCallbacks(suggestRunnable);
             ui.postDelayed(suggestRunnable, DEBOUNCE_MS);
         }
@@ -174,7 +182,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private void runSuggest() {
         final int field = activeField;
         final String q = (field == 2 ? toField : fromField).getText().toString().trim();
-        if (q.isEmpty()) { adapter.submit(java.util.Collections.singletonList(MY_LOC)); return; }
+        if (q.isEmpty()) { offerMyLocationIfEmpty(field == 2 ? toField : fromField, field); return; }
         if (q.length() < 2 || q.equals(MY_LOCATION)) return;
         searchIo.execute(() -> {
             List<GeoPlace> res;
@@ -196,8 +204,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     public void onSuggestClick(GeoPlace p) {
         boolean my = "my-location".equals(p.layer);
         String label = my ? MY_LOCATION : p.name;
+        final int chosenField = activeField;
         suppressWatch = true;
-        if (activeField == 2) {
+        if (chosenField == 2) {
             toPlace = my ? null : p;
             toField.setText(label);
             toField.setSelection(label.length());
@@ -207,14 +216,20 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             fromField.setSelection(label.length());
         }
         suppressWatch = false;
+        updateClearButtons();
         hideKeyboard();
         fromField.clearFocus();
         toField.clearFocus();
-        adapter.submit(itineraries == null ? new ArrayList<>() : itineraries);
-        if (itineraries == null || itineraries.isEmpty()) {
-            showStatus("Hae reitit painikkeella.");
+        adapter.submit(new ArrayList<>());   // tyhjennä ehdotukset; ei näytetä vanhoja reittejä
+        // Valinta hakee heti, jos molemmat päät ovat valmiit — yhtenäinen "Hae reitit" -painikkeen
+        // kanssa (ennen tämä jätti vanhat reitit näkyviin → tulos vaihteli painikkeen vs ehdotuksen
+        // mukaan). Muuten ohjataan täydentämään puuttuva pää.
+        if (bothEndsReady()) {
+            doSearch();
+        } else if (chosenField == 2) {
+            showStatus("Valitse vielä lähtö, tai jätä se omaan sijaintiisi.");
         } else {
-            hideStatus();
+            showStatus("Valitse vielä määränpää.");
         }
     }
 
@@ -229,6 +244,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         fromField.setText(tt);
         toField.setText(ft);
         suppressWatch = false;
+        updateClearButtons();
+        // Hae uudet reitit heti uudella suunnalla, jos molemmat päät on asetettu.
+        if (bothEndsReady()) doSearch();
     }
 
     // --- Aikavalinta ---
@@ -414,10 +432,64 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         return field != null && MY_LOCATION.equalsIgnoreCase(field.getText().toString().trim());
     }
 
-    /** Tyhjään kenttään fokusoitaessa tarjoa "Oma sijainti" ensimmäisenä ehdotuksena. */
-    private void offerMyLocationIfEmpty(EditText field) {
-        if (field != null && field.getText().toString().trim().isEmpty() && adapter != null) {
+    /** Onko toinen pää (kuin annettu kenttä) jo "Oma sijainti". */
+    private boolean otherFieldIsMyLocation(int fieldNum) {
+        return fieldNum == 2 ? isMyLocation(fromField) : isMyLocation(toField);
+    }
+
+    /** Ovatko sekä lähtö että määränpää valittu (paikka tai oma sijainti)? */
+    private boolean bothEndsReady() {
+        boolean fromOk = (fromPlace != null) || isMyLocation(fromField);
+        boolean toOk = (toPlace != null) || isMyLocation(toField);
+        return fromOk && toOk;
+    }
+
+    /** Tyhjään kenttään fokusoitaessa tarjoa "Oma sijainti" — mutta vain jos toinen pää EI ole jo
+     *  oma sijainti (muuten ehdotus olisi turha toisto). Ehdotus näkyy heti kentän alle. */
+    private void offerMyLocationIfEmpty(EditText field, int fieldNum) {
+        if (field == null || adapter == null) return;
+        if (!field.getText().toString().trim().isEmpty()) return;
+        if (otherFieldIsMyLocation(fieldNum)) {
+            adapter.submit(new ArrayList<>());
+        } else {
             adapter.submit(java.util.Collections.singletonList(MY_LOC));
+            hideStatus();
+        }
+    }
+
+    /** X-napit näkyvät vain kun kentässä on tekstiä. */
+    private void updateClearButtons() {
+        if (fromClear != null && fromField != null) {
+            fromClear.setVisibility(fromField.getText().toString().isEmpty() ? View.GONE : View.VISIBLE);
+        }
+        if (toClear != null && toField != null) {
+            toClear.setVisibility(toField.getText().toString().isEmpty() ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    /** Tyhjennä kenttä, kohdista se ja tarjoa oma sijainti tarvittaessa. */
+    private void clearField(int fieldNum) {
+        EditText f = (fieldNum == 2) ? toField : fromField;
+        if (f == null) return;
+        if (fieldNum == 2) toPlace = null; else fromPlace = null;
+        suppressWatch = true;
+        f.setText("");
+        suppressWatch = false;
+        activeField = fieldNum;
+        f.requestFocus();
+        updateClearButtons();
+        offerMyLocationIfEmpty(f, fieldNum);
+        InputMethodManager imm = (InputMethodManager) requireContext()
+                .getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) imm.showSoftInput(f, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    /** Back-to-top: skrollaa näkyvän listan (reittilista tai osat-overlay) alkuun. */
+    void scrollToTop() {
+        if (detailOverlay != null && detailOverlay.getVisibility() == View.VISIBLE) {
+            if (detailList != null) detailList.smoothScrollToPosition(0);
+        } else if (list != null) {
+            list.smoothScrollToPosition(0);
         }
     }
 
@@ -446,6 +518,8 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         ui.removeCallbacks(suggestRunnable);
         fromField = null;
         toField = null;
+        fromClear = null;
+        toClear = null;
         swapBtn = null;
         timeBtn = null;
         searchBtn = null;
@@ -455,6 +529,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         detailOverlay = null;
         detailTitle = null;
         detailSummary = null;
+        detailList = null;
         detailAdapter = null;
         super.onDestroyView();
     }

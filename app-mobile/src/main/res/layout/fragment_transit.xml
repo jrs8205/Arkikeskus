@@ -15,7 +15,7 @@
             android:layout_marginStart="16dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
-            android:text="Joukkoliikenne"
+            android:text="Lähilähdöt"
             android:textColor="@color/mobile_text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />

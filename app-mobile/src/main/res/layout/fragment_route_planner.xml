@@ -42,32 +42,74 @@
                     android:layout_weight="1"
                     android:orientation="vertical">
 
-                    <EditText
-                        android:id="@+id/route_from"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/mobile_card_bg"
-                        android:hint="Mistä"
-                        android:inputType="text"
-                        android:maxLines="1"
-                        android:padding="12dp"
-                        android:textColor="@color/mobile_text_primary"
-                        android:textColorHint="@color/mobile_text_muted"
-                        android:textSize="15sp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <EditText
-                        android:id="@+id/route_to"
+                        <EditText
+                            android:id="@+id/route_from"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/mobile_card_bg"
+                            android:hint="Mistä"
+                            android:inputType="text"
+                            android:maxLines="1"
+                            android:padding="12dp"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textColorHint="@color/mobile_text_muted"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:id="@+id/route_from_clear"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_marginStart="2dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Tyhjennä lähtö"
+                            android:gravity="center"
+                            android:text="×"
+                            android:textColor="@color/mobile_text_secondary"
+                            android:textSize="24sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:background="@drawable/mobile_card_bg"
-                        android:hint="Minne (esim. Rautatieasema, osoite)"
-                        android:inputType="text"
-                        android:maxLines="1"
-                        android:padding="12dp"
-                        android:textColor="@color/mobile_text_primary"
-                        android:textColorHint="@color/mobile_text_muted"
-                        android:textSize="15sp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <EditText
+                            android:id="@+id/route_to"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/mobile_card_bg"
+                            android:hint="Minne (esim. Rautatieasema, osoite)"
+                            android:inputType="text"
+                            android:maxLines="1"
+                            android:padding="12dp"
+                            android:textColor="@color/mobile_text_primary"
+                            android:textColorHint="@color/mobile_text_muted"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:id="@+id/route_to_clear"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_marginStart="2dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Tyhjennä määränpää"
+                            android:gravity="center"
+                            android:text="×"
+                            android:textColor="@color/mobile_text_secondary"
+                            android:textSize="24sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <TextView
@@ -93,21 +135,25 @@
 
                 <TextView
                     android:id="@+id/route_time"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:background="@drawable/mobile_menu_item_bg"
                     android:drawableEnd="@drawable/mobile_ic_unfold_more"
-                    android:drawablePadding="8dp"
+                    android:drawablePadding="6dp"
                     android:drawableTint="@color/mobile_text_muted"
                     android:gravity="center_vertical"
                     android:paddingStart="14dp"
                     android:paddingTop="11dp"
-                    android:paddingEnd="14dp"
+                    android:paddingEnd="12dp"
                     android:paddingBottom="11dp"
                     android:text="Lähde nyt"
                     android:textColor="@color/mobile_text_primary"
                     android:textSize="14sp" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <TextView
                     android:id="@+id/route_search"
