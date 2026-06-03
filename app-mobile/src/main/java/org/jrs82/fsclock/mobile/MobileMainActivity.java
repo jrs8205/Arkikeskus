@@ -307,7 +307,8 @@ public class MobileMainActivity extends AppCompatActivity {
     private boolean hcGranted;
     private boolean hcCaloriesGranted;
     private TextView stepsHcConnect;
-    private TextView stepsRefreshButton;
+    private View stepsRefreshButton;
+    private TextView stepsRefreshLabel;
     private TextView stepsUpdated;
     private long stepsLastRefreshMs = 0L;
     private boolean stepsRefreshInFlight = false;
@@ -679,6 +680,7 @@ public class MobileMainActivity extends AppCompatActivity {
         stepsTabMonths = findViewById(R.id.mobile_steps_tab_months);
         stepsHcConnect = findViewById(R.id.mobile_steps_hc_connect);
         stepsRefreshButton = findViewById(R.id.mobile_steps_refresh);
+        stepsRefreshLabel = findViewById(R.id.mobile_steps_refresh_label);
         stepsUpdated = findViewById(R.id.mobile_steps_updated);
         stepsCalories = findViewById(R.id.mobile_steps_calories);
         stepsProfileButton = findViewById(R.id.mobile_steps_profile);
@@ -842,7 +844,7 @@ public class MobileMainActivity extends AppCompatActivity {
         electricityCard.setOnClickListener(v -> openElectricitySection(0));
         backToTopButton.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
-            smoothScrollToTop();
+            scrollActiveSectionToTop();
         });
         drawer.setOnClickListener(v -> {
             // Eat taps inside the menu panel.
@@ -3450,6 +3452,7 @@ public class MobileMainActivity extends AppCompatActivity {
         boolean transit = (transitView != null && section == transitView);
         boolean routePlanner = (routePlannerView != null && section == routePlannerView);
         scroll.setVisibility(cameras || transit || routePlanner ? View.GONE : View.VISIBLE);
+        if (backToTopButton != null) backToTopButton.setVisibility(cameras ? View.GONE : View.VISIBLE);
         if (roadCamerasView != null) {
             roadCamerasView.setVisibility(cameras ? View.VISIBLE : View.GONE);
         }
@@ -3577,14 +3580,14 @@ public class MobileMainActivity extends AppCompatActivity {
             stepsRefreshInFlight = true;
             if (stepsRefreshButton != null) {
                 stepsRefreshButton.setEnabled(false);
-                stepsRefreshButton.setText("Päivitetään…");
+                if (stepsRefreshLabel != null) stepsRefreshLabel.setText("Päivitetään…");
             }
             HealthConnectStepsBridge.todaySteps(this, steps -> {
                 if (destroyed) return;
                 stepsRefreshInFlight = false;
                 if (stepsRefreshButton != null) {
                     stepsRefreshButton.setEnabled(true);
-                    stepsRefreshButton.setText("Päivitä Health Connectista");
+                    if (stepsRefreshLabel != null) stepsRefreshLabel.setText("Päivitä Health Connectista");
                 }
                 if (steps >= 0) {
                     lastTodaySteps = steps;
@@ -4232,6 +4235,22 @@ public class MobileMainActivity extends AppCompatActivity {
         showSection(newsView, feedName != null ? feedName : "Uutiset");
         renderNewsView();
         refreshNewsAsync(false);
+    }
+
+    /** Back-to-top: ohjaa skrollaus aktiivisen sektion mukaan. Lähilähdöt ja Reittihaku ovat omia
+     *  fragmentteja (oma RecyclerView), muut sivut jakavat mobile_scroll-ScrollView'n. */
+    private void scrollActiveSectionToTop() {
+        if (transitView != null && transitView.getVisibility() == View.VISIBLE) {
+            androidx.fragment.app.Fragment f =
+                    getSupportFragmentManager().findFragmentById(R.id.mobile_transit_view);
+            if (f instanceof TransitFragment) ((TransitFragment) f).scrollToTop();
+        } else if (routePlannerView != null && routePlannerView.getVisibility() == View.VISIBLE) {
+            androidx.fragment.app.Fragment f =
+                    getSupportFragmentManager().findFragmentById(R.id.mobile_route_planner_view);
+            if (f instanceof RoutePlannerFragment) ((RoutePlannerFragment) f).scrollToTop();
+        } else {
+            smoothScrollToTop();
+        }
     }
 
     /** Hidas, animoitu liuku sivun ylälaitaan (back-to-top -napille). */

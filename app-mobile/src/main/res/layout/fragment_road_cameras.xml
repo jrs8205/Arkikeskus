@@ -11,8 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <EditText
-        android:id="@+id/cam_search"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:layout_gravity="top"
@@ -20,14 +19,37 @@
         android:layout_marginTop="10dp"
         android:layout_marginEnd="12dp"
         android:background="@drawable/mobile_card_bg"
-        android:hint="Hae tie tai paikka"
-        android:imeOptions="actionSearch"
-        android:inputType="text"
-        android:maxLines="1"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:textColor="@color/mobile_text_primary"
-        android:textColorHint="@color/mobile_text_muted" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/cam_search"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="Hae tie tai paikka"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="12dp"
+            android:paddingEnd="6dp"
+            android:textColor="@color/mobile_text_primary"
+            android:textColorHint="@color/mobile_text_muted" />
+
+        <TextView
+            android:id="@+id/cam_search_clear"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Tyhjennä haku"
+            android:gravity="center"
+            android:text="×"
+            android:textColor="@color/mobile_text_secondary"
+            android:textSize="24sp"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/cam_status"

@@ -66,6 +66,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private TextView status;
     private TransitAdapter adapter;
 
+    private RecyclerView list, detailList;
     private View detailOverlay;
     private TextView detailBadge, detailDest, detailBanner, detailSwap;
     private TransitTimelineAdapter timelineAdapter;
@@ -133,7 +134,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         searchClear = view.findViewById(R.id.transit_search_clear);
         swipe = view.findViewById(R.id.transit_swipe);
         status = view.findViewById(R.id.transit_status);
-        RecyclerView list = view.findViewById(R.id.transit_list);
+        list = view.findViewById(R.id.transit_list);
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
         adapter = new TransitAdapter(this);
         list.setAdapter(adapter);
@@ -144,7 +145,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         detailDest = view.findViewById(R.id.transit_detail_dest);
         detailBanner = view.findViewById(R.id.transit_detail_banner);
         detailSwap = view.findViewById(R.id.transit_detail_swap);
-        RecyclerView detailList = view.findViewById(R.id.transit_detail_list);
+        detailList = view.findViewById(R.id.transit_detail_list);
         detailList.setLayoutManager(new LinearLayoutManager(requireContext()));
         timelineAdapter = new TransitTimelineAdapter();
         detailList.setAdapter(timelineAdapter);
@@ -665,6 +666,15 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         if (status != null) status.setVisibility(View.GONE);
     }
 
+    /** Back-to-top: skrollaa näkyvän listan (lähilista tai aikajana-overlay) alkuun. */
+    void scrollToTop() {
+        if (detailOverlay != null && detailOverlay.getVisibility() == View.VISIBLE) {
+            if (detailList != null) detailList.smoothScrollToPosition(0);
+        } else if (list != null) {
+            list.smoothScrollToPosition(0);
+        }
+    }
+
     @Override
     public void onDestroyView() {
         ui.removeCallbacks(autoRefresh);
@@ -675,6 +685,8 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         swipe = null;
         status = null;
         adapter = null;
+        list = null;
+        detailList = null;
         detailOverlay = null;
         detailBadge = null;
         detailDest = null;
