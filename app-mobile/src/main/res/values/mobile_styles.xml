@@ -37,4 +37,12 @@
     <style name="MobileSettingsActionBarTitle" parent="@style/TextAppearance.AppCompat.Widget.ActionBar.Title">
         <item name="android:textColor">@color/mobile_text_primary</item>
     </style>
+
+    <!-- Compose-asetusnäkymän host-teema: NoActionBar (TopAppBar piirretään Composessa),
+         edge-to-edge sallittu (ei opt-outia). AppCompat-pohja, jotta MobileThemeControllerin
+         night mode -pakotus (light/dark/system) toimii edelleen. -->
+    <style name="MobileComposeTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/mobile_bg</item>
+        <item name="android:colorBackground">@color/mobile_bg</item>
+    </style>
 </resources>
