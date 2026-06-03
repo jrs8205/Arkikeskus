@@ -78,7 +78,7 @@
             android:exported="false"
             android:label="@string/mobile_settings_title"
             android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
-            android:theme="@style/MobileSettingsTheme" />
+            android:theme="@style/MobileComposeTheme" />
 
         <activity
             android:name="org.jrs82.fsclock.mobile.MobileWidgetOrderActivity"
