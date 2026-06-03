@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.PointF;
+import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,6 +14,8 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -22,6 +25,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.jrs82.fsclock.BuildConfig;
 import org.jrs82.fsclock.R;
@@ -62,6 +67,8 @@ public class RoadCamerasFragment extends Fragment {
     private GeoJsonSource source;
     private EditText searchField;
     private View searchClear;
+    private RecyclerView suggestList;
+    private CamSuggestAdapter suggestAdapter;
     private View imageOverlay;
     private ImageView imageBig;
     private TextView imageTitle;
@@ -84,7 +91,11 @@ public class RoadCamerasFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         searchField = view.findViewById(R.id.cam_search);
         searchClear = view.findViewById(R.id.cam_search_clear);
-        searchClear.setOnClickListener(v -> searchField.setText(""));
+        searchClear.setOnClickListener(v -> clearSearch());
+        suggestList = view.findViewById(R.id.cam_suggestions);
+        suggestList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        suggestAdapter = new CamSuggestAdapter(this::onSuggestionTap);
+        suggestList.setAdapter(suggestAdapter);
         statusText = view.findViewById(R.id.cam_status);
         imageOverlay = view.findViewById(R.id.cam_image_overlay);
         imageBig = view.findViewById(R.id.cam_image_big);
@@ -97,8 +108,17 @@ public class RoadCamerasFragment extends Fragment {
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
             @Override public void afterTextChanged(Editable s) {
                 searchClear.setVisibility(s.length() == 0 ? View.GONE : View.VISIBLE);
-                onSearch(s.toString());
+                updateSuggestions(s.toString());
             }
+        });
+        searchField.setOnEditorActionListener((v, actionId, ev) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                hideSuggestions();
+                hideKeyboard();
+                onSearch(searchField.getText().toString());
+                return true;
+            }
+            return false;
         });
 
         // Takaisin-painallus sulkee ison kamerakuvan, jos se on auki (muuten normaali back).
@@ -251,6 +271,56 @@ public class RoadCamerasFragment extends Fragment {
         if (backCallback != null) backCallback.setEnabled(false);
     }
 
+    /** Tyhjennä haku, piilota ehdotukset ja palaa koko Suomen yleisnäkymään kartalla. */
+    private void clearSearch() {
+        searchField.setText("");
+        hideSuggestions();
+        if (map != null) map.animateCamera(CameraUpdateFactory.newLatLngZoom(FINLAND, 4.5));
+    }
+
+    /** Ennakoiva haku: suodata asemat nimellä ja näytä ehdotuslista (enintään 8). */
+    private void updateSuggestions(String query) {
+        if (suggestAdapter == null || suggestList == null) return;
+        if (query == null || query.trim().length() < 2) { hideSuggestions(); return; }
+        List<WeathercamStation> hits = WeathercamRepository.get().search(query);
+        if (hits.isEmpty()) { hideSuggestions(); return; }
+        if (hits.size() > 8) hits = new ArrayList<>(hits.subList(0, 8));
+        suggestAdapter.submit(hits);
+        suggestList.setVisibility(View.VISIBLE);
+    }
+
+    private void hideSuggestions() {
+        if (suggestList != null) suggestList.setVisibility(View.GONE);
+    }
+
+    /** Ehdotuksen valinta: lennä asemalle kartalla ja avaa sen kamerakuva suoraan. */
+    private void onSuggestionTap(WeathercamStation s) {
+        hideSuggestions();
+        hideKeyboard();
+        if (searchField != null) searchField.clearFocus();
+        if (map != null) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(s.lat, s.lon), 12));
+        }
+        if (!s.presets.isEmpty()) {
+            WeathercamStation.WeathercamPreset p = s.presets.get(0);
+            showImage(p.id, s.name, p.presentationName);
+        }
+    }
+
+    private void hideKeyboard() {
+        if (searchField == null) return;
+        InputMethodManager imm = (InputMethodManager) requireContext()
+                .getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) imm.hideSoftInputFromWindow(searchField.getWindowToken(), 0);
+    }
+
+    /** Kutsutaan kun sektiosta poistutaan: sulje kamerakuva ja ehdotukset, ettei takaisin-callback
+     *  jää sieppaamaan back-painallusta muilla sivuilla. */
+    void onSectionHidden() {
+        hideSuggestions();
+        hideImage();
+    }
+
     /** Lataa täysikokoisen kamerakuvan (ei ImageLoaderin 160 px alinäytteistystä).
      *  EI Authorization-headeria — weathercam-kuva palauttaa sille 400. */
     private static Bitmap downloadFull(String urlStr) {
@@ -283,6 +353,36 @@ public class RoadCamerasFragment extends Fragment {
         return bmp;
     }
 
+    /** Kevyt ehdotuslista-adapteri (kelikamera-aseman nimi). */
+    private static final class CamSuggestAdapter
+            extends RecyclerView.Adapter<CamSuggestAdapter.VH> {
+        interface OnTap { void tap(WeathercamStation s); }
+        private final List<WeathercamStation> items = new ArrayList<>();
+        private final OnTap onTap;
+        CamSuggestAdapter(OnTap onTap) { this.onTap = onTap; }
+        void submit(List<WeathercamStation> list) {
+            items.clear();
+            items.addAll(list);
+            notifyDataSetChanged();
+        }
+        @NonNull @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_cam_suggest, parent, false);
+            return new VH(v);
+        }
+        @Override public void onBindViewHolder(@NonNull VH h, int pos) {
+            final WeathercamStation s = items.get(pos);
+            h.text.setText(s.name);
+            h.itemView.setOnClickListener(v -> onTap.tap(s));
+        }
+        @Override public int getItemCount() { return items.size(); }
+        static final class VH extends RecyclerView.ViewHolder {
+            final TextView text;
+            VH(View v) { super(v); text = v.findViewById(R.id.cam_suggest_text); }
+        }
+    }
+
     // --- MapView lifecycle (fragmentin elinkaaressa) ---
     @Override public void onStart() { super.onStart(); if (mapView != null) mapView.onStart(); }
     @Override public void onResume() { super.onResume(); if (mapView != null) mapView.onResume(); }
@@ -310,6 +410,8 @@ public class RoadCamerasFragment extends Fragment {
         imageTitle = null;
         searchField = null;
         searchClear = null;
+        suggestList = null;
+        suggestAdapter = null;
         super.onDestroyView();
     }
 

@@ -79,7 +79,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="16dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
@@ -155,20 +155,21 @@
                     android:layout_height="1dp"
                     android:layout_weight="1" />
 
+                <!-- Toissijainen nappi: ennakoiva haku/ehdotuksen valinta käynnistää reitityksen
+                     automaattisesti; tämä jää ajan vaihdon ja uudelleenyrityksen laukaisimeksi. -->
                 <TextView
                     android:id="@+id/route_search"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:background="@drawable/mobile_transit_badge_bg"
-                    android:backgroundTint="@color/mobile_accent"
+                    android:background="@drawable/mobile_menu_item_bg"
                     android:gravity="center"
-                    android:paddingStart="18dp"
-                    android:paddingTop="12dp"
-                    android:paddingEnd="18dp"
-                    android:paddingBottom="12dp"
+                    android:paddingStart="16dp"
+                    android:paddingTop="10dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="10dp"
                     android:text="Hae reitit"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/mobile_accent"
                     android:textSize="14sp"
                     android:textStyle="bold" />
             </LinearLayout>

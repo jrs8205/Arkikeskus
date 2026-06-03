@@ -3465,6 +3465,23 @@ public class MobileMainActivity extends AppCompatActivity {
         if (cameras) ensureRoadCamerasFragment();
         if (transit) ensureTransitFragment();
         if (routePlanner) ensureRoutePlannerFragment();
+        // Sulje fragmenttien overlayt kun sektiosta poistutaan, ettei niiden takaisin-callback jää
+        // sieppaamaan järjestelmän back-painallusta muilla sivuilla.
+        if (!transit) {
+            androidx.fragment.app.Fragment tf =
+                    getSupportFragmentManager().findFragmentById(R.id.mobile_transit_view);
+            if (tf instanceof TransitFragment) ((TransitFragment) tf).onSectionHidden();
+        }
+        if (!routePlanner) {
+            androidx.fragment.app.Fragment rf =
+                    getSupportFragmentManager().findFragmentById(R.id.mobile_route_planner_view);
+            if (rf instanceof RoutePlannerFragment) ((RoutePlannerFragment) rf).onSectionHidden();
+        }
+        if (!cameras) {
+            androidx.fragment.app.Fragment cf =
+                    getSupportFragmentManager().findFragmentById(R.id.mobile_road_cameras_view);
+            if (cf instanceof RoadCamerasFragment) ((RoadCamerasFragment) cf).onSectionHidden();
+        }
         if (placesView != null
                 && placesView.getVisibility() == View.VISIBLE
                 && section != placesView) {
@@ -3509,9 +3526,11 @@ public class MobileMainActivity extends AppCompatActivity {
 
     private void ensureRoadCamerasFragment() {
         if (getSupportFragmentManager().findFragmentById(R.id.mobile_road_cameras_view) == null) {
+            // commitNowAllowingStateLoss: synkroninen (estää tuplakommitin nopeasta uudelleenavauksesta
+            // + tekee findFragmentById-haun heti löytyväksi) eikä kaadu onSaveInstanceState:n jälkeen.
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.mobile_road_cameras_view, new RoadCamerasFragment())
-                    .commit();
+                    .commitNowAllowingStateLoss();
         }
     }
 
@@ -3527,7 +3546,7 @@ public class MobileMainActivity extends AppCompatActivity {
         if (getSupportFragmentManager().findFragmentById(R.id.mobile_transit_view) == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.mobile_transit_view, new TransitFragment())
-                    .commit();
+                    .commitNowAllowingStateLoss();
         }
     }
 
@@ -3542,7 +3561,7 @@ public class MobileMainActivity extends AppCompatActivity {
         if (getSupportFragmentManager().findFragmentById(R.id.mobile_route_planner_view) == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.mobile_route_planner_view, new RoutePlannerFragment())
-                    .commit();
+                    .commitNowAllowingStateLoss();
         }
     }
 
@@ -4233,6 +4252,9 @@ public class MobileMainActivity extends AppCompatActivity {
         if (feedId == null) return;
         newsViewFeedId = feedId;
         showSection(newsView, feedName != null ? feedName : "Uutiset");
+        // Uutissivulla ei ole fragmentin omaa otsikkoa (toisin kuin Lähilähdöt/Reittihaku), joten
+        // näytä lähteen nimi yläpalkissa, ettei per-lähde-sivu jää pelkäksi "Arkikeskus"-otsikoksi.
+        if (toolbarTitle != null) toolbarTitle.setText(feedName != null ? feedName : "Uutiset");
         renderNewsView();
         refreshNewsAsync(false);
     }

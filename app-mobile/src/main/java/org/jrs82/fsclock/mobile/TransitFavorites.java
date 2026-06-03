@@ -18,6 +18,11 @@ final class TransitFavorites {
     private static final String KEY_LINES = "transit_fav_lines";
     private static final String KEY_STOPS = "transit_fav_stops";
 
+    // isLineFav/isStopFav kutsutaan adapterin joka sidonnassa → pidä id-joukot muistissa, ettei
+    // jokainen rivi tee levyltä lukua + JSON-jäsennystä. Mitätöidään (null) kun suosikkeja muutetaan.
+    private static volatile java.util.Set<String> lineIdCache;
+    private static volatile java.util.Set<String> stopIdCache;
+
     static final class FavStop {
         final String gtfsId;
         final String name;
@@ -48,8 +53,17 @@ final class TransitFavorites {
 
     static boolean isLineFav(Context ctx, String routeGtfsId) {
         if (routeGtfsId == null || routeGtfsId.isEmpty()) return false;
-        for (RouteHit r : getLines(ctx)) if (routeGtfsId.equals(r.gtfsId)) return true;
-        return false;
+        return lineIds(ctx).contains(routeGtfsId);
+    }
+
+    private static java.util.Set<String> lineIds(Context ctx) {
+        java.util.Set<String> ids = lineIdCache;
+        if (ids == null) {
+            ids = new java.util.HashSet<>();
+            for (RouteHit r : getLines(ctx)) ids.add(r.gtfsId);
+            lineIdCache = ids;
+        }
+        return ids;
     }
 
     /** Lisää/poistaa suosikkilinjan. Palauttaa uuden tilan (true = suosikki). */
@@ -66,6 +80,7 @@ final class TransitFavorites {
         boolean nowFav = !removed;
         if (nowFav) arr.put(lineJson(routeGtfsId, shortName, longName, mode));
         prefs(ctx).edit().putString(KEY_LINES, arr.toString()).apply();
+        lineIdCache = null;   // mitätöi muistivälimuisti
         return nowFav;
     }
 
@@ -97,8 +112,17 @@ final class TransitFavorites {
 
     static boolean isStopFav(Context ctx, String stopGtfsId) {
         if (stopGtfsId == null || stopGtfsId.isEmpty()) return false;
-        for (FavStop s : getStops(ctx)) if (stopGtfsId.equals(s.gtfsId)) return true;
-        return false;
+        return stopIds(ctx).contains(stopGtfsId);
+    }
+
+    private static java.util.Set<String> stopIds(Context ctx) {
+        java.util.Set<String> ids = stopIdCache;
+        if (ids == null) {
+            ids = new java.util.HashSet<>();
+            for (FavStop s : getStops(ctx)) ids.add(s.gtfsId);
+            stopIdCache = ids;
+        }
+        return ids;
     }
 
     /** Lisää/poistaa suosikkipysäkin. Palauttaa uuden tilan (true = suosikki). */
@@ -114,6 +138,7 @@ final class TransitFavorites {
         boolean nowFav = !removed;
         if (nowFav) arr.put(stopJson(stopGtfsId, name));
         prefs(ctx).edit().putString(KEY_STOPS, arr.toString()).apply();
+        stopIdCache = null;   // mitätöi muistivälimuisti
         return nowFav;
     }
 

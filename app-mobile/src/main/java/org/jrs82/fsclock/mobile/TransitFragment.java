@@ -98,7 +98,9 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
                 if (openIsRoute || openTrip != null) reloadTimeline();
             } else {
                 View v = getView();
-                if (v != null && v.isShown()) refresh(false);
+                // Päivitä lähilista vain kun se on aidosti näkyvissä EIKÄ olla haku-/valittu-pysäkki-
+                // tilassa — muuten herätettäisiin GPS + N suosikkihakua turhaan (tuloksia ei näytetä).
+                if (v != null && v.isShown() && query.isEmpty() && selectedStop == null) refresh(false);
             }
             ui.postDelayed(this, AUTO_REFRESH_MS);
         }
@@ -194,6 +196,12 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             selectedStop = null;   // palaa lähilistaan kun sivu avataan valikosta
             refresh(false);
         }
+    }
+
+    /** Kutsutaan kun sektiosta poistutaan (esim. drawer-valinta). Sulkee mahdollisen aikajana-/
+     *  linja-overlayn, ettei takaisin-callback jää päälle sieppaamaan back-painallusta muilla sivuilla. */
+    void onSectionHidden() {
+        closeDetail();
     }
 
     @Override

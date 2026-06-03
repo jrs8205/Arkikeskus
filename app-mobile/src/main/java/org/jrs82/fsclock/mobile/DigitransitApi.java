@@ -128,7 +128,8 @@ final class DigitransitApi {
 
     private static NearbyStop parseStop(JSONObject place, double distance) {
         String name = place.optString("name", "");
-        String code = place.optString("code", "");
+        // optString palauttaa merkkijonon "null" jos arvo on JSONObject.NULL → suojaa isNull():lla.
+        String code = place.isNull("code") ? "" : place.optString("code", "");
         String vehicleMode = place.optString("vehicleMode", "");
         String gtfsId = place.optString("gtfsId", "");
         JSONArray times = place.optJSONArray("stoptimesWithoutPatterns");
@@ -149,7 +150,8 @@ final class DigitransitApi {
         boolean realtime = st.optBoolean("realtime", false);
         int scheduled = st.optInt("scheduledDeparture", -1);
         int rt = st.optInt("realtimeDeparture", scheduled);
-        if (scheduled < 0 && rt < 0) return null;
+        // serviceDay puuttuu/null → epoch jäisi ~1970:ksi ja näkyisi virheellisenä lähtönä.
+        if (serviceDay <= 0 || (scheduled < 0 && rt < 0)) return null;
         int chosen = realtime && rt >= 0 ? rt : (scheduled >= 0 ? scheduled : rt);
         long epoch = serviceDay + chosen;
         int delay = (realtime && scheduled >= 0 && rt >= 0) ? (rt - scheduled) : 0;
@@ -411,13 +413,13 @@ final class DigitransitApi {
                 boolean realtime = st.optBoolean("realtime", false);
                 int scheduled = st.optInt("scheduledDeparture", -1);
                 int rt = st.optInt("realtimeDeparture", scheduled);
-                int chosen = realtime && rt >= 0 ? rt : scheduled;
+                int chosen = realtime && rt >= 0 ? rt : (scheduled >= 0 ? scheduled : rt);
                 JSONObject stop = st.optJSONObject("stop");
                 String sid = stop == null ? "" : stop.optString("gtfsId", "");
                 String sname = stop == null ? "" : stop.optString("name", "");
-                String scode = stop == null ? "" : stop.optString("code", "");
+                String scode = (stop == null || stop.isNull("code")) ? "" : stop.optString("code", "");
                 stops.add(new TimelineStop(sid, sname, scode,
-                        chosen >= 0 ? serviceDay + chosen : 0L, realtime));
+                        (chosen >= 0 && serviceDay > 0) ? serviceDay + chosen : 0L, realtime));
                 if (boardStopGtfsId != null && boardStopGtfsId.equals(sid)) boardIndex = stops.size() - 1;
             }
         }
@@ -498,12 +500,14 @@ final class DigitransitApi {
                     JSONArray times = g0 == null ? null : g0.optJSONArray("stoptimes");
                     if (times != null && times.length() > 0) {
                         JSONObject t0 = times.optJSONObject(0);
-                        long sd = t0.optLong("serviceDay", 0L);
-                        boolean r = t0.optBoolean("realtime", false);
-                        int sch = t0.optInt("scheduledDeparture", -1);
-                        int rtd = t0.optInt("realtimeDeparture", sch);
-                        int chosen = r && rtd >= 0 ? rtd : sch;
-                        if (chosen >= 0) { epoch = sd + chosen; realtime = r; }
+                        if (t0 != null) {
+                            long sd = t0.optLong("serviceDay", 0L);
+                            boolean r = t0.optBoolean("realtime", false);
+                            int sch = t0.optInt("scheduledDeparture", -1);
+                            int rtd = t0.optInt("realtimeDeparture", sch);
+                            int chosen = r && rtd >= 0 ? rtd : (sch >= 0 ? sch : rtd);
+                            if (chosen >= 0 && sd > 0) { epoch = sd + chosen; realtime = r; }
+                        }
                     }
                 }
                 stops.add(new TimelineStop(sid, sname, "", epoch, realtime));

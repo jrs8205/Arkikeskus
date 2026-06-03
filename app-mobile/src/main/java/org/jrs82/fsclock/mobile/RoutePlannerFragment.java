@@ -97,8 +97,10 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             new ActivityResultContracts.RequestMultiplePermissions(), result -> {
                 boolean granted = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION))
                         || Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_COARSE_LOCATION));
-                if (granted && pendingSearch) { pendingSearch = false; doSearch(); }
-                else if (!granted) showStatus("Sijaintilupa tarvitaan, kun lähtö on oma sijainti.");
+                if (granted && pendingSearch) {
+                    pendingSearch = false;
+                    if (isAdded() && fromField != null) doSearch();   // lupa voi palata irrotuksen jälkeen
+                } else if (!granted) showStatus("Sijaintilupa tarvitaan, kun lähtö on oma sijainti.");
             });
 
     @Nullable
@@ -160,6 +162,12 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (isAdded() && hasLocationPermission() && Double.isNaN(gpsLat)) {
             fetchLocation((lat, lon) -> { gpsLat = lat; gpsLon = lon; });
         }
+    }
+
+    /** Kutsutaan kun sektiosta poistutaan: sulje osat-overlay, ettei takaisin-callback jää
+     *  sieppaamaan back-painallusta muilla sivuilla. */
+    void onSectionHidden() {
+        closeDetail();
     }
 
     // --- Ehdotushaku (geokoodaus kirjoittaessa) ---
@@ -298,6 +306,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     // --- Reittihaku ---
 
     private void doSearch() {
+        if (!isAdded() || fromField == null || toField == null) return;
         hideKeyboard();
         fromField.clearFocus();
         toField.clearFocus();
@@ -417,7 +426,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                         if (isAdded()) cb.onLoc(Double.NaN, Double.NaN);
                     });
         } catch (Exception e) {
-            cb.onLoc(Double.NaN, Double.NaN);
+            if (isAdded()) cb.onLoc(Double.NaN, Double.NaN);
         }
     }
 
@@ -457,13 +466,14 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         }
     }
 
-    /** X-napit näkyvät vain kun kentässä on tekstiä. */
+    /** X-napit näkyvät vain kun kentässä on tekstiä. INVISIBLE (ei GONE) → ×-napin tila varataan
+     *  aina, joten molemmat kentät pysyvät samanlevyisinä (alkunäkymässä Mistä/Minne eivät hyppää). */
     private void updateClearButtons() {
         if (fromClear != null && fromField != null) {
-            fromClear.setVisibility(fromField.getText().toString().isEmpty() ? View.GONE : View.VISIBLE);
+            fromClear.setVisibility(fromField.getText().toString().isEmpty() ? View.INVISIBLE : View.VISIBLE);
         }
         if (toClear != null && toField != null) {
-            toClear.setVisibility(toField.getText().toString().isEmpty() ? View.GONE : View.VISIBLE);
+            toClear.setVisibility(toField.getText().toString().isEmpty() ? View.INVISIBLE : View.VISIBLE);
         }
     }
 

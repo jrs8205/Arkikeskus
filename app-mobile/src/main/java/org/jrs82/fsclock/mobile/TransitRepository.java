@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Joukkoliikennelähtöjen haku kevyellä ~20 s RAM-välimuistilla (Digitransitin subscription-
@@ -22,7 +23,8 @@ final class TransitRepository {
         synchronized (this) {
             if (cached != null && System.currentTimeMillis() - cachedAt < CACHE_MS
                     && haversineMeters(lat, lon, cachedLat, cachedLon) < CACHE_DIST_M) {
-                return cached;
+                // Puolustuskopio: kutsuja voi lajitella/suodattaa listaa rikkomatta välimuistia.
+                return new ArrayList<>(cached);
             }
         }
         List<NearbyStop> fresh = DigitransitApi.nearbyDepartures(lat, lon);
@@ -32,7 +34,7 @@ final class TransitRepository {
             cachedLat = lat;
             cachedLon = lon;
         }
-        return fresh;
+        return new ArrayList<>(fresh);
     }
 
     private static double haversineMeters(double lat1, double lon1, double lat2, double lon2) {
