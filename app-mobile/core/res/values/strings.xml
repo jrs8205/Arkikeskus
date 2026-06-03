@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Arkikeskus</string>
+    <string name="dream_description">Kello, päivämäärä ja sää, ympärivuorokautinen infotaulu burn-in -suojalla</string>
+    <string name="loading_weather">Ladataan säätietoja…</string>
+    <string name="clock_time_placeholder">--:--:--</string>
+    <string name="value_missing_short">--</string>
+    <string name="weather_label">Sää päivitetty viimeksi kello:</string>
+    <string name="weather_stale">vanhentunut</string>
+    <string name="weather_stale_format">%1$s (%2$s)</string>
+    <string name="status_alert_format">! %1$s</string>
+    <string name="wind_format">Tuuli %1$.0f m/s %2$s</string>
+    <string name="humidity_format">Kosteus %1$.0f%%</string>
+    <string name="rain24h_format">Sade 24h %1$.1f mm</string>
+    <string name="rain24h_missing">Sade 24h --</string>
+    <string name="rain24h_zero">Sade 24h 0,0 mm</string>
+    <string name="feels_format">(Tuntuu kuin %+.0f°)</string>
+    <string name="temp_missing">--°C</string>
+    <string name="temp_format">%+.0f °C</string>
+    <string name="hour_format">klo %02d</string>
+    <string name="temp_short_format">%+.0f°</string>
+    <string name="precip_format">%.1f mm</string>
+    <string name="precip_missing">--</string>
+    <string name="separator">"          "</string>
+    <string name="battery_format">Akun varaus: %1$d %%  ·  Akun lämpötila: %2$.1f °C</string>
+    <string name="battery_format_charging">⚡ Akun varaus: %1$d %%  ·  Akun lämpötila: %2$.1f °C</string>
+    <string name="wind_format_nodir">Tuuli %1$.0f m/s</string>
+    <string name="wind_missing">Tuuli —</string>
+    <string name="humidity_missing">Kosteus —</string>
+
+    <string name="settings_title">Arkikeskus-asetukset</string>
+
+    <!-- Asetussivun ryhmät -->
+    <string name="pref_cat_display">Näyttö ja kirkkaus</string>
+    <string name="pref_cat_weather">Sää ja sijainti</string>
+    <string name="pref_cat_app">Sovellus</string>
+    <string name="pref_cat_test">Testitila (kehitys)</string>
+    <string name="pref_cat_ruuvi">RuuviTag-anturit</string>
+
+    <!-- Ruuvi -->
+    <string name="pref_ruuvi_scan">Etsi antureita</string>
+    <string name="pref_ruuvi_scan_summary">Avaa lista lähellä havaituista RuuviTag-antureista</string>
+    <string name="pref_ruuvi_slot_bedroom">Anturi 1</string>
+    <string name="pref_ruuvi_slot_livingroom">Anturi 2</string>
+    <string name="pref_ruuvi_slot_balcony">Anturi 3</string>
+    <string name="ruuvi_slot_empty">Ei valittu</string>
+    <string name="ruuvi_scan_dialog_title">Havaitut RuuviTagit</string>
+    <string name="ruuvi_scan_dialog_empty">Etsitään antureita…</string>
+    <string name="ruuvi_scan_dialog_hint">Valitse anturi, niin voit kytkeä sen mihin tahansa anturipaikkaan.</string>
+    <string name="ruuvi_scan_dialog_close">Sulje</string>
+    <string name="ruuvi_assign_dialog_title">Kytke %1$s</string>
+    <string name="ruuvi_assign_to_bedroom">Anturi 1</string>
+    <string name="ruuvi_assign_to_livingroom">Anturi 2</string>
+    <string name="ruuvi_assign_to_balcony">Anturi 3</string>
+    <string name="ruuvi_assign_clear">Poista anturikytkentä</string>
+    <string name="ruuvi_assigned_toast">%1$s → %2$s</string>
+    <string name="ruuvi_card_format">%1$s · %2$s · RSSI %3$d</string>
+    <string name="ruuvi_card_temp_format">%1$.1f °C</string>
+    <string name="ruuvi_card_temp_missing">— °C</string>
+    <string name="ruuvi_card_humidity_format">%1$.0f %%</string>
+    <string name="ruuvi_perm_needed">Bluetooth-lupa tarvitaan antureiden hakuun.</string>
+    <string name="ruuvi_bt_off">Kytke Bluetooth päälle ennen kuin etsit antureita.</string>
+
+    <!-- Näyttö ja kirkkaus -->
+    <string name="pref_day_brightness">Päivän kirkkaus</string>
+    <string name="pref_night_brightness">Yön kirkkaus</string>
+    <string name="pref_day_morning">Päivän alkamisaika</string>
+    <string name="pref_night_evening">Yön alkamisaika</string>
+    <string name="pref_night_red_tint">Yön punainen sävy</string>
+    <string name="pref_night_red_tint_summary">Käytössä vaiheen 4 jälkeen</string>
+
+    <!-- Sää ja sijainti -->
+    <string name="pref_home_place">Kotipaikkakunta</string>
+
+    <!-- Kotipaikkakunnan vaihdon vahvistusdialogi -->
+    <string name="home_place_change_title">Vaihda kotipaikkakunta?</string>
+    <string name="home_place_change_message">Uudelle kotipaikkakunnalle (%1$s) aloitetaan oma datakanava. Vanha data ja kanava säilyvät, mutta uuteen kerääntyy aluksi tyhjyyttä.</string>
+    <string name="home_place_change_ok">Vaihda</string>
+    <string name="home_place_change_cancel">Peruuta</string>
+
+    <!-- Sovellus -->
+    <string name="pref_version">Versio</string>
+    <string name="pref_last_update">Viimeisin sääpäivitys</string>
+    <string name="pref_time_check">Vertaa NTP-aikaan</string>
+    <string name="pref_time_check_summary">Ei toteutettu vielä</string>
+
+    <!-- Testitila -->
+    <string name="pref_test_day">Testaa päivätila</string>
+    <string name="pref_test_night">Testaa yötila</string>
+    <string name="pref_test_warning">Testaa varoitusrivi</string>
+    <string name="pref_test_offline">Testaa offline-tila</string>
+    <string name="pref_test_pixel_shift">Pixel-shift status</string>
+    <string name="pref_test_summary">Klikkaa: 30 min testitila. Toinen klikkaus poistaa.</string>
+    <string name="pref_test_pixel_shift_summary">Aktiivinen (±40px / ±20px joka minuutti)</string>
+
+    <!-- Aikavalitsindialogi -->
+    <string name="time_picker_title">Valitse aika</string>
+
+    <!-- Auto time -warning -->
+    <string name="auto_time_warning">⚠ Automaattinen aika ei ole päällä — kytke asetuksista</string>
+
+    <!-- Testitila-toastit -->
+    <string name="toast_test_activated">%1$s — 30 min</string>
+    <string name="toast_test_cleared">%1$s pois käytöstä</string>
+    <string name="toast_test_warning_label">Varoitusrivi-testi</string>
+    <string name="toast_test_offline_label">Offline-testi</string>
+    <string name="toast_test_day_label">Päivätila-testi</string>
+    <string name="toast_test_night_label">Yötila-testi</string>
+
+    <!-- Statusriviin offline -->
+    <string name="status_offline_test">Offline-testitila</string>
+    <string name="status_warning_test">Varoitusrivi-testitila</string>
+
+    <!-- Pitkän painalluksen valikko -->
+    <string name="menu_long_press_title">Valitse</string>
+    <string name="menu_settings">Asetukset</string>
+    <string name="menu_system">Järjestelmä</string>
+    <string name="action_open_settings">Avaa asetukset</string>
+    <string name="action_browse_place">Selaa sääpaikkaa</string>
+    <string name="action_return_home_place">Palaa kotipaikkaan</string>
+    <string name="browse_place_title">Selaa sääpaikkaa</string>
+    <string name="browse_place_hint">Paikkakunta</string>
+    <string name="browse_place_ok">Hae</string>
+    <string name="browse_place_cancel">Peruuta</string>
+    <string name="browse_fetch_failed">Sääpaikan haku epäonnistui</string>
+    <string name="browse_status_prefix">Selaus: %1$s · %2$s</string>
+    <string name="action_favorite_toggle">Lisää tai poista suosikeista</string>
+    <string name="page_indicator_format">%1$d / %2$d</string>
+
+    <!-- Headerin navi-napit -->
+    <string name="nav_koti">Koti</string>
+    <string name="nav_forecast">Ennuste</string>
+    <string name="nav_electricity">Sähkö</string>
+    <string name="favorite_added">Lisätty suosikkeihin: %1$s</string>
+    <string name="favorite_removed">Poistettu suosikeista: %1$s</string>
+    <string name="favorites_separator">────────────</string>
+    <string name="favorites_menu_title">Suosikit</string>
+    <string name="favorites_menu_empty">Ei vielä suosikkeja</string>
+    <string name="favorites_menu_add">♡  Lisää \"%1$s\" suosikiksi</string>
+    <string name="favorites_menu_remove">♥  Poista \"%1$s\" suosikeista</string>
+
+    <!-- Sääoitukset (MeteoAlarm/FMI) -->
+    <string name="warnings_header">SÄÄVAROITUKSET</string>
+    <string name="warnings_empty">Ei voimassa olevia varoituksia</string>
+    <string name="warnings_loading">Ladataan…</string>
+    <string name="warning_area_prefix">Alueet: %1$s</string>
+    <string name="warning_valid_same_day">voimassa %1$s klo %2$s–%3$s</string>
+    <string name="warning_valid_multi_day">voimassa %1$s klo %2$s – %3$s klo %4$s</string>
+    <string name="warning_severity_suffix">%1$s %2$s</string>
+
+    <!-- Juhlapyhän ja liputuspäivän esitysmuodot etusivulla -->
+    <string name="holiday_today_format">Tänään: %1$s</string>
+    <string name="holiday_tomorrow_format">Huomenna: %1$s</string>
+    <string name="holiday_in_days_format">%1$s — %2$d päivän päästä</string>
+    <string name="flag_today_format">Tänään liputetaan: %1$s</string>
+    <string name="flag_tomorrow_format">Huomenna liputetaan: %1$s</string>
+    <string name="flag_in_days_format">%1$s (liputus) — %2$d päivän päästä</string>
+
+    <!-- Aurinkorivin muoto (kuuosa poistettu Vaihe 4C:ssa) -->
+    <string name="sun_line_format">Aurinko nousee %1$s\nAurinko laskee %2$s\nPäivän kesto %3$s</string>
+    <string name="day_length_format">Päivän kesto %1$s</string>
+    <string name="sun_never_rises">Aurinko ei nouse tänään</string>
+    <string name="sun_never_sets">Aurinko ei laske tänään</string>
+
+    <!-- Supersää (FMI vs Open-Meteo) -->
+    <string name="super_weather_title">Tunti tunnilta</string>
+    <string name="super_weather_col_fmi">Ilmatieteen laitos</string>
+    <string name="super_weather_col_om">Open-Meteo</string>
+    <string name="super_weather_loading">Ladataan…</string>
+    <string name="super_weather_no_data">—</string>
+    <string name="super_weather_hour_format">%02d:00</string>
+    <string name="super_weather_row_format">%1$s %2$+.0f°  T%3$.0f  K%4$.0f  S%5$.1f</string>
+    <string name="super_weather_row_format_no_rain">%1$s %2$+.0f°  T%3$.0f  K%4$.0f</string>
+    <string name="sun_symbol">☀</string>
+
+    <!-- Anturit (RuuviTag — tilavaraus) -->
+    <string name="sensor_label_bedroom">Anturi 1</string>
+    <string name="sensor_label_livingroom">Anturi 2</string>
+    <string name="sensor_label_balcony">Anturi 3</string>
+    <string name="sensor_temp_missing">—</string>
+    <string name="sensor_temp_format">%+.1f°</string>
+    <string name="sensor_temp_no_signal">offline</string>
+
+    <!-- Järjestelmä-sivu -->
+    <string name="system_title">Järjestelmä</string>
+    <string name="system_battery_current">Akku: %1$d %%  ·  %2$.1f °C</string>
+    <string name="system_battery_current_unknown">Akku: —</string>
+    <string name="system_today_label">Tänään</string>
+    <string name="system_today_minmax">min %1$.1f °C klo %2$s  ·  max %3$.1f °C klo %4$s</string>
+    <string name="system_today_no_data">Ei vielä dataa kuluvalta päivältä</string>
+    <string name="system_chart_label">Akun lämpötila (24 h)</string>
+    <string name="system_chart_no_data">Ei dataa vielä — odota muutama minuutti</string>
+    <string name="system_export_csv">Vie battery-data CSV (Downloads)</string>
+    <string name="system_export_all">Vie raaka CSV (kaikki kanavat)</string>
+    <string name="system_export_weather">Vie sää-CSV (luettava)</string>
+    <string name="system_export_battery">Vie akku-CSV (luettava)</string>
+    <string name="system_open_history">Avaa historia</string>
+    <string name="system_db_count">Tietokannassa %1$d mittausta</string>
+
+    <!-- Historia-sivu -->
+    <string name="history_title">Historia</string>
+    <string name="history_channel_label">Kanava:</string>
+    <string name="history_prev_month">‹</string>
+    <string name="history_next_month">›</string>
+    <string name="history_no_data">Ei dataa tälle kuukaudelle</string>
+    <string name="history_no_channels">Ei kanavia tietokannassa</string>
+    <string name="history_partial_marker">*</string>
+    <string name="history_chart_label">Lämpötila kuukauden aikana</string>
+    <!-- Sää-kanavan riveille -->
+    <string name="history_weather_row">%1$s  ·  min %2$.1f  avg %3$.1f  max %4$.1f °C</string>
+    <string name="history_weather_extras">Sade %1$.1f mm  ·  puuska max %2$.1f m/s  ·  N=%3$d%4$s</string>
+    <string name="history_weather_extras_no_precip">puuska max %1$.1f m/s  ·  N=%2$d%3$s</string>
+    <string name="history_weather_extras_no_wind">Sade %1$.1f mm  ·  N=%2$d%3$s</string>
+    <string name="history_weather_extras_basic">N=%1$d%2$s</string>
+    <!-- Akku-kanavan riveille -->
+    <string name="history_battery_row">%1$s  ·  min %2$.1f  avg %3$.1f  max %4$.1f °C</string>
+    <string name="history_battery_extras">N=%1$d%2$s</string>
+    <!-- Ruuvi-kanaville -->
+    <string name="history_ruuvi_label">Anturi: %1$s (%2$s)</string>
+    <string name="history_ruuvi_unassigned">Ei käytössä</string>
+    <string name="history_ruuvi_row">%1$s  ·  min %2$.1f  avg %3$.1f  max %4$.1f °C</string>
+    <string name="history_ruuvi_extras">Kosteus avg %1$.0f %%  ·  N=%2$d</string>
+    <string name="history_ruuvi_extras_no_humidity">N=%1$d</string>
+
+    <!-- Historia ja tietokanta -->
+    <string name="pref_cat_history">Historia ja tietokanta</string>
+    <string name="pref_db_size">Tietokannan koko</string>
+    <string name="pref_db_size_summary">%1$d mittausta  ·  %2$s</string>
+    <string name="pref_db_size_loading">—</string>
+    <string name="pref_retention_days">Säilytysaika</string>
+    <string name="pref_export_csv">Vie kaikki data CSV:ksi</string>
+    <string name="pref_clear_db">Tyhjennä tietokanta</string>
+    <string name="pref_clear_db_summary">VAROITUS: poistaa kaikki mittaukset</string>
+
+    <!-- Vahvistusdialogi -->
+    <string name="clear_db_title">Tyhjennä tietokanta?</string>
+    <string name="clear_db_message">Tämä poistaa kaikki mittaukset pysyvästi. Toiminto on peruuttamaton.</string>
+    <string name="clear_db_confirm_check">Olen varma</string>
+    <string name="clear_db_confirm">Tyhjennä</string>
+    <string name="clear_db_cancel">Peruuta</string>
+
+    <!-- CSV-toastit -->
+    <string name="toast_csv_exported">CSV viety: %1$s</string>
+    <string name="toast_csv_empty">Ei vietävää dataa</string>
+    <string name="toast_csv_failed">CSV-vienti epäonnistui</string>
+    <string name="toast_db_cleared">Tietokanta tyhjennetty</string>
+
+    <!-- Sääilmiön suomenkieliset selitteet (WeatherTextFormatter) -->
+    <string name="wt_clear_day">Selkeää</string>
+    <string name="wt_clear_night">Selkeää yöllä</string>
+    <string name="wt_partly_cloudy_day">Puolipilvistä</string>
+    <string name="wt_partly_cloudy_night">Puolipilvistä yöllä</string>
+    <string name="wt_cloudy">Pilvistä</string>
+    <string name="wt_fog">Sumua</string>
+    <string name="wt_thunder_light">Yksittäistä ukkosta</string>
+    <string name="wt_thunder_moderate">Ukkosta</string>
+    <string name="wt_thunder_heavy">Voimakasta ukkosta</string>
+    <string name="wt_thunder_shower">Ukkoskuuroja</string>
+    <string name="wt_rain_light">Heikkoa sadetta</string>
+    <string name="wt_rain_moderate">Vesisadetta</string>
+    <string name="wt_rain_heavy">Voimakasta sadetta</string>
+    <string name="wt_rain_shower_light">Yksittäisiä sadekuuroja</string>
+    <string name="wt_rain_shower_moderate">Sadekuuroja</string>
+    <string name="wt_rain_shower_heavy">Voimakkaita sadekuuroja</string>
+    <string name="wt_snow_light">Heikkoa lumisadetta</string>
+    <string name="wt_snow_moderate">Lumisadetta</string>
+    <string name="wt_snow_heavy">Voimakasta lumisadetta</string>
+    <string name="wt_snow_shower_light">Yksittäisiä lumikuuroja</string>
+    <string name="wt_snow_shower_moderate">Lumikuuroja</string>
+    <string name="wt_snow_shower_heavy">Voimakkaita lumikuuroja</string>
+    <string name="wt_sleet_light">Heikkoa räntää</string>
+    <string name="wt_sleet_moderate">Räntää</string>
+    <string name="wt_sleet_heavy">Voimakasta räntää</string>
+    <string name="wt_sleet_shower_light">Yksittäisiä räntäkuuroja</string>
+    <string name="wt_sleet_shower_moderate">Räntäkuuroja</string>
+    <string name="wt_sleet_shower_heavy">Voimakkaita räntäkuuroja</string>
+    <string name="wt_unknown">Säätila ei tiedossa</string>
+
+    <!-- Sääseliste yhdistettynä "tuntuu kuin" -tekstiin: "Pilvistä · (Tuntuu kuin +4°)" -->
+    <string name="weather_label_with_feels">%1$s · %2$s</string>
+
+    <!-- Lyhyet sääseliteresurssit tuntisivun sarakkeisiin (12sp, maxLines=1, ellipsize=end) -->
+    <string name="wts_clear_day">Selkeää</string>
+    <string name="wts_clear_night">Selkeää</string>
+    <string name="wts_partly_cloudy">Puolipilv.</string>
+    <string name="wts_cloudy">Pilvistä</string>
+    <string name="wts_fog">Sumua</string>
+    <string name="wts_thunder">Ukkosta</string>
+    <string name="wts_thunder_shower">Ukkoskuuroja</string>
+    <string name="wts_rain_light">Heik. sad.</string>
+    <string name="wts_rain_moderate">Sadetta</string>
+    <string name="wts_rain_heavy">Voim. sad.</string>
+    <string name="wts_rain_shower">Sadekuuroja</string>
+    <string name="wts_snow_light">Heik. lunta</string>
+    <string name="wts_snow_moderate">Lunta</string>
+    <string name="wts_snow_heavy">Voim. lunta</string>
+    <string name="wts_snow_shower">Lumikuuroja</string>
+    <string name="wts_sleet_light">Heik. räntää</string>
+    <string name="wts_sleet_moderate">Räntää</string>
+    <string name="wts_sleet_heavy">Voim. räntää</string>
+    <string name="wts_sleet_shower">Räntäkuuroja</string>
+    <string name="wts_unknown">—</string>
+
+    <!-- Säilytysajan vaihtoehdot -->
+    <string-array name="retention_labels">
+        <item>30 päivää</item>
+        <item>3 kuukautta</item>
+        <item>1 vuosi</item>
+        <item>3 vuotta</item>
+        <item>10 vuotta</item>
+    </string-array>
+    <string-array name="retention_values">
+        <item>30</item>
+        <item>90</item>
+        <item>365</item>
+        <item>1095</item>
+        <item>3650</item>
+    </string-array>
+</resources>
