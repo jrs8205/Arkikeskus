@@ -21,5 +21,6 @@
     <color name="mobile_transit_tram">#00985F</color>
     <color name="mobile_transit_rail">#8C4799</color>
     <color name="mobile_transit_subway">#FF6319</color>
+    <color name="mobile_transit_ferry">#00B9E4</color>
     <bool name="mobile_light_status_bar">true</bool>
 </resources>

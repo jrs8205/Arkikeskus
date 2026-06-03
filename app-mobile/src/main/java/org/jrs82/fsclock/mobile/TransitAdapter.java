@@ -194,6 +194,7 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         else if ("RAIL".equals(mode)) res = R.color.mobile_transit_rail;
         else if ("SUBWAY".equals(mode)) res = R.color.mobile_transit_subway;
         else if ("BUS".equals(mode)) res = R.color.mobile_transit_bus;
+        else if ("FERRY".equals(mode)) res = R.color.mobile_transit_ferry;
         else res = R.color.mobile_accent;
         return ContextCompat.getColor(ctx, res);
     }
@@ -204,6 +205,7 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if ("TRAM".equals(mode)) return R.drawable.mobile_ic_transit_tram;
         if ("RAIL".equals(mode)) return R.drawable.mobile_ic_transit_rail;
         if ("SUBWAY".equals(mode)) return R.drawable.mobile_ic_transit_subway;
+        if ("FERRY".equals(mode)) return R.drawable.mobile_ic_transit_ferry;
         return R.drawable.mobile_ic_transit_bus;
     }
 

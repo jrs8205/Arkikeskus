@@ -51,6 +51,22 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <!-- Ennakoivan haun ehdotuslista hakupalkin alla (max 8 osumaa); napautus lentää kameralle. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/cam_suggestions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="62dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/mobile_card_bg"
+        android:clipToPadding="false"
+        android:elevation="6dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/cam_status"
         android:layout_width="wrap_content"

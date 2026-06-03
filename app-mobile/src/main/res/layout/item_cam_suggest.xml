@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kelikameran ennakoivan haun yksi ehdotusrivi (aseman nimi). -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cam_suggest_text"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:drawableStart="@drawable/mobile_ic_camera_marker"
+    android:drawablePadding="12dp"
+    android:ellipsize="end"
+    android:gravity="center_vertical"
+    android:maxLines="1"
+    android:paddingStart="14dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="12dp"
+    android:textColor="@color/mobile_text_primary"
+    android:textSize="15sp" />

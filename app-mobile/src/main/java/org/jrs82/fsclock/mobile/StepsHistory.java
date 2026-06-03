@@ -70,8 +70,14 @@ final class StepsHistory {
     }
 
     private static void buildWeeks(FsClockDb db, Calendar now, StringBuilder sb) {
+        // Kohdista ikkunan alku 7 viikkoa taakse JA viikon alkuun (maanantai), jotta kaikki 8 viikkoa
+        // ovat täysiä eikä reunapäiviä putoa eri (9.) viikolle, jonka numeroa ei ole listassa.
         Calendar from = (Calendar) now.clone();
-        from.add(Calendar.DAY_OF_MONTH, -55);
+        from.setFirstDayOfWeek(Calendar.MONDAY);
+        from.add(Calendar.WEEK_OF_YEAR, -7);
+        while (from.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+            from.add(Calendar.DAY_OF_MONTH, -1);
+        }
         Map<Integer, Integer> map = rangeMap(db, StepCounter.dateKey(from), StepCounter.dateKey(now));
         int[] weekNum = new int[8];
         int[] weekSum = new int[8];
@@ -83,7 +89,8 @@ final class StepsHistory {
         }
         Calendar d = (Calendar) from.clone();
         d.setFirstDayOfWeek(Calendar.MONDAY);
-        for (int i = 0; i <= 55; i++) {
+        int nowKey = StepCounter.dateKey(now);
+        while (StepCounter.dateKey(d) <= nowKey) {
             Integer steps = map.get(StepCounter.dateKey(d));
             if (steps != null) {
                 int wn = d.get(Calendar.WEEK_OF_YEAR);

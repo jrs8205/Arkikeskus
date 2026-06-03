@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,7 +28,15 @@ final class MmlGeocodingClient {
     private static final String BASE = "https://avoin-paikkatieto.maanmittauslaitos.fi/geocoding/v2";
     private static final int TIMEOUT_MS = 8000;
     private static final long SEARCH_CACHE_TTL_MS = 5L * 60_000L;
-    private static final Map<String, SearchCacheEntry> SEARCH_CACHE = new HashMap<>();
+    private static final int SEARCH_CACHE_MAX = 60;
+    /** Kokorajattu LRU (access-order) — estää rajattoman kasvun (yksi merkintä per uniikki kysely). */
+    private static final Map<String, SearchCacheEntry> SEARCH_CACHE =
+            new LinkedHashMap<String, SearchCacheEntry>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, SearchCacheEntry> eldest) {
+                    return size() > SEARCH_CACHE_MAX;
+                }
+            };
 
     private MmlGeocodingClient() {}
 
