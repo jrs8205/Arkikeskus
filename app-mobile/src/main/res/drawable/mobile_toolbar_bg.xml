@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/mobile_toolbar_bg" />
-    <stroke
-        android:width="1dp"
-        android:color="@color/mobile_card_stroke" />
-</shape>
+<!--
+  Headerin tausta. EI koko reunusta kiertävää 1dp-viivaa (joka näytti rumalta laatikolta
+  statusbarin alapuolella, kun statusbar oli sama väri mutta ilman reunusta) — vaan pelkkä
+  hienovarainen alareunan erotinviiva, joka erottaa headerin sisällöstä. Statusbar + toolbar
+  sulautuvat nyt yhdeksi saumattomaksi väripalkiksi. Layer-list: alin kerros = erotinvärinen
+  tausta, päällä varsinainen toolbar-väri 1dp alaspäin → jättää vain alareunaviivan näkyviin.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/mobile_card_stroke" />
+        </shape>
+    </item>
+    <item android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/mobile_toolbar_bg" />
+        </shape>
+    </item>
+</layer-list>

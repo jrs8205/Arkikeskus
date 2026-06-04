@@ -562,6 +562,16 @@ public class MobileMainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        // Jos teema vaihdettiin asetuksissa tämän näkymän ollessa taustalla, päivitä
+        // paikallinen yötila vastaamaan tallennettua asetusta. setLocalNightMode recreatee
+        // näkymän vain jos arvo oikeasti muuttui (sama arvo = no-op, joten "ei vuoda tummaa"
+        // -suoja säilyy). Ilman tätä taustalle jäänyt MainActivity pysyi vanhassa teemassa,
+        // koska onCreatea (jossa yötila asetetaan) ei ajeta paluulla.
+        int desiredNightMode = MobileThemeController.nightMode(this);
+        if (getDelegate().getLocalNightMode() != desiredNightMode) {
+            getDelegate().setLocalNightMode(desiredNightMode);
+            return;
+        }
         destroyed = false;
         main.post(clockTick);
         WarningsRepository.get().addListener(warningsListener);
