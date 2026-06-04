@@ -220,59 +220,6 @@ private fun DrawerHeader(text: String) {
 }
 
 @Composable
-private fun HomeDashboard() {
-    var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            nowMs = System.currentTimeMillis()
-            delay(1000L)
-        }
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-    ) {
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = formatClock(nowMs),
-            fontSize = 64.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = formatDate(nowMs),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        HomePlaceholderCard("Sää", "Säätiedot tuodaan tähän Compose-korttiin seuraavaksi.")
-        HomePlaceholderCard("Pörssisähkö", "Sähkön hintatiedot tuodaan tähän seuraavaksi.")
-        HomePlaceholderCard("Anturit", "Ruuvi-anturien lukemat tuodaan tähän seuraavaksi.")
-        HomePlaceholderCard("Uutiset", "Uutisotsikot tuodaan tähän seuraavaksi.")
-    }
-}
-
-@Composable
-private fun HomePlaceholderCard(title: String, note: String) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
 private fun PlaceholderSection(title: String) {
     Column(
         modifier = Modifier
@@ -291,22 +238,6 @@ private fun PlaceholderSection(title: String) {
             }
         }
     }
-}
-
-private fun formatClock(ms: Long): String {
-    val f = SimpleDateFormat("HH:mm:ss", FI_MAIN)
-    f.timeZone = HELSINKI
-    return f.format(Date(ms))
-}
-
-private fun formatDate(ms: Long): String {
-    val f = SimpleDateFormat("EEEE d.M.yyyy", FI_MAIN)
-    f.timeZone = HELSINKI
-    var d = f.format(Date(ms))
-    if (d.isNotEmpty()) d = d.substring(0, 1).uppercase(FI_MAIN) + d.substring(1)
-    val cal = Calendar.getInstance(HELSINKI, FI_MAIN)
-    cal.timeInMillis = ms
-    return "$d · viikko ${cal.get(Calendar.WEEK_OF_YEAR)}"
 }
 
 private fun toastSoon(context: Context) {
