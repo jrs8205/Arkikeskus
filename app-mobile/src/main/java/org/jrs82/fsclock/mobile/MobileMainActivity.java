@@ -999,6 +999,10 @@ public class MobileMainActivity extends AppCompatActivity {
             closeDrawer();
             startActivity(new Intent(this, MobileSettingsActivity.class));
         });
+        findViewById(R.id.mobile_nav_compose_preview).setOnClickListener(v -> {
+            closeDrawer();
+            startActivity(new Intent(this, MobileComposeMainActivity.class));
+        });
         placeAutoButton.setOnClickListener(v -> {
             PreferenceManager.getDefaultSharedPreferences(this).edit()
                     .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)

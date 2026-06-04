@@ -81,6 +81,13 @@
             android:theme="@style/MobileComposeTheme" />
 
         <activity
+            android:name="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
+            android:exported="false"
+            android:label="@string/app_mobile_name"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileMainActivity"
+            android:theme="@style/MobileComposeTheme" />
+
+        <activity
             android:name="org.jrs82.fsclock.mobile.MobileWidgetOrderActivity"
             android:exported="false"
             android:label="@string/mobile_pref_widget_order"
