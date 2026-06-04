@@ -142,6 +142,10 @@ fun ComposeMainScreen() {
                     HomeSection.SENSORS -> SensorsSection()
                     HomeSection.ELECTRICITY -> ElectricitySection()
                     HomeSection.NEWS -> NewsSection()
+                    HomeSection.DEVICE_INFO -> DeviceInfoSection()
+                    HomeSection.ROAD_CAMERAS -> RoadCamerasHost()
+                    HomeSection.TRANSIT -> TransitHost()
+                    HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
                     else -> PlaceholderSection(section.title)
                 }
             }
