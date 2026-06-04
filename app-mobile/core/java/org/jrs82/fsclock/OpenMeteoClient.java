@@ -15,16 +15,14 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/** Open-Meteon JSON-rajapinnan kevyt asiakas. Haetaan seuraavan 48 tunnin
- *  tuntipohjainen ennuste yhdellä HTTPS-kutsulla. Käytetään MET Norway -mallia
- *  (metno_seamless), joka antaa Pohjoismaiden alueelle 2.5 km hila-resoluution. */
+/** Open-Meteon JSON-rajapinnan kevyt asiakas. Haetaan seuraavan 7 vuorokauden
+ *  tuntipohjainen ennuste yhdellä HTTPS-kutsulla. Malli jätetään Open-Meteon
+ *  automaattivalinnalle, jotta tuntisarja pysyy täytenä koko ennustejaksolle. */
 public class OpenMeteoClient {
 
     private static final String TAG = "OpenMeteoClient";
     private static final String BASE = "https://api.open-meteo.com/v1/forecast";
     private static final int TIMEOUT_MS = 15000;
-    private static final String MODEL = "metno_seamless";
-
     private final GeoPlace place;
 
     public OpenMeteoClient(GeoPlace place) {
@@ -38,12 +36,11 @@ public class OpenMeteoClient {
                 + "?latitude=" + place.latitude
                 + "&longitude=" + place.longitude
                 + "&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,"
-                + "precipitation,cloudcover,windspeed_10m,windgusts_10m,winddirection_10m,"
-                + "shortwave_radiation,weathercode"
-                + "&windspeed_unit=ms"
-                + "&timezone=auto"
-                + "&forecast_days=7"
-                + "&models=" + MODEL;
+                + "precipitation,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m,"
+                + "shortwave_radiation,weather_code,is_day"
+                + "&wind_speed_unit=ms"
+                + "&timezone=Europe%2FHelsinki"
+                + "&forecast_hours=168";
 
         Log.d(TAG, "GET " + url);
         String body = httpGet(url);
@@ -90,12 +87,13 @@ public class OpenMeteoClient {
         JSONArray feels = h.optJSONArray("apparent_temperature");
         JSONArray rh = h.optJSONArray("relative_humidity_2m");
         JSONArray pcp = h.optJSONArray("precipitation");
-        JSONArray cc = h.optJSONArray("cloudcover");
-        JSONArray ws = h.optJSONArray("windspeed_10m");
-        JSONArray wg = h.optJSONArray("windgusts_10m");
-        JSONArray wd = h.optJSONArray("winddirection_10m");
+        JSONArray cc = firstArray(h, "cloud_cover", "cloudcover");
+        JSONArray ws = firstArray(h, "wind_speed_10m", "windspeed_10m");
+        JSONArray wg = firstArray(h, "wind_gusts_10m", "windgusts_10m");
+        JSONArray wd = firstArray(h, "wind_direction_10m", "winddirection_10m");
         JSONArray rad = h.optJSONArray("shortwave_radiation");
-        JSONArray code = h.optJSONArray("weathercode");
+        JSONArray code = firstArray(h, "weather_code", "weathercode");
+        JSONArray isDay = h.optJSONArray("is_day");
 
         Calendar cal = Calendar.getInstance(zone);
         int n = time.length();
@@ -120,13 +118,16 @@ public class OpenMeteoClient {
             row.windDirection = optD(wd, i);
             row.radiationGlobal = optD(rad, i);
 
+            boolean night = isDay != null && !isDay.isNull(i)
+                    ? isDay.optInt(i, 1) == 0
+                    : WeatherIconView.isNightHour(row.hour, row.month);
             if (code != null && !code.isNull(i)) {
-                row.condition = WeatherCondition.fromWmoCode(code.getInt(i), false);
+                row.condition = WeatherCondition.fromWmoCode(code.getInt(i), night);
             } else {
                 double tempD = row.temperature != null ? row.temperature : Double.NaN;
                 double pcpD = row.precipitation != null ? row.precipitation : Double.NaN;
                 double ccD = row.cloudCover != null ? row.cloudCover : Double.NaN;
-                row.condition = WeatherCondition.inferFromValues(tempD, pcpD, ccD, false);
+                row.condition = WeatherCondition.inferFromValues(tempD, pcpD, ccD, night);
             }
 
             data.hours.add(row);
@@ -137,5 +138,10 @@ public class OpenMeteoClient {
         if (arr == null || arr.isNull(i)) return null;
         double v = arr.optDouble(i, Double.NaN);
         return Double.isNaN(v) ? null : v;
+    }
+
+    private static JSONArray firstArray(JSONObject object, String primary, String fallback) {
+        JSONArray arr = object.optJSONArray(primary);
+        return arr != null ? arr : object.optJSONArray(fallback);
     }
 }

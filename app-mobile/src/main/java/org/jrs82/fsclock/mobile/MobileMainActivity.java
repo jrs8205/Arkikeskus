@@ -105,9 +105,11 @@ public class MobileMainActivity extends AppCompatActivity {
     private static final long FUSED_LOCATION_FAST_MAX_AGE_MS = 60_000L;
     private static final long SEARCH_REFERENCE_MAX_AGE_MS = 24L * 60L * 60_000L;
     private static final long CURRENT_LOCATION_TIMEOUT_MS = 7_000L;
+    private static final long AUTO_LOCATION_RETRY_MS = 15_000L;
     private static final long LOCATION_TIME_MARGIN_MS = 2L * 60_000L;
     private static final float MAX_AUTO_LOCATION_ACCURACY_M = 1500f;
     private static final float LOCATION_ACCURACY_MARGIN_M = 150f;
+    private static final int AUTO_LOCATION_RETRY_LIMIT = 3;
     private static final String[][] FINNISH_DISTRICT_SEEDS = {
             {"Helsinki", "Alppila"},
             {"Helsinki", "Arabianranta"},
@@ -419,6 +421,9 @@ public class MobileMainActivity extends AppCompatActivity {
     private int selectedElectricityDayOffset = 0;
     private boolean destroyed;
     private boolean refreshInFlight;
+    private int autoLocationRetryCount;
+    private boolean autoLocationRetryRefreshWhenUnchanged;
+    private boolean autoLocationRetryForceRefresh;
     private boolean trafficRefreshInFlight;
     private boolean tomorrowPriceFetchInFlight;
     private long lastTomorrowPriceFetchAttemptMs;
@@ -452,6 +457,15 @@ public class MobileMainActivity extends AppCompatActivity {
         public void run() {
             if (destroyed) return;
             refreshAll(false);
+        }
+    };
+
+    private final Runnable autoLocationRetry = new Runnable() {
+        @Override
+        public void run() {
+            if (destroyed || isFinishing() || isDestroyed()) return;
+            maybeUpdatePlaceFromLocation(autoLocationRetryRefreshWhenUnchanged,
+                    autoLocationRetryForceRefresh);
         }
     };
 
@@ -582,7 +596,7 @@ public class MobileMainActivity extends AppCompatActivity {
         WarningsRepository.get().refreshIfStale();
         refreshHolidayInfo();
         if (!maybeRequestInitialLocationPermission()) {
-            maybeUpdatePlaceFromLocation();
+            maybeUpdatePlaceFromLocation(true);
         }
         if (shouldAutoRefreshNow()) {
             refreshAll(false);
@@ -625,6 +639,7 @@ public class MobileMainActivity extends AppCompatActivity {
         main.removeCallbacks(clockTick);
         main.removeCallbacks(tomorrowPricePoll);
         main.removeCallbacks(autoRefreshTick);
+        main.removeCallbacks(autoLocationRetry);
         main.removeCallbacks(placeSearchDebounce);
         stopGpsSpeedListener();
         if (stepCounter != null) stepCounter.stop();
@@ -844,7 +859,11 @@ public class MobileMainActivity extends AppCompatActivity {
         drawerScrim.setOnClickListener(v -> closeDrawer());
         refreshButton.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
-            refreshAll(true);
+            if (usesAutomaticLocation()) {
+                maybeUpdatePlaceFromLocation(true, true);
+            } else {
+                refreshAll(true);
+            }
         });
         toolbarTitle.setOnClickListener(v -> showHome());
         searchButton.setOnClickListener(v -> showPlaceSearchDialog());
@@ -4459,9 +4478,18 @@ public class MobileMainActivity extends AppCompatActivity {
     }
 
     private void maybeUpdatePlaceFromLocation(boolean refreshWhenUnchanged) {
+        maybeUpdatePlaceFromLocation(refreshWhenUnchanged, false);
+    }
+
+    private void maybeUpdatePlaceFromLocation(boolean refreshWhenUnchanged,
+                                              boolean forceWeatherRefresh) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        if (!prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false)) return;
+        if (!prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false)) {
+            clearAutoLocationRetry();
+            return;
+        }
         if (!hasPreciseLocationPermission()) {
+            clearAutoLocationRetry();
             requestLocationPermissionFromMain();
             if (placeSearchStatusText != null) {
                 placeSearchStatusText.setText("Salli tarkka sijainti, jotta kaupunginosa voidaan hakea oikein.");
@@ -4490,8 +4518,13 @@ public class MobileMainActivity extends AppCompatActivity {
                         placeSearchStatusText.setText(message);
                     }
                     if (statusText != null) statusText.setText(message);
+                    if (refreshWhenUnchanged && autoLocationRetryCount == 0) {
+                        refreshAll(forceWeatherRefresh);
+                    }
+                    scheduleAutoLocationRetry(refreshWhenUnchanged, forceWeatherRefresh);
                     return;
                 }
+                clearAutoLocationRetry();
                 SharedPreferences currentPrefs = PreferenceManager.getDefaultSharedPreferences(this);
                 String currentDisplay = currentPrefs.getString(
                         MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "");
@@ -4505,11 +4538,31 @@ public class MobileMainActivity extends AppCompatActivity {
                     placeText.setText(currentDisplayPlace());
                     renderPlacesView();
                     if (refreshWhenUnchanged) {
-                        refreshAll(false);
+                        refreshAll(forceWeatherRefresh);
                     }
                 }
             });
         });
+    }
+
+    private boolean usesAutomaticLocation() {
+        return PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false);
+    }
+
+    private void scheduleAutoLocationRetry(boolean refreshWhenUnchanged,
+                                           boolean forceWeatherRefresh) {
+        if (autoLocationRetryCount >= AUTO_LOCATION_RETRY_LIMIT) return;
+        autoLocationRetryCount++;
+        autoLocationRetryRefreshWhenUnchanged = refreshWhenUnchanged;
+        autoLocationRetryForceRefresh = forceWeatherRefresh;
+        main.removeCallbacks(autoLocationRetry);
+        main.postDelayed(autoLocationRetry, AUTO_LOCATION_RETRY_MS);
+    }
+
+    private void clearAutoLocationRetry() {
+        autoLocationRetryCount = 0;
+        main.removeCallbacks(autoLocationRetry);
     }
 
     private void locateCurrentPlaceFromToolbar() {
@@ -4517,7 +4570,7 @@ public class MobileMainActivity extends AppCompatActivity {
                 .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)
                 .apply();
         if (statusText != null) statusText.setText("Paikannetaan nykyistä sijaintia...");
-        maybeUpdatePlaceFromLocation(true);
+        maybeUpdatePlaceFromLocation(true, true);
     }
 
     private void rememberDeviceLocation(Location location) {
