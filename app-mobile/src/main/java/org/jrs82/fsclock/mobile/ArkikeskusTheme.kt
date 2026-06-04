@@ -150,6 +150,9 @@ data class ArkiColors(
     val onNewsContainer: Color,
     // HSL
     val transitBus: Color,
+    // Kello-gradientti (kaksi sinisen sävyä, OSA B / B6)
+    val clockTop: Color,
+    val clockBottom: Color,
 ) {
     /** Lämpötilan (°C) mukainen anturiväri: lerp kylmästä lämpimään välillä -15…30 °C. */
     fun forTemperature(celsius: Double?): Color {
@@ -187,6 +190,8 @@ private val LightArki = ArkiColors(
     newsContainer = Color(0xFFFFEBD6),
     onNewsContainer = Color(0xFF2A1500),
     transitBus = Color(0xFF007AC9),
+    clockTop = Color(0xFFBFD3FF),
+    clockBottom = Color(0xFFDEE8FF),
 )
 
 private val DarkArki = ArkiColors(
@@ -217,6 +222,8 @@ private val DarkArki = ArkiColors(
     newsContainer = Color(0xFF5A2600),
     onNewsContainer = Color(0xFFFFDCC2),
     transitBus = Color(0xFF4FA8E0),
+    clockTop = Color(0xFF003C90),
+    clockBottom = Color(0xFF0A4AA8),
 )
 
 private val LocalArkiColors = staticCompositionLocalOf { LightArki }
