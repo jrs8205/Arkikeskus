@@ -146,6 +146,12 @@ fun ComposeMainScreen() {
                     HomeSection.ROAD_CAMERAS -> RoadCamerasHost()
                     HomeSection.TRANSIT -> TransitHost()
                     HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
+                    HomeSection.SPEEDOMETER -> SpeedometerSection()
+                    HomeSection.TRAFFIC_ACCIDENTS -> TrafficSection(TrafficNotice.Kind.ACCIDENT, section.title)
+                    HomeSection.TRAFFIC_ROADWORKS -> TrafficSection(TrafficNotice.Kind.ROAD_WORK, section.title)
+                    HomeSection.TRAFFIC_WEIGHT -> TrafficSection(TrafficNotice.Kind.WEIGHT_RESTRICTION, section.title)
+                    HomeSection.TRAFFIC_INCIDENTS -> TrafficSection(TrafficNotice.Kind.INCIDENT, section.title)
+                    HomeSection.TRAFFIC_CONGESTION -> TrafficSection(TrafficNotice.Kind.CONGESTION, section.title)
                     else -> PlaceholderSection(section.title)
                 }
             }
