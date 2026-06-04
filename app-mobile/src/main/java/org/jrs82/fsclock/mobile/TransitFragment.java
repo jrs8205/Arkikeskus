@@ -5,6 +5,8 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -54,6 +56,8 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
 
     private static final long AUTO_REFRESH_MS = 25_000L;
     private static final long SEARCH_DEBOUNCE_MS = 280L;
+    private static final long LOCATION_FALLBACK_MAX_AGE_MS = 5L * 60_000L;
+    private static final float LOCATION_FALLBACK_MAX_ACCURACY_M = 1500f;
     private static final String[] GROUP_MODES = {"BUS", "RAIL", "TRAM", "SUBWAY"};
     private static final String[] GROUP_TITLES = {"Bussit", "Junat", "Raitiovaunut", "Metro"};
     private static final int MAX_PER_GROUP = 15;
@@ -207,6 +211,11 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     @Override
     public void onResume() {
         super.onResume();
+        if (detailOverlay != null && detailOverlay.getVisibility() == View.VISIBLE) {
+            if (openIsRoute || openTrip != null) reloadTimeline();
+        } else if (query.isEmpty() && selectedStop == null) {
+            refresh(false);
+        }
         if (!ticking) { ticking = true; ui.postDelayed(autoRefresh, AUTO_REFRESH_MS); }
     }
 
@@ -248,14 +257,76 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             client.getCurrentLocation(request, new CancellationTokenSource().getToken())
                     .addOnSuccessListener(requireActivity(), location -> {
                         if (!isAdded()) { inFlight = false; return; }
-                        if (location == null) { onFetchFail("Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen."); return; }
+                        if (location == null) {
+                            fetchFallbackLocation(client,
+                                    "Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen.");
+                            return;
+                        }
                         fetch(location.getLatitude(), location.getLongitude());
                     })
                     .addOnFailureListener(requireActivity(),
-                            e -> onFetchFail("Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen."));
+                            e -> fetchFallbackLocation(client,
+                                    "Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen."));
         } catch (Exception e) {
             onFetchFail("Sijaintia ei voitu lukea.");
         }
+    }
+
+    @SuppressLint("MissingPermission") // lupa tarkistettu refresh():ssä
+    private void fetchFallbackLocation(FusedLocationProviderClient client, String errorMessage) {
+        if (!isAdded()) { inFlight = false; return; }
+        try {
+            client.getLastLocation()
+                    .addOnSuccessListener(requireActivity(), location -> {
+                        if (!isAdded()) { inFlight = false; return; }
+                        Location best = betterTransitLocation(null, location);
+                        best = betterTransitLocation(best, lastKnownFromLocationManager());
+                        if (best != null) {
+                            fetch(best.getLatitude(), best.getLongitude());
+                        } else {
+                            onFetchFail(errorMessage);
+                        }
+                    })
+                    .addOnFailureListener(requireActivity(), e -> {
+                        Location best = lastKnownFromLocationManager();
+                        if (best != null) fetch(best.getLatitude(), best.getLongitude());
+                        else onFetchFail(errorMessage);
+                    });
+        } catch (Exception e) {
+            Location best = lastKnownFromLocationManager();
+            if (best != null) fetch(best.getLatitude(), best.getLongitude());
+            else onFetchFail(errorMessage);
+        }
+    }
+
+    private Location lastKnownFromLocationManager() {
+        if (!isAdded()) return null;
+        LocationManager lm = (LocationManager) requireContext().getSystemService(Context.LOCATION_SERVICE);
+        if (lm == null) return null;
+        Location best = null;
+        try {
+            best = betterTransitLocation(best, lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER));
+        } catch (SecurityException | IllegalArgumentException ignored) { }
+        try {
+            best = betterTransitLocation(best, lm.getLastKnownLocation(LocationManager.GPS_PROVIDER));
+        } catch (SecurityException | IllegalArgumentException ignored) { }
+        return best;
+    }
+
+    private static Location betterTransitLocation(Location current, Location candidate) {
+        if (!isUsableTransitLocation(candidate)) return current;
+        if (current == null || !isUsableTransitLocation(current)) return candidate;
+        float ca = candidate.hasAccuracy() ? candidate.getAccuracy() : LOCATION_FALLBACK_MAX_ACCURACY_M;
+        float ba = current.hasAccuracy() ? current.getAccuracy() : LOCATION_FALLBACK_MAX_ACCURACY_M;
+        if (candidate.getTime() > current.getTime() + 60_000L) return candidate;
+        return ca <= ba ? candidate : current;
+    }
+
+    private static boolean isUsableTransitLocation(Location location) {
+        if (location == null || location.getTime() <= 0L) return false;
+        long age = System.currentTimeMillis() - location.getTime();
+        if (age < 0L || age > LOCATION_FALLBACK_MAX_AGE_MS) return false;
+        return !location.hasAccuracy() || location.getAccuracy() <= LOCATION_FALLBACK_MAX_ACCURACY_M;
     }
 
     private void fetch(double lat, double lon) {
