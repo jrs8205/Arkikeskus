@@ -1647,6 +1647,11 @@
             android:id="@+id/mobile_nav_settings"
             style="@style/MobileMenuItem"
             android:text="@string/mobile_menu_settings" />
+
+        <TextView
+            android:id="@+id/mobile_nav_compose_preview"
+            style="@style/MobileMenuItem"
+            android:text="✨ Uusi ulkoasu (esikatselu)" />
             </LinearLayout>
         </ScrollView>
     </LinearLayout>
