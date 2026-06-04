@@ -419,6 +419,10 @@ public class MobileMainActivity extends AppCompatActivity {
     private int selectedElectricityDayOffset = 0;
     private boolean destroyed;
     private boolean refreshInFlight;
+    // Coalescing: jos refreshAll kutsutaan kesken haun, jonotetaan yksi seuraaja sen sijaan
+    // että pyyntö pudotettaisiin → uuden paikannuksen jälkeinen sää ei jää vanhaan paikkaan.
+    private boolean pendingRefresh;
+    private boolean pendingRefreshForced;
     private int autoLocationRetryCount;
     private boolean autoLocationRetryRefreshWhenUnchanged;
     private boolean autoLocationRetryForceRefresh;
@@ -1078,30 +1082,39 @@ public class MobileMainActivity extends AppCompatActivity {
 
     private void refreshAll(boolean forcedByUser) {
         if (refreshInFlight) {
-            if (forcedByUser) Toast.makeText(this, "Päivitys on jo käynnissä", Toast.LENGTH_SHORT).show();
-            else scheduleAutoRefresh();
+            // Älä pudota pyyntöä: jonota yksi seuraaja ja aja se heti kun nykyinen valmistuu.
+            pendingRefresh = true;
+            pendingRefreshForced = pendingRefreshForced || forcedByUser;
+            if (forcedByUser) startRefreshAnimation();
             return;
         }
         refreshInFlight = true;
         main.removeCallbacks(autoRefreshTick);
         if (forcedByUser) startRefreshAnimation();
         statusText.setText("Päivitetään");
+        // Tilannekuva paikasta refreshin alussa. Jos paikka vaihtuu kesken haun (esim.
+        // automaattisijainti), tulos on vanhentunut eikä sitä renderöidä → ei vanhan paikan
+        // sään välähdystä. Open-Meteo saa EKSPLISIITTISET koordinaatit nimestä johtamisen sijaan.
+        final String startedPlace = currentDisplayPlace();
+        final double[] coords = currentPlaceCoordinates();
         io.execute(() -> {
             WeatherData freshWeather = null;
             OpenMeteoData freshOpenMeteo = null;
             ElectricityData freshElectricity = null;
             MobileHolidayProvider.HolidayEvent freshHoliday = null;
             Exception failure = null;
-            String place = currentDisplayPlace();
             try {
                 freshWeather = WeatherRepository.get(this).fetchHome(weather, forcedByUser);
             } catch (Exception e) {
                 failure = e;
             }
-            try {
-                freshOpenMeteo = OpenMeteoRepository.get(this).fetch(place, forcedByUser);
-            } catch (Exception ignored) {
-                freshOpenMeteo = OpenMeteoRepository.get(this).peek(place);
+            if (!Double.isNaN(coords[0]) && !Double.isNaN(coords[1])) {
+                try {
+                    freshOpenMeteo = OpenMeteoRepository.get(this)
+                            .fetch(startedPlace, coords[0], coords[1], forcedByUser);
+                } catch (Exception ignored) {
+                    freshOpenMeteo = OpenMeteoRepository.get(this).peek(startedPlace);
+                }
             }
             try {
                 freshElectricity = forcedByUser
@@ -1124,36 +1137,54 @@ public class MobileMainActivity extends AppCompatActivity {
             boolean finalForcedByUser = forcedByUser;
             main.post(() -> {
                 refreshInFlight = false;
-                stopRefreshAnimation();
-                if (destroyed || isFinishing() || isDestroyed()) return;
-                if (finalWeather != null) {
-                    weather = finalWeather;
-                    sLastWeather = finalWeather;
-                    SettingsManager.get().setLastSuccessfulFmiUpdate(
-                            finalWeather.fetchedAt > 0 ? finalWeather.fetchedAt : System.currentTimeMillis());
+                if (destroyed || isFinishing() || isDestroyed()) {
+                    pendingRefresh = false;
+                    pendingRefreshForced = false;
+                    stopRefreshAnimation();
+                    return;
                 }
-                if (finalOpenMeteo != null) openMeteo = finalOpenMeteo;
-                if (finalElectricity != null) electricity = finalElectricity;
-                if (finalHoliday != null) nextHoliday = finalHoliday;
-                renderClock();
-                renderWeather();
-                renderElectricity(electricity != null
-                        ? electricity
-                        : ElectricityRepository.get(this).peek());
-                renderSensors();
-                renderForecastView();
-                renderElectricityView();
-                renderSensorsView();
-                renderPlacesView();
-                renderHomeWidgetVisibility();
-                if (finalFailure != null) {
-                    statusText.setText("Päivitys epäonnistui: " + safeMessage(finalFailure));
-                } else {
-                    statusText.setText("Päivitetty " + statusTimeFormat.format(new Date()));
+                // Onko paikka vaihtunut haun aikana? Jos on, tämä tulos on vanhentunut →
+                // ei renderöidä (ettei vanha paikka jää näkyviin), vaan ajetaan seuraaja.
+                boolean stale = !startedPlace.equalsIgnoreCase(currentDisplayPlace());
+                if (!stale) {
+                    if (finalWeather != null) {
+                        weather = finalWeather;
+                        sLastWeather = finalWeather;
+                        SettingsManager.get().setLastSuccessfulFmiUpdate(
+                                finalWeather.fetchedAt > 0 ? finalWeather.fetchedAt : System.currentTimeMillis());
+                    }
+                    if (finalOpenMeteo != null) openMeteo = finalOpenMeteo;
+                    if (finalElectricity != null) electricity = finalElectricity;
+                    if (finalHoliday != null) nextHoliday = finalHoliday;
+                    renderClock();
+                    renderWeather();
+                    renderElectricity(electricity != null
+                            ? electricity
+                            : ElectricityRepository.get(this).peek());
+                    renderSensors();
+                    renderForecastView();
+                    renderElectricityView();
+                    renderSensorsView();
+                    renderPlacesView();
+                    renderHomeWidgetVisibility();
+                    if (finalFailure != null) {
+                        statusText.setText("Päivitys epäonnistui: " + safeMessage(finalFailure));
+                    } else {
+                        statusText.setText("Päivitetty " + statusTimeFormat.format(new Date()));
+                    }
                 }
                 scheduleAutoRefresh();
-                refreshTrafficAsync(finalForcedByUser);
-                refreshNewsAsync(finalForcedByUser);
+                if (pendingRefresh || stale) {
+                    // Jonossa oleva tai vanhentunutta paikkaa korvaava haku ajetaan heti.
+                    boolean pf = pendingRefreshForced || finalForcedByUser;
+                    pendingRefresh = false;
+                    pendingRefreshForced = false;
+                    refreshAll(pf);
+                } else {
+                    stopRefreshAnimation();
+                    refreshTrafficAsync(finalForcedByUser);
+                    refreshNewsAsync(finalForcedByUser);
+                }
             });
         });
     }
@@ -2946,6 +2977,22 @@ public class MobileMainActivity extends AppCompatActivity {
         String display = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "");
         if (display != null && !display.trim().isEmpty()) return display.trim();
         return SettingsManager.get().getHomePlace();
+    }
+
+    /** Nykyisen näytettävän paikan koordinaatit eksplisiittisesti. Ensisijaisesti tallennetut
+     *  kotikoordinaatit (automaattisijainti + geokoodattu haku asettavat ne pysyvästi), muuten
+     *  sisäänrakennetun kaupungin koordinaatit. Palauttaa {@code {NaN, NaN}} jos koordinaatteja
+     *  ei ole — tällöin Open-Meteoa ei haeta lainkaan (ei hiljaista Vantaa-fallbackia nimestä). */
+    private double[] currentPlaceCoordinates() {
+        SettingsManager sm = SettingsManager.get();
+        if (sm.hasHomeCoordinates()) {
+            return new double[]{sm.getHomeLatitude(), sm.getHomeLongitude()};
+        }
+        GeoPlace builtin = GeoPlace.tryForPlace(sm.getHomePlace());
+        if (builtin != null) {
+            return new double[]{builtin.latitude, builtin.longitude};
+        }
+        return new double[]{Double.NaN, Double.NaN};
     }
 
     private void updateFavoriteButton() {
