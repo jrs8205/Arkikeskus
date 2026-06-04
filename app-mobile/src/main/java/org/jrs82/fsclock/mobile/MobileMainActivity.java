@@ -333,7 +333,9 @@ public class MobileMainActivity extends AppCompatActivity {
     /** Viimeisin onnistuneesti haettu sää. Staattinen, joten se säilyy prosessin
      *  elinajan myös silloin kun aktiviteetti tuhotaan ("älä säilytä aktiviteetteja"),
      *  jolloin onRetainCustomNonConfigurationInstance ei säilytä tilaa. */
-    private static WeatherData sLastWeather;
+    // Pakettinäkyvä (ei private), jotta Compose-etusivu (ComposeHomeContent) voi lukea/päivittää
+    // viimeisimmän haetun sään ilman erillistä ViewModelia tässä migraatiovaiheessa.
+    static WeatherData sLastWeather;
     private int gpsSatellitesUsed = 0;
     private int gpsSatellitesVisible = 0;
     private boolean gpsListenerActive = false;
