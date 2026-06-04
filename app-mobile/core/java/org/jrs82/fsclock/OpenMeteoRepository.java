@@ -68,6 +68,36 @@ public final class OpenMeteoRepository {
         return data;
     }
 
+    /** Hae ennuste EKSPLISIITTISILLÄ koordinaateilla. Mobiilin etusivu käyttää tätä, jottei
+     *  paikan koordinaatteja johdeta nimestä (muistissa elävä GeoPlace-rekisteri katoaa
+     *  prosessin kuollessa → väärä paikka / hiljainen Vantaa-fallback). {@code label} on vain
+     *  välimuistiavain + näyttönimi; sijainnin määräävät {@code latitude}/{@code longitude}.
+     *  Heittää poikkeuksen jos koordinaatit puuttuvat — soittaja päättää jättää haun väliin. */
+    public OpenMeteoData fetch(String label, double latitude, double longitude, boolean forceNetwork)
+            throws Exception {
+        if (Double.isNaN(latitude) || Double.isNaN(longitude)) {
+            throw new IllegalArgumentException("koordinaatit puuttuvat");
+        }
+        String name = (label == null || label.trim().isEmpty()) ? "Sijainti" : label.trim();
+        String key = name.toLowerCase(Locale.ROOT);
+        long now = System.currentTimeMillis();
+        if (!forceNetwork) {
+            synchronized (cache) {
+                CacheEntry hit = cache.get(key);
+                if (hit != null && (now - hit.data.fetchedAt) < CACHE_TTL_MS) {
+                    Log.d(TAG, "cache HIT " + name
+                            + " (" + (now - hit.data.fetchedAt) / 1000L + " s)");
+                    return hit.data;
+                }
+            }
+        }
+        OpenMeteoData data = new OpenMeteoClient(GeoPlace.custom(name, latitude, longitude)).fetch();
+        synchronized (cache) {
+            cache.put(key, new CacheEntry(data));
+        }
+        return data;
+    }
+
     /** Palauttaa muistissa olevan version välittömästi (null jos ei haettu vielä). */
     public OpenMeteoData peek(String placeName) {
         if (placeName == null) return null;
