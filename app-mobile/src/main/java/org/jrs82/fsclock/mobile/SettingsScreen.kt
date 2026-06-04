@@ -345,6 +345,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                         showThemeDialog = true
                     }
                     RowDivider()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        DynamicColorRow(prefs, context)
+                        RowDivider()
+                    }
                     InfoRow(title = "Versio", value = appVersion(context))
                     RowDivider()
                     InfoRow(title = "Viimeisin sääpäivitys", value = lastUpdateText())
@@ -791,6 +795,27 @@ private fun SwitchRow(
         }
         Spacer(Modifier.width(12.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/**
+ * Dynamic color -kytkin: brändipaletti (oletus) ↔ Material You. Vaihto recreatee Activityn,
+ * jotta uusi väriteema otetaan käyttöön heti (myös etusivun Compose-Activity lukee arvon onResumessa).
+ * Näytetään vain Android 12+:lla, koska dynaaminen paletti vaatii sen.
+ */
+@Composable
+private fun DynamicColorRow(prefs: android.content.SharedPreferences, context: Context) {
+    var checked by remember {
+        mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_DYNAMIC_COLOR, false))
+    }
+    SwitchRow(
+        title = "Käytä laitteen värejä",
+        subtitle = "Material You -värit taustakuvasta. Pois päältä: oma kirkas brändipaletti.",
+        checked = checked,
+    ) {
+        checked = it
+        prefs.edit().putBoolean(MobileThemeController.KEY_DYNAMIC_COLOR, it).apply()
+        (context as? android.app.Activity)?.recreate()
     }
 }
 

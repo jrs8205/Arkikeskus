@@ -17,16 +17,28 @@ import org.jrs82.fsclock.SettingsManager
  */
 class MobileComposeMainActivity : AppCompatActivity() {
 
+    /** Sovelluksen luonnissa luettu dynamic-color-tila; jos käyttäjä vaihtaa kytkimen
+     *  asetuksissa, [onResume] recreatee Activityn → uusi väriteema otetaan käyttöön. */
+    private var appliedDynamicColor = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         MobileThemeController.apply(this)
         delegate.setLocalNightMode(MobileThemeController.nightMode(this))
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         SettingsManager.get().init(applicationContext)
+        appliedDynamicColor = MobileThemeController.dynamicColor(this)
         setContent {
-            ArkikeskusTheme {
+            ArkikeskusTheme(dynamicColor = appliedDynamicColor) {
                 ComposeMainScreen()
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (appliedDynamicColor != MobileThemeController.dynamicColor(this)) {
+            recreate()
         }
     }
 }

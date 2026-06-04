@@ -9,6 +9,8 @@ import androidx.preference.PreferenceManager;
 final class MobileThemeController {
 
     static final String KEY_THEME_MODE = "mobile_theme_mode";
+    /** Dynamic color (Material You) kytkin. Oletus false = oma brändipaletti (ARKIKESKUS_OHJE OSA B). */
+    static final String KEY_DYNAMIC_COLOR = "mobile_dynamic_color";
     static final String KEY_CHEAP_ELECTRICITY_NOTICE = "mobile_cheap_electricity_notice";
     static final String KEY_CHEAP_ELECTRICITY_THRESHOLD = "mobile_cheap_electricity_threshold";
     static final String KEY_CHEAP_ELECTRICITY_MODE = "mobile_cheap_electricity_mode";
@@ -91,6 +93,13 @@ final class MobileThemeController {
         if (VALUE_LIGHT.equals(value)) return AppCompatDelegate.MODE_NIGHT_NO;
         if (VALUE_DARK.equals(value)) return AppCompatDelegate.MODE_NIGHT_YES;
         return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+    }
+
+    /** Onko dynamic color (Material You) käytössä. Oletus false → oma brändipaletti. */
+    static boolean dynamicColor(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(
+                context.getApplicationContext());
+        return prefs.getBoolean(KEY_DYNAMIC_COLOR, false);
     }
 
     /** Tallennettu teema-asetus AppCompat-yötilavakiona, Activityn
