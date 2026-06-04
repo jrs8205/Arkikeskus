@@ -138,8 +138,10 @@ fun ComposeMainScreen() {
             ) {
                 when (section) {
                     HomeSection.HOME -> HomeDashboard()
+                    HomeSection.FORECAST -> ForecastSection()
                     HomeSection.SENSORS -> SensorsSection()
                     HomeSection.ELECTRICITY -> ElectricitySection()
+                    HomeSection.NEWS -> NewsSection()
                     else -> PlaceholderSection(section.title)
                 }
             }
