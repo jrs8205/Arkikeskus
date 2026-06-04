@@ -1,10 +1,15 @@
 package org.jrs82.fsclock.mobile
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.widget.ImageView
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -47,8 +53,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.ElectricityData
 import org.jrs82.fsclock.ElectricityRepository
+import org.jrs82.fsclock.OpenMeteoData
+import org.jrs82.fsclock.OpenMeteoRepository
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
+import org.jrs82.fsclock.WeatherCondition
 import org.jrs82.fsclock.WeatherData
 import org.jrs82.fsclock.WeatherIconView
 import org.jrs82.fsclock.WeatherRepository
@@ -540,6 +549,304 @@ private fun QuarterRow(q: ElectricityData.Quarter, isCurrent: Boolean) {
         )
     }
 }
+
+// ===================== Sää-ennuste-sektio (FMI + Open-Meteo, päivätabit) =====================
+
+@Composable
+internal fun ForecastSection() {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    val place = remember { displayPlace(prefs) }
+    var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
+    var openMeteo by remember { mutableStateOf(OpenMeteoRepository.get(context).peek(place)) }
+    LaunchedEffect(Unit) {
+        val w = withContext(Dispatchers.IO) {
+            try {
+                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, false)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        if (w != null) {
+            MobileMainActivity.sLastWeather = w
+            weather = w
+        }
+        val om = withContext(Dispatchers.IO) {
+            try {
+                OpenMeteoRepository.get(context).fetch(place, false)
+            } catch (e: Exception) {
+                OpenMeteoRepository.get(context).peek(place)
+            }
+        }
+        if (om != null) openMeteo = om
+    }
+
+    val w = weather
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text("Sää-ennuste", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text(place, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(12.dp))
+        if (w == null || w.hours.isEmpty()) {
+            Text(
+                "Ennustetta ei ole vielä ladattu.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            val days = remember(w) { forecastDayKeys(w) }
+            var selectedDay by remember(w) { mutableStateOf(days.firstOrNull() ?: 0) }
+            Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                days.forEach { key ->
+                    DayTab(dayLabel(key), key == selectedDay) { selectedDay = key }
+                    Spacer(Modifier.width(8.dp))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            val rows = w.hours.filter { dayKey(it.timestamp) == selectedDay }
+            if (rows.isEmpty()) {
+                Text("Tälle päivälle ei löytynyt tuntirivejä.", style = MaterialTheme.typography.bodyMedium)
+            } else {
+                rows.forEach { h ->
+                    ForecastRow(context, h, bestOpenMeteoHourAt(openMeteo, h.timestamp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        label,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary else Color.Unspecified,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+    )
+}
+
+@Composable
+private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData.Hour?) {
+    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(hhmm(h.timestamp), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            ProviderRow(
+                "FMI", h.condition, formatTemp(h.temperature),
+                WeatherTextFormatter.shortLabel(context, h.condition), fmiForecastDetails(h),
+            )
+            if (om != null) {
+                ProviderRow(
+                    "Open-Meteo", om.condition, formatNullableTemp(om.temperature),
+                    WeatherTextFormatter.shortLabel(context, om.condition), openMeteoForecastDetails(om),
+                )
+            } else {
+                Text(
+                    "Open-Meteo ei saatavilla tälle tunnille",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProviderRow(source: String, condition: WeatherCondition, temp: String, label: String, detail: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AndroidView(
+            factory = { ctx -> WeatherIconView(ctx) },
+            update = { it.setCondition(condition) },
+            modifier = Modifier.size(42.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text("$source  $temp  $label", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            if (detail.isNotEmpty()) {
+                Text(detail, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+// ===================== Uutiset-sektio (RSS + kuvat) =====================
+
+@Composable
+internal fun NewsSection() {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    var items by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        val fresh = withContext(Dispatchers.IO) {
+            try {
+                RssRepository.get().fetchEnabled(prefs, false)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        items = fresh ?: emptyList()
+        loading = false
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text("Uutiset", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        when {
+            loading -> Text("Haetaan uutisia…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            items.isEmpty() -> Text(
+                "Ei uutisia. Tarkista uutislähteet asetuksista.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> {
+                val shown = items.take(50)
+                val note = if (shown.size < items.size) "Näytetään ${shown.size}/${items.size} otsikkoa" else "${items.size} uutista"
+                Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                shown.forEach { NewsRow(context, it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewsRow(context: Context, item: NewsItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { openUrl(context, item.link) }
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                ImageView(ctx).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setImageResource(R.drawable.mobile_ic_news_placeholder)
+                }
+            },
+            update = { ImageLoader.get().load(item.imageUrl, it, R.drawable.mobile_ic_news_placeholder) },
+            modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                item.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                newsMetaLine(item),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+private fun newsMetaLine(item: NewsItem): String {
+    val sb = StringBuilder(item.feedName)
+    if (item.pubTimeMs > 0) sb.append(" · ").append(ageText(item.pubTimeMs))
+    return sb.toString()
+}
+
+private fun openUrl(context: Context, url: String?) {
+    if (url.isNullOrBlank()) return
+    try {
+        CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(context, Uri.parse(url))
+    } catch (e: Exception) {
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (e2: Exception) {
+            // ei selainta
+        }
+    }
+}
+
+private fun forecastDayKeys(w: WeatherData): List<Int> {
+    val out = ArrayList<Int>()
+    for (h in w.hours) {
+        val key = dayKey(h.timestamp)
+        if (!out.contains(key)) out.add(key)
+        if (out.size >= 7) break
+    }
+    return out
+}
+
+private fun dayKey(timestamp: Long): Int {
+    val c = Calendar.getInstance(HELSINKI, FI)
+    c.timeInMillis = timestamp
+    return c.get(Calendar.YEAR) * 10000 + (c.get(Calendar.MONTH) + 1) * 100 + c.get(Calendar.DAY_OF_MONTH)
+}
+
+private fun dayLabel(key: Int): String {
+    val year = key / 10000
+    val month = (key / 100) % 100
+    val day = key % 100
+    val c = Calendar.getInstance(HELSINKI, FI)
+    c.clear()
+    c.set(year, month - 1, day)
+    val f = SimpleDateFormat("EEE d.M.", FI)
+    f.timeZone = HELSINKI
+    var label = f.format(c.time)
+    if (label.isNotEmpty()) label = label.substring(0, 1).uppercase(FI) + label.substring(1)
+    return label
+}
+
+private fun bestOpenMeteoHourAt(om: OpenMeteoData?, timestamp: Long): OpenMeteoData.Hour? {
+    val hours = om?.hours ?: return null
+    var best: OpenMeteoData.Hour? = null
+    var bestDiff = Long.MAX_VALUE
+    for (h in hours) {
+        val diff = Math.abs(h.timestamp - timestamp)
+        if (diff < bestDiff) {
+            bestDiff = diff
+            best = h
+        }
+    }
+    return if (best == null || bestDiff > 31L * 60_000L) null else best
+}
+
+private fun fmiForecastDetails(h: WeatherData.Hour): String {
+    val d = ArrayList<String>()
+    if (!h.precipitation.isNaN()) d.add("Sade " + one(h.precipitation) + " mm")
+    if (!h.windSpeed.isNaN()) d.add("Tuuli " + one(h.windSpeed) + " m/s")
+    if (!h.windGust.isNaN()) d.add("Puuska " + one(h.windGust) + " m/s")
+    return d.joinToString(" · ")
+}
+
+private fun openMeteoForecastDetails(h: OpenMeteoData.Hour): String {
+    val d = ArrayList<String>()
+    h.precipitation?.let { d.add("Sade " + one(it) + " mm") }
+    h.windSpeed?.let { d.add("Tuuli " + one(it) + " m/s") }
+    h.windGust?.let { d.add("Puuska " + one(it) + " m/s") }
+    h.humidity?.let { d.add("Kosteus " + Math.round(it) + " %") }
+    return d.joinToString(" · ")
+}
+
+private fun formatNullableTemp(v: Double?): String = if (v == null) "-- C" else formatTemp(v)
 
 // ===================== Data- ja formatointiapurit (replikoi MobileMainActivity) =====================
 
