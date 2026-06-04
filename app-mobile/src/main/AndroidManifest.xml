@@ -38,8 +38,8 @@
     <application
         android:name="org.jrs82.fsclock.FsClockApp"
         android:allowBackup="false"
-        android:icon="@drawable/arkikeskus"
-        android:roundIcon="@drawable/arkikeskus"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_mobile_name"
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/MobileTheme">
@@ -48,7 +48,7 @@
             android:name="org.jrs82.fsclock.mobile.MobileMainActivity"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
             android:exported="true"
-            android:icon="@drawable/arkikeskus"
+            android:icon="@mipmap/ic_launcher"
             android:label="@string/app_mobile_name"
             android:theme="@style/MobileTheme">
             <intent-filter>

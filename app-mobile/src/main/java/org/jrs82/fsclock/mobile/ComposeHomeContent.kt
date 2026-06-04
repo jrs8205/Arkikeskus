@@ -179,15 +179,16 @@ internal fun HomeDashboard() {
 
 @Composable
 private fun ClockBlock(nowMs: Long) {
-    // Pehmeä brändigradientti (OSA B / B6): sininen→vihreä kuten sovelluksen ikoni.
+    // Pehmeä brändigradientti (OSA B / B6): kaksi sinisen sävyä (käyttäjän toive).
     val cs = MaterialTheme.colorScheme
+    val arki = ArkiTheme.colors
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(
                 Brush.verticalGradient(
-                    listOf(cs.primaryContainer, cs.secondaryContainer.copy(alpha = 0.55f)),
+                    listOf(arki.clockTop, arki.clockBottom),
                 ),
             )
             .padding(vertical = 20.dp, horizontal = 16.dp),
