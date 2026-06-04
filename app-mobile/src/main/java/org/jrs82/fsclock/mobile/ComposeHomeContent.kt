@@ -8,10 +8,16 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +31,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -142,37 +151,66 @@ internal fun HomeDashboard() {
         onDispose { ruuvi.removeListener(listener) }
     }
 
+    // Kevyt sisääntulo (OSA B / B6): pehmeä fade + slide kun etusivu avautuu. Spring, ei välkkyvä.
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Spacer(Modifier.height(12.dp))
-        ClockBlock(nowMs)
-        Spacer(Modifier.height(8.dp))
-        WeatherCard(context, prefs, weather)
-        ElectricityCard(prefs, elecRepo, elecTick)
-        SensorsCard(prefs, ruuvi, sensorTick)
+        AnimatedVisibility(
+            visible = shown,
+            enter = fadeIn(spring()) + slideInVertically(spring()) { it / 10 },
+        ) {
+            Column(modifier = Modifier.animateContentSize()) {
+                Spacer(Modifier.height(12.dp))
+                ClockBlock(nowMs)
+                Spacer(Modifier.height(8.dp))
+                WeatherCard(context, prefs, weather)
+                ElectricityCard(prefs, elecRepo, elecTick)
+                SensorsCard(prefs, ruuvi, sensorTick)
+            }
+        }
     }
 }
 
 @Composable
 private fun ClockBlock(nowMs: Long) {
-    Text(
-        text = formatClock(nowMs),
-        fontSize = 64.sp,
-        fontWeight = FontWeight.Bold,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Text(
-        text = formatDate(nowMs),
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    // Pehmeä brändigradientti (OSA B / B6): sininen→vihreä kuten sovelluksen ikoni.
+    val cs = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(cs.primaryContainer, cs.secondaryContainer.copy(alpha = 0.55f)),
+                ),
+            )
+            .padding(vertical = 20.dp, horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = formatClock(nowMs),
+                fontSize = 60.sp,
+                fontWeight = FontWeight.Bold,
+                color = cs.onPrimaryContainer,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = formatDate(nowMs),
+                style = MaterialTheme.typography.bodyLarge,
+                color = cs.onPrimaryContainer.copy(alpha = 0.82f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }
 
 @Composable
@@ -182,14 +220,21 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
         GenericCard("Sää", "Säätietoja haetaan…")
         return
     }
-    Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    val arki = ArkiTheme.colors
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = arki.weatherContainer,
+            contentColor = arki.onWeatherContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
             Text(displayPlace(prefs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (weather.fetchedAt > 0) {
                 Text(
                     "Päivitetty klo " + hhmm(weather.fetchedAt),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = arki.onWeatherContainer.copy(alpha = 0.7f),
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -205,7 +250,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
                         formatTemp(c.temperature),
                         fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = arki.weatherAccent,
                     )
                     Text(
                         WeatherTextFormatter.label(context, c.condition),
@@ -219,11 +264,11 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
             val rain = if (!c.precip1h.isNaN()) c.precip1h else nowForecast?.precipitation ?: Double.NaN
             Row(modifier = Modifier.fillMaxWidth()) {
                 QuickStat(R.drawable.mobile_ic_thermometer_24, "Tuntuu kuin",
-                    if (c.feelsLike.isNaN()) "--" else formatTemp(c.feelsLike), Modifier.weight(1f))
+                    if (c.feelsLike.isNaN()) "--" else formatTemp(c.feelsLike), arki.weatherSunny, Modifier.weight(1f))
                 QuickStat(R.drawable.mobile_ic_wind_24, "Tuuli",
-                    if (wind.isNaN()) "-- m/s" else one(wind) + " m/s", Modifier.weight(1f))
+                    if (wind.isNaN()) "-- m/s" else one(wind) + " m/s", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
                 QuickStat(R.drawable.mobile_ic_rain_24, "Sade 1h",
-                    if (rain.isNaN()) "-- mm" else one(rain) + " mm", Modifier.weight(1f))
+                    if (rain.isNaN()) "-- mm" else one(rain) + " mm", arki.weatherRain, Modifier.weight(1f))
             }
             val details = weatherDetailLines(c)
             if (details.isNotEmpty()) {
@@ -231,7 +276,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
                 Text(
                     details.joinToString("\n"),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = arki.onWeatherContainer.copy(alpha = 0.75f),
                 )
             }
             val hours = remainingHours(weather)
@@ -251,7 +296,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
 }
 
 @Composable
-private fun QuickStat(iconRes: Int, label: String, value: String, modifier: Modifier) {
+private fun QuickStat(iconRes: Int, label: String, value: String, tint: Color, modifier: Modifier) {
     Column(
         modifier = modifier.padding(horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -259,7 +304,7 @@ private fun QuickStat(iconRes: Int, label: String, value: String, modifier: Modi
         Icon(
             painterResource(iconRes),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = tint,
             modifier = Modifier.size(26.dp),
         )
         Spacer(Modifier.height(2.dp))
@@ -267,7 +312,7 @@ private fun QuickStat(iconRes: Int, label: String, value: String, modifier: Modi
         Text(
             label,
             fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = LocalContentColor.current.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
         )
     }
@@ -313,26 +358,89 @@ private fun ChipIconRow(iconRes: Int, text: String) {
 private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepository, tick: Int) {
     val q = remember(tick) { repo.currentQuarter() }
     val notice = remember(tick) { cheapNotice(prefs, repo) }
+    val threshold = remember(tick) { cheapThreshold(prefs) }
+    val arki = ArkiTheme.colors
     Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
             Text("Pörssisähkö", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                if (q == null) "Nykyistä varttihintaa ei ole vielä saatavilla"
-                else String.format(FI, "Nyt klo %02d:%02d  %.3f c/kWh", q.hour, q.minute, q.sntPerKwh),
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            Spacer(Modifier.height(8.dp))
+            if (q == null) {
+                Text("Nykyistä varttihintaa ei ole vielä saatavilla", style = MaterialTheme.typography.bodyLarge)
+            } else {
+                val level = priceLevel(q.sntPerKwh, threshold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PricePill(level)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        String.format(FI, "%.3f c/kWh", q.sntPerKwh),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = priceAccent(level, arki),
+                    )
+                }
+                Text(
+                    String.format(FI, "Nyt klo %02d:%02d", q.hour, q.minute),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (notice != null) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
                     notice,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = arki.onPriceCheapContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(arki.priceCheapContainer)
+                        .padding(12.dp),
                 )
             }
         }
     }
+}
+
+private enum class PriceLevel { CHEAP, NORMAL, EXPENSIVE }
+
+/** Yli tämän (c/kWh, ALV 0 %) hinta luokitellaan kalliiksi (punainen). */
+private const val EXPENSIVE_THRESHOLD = 15.0
+
+private fun priceLevel(snt: Double, cheapThreshold: Double): PriceLevel = when {
+    snt.isNaN() -> PriceLevel.NORMAL
+    snt < cheapThreshold -> PriceLevel.CHEAP
+    snt > EXPENSIVE_THRESHOLD -> PriceLevel.EXPENSIVE
+    else -> PriceLevel.NORMAL
+}
+
+private fun priceAccent(level: PriceLevel, arki: ArkiColors): Color = when (level) {
+    PriceLevel.CHEAP -> arki.priceCheap
+    PriceLevel.NORMAL -> arki.priceNormal
+    PriceLevel.EXPENSIVE -> arki.priceExpensive
+}
+
+@Composable
+private fun PricePill(level: PriceLevel) {
+    val arki = ArkiTheme.colors
+    val bg: Color
+    val fg: Color
+    val label: String
+    when (level) {
+        PriceLevel.CHEAP -> { bg = arki.priceCheapContainer; fg = arki.onPriceCheapContainer; label = "Halpaa" }
+        PriceLevel.NORMAL -> { bg = arki.priceNormalContainer; fg = arki.onPriceNormalContainer; label = "Normaali" }
+        PriceLevel.EXPENSIVE -> { bg = arki.priceExpensiveContainer; fg = arki.onPriceExpensiveContainer; label = "Kallista" }
+    }
+    Text(
+        label,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        color = fg,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable
@@ -369,10 +477,17 @@ private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: I
 
 @Composable
 private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
+    val arki = ArkiTheme.colors
+    val sample = entry.second
+    val temp = sample?.temperatureC()
+    val tempColor = arki.forTemperature(temp)
+    // Lämpötilan mukainen hento sävytys (B2: kylmä→lämmin). Ilman näytettä neutraali.
+    val tileBg = if (sample != null && temp != null) tempColor.copy(alpha = 0.14f)
+    else MaterialTheme.colorScheme.surfaceVariant
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(tileBg)
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -384,19 +499,17 @@ private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        val sample = entry.second
         if (sample == null) {
             Spacer(Modifier.height(8.dp))
             Text("odottaa", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Spacer(Modifier.height(6.dp))
-            val t = sample.temperatureC()
             val h = sample.humidityPct()
             Text(
-                if (t == null) "--" else one(t) + " °C",
+                if (temp == null) "--" else one(temp) + " °C",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                color = tempColor,
             )
             Text(
                 if (h == null) "kosteus --" else "kosteus " + Math.round(h) + " %",
@@ -481,7 +594,9 @@ internal fun SensorsSection() {
 @Composable
 internal fun ElectricitySection() {
     val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val repo = remember { ElectricityRepository.get(context) }
+    val threshold = remember { cheapThreshold(prefs) }
     var tick by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -505,13 +620,23 @@ internal fun ElectricitySection() {
             .padding(16.dp),
     ) {
         Text("Pörssisähkö", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            if (now == null) "Nykyistä varttihintaa ei ole vielä saatavilla"
-            else String.format(FI, "Nyt klo %02d:%02d  %.3f c/kWh", now.hour, now.minute, now.sntPerKwh),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-        )
+        Spacer(Modifier.height(10.dp))
+        if (now == null) {
+            Text("Nykyistä varttihintaa ei ole vielä saatavilla", style = MaterialTheme.typography.bodyLarge)
+        } else {
+            val arki = ArkiTheme.colors
+            val level = priceLevel(now.sntPerKwh, threshold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PricePill(level)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    String.format(FI, "Nyt klo %02d:%02d  %.3f c/kWh", now.hour, now.minute, now.sntPerKwh),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = priceAccent(level, arki),
+                )
+            }
+        }
         Spacer(Modifier.height(12.dp))
         if (today.isEmpty()) {
             Text(
@@ -523,7 +648,7 @@ internal fun ElectricitySection() {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     today.forEach { q ->
-                        QuarterRow(q, isCurrent = now != null && q.timestamp == now.timestamp)
+                        QuarterRow(q, isCurrent = now != null && q.timestamp == now.timestamp, threshold = threshold)
                     }
                 }
             }
@@ -532,19 +657,31 @@ internal fun ElectricitySection() {
 }
 
 @Composable
-private fun QuarterRow(q: ElectricityData.Quarter, isCurrent: Boolean) {
-    val color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified
+private fun QuarterRow(q: ElectricityData.Quarter, isCurrent: Boolean, threshold: Double) {
+    val arki = ArkiTheme.colors
+    val level = priceLevel(q.sntPerKwh, threshold)
+    val accent = priceAccent(level, arki)
     val weight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(accent),
+        )
+        Spacer(Modifier.width(10.dp))
         Text(
             String.format(FI, "%02d:%02d", q.hour, q.minute),
-            modifier = Modifier.width(72.dp),
-            color = color,
+            modifier = Modifier.width(64.dp),
+            color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified,
             fontWeight = weight,
         )
         Text(
             String.format(FI, "%.3f c/kWh", q.sntPerKwh),
-            color = color,
+            color = accent,
             fontWeight = weight,
         )
     }
@@ -756,20 +893,23 @@ private fun NewsRow(context: Context, item: NewsItem) {
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                newsMetaLine(item),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+            Row(modifier = Modifier.padding(top = 2.dp)) {
+                Text(
+                    item.feedName,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ArkiTheme.colors.newsAccent,
+                )
+                if (item.pubTimeMs > 0) {
+                    Text(
+                        " · " + ageText(item.pubTimeMs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
-}
-
-private fun newsMetaLine(item: NewsItem): String {
-    val sb = StringBuilder(item.feedName)
-    if (item.pubTimeMs > 0) sb.append(" · ").append(ageText(item.pubTimeMs))
-    return sb.toString()
 }
 
 private fun openUrl(context: Context, url: String?) {

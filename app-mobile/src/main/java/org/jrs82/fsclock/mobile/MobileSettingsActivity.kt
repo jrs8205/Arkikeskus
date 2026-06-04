@@ -19,7 +19,7 @@ class MobileSettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         SettingsManager.get().init(applicationContext)
         setContent {
-            ArkikeskusTheme {
+            ArkikeskusTheme(dynamicColor = MobileThemeController.dynamicColor(this)) {
                 SettingsScreen(onBack = { finish() })
             }
         }
