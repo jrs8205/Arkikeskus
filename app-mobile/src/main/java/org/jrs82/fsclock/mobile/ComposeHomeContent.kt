@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -409,6 +410,134 @@ private fun GenericCard(title: String, note: String) {
             Spacer(Modifier.height(4.dp))
             Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+// ===================== Anturit-sektio (koko näkymä) =====================
+
+@Composable
+internal fun SensorsSection() {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    val ruuvi = remember { RuuviRepository.get(context) }
+    var tick by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        try {
+            ruuvi.start()
+        } catch (e: Exception) {
+            // skannaus vaatii BLE-luvan
+        }
+    }
+    DisposableEffect(Unit) {
+        val main = Handler(Looper.getMainLooper())
+        val listener = RuuviRepository.Listener { _, _ -> main.post { tick++ } }
+        ruuvi.addListener(listener)
+        onDispose { ruuvi.removeListener(listener) }
+    }
+    val sensors = remember(tick) { buildSensors(prefs, ruuvi) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text("Anturit", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(12.dp))
+        if (sensors.isEmpty()) {
+            Text(
+                "Ei määritettyjä Ruuvi-antureita",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            var i = 0
+            while (i < sensors.size) {
+                Row(modifier = Modifier.fillMaxWidth().padding(top = if (i > 0) 8.dp else 0.dp)) {
+                    SensorTile(sensors[i], Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
+                    if (i + 1 < sensors.size) {
+                        SensorTile(sensors[i + 1], Modifier.weight(1f))
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+                i += 2
+            }
+        }
+    }
+}
+
+// ===================== Pörssisähkö-sektio (koko näkymä) =====================
+
+@Composable
+internal fun ElectricitySection() {
+    val context = LocalContext.current
+    val repo = remember { ElectricityRepository.get(context) }
+    var tick by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                repo.fetchIfStale()
+            } catch (e: Exception) {
+                // cachen varaan
+            }
+        }
+        tick++
+    }
+    val now = remember(tick) { repo.currentQuarter() }
+    val today = remember(tick) {
+        val c = Calendar.getInstance(HELSINKI, FI)
+        repo.dayQuarters(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text("Pörssisähkö", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            if (now == null) "Nykyistä varttihintaa ei ole vielä saatavilla"
+            else String.format(FI, "Nyt klo %02d:%02d  %.3f c/kWh", now.hour, now.minute, now.sntPerKwh),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(12.dp))
+        if (today.isEmpty()) {
+            Text(
+                "Tämän päivän hintoja ei ole vielä saatavilla.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    today.forEach { q ->
+                        QuarterRow(q, isCurrent = now != null && q.timestamp == now.timestamp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuarterRow(q: ElectricityData.Quarter, isCurrent: Boolean) {
+    val color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified
+    val weight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Text(
+            String.format(FI, "%02d:%02d", q.hour, q.minute),
+            modifier = Modifier.width(72.dp),
+            color = color,
+            fontWeight = weight,
+        )
+        Text(
+            String.format(FI, "%.3f c/kWh", q.sntPerKwh),
+            color = color,
+            fontWeight = weight,
+        )
     }
 }
 
