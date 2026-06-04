@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31): Material You -dynaaminen paletti (VAALEA variantti).
+  Mäppää saman nimiset värit järjestelmän wallpaper-pohjaisiin sävyihin → koko View-sovellus
+  seuraa Material Youta ilman layout-muutoksia. Samat system_*-sävyt kuin Composen
+  dynamicLightColorScheme käyttää → Compose-asetusnäkymä ja muu sovellus näyttävät yhtenäisiltä.
+
+  Vain pinnat / tekstit / aksentti mäpätään. Varoitusvärit (warning_*), HSL-brändivärit
+  (transit_*), scrim ja mobile_light_status_bar JÄTETÄÄN base-paletista (values/), jottei
+  semantiikka/brändi/kontrasti muutu. Tonet valittu Material 3:n vakiomäppäyksen mukaan
+  (kontrastiturvallinen): pinnat neutral1, hillityt pinnat/tekstit neutral2, aksentti accent1.
+-->
+<resources>
+    <color name="mobile_bg">@android:color/system_neutral1_50</color>
+    <color name="mobile_card_bg">@android:color/system_neutral1_10</color>
+    <color name="mobile_toolbar_bg">@android:color/system_accent2_100</color>
+    <color name="mobile_nav_surface">@android:color/system_neutral2_100</color>
+    <color name="mobile_drawer_bg">@android:color/system_neutral1_10</color>
+    <color name="mobile_card_stroke">@android:color/system_neutral2_300</color>
+    <color name="mobile_menu_pressed">@android:color/system_accent2_200</color>
+    <color name="mobile_text_primary">@android:color/system_neutral1_900</color>
+    <color name="mobile_text_body">@android:color/system_neutral1_800</color>
+    <color name="mobile_text_secondary">@android:color/system_neutral2_700</color>
+    <color name="mobile_text_muted">@android:color/system_neutral2_600</color>
+    <color name="mobile_accent">@android:color/system_accent1_600</color>
+</resources>
