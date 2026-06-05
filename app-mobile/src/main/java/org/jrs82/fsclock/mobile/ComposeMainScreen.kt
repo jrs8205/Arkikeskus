@@ -7,12 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -139,6 +137,8 @@ fun ComposeMainScreen() {
                 when (section) {
                     HomeSection.HOME -> HomeDashboard()
                     HomeSection.FORECAST -> ForecastSection()
+                    HomeSection.PLACES -> PlacesSection(onPlaceChosen = { section = HomeSection.HOME })
+                    HomeSection.STEPS -> StepsSection()
                     HomeSection.SENSORS -> SensorsSection()
                     HomeSection.ELECTRICITY -> ElectricitySection()
                     HomeSection.NEWS -> NewsSection()
@@ -152,7 +152,6 @@ fun ComposeMainScreen() {
                     HomeSection.TRAFFIC_WEIGHT -> TrafficSection(TrafficNotice.Kind.WEIGHT_RESTRICTION, section.title)
                     HomeSection.TRAFFIC_INCIDENTS -> TrafficSection(TrafficNotice.Kind.INCIDENT, section.title)
                     HomeSection.TRAFFIC_CONGESTION -> TrafficSection(TrafficNotice.Kind.CONGESTION, section.title)
-                    else -> PlaceholderSection(section.title)
                 }
             }
         }
@@ -231,27 +230,6 @@ private fun DrawerHeader(text: String) {
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
     )
-}
-
-@Composable
-private fun PlaceholderSection(title: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "Tämä näkymä on nykyisessä sovelluksessa jo valmis. Se tuodaan Compose-asuun seuraavissa paloissa — tässä esikatselussa näkyy vain navigaatiorunko ja uusi ulkoasu.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
 }
 
 private fun toastSoon(context: Context) {

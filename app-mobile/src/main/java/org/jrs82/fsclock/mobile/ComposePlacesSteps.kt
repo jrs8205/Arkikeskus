@@ -1,0 +1,1159 @@
+package org.jrs82.fsclock.mobile
+
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
+import android.location.Location
+import android.location.LocationManager
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.preference.PreferenceManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import org.jrs82.fsclock.R
+import org.jrs82.fsclock.SettingsManager
+import java.util.Locale
+
+/**
+ * OSA A (viimeiset inline-sektiot): Paikkakunnat (PLACES) + Askeleet (STEPS) Composeen.
+ * Nämä eivät ole Fragmentteja View-appissa vaan [MobileMainActivity]n sisäisiä näkymiä, joten ne
+ * reimplementoidaan Composeen. Logiikka luetaan samoista repositoryistä/silloista kuin View-appissa
+ * (SettingsManager, MmlGeocodingClient, HealthConnectStepsBridge, StepCounter, StepCalorieEstimator,
+ * StepsHistory, StepsHtmlExporter) — ei tuplalogiikkaa, vain Compose-esityskerros.
+ */
+
+private val FI_PS = Locale("fi", "FI")
+
+// Profiiliavaimet (samat kuin MobileMainActivityssa — jaettu SharedPreferences).
+private const val KEY_PROFILE_SEX = "mobile_profile_sex"
+private const val KEY_PROFILE_AGE = "mobile_profile_age"
+private const val KEY_PROFILE_HEIGHT = "mobile_profile_height_cm"
+private const val KEY_PROFILE_WEIGHT = "mobile_profile_weight_kg"
+private const val KEY_PROFILE_STEP = "mobile_profile_step_length_cm"
+
+// ============================================================================
+//  PAIKKAKUNNAT (PLACES)
+// ============================================================================
+
+/** Yksi hakutulos / suosikki valittavaksi sääpaikaksi. */
+private data class PlaceChoice(
+    val dataPlace: String,
+    val displayPlace: String,
+    val latitude: Double,
+    val longitude: Double,
+)
+
+/**
+ * Paikkakunnat-sektio: nykyinen sääpaikka + suosikiksi-kytkin, ennakoiva haku (MML-geokoodaus),
+ * laitteen sijainti (reverse-geokoodaus) ja suosikkilistalta valinta. Paikan valinta vaihtaa
+ * SettingsManagerin kotipaikan (kuten View-appin selectHomePlace) ja palaa etusivulle hakemaan
+ * uuden paikan sään.
+ */
+@Composable
+internal fun PlacesSection(onPlaceChosen: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    var tick by remember { mutableStateOf(0) }
+
+    val current = remember(tick) { placesDisplayPlace(prefs) }
+    val isFavorite = remember(tick) { SettingsManager.get().isFavoritePlace(current) }
+    val favorites = remember(tick) { SettingsManager.get().favoritePlaces }
+
+    // --- Haku (ennakoiva, debouncattu MML-geokoodaus) ---
+    var query by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<List<PlaceChoice>>(emptyList()) }
+    LaunchedEffect(query) {
+        val q = query.trim()
+        if (q.length < 3) {
+            results = emptyList()
+            status = if (q.isEmpty()) "" else "Kirjoita vähintään kolme kirjainta."
+            return@LaunchedEffect
+        }
+        status = "Haetaan…"
+        delay(250)
+        val hits = withContext(Dispatchers.IO) {
+            try {
+                MmlGeocodingClient.searchPlaces(q, 8).map {
+                    PlaceChoice(it.dataPlace, it.displayPlace, it.latitude, it.longitude)
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+        when {
+            hits == null -> { status = "Haku epäonnistui."; results = emptyList() }
+            hits.isEmpty() -> { status = "Kaupunkeja ei löytynyt."; results = emptyList() }
+            else -> { status = "Valitse paikka listalta."; results = hits }
+        }
+    }
+
+    // --- Laitteen sijainti (lupavirta + reverse-geokoodaus) ---
+    var autoRequest by remember { mutableStateOf(0) }
+    var autoStatus by remember { mutableStateOf("") }
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { granted -> if (granted.values.any { it }) autoRequest++ }
+    LaunchedEffect(autoRequest) {
+        if (autoRequest == 0) return@LaunchedEffect
+        autoStatus = "Haetaan laitteen sijaintia…"
+        val loc = lastKnownLocation(context)
+        if (loc == null) {
+            autoStatus = "Sijaintia ei saatu. Varmista paikannus ja yritä uudelleen."
+            return@LaunchedEffect
+        }
+        val place = withContext(Dispatchers.IO) {
+            try {
+                MmlGeocodingClient.reversePlace(loc.latitude, loc.longitude)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        if (place == null) {
+            autoStatus = "Paikan nimeä ei löytynyt sijainnille."
+            return@LaunchedEffect
+        }
+        chooseHomePlace(prefs, place.dataPlace, true, place.displayPlace, loc.latitude, loc.longitude)
+        onPlaceChosen()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text("Paikkakunnat", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Valitse sääpaikka hakemalla, laitteen sijainnista tai suosikeista.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        // Nykyinen paikka + suosikiksi-kytkin
+        Card(modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Nykyinen sääpaikka", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(current, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = {
+                    val sm = SettingsManager.get()
+                    if (sm.isFavoritePlace(current)) {
+                        sm.removeFavoritePlace(current)
+                        Toast.makeText(context, "Poistettu suosikeista", Toast.LENGTH_SHORT).show()
+                    } else {
+                        sm.addFavoritePlace(current)
+                        Toast.makeText(context, "Lisätty suosikiksi", Toast.LENGTH_SHORT).show()
+                    }
+                    tick++
+                }) {
+                    Icon(
+                        painterResource(
+                            if (isFavorite) R.drawable.mobile_ic_favorite_24 else R.drawable.mobile_ic_favorite_add_24,
+                        ),
+                        contentDescription = if (isFavorite) "Poista suosikeista" else "Lisää suosikiksi",
+                        tint = if (isFavorite) Color(0xFFE0526B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        // Laitteen sijainti
+        Spacer(Modifier.height(12.dp))
+        FilledTonalButton(
+            onClick = {
+                locationLauncher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(painterResource(R.drawable.mobile_ic_my_location_24), contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Käytä laitteen sijaintia")
+        }
+        if (autoStatus.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Text(autoStatus, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        // Haku
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Hae kaupunkia tai kaupunginosaa") },
+            leadingIcon = { Icon(painterResource(R.drawable.mobile_ic_search_24), contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { query = ""; results = emptyList(); status = "" }) {
+                        Text("✕", fontSize = 18.sp)
+                    }
+                }
+            },
+        )
+        if (status.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        results.forEach { hit ->
+            PlaceRow(hit.displayPlace, leading = R.drawable.mobile_ic_search_24, onClick = {
+                chooseHomePlace(prefs, hit.dataPlace, false, hit.displayPlace, hit.latitude, hit.longitude)
+                onPlaceChosen()
+            })
+        }
+
+        // Suosikit
+        Spacer(Modifier.height(16.dp))
+        Text("Suosikkipaikat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        if (favorites.isEmpty()) {
+            Text(
+                "Ei suosikkipaikkoja. Lisää nykyinen sääpaikka yllä olevasta sydämestä.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            favorites.forEach { fav ->
+                FavoritePlaceRow(
+                    place = fav,
+                    onSelect = {
+                        val data = dataPlaceFromDisplay(fav)
+                        val geo = org.jrs82.fsclock.GeoPlace.tryForPlace(fav)
+                            ?: org.jrs82.fsclock.GeoPlace.tryForPlace(data)
+                        chooseHomePlace(prefs, data, false, fav,
+                            geo?.latitude ?: Double.NaN, geo?.longitude ?: Double.NaN)
+                        onPlaceChosen()
+                    },
+                    onRemove = {
+                        SettingsManager.get().removeFavoritePlace(fav)
+                        tick++
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaceRow(label: String, leading: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painterResource(leading),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FavoritePlaceRow(place: String, onSelect: () -> Unit, onRemove: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                place,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onSelect)
+                    .padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
+            )
+            IconButton(onClick = onRemove, modifier = Modifier.padding(end = 6.dp)) {
+                Icon(
+                    painterResource(R.drawable.mobile_ic_favorite_24),
+                    contentDescription = "Poista suosikeista",
+                    tint = Color(0xFFE0526B),
+                )
+            }
+        }
+    }
+}
+
+/** Nykyinen näytettävä paikka: tallennettu näyttönimi tai kotipaikka (kuten currentDisplayPlace). */
+private fun placesDisplayPlace(prefs: SharedPreferences): String {
+    val d = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "") ?: ""
+    if (d.trim().isNotEmpty()) return d.trim()
+    return SettingsManager.get().homePlace
+}
+
+/** Erottaa datapaikan (kaupunki) näyttönimestä ennen pilkkua (kuten dataPlaceFromDisplay). */
+private fun dataPlaceFromDisplay(display: String?): String {
+    if (display == null) return SettingsManager.DEFAULT_HOME_PLACE
+    var trimmed = display.trim()
+    val comma = trimmed.indexOf(',')
+    if (comma > 0) trimmed = trimmed.substring(0, comma).trim()
+    return if (trimmed.isEmpty()) SettingsManager.DEFAULT_HOME_PLACE else trimmed
+}
+
+/**
+ * Replikoi View-appin selectHomePlace: asettaa kotipaikan + koordinaatit + näyttönimen samoihin
+ * SharedPreferences-/SettingsManager-avaimiin ja nollaa sää-cachen, jotta etusivu hakee uuden paikan.
+ */
+private fun chooseHomePlace(
+    prefs: SharedPreferences,
+    dataPlace: String,
+    fromLocation: Boolean,
+    displayPlace: String?,
+    latitude: Double,
+    longitude: Double,
+) {
+    val data = dataPlace.trim()
+    if (data.isEmpty()) return
+    val sm = SettingsManager.get()
+    sm.homePlace = data
+    val disp = displayPlace?.trim().orEmpty()
+    if (!latitude.isNaN() && !longitude.isNaN()) {
+        sm.setHomeCoordinates(latitude, longitude)
+        org.jrs82.fsclock.GeoPlace.register(data, latitude, longitude)
+        if (disp.isNotEmpty()) org.jrs82.fsclock.GeoPlace.register(disp, latitude, longitude)
+    } else {
+        sm.clearHomeCoordinates()
+    }
+    val editor = prefs.edit()
+    if (!fromLocation) {
+        editor.putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false)
+        if (disp.isNotEmpty() && !disp.equals(data, ignoreCase = true)) {
+            editor.putString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, disp)
+        } else {
+            editor.remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
+        }
+    } else {
+        editor.putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)
+        if (disp.isNotEmpty()) {
+            editor.putString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, disp)
+        } else {
+            editor.remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
+        }
+    }
+    editor.apply()
+    // Nollaa etusivun sää-seed → HomeDashboard hakee uuden paikan sään tuoreena.
+    MobileMainActivity.sLastWeather = null
+}
+
+private fun lastKnownLocation(context: Context): Location? {
+    if (!hasGranted(context, Manifest.permission.ACCESS_FINE_LOCATION) &&
+        !hasGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+    ) {
+        return null
+    }
+    val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
+    return try {
+        val g = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        val n = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+        when {
+            g != null && (n == null || g.time >= n.time) -> g
+            n != null -> n
+            else -> null
+        }
+    } catch (e: SecurityException) {
+        null
+    }
+}
+
+private fun hasGranted(context: Context, perm: String): Boolean =
+    ContextCompat.checkSelfPermission(context, perm) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+// ============================================================================
+//  ASKELEET (STEPS)
+// ============================================================================
+
+/**
+ * Askeleet-sektio: Health Connect ensisijaisesti (HealthConnectStepsBridge) + raw-anturi-fallback
+ * (StepCounter + Room), 4 välilehteä (Tänään/Päivät/Viikot/Kuukaudet), kaloriarvio (StepCalorieEstimator)
+ * + profiili, HTML-vienti (StepsHtmlExporter) ja 3-tilainen kytkin. Replikoi MobileMainActivity.showSteps().
+ */
+@Composable
+internal fun StepsSection() {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    val hcAvailable = remember { HealthConnectStepsBridge.isAvailable(context) }
+    val stepCounter = remember { StepCounter(context) }
+    val rawAvailable = remember { stepCounter.isAvailable() }
+
+    var enabled by remember { mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_STEPS_ENABLED, false)) }
+    var hcGranted by remember { mutableStateOf(false) }
+    var hcCaloriesGranted by remember { mutableStateOf(false) }
+    var permTick by remember { mutableStateOf(0) }
+    LaunchedEffect(permTick) {
+        HealthConnectStepsBridge.hasPermission(context) { hcGranted = it }
+        HealthConnectStepsBridge.hasCaloriePermission(context) { hcCaloriesGranted = it }
+    }
+    val useHc = hcAvailable && hcGranted
+    val canHcCalories = useHc && hcCaloriesGranted
+
+    var tab by remember { mutableStateOf(0) }
+    var todaySteps by remember { mutableStateOf(0L) }
+    var lastRefreshMs by remember { mutableStateOf(0L) }
+    var refreshTrigger by remember { mutableStateOf(0) }
+    var profileTick by remember { mutableStateOf(0) }
+    var hcCalActive by remember { mutableStateOf(0) }
+    var hcCalTotal by remember { mutableStateOf(0) }
+    var hcCalHas by remember { mutableStateOf(false) }
+    var historyText by remember { mutableStateOf("") }
+    var showProfile by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
+    var exportResult by remember { mutableStateOf<StepsHtmlExporter.Result?>(null) }
+
+    // Lupavirrat
+    val hcLauncher = rememberLauncherForActivityResult(
+        HealthConnectStepsBridge.permissionContract(),
+    ) { permTick++ }
+    val arLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { ok ->
+        if (ok) {
+            prefs.edit().putBoolean(MobileThemeController.KEY_STEPS_ENABLED, true).apply()
+            enabled = true
+            stepCounter.start()
+            refreshTrigger++
+        }
+    }
+
+    // Raw-anturin elinkaari (vain kun HC ei käytössä).
+    DisposableEffect(enabled, useHc, rawAvailable) {
+        if (enabled && !useHc && rawAvailable) {
+            stepCounter.setListener { s -> todaySteps = s.toLong() }
+            if (hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)) stepCounter.start()
+        }
+        onDispose { stepCounter.stop() }
+    }
+    DisposableEffect(Unit) { onDispose { stepCounter.shutdown() } }
+
+    // Tänään: askeleet
+    LaunchedEffect(enabled, useHc, refreshTrigger) {
+        if (!enabled) {
+            todaySteps = 0L
+            return@LaunchedEffect
+        }
+        if (useHc) {
+            HealthConnectStepsBridge.todaySteps(context) { s ->
+                if (s >= 0) {
+                    todaySteps = s
+                    lastRefreshMs = System.currentTimeMillis()
+                }
+            }
+        } else if (rawAvailable) {
+            todaySteps = stepCounter.currentTodaySteps().toLong()
+        }
+    }
+
+    // Tänään: HC-kalorit (jos lupa)
+    LaunchedEffect(enabled, canHcCalories, refreshTrigger) {
+        if (enabled && canHcCalories) {
+            HealthConnectStepsBridge.todayCalories(context) { active, total, has ->
+                hcCalActive = if (active > 0) Math.round(active).toInt() else 0
+                hcCalTotal = if (total > 0) Math.round(total).toInt() else 0
+                hcCalHas = has
+            }
+        } else {
+            hcCalHas = false
+        }
+    }
+
+    // Historia (Päivät/Viikot/Kuukaudet)
+    LaunchedEffect(tab, enabled, useHc, hcCaloriesGranted, refreshTrigger) {
+        if (tab == 0 || !enabled) {
+            return@LaunchedEffect
+        }
+        historyText = "Ladataan…"
+        if (useHc) {
+            val period = when (tab) {
+                2 -> HealthConnectStepsBridge.PERIOD_WEEKS
+                3 -> HealthConnectStepsBridge.PERIOD_MONTHS
+                else -> HealthConnectStepsBridge.PERIOD_DAYS
+            }
+            val count = when (tab) {
+                2 -> 8
+                3 -> 6
+                else -> 14
+            }
+            HealthConnectStepsBridge.historyWithCalories(context, period, count, hcCaloriesGranted) { labels, steps, active, total ->
+                historyText = formatHcHistory(prefs, labels, steps, active, total, period)
+            }
+        } else {
+            historyText = withContext(Dispatchers.IO) { StepsHistory.build(context, tab).toString() }
+        }
+    }
+
+    val available = hcAvailable || rawAvailable
+    val caloriesText = remember(todaySteps, hcCalActive, hcCalTotal, hcCalHas, profileTick, canHcCalories) {
+        todayCaloriesText(prefs, todaySteps, hcCalActive, hcCalTotal, hcCalHas, canHcCalories)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text("Askeleet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(12.dp))
+
+        // Kytkin + lähde-info
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Askelmittari", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = enabled && available,
+                        enabled = available,
+                        onCheckedChange = { on ->
+                            toggleSteps(context, prefs, on, hcAvailable, rawAvailable, hcGranted,
+                                stepCounter, hcLauncher, arLauncher,
+                                onEnabledChange = { enabled = it }, onRefresh = { refreshTrigger++ })
+                        },
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stepsNote(available, enabled, useHc, hcAvailable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (hcAvailable && (!hcGranted || !hcCaloriesGranted)) {
+                    Spacer(Modifier.height(10.dp))
+                    FilledTonalButton(onClick = {
+                        hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
+                    }) {
+                        Text(if (!hcGranted) "Yhdistä Health Connect" else "Lue myös kalorit Health Connectista")
+                    }
+                }
+            }
+        }
+
+        if (enabled && available) {
+            // Välilehdet
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StepsTab("Tänään", tab == 0, Modifier.weight(1f)) { tab = 0 }
+                StepsTab("Päivät", tab == 1, Modifier.weight(1f)) { tab = 1 }
+                StepsTab("Viikot", tab == 2, Modifier.weight(1f)) { tab = 2 }
+                StepsTab("Kuukaudet", tab == 3, Modifier.weight(1f)) { tab = 3 }
+            }
+            Spacer(Modifier.height(14.dp))
+
+            if (tab == 0) {
+                StepsTodayContent(
+                    steps = todaySteps,
+                    caloriesText = caloriesText,
+                    useHc = useHc,
+                    lastRefreshMs = lastRefreshMs,
+                    hasProfile = hasProfile(prefs),
+                    exporting = exporting,
+                    onRefresh = { refreshTrigger++ },
+                    onProfile = { showProfile = true },
+                    onExport = {
+                        if (!exporting) {
+                            exporting = true
+                            exportSteps(context, prefs, useHc, hcCaloriesGranted, stepCounter) { result ->
+                                exporting = false
+                                if (result != null && result.ok) exportResult = result
+                                else Toast.makeText(context, "HTML-vienti epäonnistui", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                )
+            } else {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        historyText.ifEmpty { "Ladataan…" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    if (showProfile) {
+        ProfileDialog(
+            prefs = prefs,
+            onDismiss = { showProfile = false },
+            onSaved = { showProfile = false; profileTick++; refreshTrigger++ },
+        )
+    }
+
+    val res = exportResult
+    if (res != null) {
+        AlertDialog(
+            onDismissRequest = { exportResult = null },
+            title = { Text("HTML tallennettu") },
+            text = { Text("Tallennettu kansioon Download/Arkikeskus:\n" + res.fileName) },
+            confirmButton = {
+                TextButton(onClick = {
+                    exportResult = null
+                    try {
+                        val view = Intent(Intent.ACTION_VIEW)
+                        view.setDataAndType(res.uri, "text/html")
+                        view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        context.startActivity(view)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Avaamiseen ei löytynyt sovellusta", Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text("Avaa") }
+            },
+            dismissButton = { TextButton(onClick = { exportResult = null }) { Text("Sulje") } },
+        )
+    }
+}
+
+@Composable
+private fun StepsTab(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 1.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .padding(vertical = 10.dp),
+            textAlign = TextAlign.Center,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun StepsTodayContent(
+    steps: Long,
+    caloriesText: String,
+    useHc: Boolean,
+    lastRefreshMs: Long,
+    hasProfile: Boolean,
+    exporting: Boolean,
+    onRefresh: () -> Unit,
+    onProfile: () -> Unit,
+    onExport: () -> Unit,
+) {
+    val arki = ArkiTheme.colors
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = arki.healthContainer,
+            contentColor = arki.onHealthContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(formatStepsNum(steps), fontSize = 52.sp, fontWeight = FontWeight.Bold, color = arki.health)
+            Text("askelta tänään" + if (useHc) " (Health Connect)" else "", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+    if (caloriesText.isNotEmpty()) {
+        Spacer(Modifier.height(12.dp))
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Text(caloriesText, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
+        }
+    }
+    if (useHc) {
+        Spacer(Modifier.height(12.dp))
+        FilledTonalButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+            Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Päivitä Health Connectista")
+        }
+        if (lastRefreshMs > 0L) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Päivitetty klo " + hhmmPs(lastRefreshMs),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+    Spacer(Modifier.height(12.dp))
+    TextButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) {
+        Text(if (hasProfile) "Muokkaa profiilia" else "Lisää pituus ja paino kaloriarviota varten")
+    }
+    Spacer(Modifier.height(4.dp))
+    Button(onClick = onExport, enabled = !exporting, modifier = Modifier.fillMaxWidth()) {
+        Text(if (exporting) "Viedään…" else "Lataa HTML-yhteenveto")
+    }
+}
+
+@Composable
+private fun ProfileDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onSaved: () -> Unit) {
+    var sex by remember { mutableStateOf(prefs.getString(KEY_PROFILE_SEX, "") ?: "") }
+    var age by remember { mutableStateOf(numText(prefs.getInt(KEY_PROFILE_AGE, 0))) }
+    var height by remember { mutableStateOf(numText(prefs.getFloat(KEY_PROFILE_HEIGHT, 0f))) }
+    var weight by remember { mutableStateOf(numText(prefs.getFloat(KEY_PROFILE_WEIGHT, 0f))) }
+    var step by remember { mutableStateOf(numText(prefs.getFloat(KEY_PROFILE_STEP, 0f))) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Profiili kaloriarviota varten") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text("Sukupuoli", style = MaterialTheme.typography.labelLarge)
+                SexOption("Nainen", sex == "female") { sex = "female" }
+                SexOption("Mies", sex == "male") { sex = "male" }
+                SexOption("En halua kertoa", sex != "female" && sex != "male") { sex = "" }
+                Spacer(Modifier.height(8.dp))
+                NumberField("Ikä (v)", age) { age = it }
+                NumberField("Pituus (cm)", height) { height = it }
+                NumberField("Paino (kg)", weight) { weight = it }
+                NumberField("Askelpituus (cm, valinnainen)", step) { step = it }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                prefs.edit()
+                    .putString(KEY_PROFILE_SEX, sex)
+                    .putInt(KEY_PROFILE_AGE, parseIntPs(age))
+                    .putFloat(KEY_PROFILE_HEIGHT, parseFloatPs(height))
+                    .putFloat(KEY_PROFILE_WEIGHT, parseFloatPs(weight))
+                    .putFloat(KEY_PROFILE_STEP, parseFloatPs(step))
+                    .apply()
+                onSaved()
+            }) { Text("Tallenna") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Peruuta") } },
+    )
+}
+
+@Composable
+private fun SexOption(label: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect).padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onSelect)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun NumberField(label: String, value: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+    )
+}
+
+// ----------------------- STEPS-apurit (replikoi MobileMainActivity) -----------------------
+
+private fun hasProfile(prefs: SharedPreferences): Boolean =
+    prefs.getFloat(KEY_PROFILE_HEIGHT, 0f) > 0 && prefs.getFloat(KEY_PROFILE_WEIGHT, 0f) > 0
+
+private fun stepsNote(available: Boolean, enabled: Boolean, useHc: Boolean, hcAvailable: Boolean): String = when {
+    !available -> "Tässä laitteessa ei ole askelanturia eikä Health Connectia, joten askelmittaria ei voi ottaa käyttöön."
+    !enabled -> "Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet."
+    useHc -> "Lähde: Health Connect. Päivitä-nappi lukee uusimman datan; jos Samsung Health tai Oura ei ole vielä synkannut, avaa se ensin."
+    hcAvailable -> "Health Connect on saatavilla — myönnä lupa, niin askeleet luetaan sieltä. Kunnes lupa annetaan, käytetään puhelimen anturia."
+    else -> "Lähde: Puhelimen askelanturi. Historia päivittyy vain kun sovellus on ollut käytössä; taustakatkot voivat puuttua."
+}
+
+/** Replikoi onStepsToggle: HC ensisijaisesti, muuten raw-anturi (ACTIVITY_RECOGNITION). */
+private fun toggleSteps(
+    context: Context,
+    prefs: SharedPreferences,
+    on: Boolean,
+    hcAvailable: Boolean,
+    rawAvailable: Boolean,
+    hcGranted: Boolean,
+    stepCounter: StepCounter,
+    hcLauncher: androidx.activity.result.ActivityResultLauncher<Set<String>>,
+    arLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    onEnabledChange: (Boolean) -> Unit,
+    onRefresh: () -> Unit,
+) {
+    if (!on) {
+        prefs.edit().putBoolean(MobileThemeController.KEY_STEPS_ENABLED, false).apply()
+        onEnabledChange(false)
+        stepCounter.stop()
+        return
+    }
+    if (hcAvailable) {
+        prefs.edit().putBoolean(MobileThemeController.KEY_STEPS_ENABLED, true).apply()
+        onEnabledChange(true)
+        if (!hcGranted) {
+            hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
+            return
+        }
+        onRefresh()
+        return
+    }
+    if (!rawAvailable) return
+    if (!hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)) {
+        arLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+        return
+    }
+    prefs.edit().putBoolean(MobileThemeController.KEY_STEPS_ENABLED, true).apply()
+    onEnabledChange(true)
+    stepCounter.start()
+    onRefresh()
+}
+
+/** Replikoi renderStepsCalories + buildCaloriesText: tämän päivän kaloriteksti profiilista/HC:stä. */
+private fun todayCaloriesText(
+    prefs: SharedPreferences,
+    steps: Long,
+    hcActive: Int,
+    hcTotal: Int,
+    hcHas: Boolean,
+    canHcCalories: Boolean,
+): String {
+    val h = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f).toDouble()
+    val w = prefs.getFloat(KEY_PROFILE_WEIGHT, 0f).toDouble()
+    val age = prefs.getInt(KEY_PROFILE_AGE, 0)
+    val sex = prefs.getString(KEY_PROFILE_SEX, "") ?: ""
+    val stepCm = prefs.getFloat(KEY_PROFILE_STEP, 0f).toDouble()
+    val profile = h > 0 && w > 0
+    if (!profile && !(canHcCalories && hcHas)) return ""
+    val km = if (profile) StepCalorieEstimator.distanceKm(steps, h, stepCm) else 0.0
+    val activeEst = if (profile) StepCalorieEstimator.activeKcal(steps, h, w, stepCm) else 0
+    val totalEst = if (profile) StepCalorieEstimator.totalDailyKcal(StepCalorieEstimator.bmr(w, h, age, sex), activeEst) else 0
+    if (canHcCalories && hcHas) {
+        val a = if (hcActive > 0) hcActive else activeEst
+        val t = if (hcTotal > 0) hcTotal else totalEst
+        return buildCaloriesText(km, a, hcActive > 0, t, hcTotal > 0)
+    }
+    return buildCaloriesText(km, activeEst, false, totalEst, false)
+}
+
+private fun buildCaloriesText(km: Double, active: Int, activeIsHc: Boolean, total: Int, totalIsHc: Boolean): String {
+    val sb = StringBuilder()
+    if (km > 0) sb.append(String.format(Locale.US, "Matka-arvio: %.1f km", km).replace('.', ','))
+    if (activeIsHc || active > 0) {
+        if (sb.isNotEmpty()) sb.append("\n")
+        sb.append("Aktiivinen kulutus: ")
+        if (activeIsHc) sb.append("$active kcal (Health Connect)")
+        else sb.append("noin $active kcal (arvio)")
+    }
+    if (totalIsHc || total > 0) {
+        if (sb.isNotEmpty()) sb.append("\n")
+        if (totalIsHc) sb.append("Päivän kokonaiskulutus: $total kcal (Health Connect)")
+        else sb.append("Päivän kokonaisarvio: noin $total kcal")
+    }
+    if (activeIsHc || active > 0 || totalIsHc || total > 0) {
+        if (sb.isNotEmpty()) sb.append("\n")
+        sb.append("Kalorit: ").append(if (activeIsHc || totalIsHc) "Health Connect" else "Arkikeskus-arvio")
+    }
+    return sb.toString()
+}
+
+/** Replikoi formatHcHistoryWithCalories: HC-historia askeleet + kalorit per ämpäri (uusin ensin). */
+private fun formatHcHistory(
+    prefs: SharedPreferences,
+    labels: Array<String>,
+    steps: LongArray,
+    active: DoubleArray,
+    total: DoubleArray,
+    periodType: Int,
+): String {
+    if (labels.isEmpty()) return "Ei vielä askeldataa Health Connectissa."
+    val h = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f).toDouble()
+    val w = prefs.getFloat(KEY_PROFILE_WEIGHT, 0f).toDouble()
+    val stepCm = prefs.getFloat(KEY_PROFILE_STEP, 0f).toDouble()
+    val canEstimate = h > 0 && w > 0
+    val sb = StringBuilder()
+    for (i in labels.indices.reversed()) {
+        sb.append(hcHistoryLabel(labels[i], periodType)).append("\n  ")
+            .append(formatStepsNum(steps[i])).append(" askelta")
+        val a = Math.round(active[i]).toInt()
+        val tk = Math.round(total[i]).toInt()
+        if (a > 0 || tk > 0) {
+            if (a > 0) {
+                sb.append("\n  aktiiviset $a kcal")
+                if (tk > 0) sb.append(" · yhteensä $tk kcal")
+            } else {
+                sb.append("\n  yhteensä $tk kcal")
+            }
+        } else if (canEstimate && steps[i] > 0) {
+            sb.append("\n  aktiiviset ~${StepCalorieEstimator.activeKcal(steps[i], h, w, stepCm)} kcal (arvio)")
+        }
+        sb.append("\n\n")
+    }
+    return sb.toString().trim()
+}
+
+private fun hcHistoryLabel(isoDate: String, periodType: Int): String = try {
+    val d = java.time.LocalDate.parse(isoDate)
+    when (periodType) {
+        HealthConnectStepsBridge.PERIOD_WEEKS -> "Viikko " + d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear())
+        HealthConnectStepsBridge.PERIOD_MONTHS -> StepsHistory.monthNameFi(d.monthValue) + " " + d.year
+        else -> "${d.dayOfMonth}.${d.monthValue}."
+    }
+} catch (e: Exception) {
+    isoDate
+}
+
+private fun exportLabel(isoDate: String, periodType: Int): String = try {
+    val d = java.time.LocalDate.parse(isoDate)
+    when (periodType) {
+        HealthConnectStepsBridge.PERIOD_WEEKS -> {
+            val wk = d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear())
+            val wky = d.get(java.time.temporal.WeekFields.ISO.weekBasedYear())
+            val end = d.plusDays(6)
+            "Vk $wk/$wky (${d.dayOfMonth}.${d.monthValue}.–${end.dayOfMonth}.${end.monthValue}.)"
+        }
+        HealthConnectStepsBridge.PERIOD_MONTHS -> StepsHistory.monthNameFi(d.monthValue) + " " + d.year
+        else -> "${d.dayOfMonth}.${d.monthValue}.${d.year}"
+    }
+} catch (e: Exception) {
+    isoDate
+}
+
+private fun estimateActiveKcal(prefs: SharedPreferences, steps: Long): Int {
+    val h = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f).toDouble()
+    val w = prefs.getFloat(KEY_PROFILE_WEIGHT, 0f).toDouble()
+    val stepCm = prefs.getFloat(KEY_PROFILE_STEP, 0f).toDouble()
+    if (h <= 0 || w <= 0 || steps <= 0) return 0
+    return StepCalorieEstimator.activeKcal(steps, h, w, stepCm)
+}
+
+/**
+ * Replikoi exportStepsHtml: HC-tilassa ketjuttaa historia-/kalorikutsut ja rakentaa raportin,
+ * raw-tilassa lukee Room-päiväsummat. Kirjoitus taustasäikeessä, tulos pääsäikeessä [onResult].
+ */
+private fun exportSteps(
+    context: Context,
+    prefs: SharedPreferences,
+    useHc: Boolean,
+    hcCaloriesGranted: Boolean,
+    stepCounter: StepCounter,
+    onResult: (StepsHtmlExporter.Result?) -> Unit,
+) {
+    if (useHc) {
+        gatherHcReportThenExport(context, prefs, hcCaloriesGranted) { report ->
+            writeReport(context, report, onResult)
+        }
+    } else {
+        Thread {
+            val report = buildRawReport(context, prefs, stepCounter)
+            writeReport(context, report, onResult)
+        }.start()
+    }
+}
+
+private fun writeReport(context: Context, report: StepsHtmlExporter.Report, onResult: (StepsHtmlExporter.Result?) -> Unit) {
+    Thread {
+        val name = StepsHtmlExporter.buildFileName()
+        val result = StepsHtmlExporter.export(context.applicationContext, report, name)
+        Handler(Looper.getMainLooper()).post { onResult(result) }
+    }.start()
+}
+
+/** Ketjuttaa HC-historian (päivät → viikot → kuukaudet → tänään → kalorit) ja kokoaa raportin. */
+private fun gatherHcReportThenExport(
+    context: Context,
+    prefs: SharedPreferences,
+    hcCaloriesGranted: Boolean,
+    onReport: (StepsHtmlExporter.Report) -> Unit,
+) {
+    val days = ArrayList<StepsHtmlExporter.Row>()
+    val weeks = ArrayList<StepsHtmlExporter.Row>()
+    val months = ArrayList<StepsHtmlExporter.Row>()
+    HealthConnectStepsBridge.historyWithCalories(context, HealthConnectStepsBridge.PERIOD_DAYS, 365, hcCaloriesGranted) { l1, s1, a1, t1 ->
+        fillHcRows(prefs, days, l1, s1, a1, t1, HealthConnectStepsBridge.PERIOD_DAYS)
+        HealthConnectStepsBridge.historyWithCalories(context, HealthConnectStepsBridge.PERIOD_WEEKS, 104, hcCaloriesGranted) { l2, s2, a2, t2 ->
+            fillHcRows(prefs, weeks, l2, s2, a2, t2, HealthConnectStepsBridge.PERIOD_WEEKS)
+            HealthConnectStepsBridge.historyWithCalories(context, HealthConnectStepsBridge.PERIOD_MONTHS, 36, hcCaloriesGranted) { l3, s3, a3, t3 ->
+                fillHcRows(prefs, months, l3, s3, a3, t3, HealthConnectStepsBridge.PERIOD_MONTHS)
+                HealthConnectStepsBridge.todaySteps(context) { todaySteps ->
+                    val ts = if (todaySteps < 0) 0L else todaySteps
+                    HealthConnectStepsBridge.todayCalories(context) { active, total, has ->
+                        val ta: Int
+                        val tt: Int
+                        val estd: Boolean
+                        if (has && (active > 0 || total > 0)) {
+                            ta = if (active > 0) Math.round(active).toInt() else 0
+                            tt = if (total > 0) Math.round(total).toInt() else 0
+                            estd = false
+                        } else {
+                            ta = estimateActiveKcal(prefs, ts)
+                            tt = 0
+                            estd = ta > 0
+                        }
+                        onReport(StepsHtmlExporter.Report("Health Connect", ts, ta, tt, estd, days, weeks, months))
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun fillHcRows(
+    prefs: SharedPreferences,
+    out: MutableList<StepsHtmlExporter.Row>,
+    labels: Array<String>,
+    steps: LongArray,
+    active: DoubleArray,
+    total: DoubleArray,
+    periodType: Int,
+) {
+    for (i in labels.indices.reversed()) {
+        if (steps[i] <= 0) continue
+        var a = Math.round(active[i]).toInt()
+        val t = Math.round(total[i]).toInt()
+        var estimated = false
+        if (a <= 0 && t <= 0) {
+            val est = estimateActiveKcal(prefs, steps[i])
+            if (est > 0) { a = est; estimated = true }
+        }
+        out.add(StepsHtmlExporter.Row(exportLabel(labels[i], periodType), steps[i], a, t, estimated))
+    }
+}
+
+private fun buildRawReport(context: Context, prefs: SharedPreferences, stepCounter: StepCounter): StepsHtmlExporter.Report {
+    val rows = org.jrs82.fsclock.db.FsClockDb.get(context).dailyStepsDao().range(0, 99999999)
+        ?.sortedBy { it.dateKey } ?: emptyList()
+
+    val days = ArrayList<StepsHtmlExporter.Row>()
+    val weekSteps = LinkedHashMap<String, Long>()
+    val weekLabel = LinkedHashMap<String, String>()
+    val monthSteps = LinkedHashMap<String, Long>()
+    val monthLabel = LinkedHashMap<String, String>()
+
+    for (e in rows) {
+        val key = e.dateKey
+        val d = java.time.LocalDate.of(key / 10000, (key / 100) % 100, key % 100)
+        val ae = estimateActiveKcal(prefs, e.steps.toLong())
+        days.add(StepsHtmlExporter.Row("${d.dayOfMonth}.${d.monthValue}.${d.year}", e.steps.toLong(), ae, 0, ae > 0))
+        val wk = d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear())
+        val wky = d.get(java.time.temporal.WeekFields.ISO.weekBasedYear())
+        val wkey = "$wky-" + if (wk < 10) "0$wk" else "$wk"
+        weekSteps[wkey] = (weekSteps[wkey] ?: 0L) + e.steps
+        weekLabel[wkey] = "Vk $wk/$wky"
+        val mkey = "${d.year}-" + if (d.monthValue < 10) "0${d.monthValue}" else "${d.monthValue}"
+        monthSteps[mkey] = (monthSteps[mkey] ?: 0L) + e.steps
+        monthLabel[mkey] = StepsHistory.monthNameFi(d.monthValue) + " " + d.year
+    }
+    days.reverse()
+
+    val todaySteps = stepCounter.currentTodaySteps().toLong()
+    val todayActive = estimateActiveKcal(prefs, todaySteps)
+    return StepsHtmlExporter.Report(
+        "Puhelimen askelanturi", todaySteps, todayActive, 0, todayActive > 0,
+        days, mapToRows(prefs, weekSteps, weekLabel), mapToRows(prefs, monthSteps, monthLabel),
+    )
+}
+
+private fun mapToRows(
+    prefs: SharedPreferences,
+    steps: LinkedHashMap<String, Long>,
+    labels: LinkedHashMap<String, String>,
+): List<StepsHtmlExporter.Row> {
+    val out = ArrayList<StepsHtmlExporter.Row>()
+    for ((k, s) in steps) {
+        val a = estimateActiveKcal(prefs, s)
+        out.add(StepsHtmlExporter.Row(labels[k] ?: k, s, a, 0, a > 0))
+    }
+    out.reverse()
+    return out
+}
+
+private fun formatStepsNum(steps: Long): String = String.format(Locale.US, "%,d", steps).replace(',', ' ')
+
+private fun hhmmPs(ms: Long): String {
+    val f = java.text.SimpleDateFormat("HH:mm", FI_PS)
+    return f.format(java.util.Date(ms))
+}
+
+private fun numText(v: Int): String = if (v > 0) v.toString() else ""
+
+private fun numText(v: Float): String = when {
+    v <= 0f -> ""
+    v == Math.rint(v.toDouble()).toFloat() -> v.toInt().toString()
+    else -> v.toString()
+}
+
+private fun parseIntPs(s: String): Int = try { s.trim().toInt() } catch (e: Exception) { 0 }
+
+private fun parseFloatPs(s: String): Float = try { s.trim().replace(',', '.').toFloat() } catch (e: Exception) { 0f }
