@@ -737,19 +737,35 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun ClickableRow(title: String, subtitle: String? = null, onClick: () -> Unit) {
-    Column(
+private fun ClickableRow(
+    title: String,
+    subtitle: String? = null,
+    trailingIconRes: Int? = null,
+    onClick: () -> Unit,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
-        if (subtitle != null) {
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (trailingIconRes != null) {
+            Spacer(Modifier.width(12.dp))
+            Icon(
+                painter = painterResource(trailingIconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
@@ -865,6 +881,7 @@ private fun AppInfoSection(context: Context) {
         ClickableRow(
             title = if (checking) "Tarkistetaan päivityksiä…" else "Tarkista päivitykset",
             subtitle = status,
+            trailingIconRes = R.drawable.mobile_ic_refresh_24,
         ) {
             if (checking || downloading) return@ClickableRow
             checking = true
