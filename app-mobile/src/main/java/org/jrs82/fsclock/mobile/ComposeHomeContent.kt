@@ -92,9 +92,11 @@ private val FI = Locale("fi", "FI")
 private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
 @Composable
-internal fun HomeDashboard() {
+internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    // Yläpalkin Päivitä-ikoni kasvattaa tätä → sää ja pörssisähkö haetaan uudelleen.
+    val refresh = LocalRefreshTick.current
 
     // Kello (sekuntitarkkuus)
     var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -107,10 +109,10 @@ internal fun HomeDashboard() {
 
     // Sää: seed viimeisimmästä haetusta + taustahaku
     var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refresh) {
         val fresh = withContext(Dispatchers.IO) {
             try {
-                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, false)
+                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, refresh > 0)
             } catch (e: Exception) {
                 null
             }
@@ -124,7 +126,7 @@ internal fun HomeDashboard() {
     // Pörssisähkö: hae jos cache vanha → tick pakottaa uudelleenluennan
     val elecRepo = remember { ElectricityRepository.get(context) }
     var elecTick by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refresh) {
         withContext(Dispatchers.IO) {
             try {
                 elecRepo.fetchIfStale()
@@ -715,9 +717,10 @@ internal fun ElectricitySection() {
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val repo = remember { ElectricityRepository.get(context) }
     val threshold = remember { cheapThreshold(prefs) }
+    val refresh = LocalRefreshTick.current
     var dayOffset by remember { mutableStateOf(0) }
     var tick by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refresh) {
         withContext(Dispatchers.IO) {
             try {
                 repo.fetchIfStale()
@@ -981,12 +984,13 @@ internal fun ForecastSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val place = remember { displayPlace(prefs) }
+    val refresh = LocalRefreshTick.current
     var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
     var openMeteo by remember { mutableStateOf(OpenMeteoRepository.get(context).peek(place)) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refresh) {
         val w = withContext(Dispatchers.IO) {
             try {
-                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, false)
+                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, refresh > 0)
             } catch (e: Exception) {
                 null
             }
@@ -997,7 +1001,7 @@ internal fun ForecastSection() {
         }
         val om = withContext(Dispatchers.IO) {
             try {
-                OpenMeteoRepository.get(context).fetch(place, false)
+                OpenMeteoRepository.get(context).fetch(place, refresh > 0)
             } catch (e: Exception) {
                 OpenMeteoRepository.get(context).peek(place)
             }
@@ -1132,12 +1136,14 @@ private fun StatChip(stat: ForecastStat) {
 internal fun NewsSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    val refresh = LocalRefreshTick.current
     var items by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refresh) {
+        loading = true
         val fresh = withContext(Dispatchers.IO) {
             try {
-                RssRepository.get().fetchEnabled(prefs, false)
+                RssRepository.get().fetchEnabled(prefs, refresh > 0)
             } catch (e: Exception) {
                 null
             }

@@ -1,6 +1,5 @@
 package org.jrs82.fsclock.mobile
 
-import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -21,12 +20,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +64,14 @@ import java.util.TimeZone
 private val FI_MAIN = Locale("fi", "FI")
 private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
+/**
+ * Globaali "päivitä"-signaali: yläpalkin Päivitä-ikoni kasvattaa tätä, ja datasektiot lukevat
+ * arvon [LaunchedEffect]-avaimena → näkyvillä oleva sektio (etusivu/ennuste/uutiset/sähkö/liikenne)
+ * hakee tiedot uudelleen. Vain aktiivinen sektio on sommiteltu, joten päivitys osuu siihen mitä
+ * käyttäjä katsoo. Oletus 0; ei vaikuta ennen ensimmäistä painallusta.
+ */
+val LocalRefreshTick = compositionLocalOf { 0 }
+
 /** Päänäkymän sektiot (vastaavat nykyisen valikon kohtia). */
 enum class HomeSection(val title: String) {
     HOME("Arkikeskus"),
@@ -90,6 +100,8 @@ fun ComposeMainScreen() {
     var section by remember { mutableStateOf(HomeSection.HOME) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
+    var refreshTick by remember { mutableStateOf(0) }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -109,12 +121,15 @@ fun ComposeMainScreen() {
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    // Otsikko (sovelluksen nimi) vie aina etusivulle. Selkeä koti-nappi on oikealla
-                    // toimintorivissä (täysi 48 dp kosketusala), erillään ☰-valikosta.
+                // Yläpalkki: aina keskitetty "Arkikeskus" (ei per-sivu otsikkoa → ei tuplaotsikoita,
+                // koska jokaisella sivulla on jo oma otsikkonsa). Vasemmalla ☰-valikko; oikealla
+                // pysyvä koti-ikoni + ainoa toimintoikoni Päivitä. Haku ja sijainti poistettu:
+                // paikkahaku on valikon "Paikkakunnat" ja sijainti päivittyy automaattisesti.
+                // surfaceContainer-tausta erottaa kiinteän (sticky) palkin vierivästä sisällöstä.
+                CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            section.title,
+                            "Arkikeskus",
                             modifier = Modifier.clickable { section = HomeSection.HOME },
                         )
                     },
@@ -124,21 +139,19 @@ fun ComposeMainScreen() {
                         }
                     },
                     actions = {
-                        if (section != HomeSection.HOME) {
-                            IconButton(onClick = { section = HomeSection.HOME }) {
-                                Icon(painterResource(R.drawable.ic_home_24), contentDescription = "Etusivu")
-                            }
+                        IconButton(onClick = { section = HomeSection.HOME }) {
+                            Icon(painterResource(R.drawable.ic_home_24), contentDescription = "Etusivu")
                         }
-                        IconButton(onClick = { toastSoon(context) }) {
-                            Icon(painterResource(R.drawable.mobile_ic_search_24), contentDescription = "Haku")
-                        }
-                        IconButton(onClick = { toastSoon(context) }) {
-                            Icon(painterResource(R.drawable.mobile_ic_my_location_24), contentDescription = "Sijainti")
-                        }
-                        IconButton(onClick = { toastSoon(context) }) {
+                        IconButton(onClick = {
+                            refreshTick++
+                            Toast.makeText(context, "Päivitetään…", Toast.LENGTH_SHORT).show()
+                        }) {
                             Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = "Päivitä")
                         }
                     },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
                 )
             },
         ) { padding ->
@@ -147,8 +160,9 @@ fun ComposeMainScreen() {
                     .fillMaxSize()
                     .padding(padding),
             ) {
+                CompositionLocalProvider(LocalRefreshTick provides refreshTick) {
                 when (section) {
-                    HomeSection.HOME -> HomeDashboard()
+                    HomeSection.HOME -> HomeDashboard(onOpenSection = { section = it })
                     HomeSection.FORECAST -> ForecastSection()
                     HomeSection.PLACES -> PlacesSection(onPlaceChosen = { section = HomeSection.HOME })
                     HomeSection.STEPS -> StepsSection()
@@ -165,6 +179,7 @@ fun ComposeMainScreen() {
                     HomeSection.TRAFFIC_WEIGHT -> TrafficSection(TrafficNotice.Kind.WEIGHT_RESTRICTION, section.title)
                     HomeSection.TRAFFIC_INCIDENTS -> TrafficSection(TrafficNotice.Kind.INCIDENT, section.title)
                     HomeSection.TRAFFIC_CONGESTION -> TrafficSection(TrafficNotice.Kind.CONGESTION, section.title)
+                }
                 }
             }
         }
@@ -256,8 +271,4 @@ private fun DrawerHeader(text: String) {
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
     )
-}
-
-private fun toastSoon(context: Context) {
-    Toast.makeText(context, "Tämä toiminto kytketään seuraavassa palassa.", Toast.LENGTH_SHORT).show()
 }
