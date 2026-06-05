@@ -1065,12 +1065,12 @@ private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData
             Text(hhmm(h.timestamp), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             ProviderRow(
                 "FMI", h.condition, formatTemp(h.temperature),
-                WeatherTextFormatter.shortLabel(context, h.condition), fmiForecastDetails(h),
+                WeatherTextFormatter.shortLabel(context, h.condition), fmiForecastStats(h),
             )
             if (om != null) {
                 ProviderRow(
                     "Open-Meteo", om.condition, formatNullableTemp(om.temperature),
-                    WeatherTextFormatter.shortLabel(context, om.condition), openMeteoForecastDetails(om),
+                    WeatherTextFormatter.shortLabel(context, om.condition), openMeteoForecastStats(om),
                 )
             } else {
                 Text(
@@ -1085,7 +1085,7 @@ private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData
 }
 
 @Composable
-private fun ProviderRow(source: String, condition: WeatherCondition, temp: String, label: String, detail: String) {
+private fun ProviderRow(source: String, condition: WeatherCondition, temp: String, label: String, stats: List<ForecastStat>) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1098,10 +1098,31 @@ private fun ProviderRow(source: String, condition: WeatherCondition, temp: Strin
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text("$source  $temp  $label", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            if (detail.isNotEmpty()) {
-                Text(detail, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (stats.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    stats.forEachIndexed { i, s ->
+                        if (i > 0) Spacer(Modifier.width(14.dp))
+                        StatChip(s)
+                    }
+                }
             }
         }
+    }
+}
+
+/** Värillinen sää-stat-siru (kuten etusivun QuickStat): värikoodattu ikoni + arvo. */
+@Composable
+private fun StatChip(stat: ForecastStat) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(stat.icon),
+            contentDescription = null,
+            tint = statColor(stat.kind),
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(stat.value, fontSize = 13.sp)
     }
 }
 
@@ -1256,21 +1277,33 @@ private fun bestOpenMeteoHourAt(om: OpenMeteoData?, timestamp: Long): OpenMeteoD
     return if (best == null || bestDiff > 31L * 60_000L) null else best
 }
 
-private fun fmiForecastDetails(h: WeatherData.Hour): String {
-    val d = ArrayList<String>()
-    if (!h.precipitation.isNaN()) d.add("Sade " + one(h.precipitation) + " mm")
-    if (!h.windSpeed.isNaN()) d.add("Tuuli " + one(h.windSpeed) + " m/s")
-    if (!h.windGust.isNaN()) d.add("Puuska " + one(h.windGust) + " m/s")
-    return d.joinToString(" · ")
+private enum class StatKind { RAIN, WIND, GUST, HUMIDITY }
+
+private data class ForecastStat(val kind: StatKind, val icon: Int, val value: String)
+
+@Composable
+private fun statColor(kind: StatKind): Color = when (kind) {
+    StatKind.RAIN -> ArkiTheme.colors.weatherRain
+    StatKind.WIND -> MaterialTheme.colorScheme.secondary
+    StatKind.GUST -> MaterialTheme.colorScheme.tertiary
+    StatKind.HUMIDITY -> ArkiTheme.colors.weatherFrost
 }
 
-private fun openMeteoForecastDetails(h: OpenMeteoData.Hour): String {
-    val d = ArrayList<String>()
-    h.precipitation?.let { d.add("Sade " + one(it) + " mm") }
-    h.windSpeed?.let { d.add("Tuuli " + one(it) + " m/s") }
-    h.windGust?.let { d.add("Puuska " + one(it) + " m/s") }
-    h.humidity?.let { d.add("Kosteus " + Math.round(it) + " %") }
-    return d.joinToString(" · ")
+private fun fmiForecastStats(h: WeatherData.Hour): List<ForecastStat> {
+    val out = ArrayList<ForecastStat>()
+    if (!h.precipitation.isNaN()) out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, one(h.precipitation) + " mm"))
+    if (!h.windSpeed.isNaN()) out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(h.windSpeed) + " m/s"))
+    if (!h.windGust.isNaN()) out.add(ForecastStat(StatKind.GUST, R.drawable.mobile_ic_wind_24, "puuska " + one(h.windGust) + " m/s"))
+    return out
+}
+
+private fun openMeteoForecastStats(h: OpenMeteoData.Hour): List<ForecastStat> {
+    val out = ArrayList<ForecastStat>()
+    h.precipitation?.let { out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, one(it) + " mm")) }
+    h.windSpeed?.let { out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(it) + " m/s")) }
+    h.windGust?.let { out.add(ForecastStat(StatKind.GUST, R.drawable.mobile_ic_wind_24, "puuska " + one(it) + " m/s")) }
+    h.humidity?.let { out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, Math.round(it).toString() + " %")) }
+    return out
 }
 
 private fun formatNullableTemp(v: Double?): String = if (v == null) "-- C" else formatTemp(v)
