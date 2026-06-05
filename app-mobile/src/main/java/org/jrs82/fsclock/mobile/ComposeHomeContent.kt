@@ -62,6 +62,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.ElectricityData
 import org.jrs82.fsclock.ElectricityRepository
+import org.jrs82.fsclock.FinnishHolidays
 import org.jrs82.fsclock.OpenMeteoData
 import org.jrs82.fsclock.OpenMeteoRepository
 import org.jrs82.fsclock.R
@@ -151,6 +152,28 @@ internal fun HomeDashboard() {
         onDispose { ruuvi.removeListener(listener) }
     }
 
+    // Seuraava pyhä (verkko + cache) + seuraava virallinen liputuspäivä (laskettu paikallisesti).
+    var holidayLine by remember { mutableStateOf("") }
+    val flagLine = remember {
+        val f = nextOfficialFlagDay(Calendar.getInstance(HELSINKI, FI))
+        if (f != null) "${f.name} ${calDayMonth(f.cal)}" else ""
+    }
+    LaunchedEffect(Unit) {
+        holidayLine = withContext(Dispatchers.IO) {
+            try {
+                val ev = MobileHolidayProvider.next(Calendar.getInstance(HELSINKI, FI))
+                if (ev != null) {
+                    "${ev.name} ${formatIsoDayMonth(ev.date)}"
+                } else {
+                    val up = FinnishHolidays.upcoming(Calendar.getInstance(HELSINKI, FI), 1)
+                    if (up.isEmpty()) "" else "${up[0].name} ${up[0].day}.${up[0].month}."
+                }
+            } catch (e: Exception) {
+                ""
+            }
+        }
+    }
+
     // Kevyt sisääntulo (OSA B / B6): pehmeä fade + slide kun etusivu avautuu. Spring, ei välkkyvä.
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
@@ -168,6 +191,7 @@ internal fun HomeDashboard() {
             Column(modifier = Modifier.animateContentSize()) {
                 Spacer(Modifier.height(12.dp))
                 ClockBlock(nowMs)
+                HolidayCard(holidayLine, flagLine)
                 Spacer(Modifier.height(8.dp))
                 WeatherCard(context, prefs, weather)
                 ElectricityCard(prefs, elecRepo, elecTick)
@@ -211,6 +235,99 @@ private fun ClockBlock(nowMs: Long) {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+/** Kellon alle: seuraava pyhä + seuraava virallinen liputuspäivä omana siistinä korttina
+ *  (label + arvo, ei vanhan UI:n leikkautuvaa pitkää keskitettyä rivitystä). */
+@Composable
+private fun HolidayCard(holidayLine: String, flagLine: String) {
+    if (holidayLine.isEmpty() && flagLine.isEmpty()) return
+    Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            if (holidayLine.isNotEmpty()) {
+                HolidayRow("Seuraava pyhä", holidayLine)
+            }
+            if (holidayLine.isNotEmpty() && flagLine.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+            }
+            if (flagLine.isNotEmpty()) {
+                HolidayRow("Seuraava liputuspäivä", flagLine)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HolidayRow(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+    }
+}
+
+// Seuraava virallinen liputuspäivä — laskettu paikallisesti (replikoi MobileMainActivityn logiikan).
+private data class FlagDayInfo(val name: String, val cal: Calendar)
+
+private fun nextOfficialFlagDay(from: Calendar): FlagDayInfo? {
+    val fromKey = dateKeyCal(from)
+    var best: FlagDayInfo? = null
+    for (year in from.get(Calendar.YEAR)..from.get(Calendar.YEAR) + 1) {
+        for (d in officialFlagDays(year)) {
+            if (dateKeyCal(d.cal) < fromKey) continue
+            if (best == null || dateKeyCal(d.cal) < dateKeyCal(best.cal)) best = d
+        }
+    }
+    return best
+}
+
+private fun officialFlagDays(year: Int): List<FlagDayInfo> = listOf(
+    FlagDayInfo("Kalevalan päivä, suomalaisen kulttuurin päivä", flagCal(year, Calendar.FEBRUARY, 28)),
+    FlagDayInfo("Vappu, suomalaisen työn päivä", flagCal(year, Calendar.MAY, 1)),
+    FlagDayInfo("Äitienpäivä", nthWeekday(year, Calendar.MAY, Calendar.SUNDAY, 2)),
+    FlagDayInfo("Puolustusvoimain lippujuhlan päivä", flagCal(year, Calendar.JUNE, 4)),
+    FlagDayInfo("Juhannuspäivä, Suomen lipun päivä", firstWeekdayOnOrAfter(year, Calendar.JUNE, 20, Calendar.SATURDAY)),
+    FlagDayInfo("Isänpäivä", nthWeekday(year, Calendar.NOVEMBER, Calendar.SUNDAY, 2)),
+    FlagDayInfo("Itsenäisyyspäivä", flagCal(year, Calendar.DECEMBER, 6)),
+)
+
+private fun flagCal(year: Int, month: Int, day: Int): Calendar {
+    val c = Calendar.getInstance(HELSINKI, FI)
+    c.clear()
+    c.set(year, month, day)
+    return c
+}
+
+private fun nthWeekday(year: Int, month: Int, weekday: Int, nth: Int): Calendar {
+    val c = flagCal(year, month, 1)
+    var seen = 0
+    while (c.get(Calendar.MONTH) == month) {
+        if (c.get(Calendar.DAY_OF_WEEK) == weekday && ++seen == nth) return c
+        c.add(Calendar.DAY_OF_MONTH, 1)
+    }
+    return flagCal(year, month, 1)
+}
+
+private fun firstWeekdayOnOrAfter(year: Int, month: Int, day: Int, weekday: Int): Calendar {
+    val c = flagCal(year, month, day)
+    while (c.get(Calendar.DAY_OF_WEEK) != weekday) c.add(Calendar.DAY_OF_MONTH, 1)
+    return c
+}
+
+private fun dateKeyCal(c: Calendar): Int =
+    c.get(Calendar.YEAR) * 10000 + (c.get(Calendar.MONTH) + 1) * 100 + c.get(Calendar.DAY_OF_MONTH)
+
+private fun calDayMonth(c: Calendar): String =
+    "${c.get(Calendar.DAY_OF_MONTH)}.${c.get(Calendar.MONTH) + 1}."
+
+private fun formatIsoDayMonth(date: String?): String {
+    if (date == null || date.length != 10) return ""
+    return try {
+        val day = date.substring(8, 10).toInt()
+        val month = date.substring(5, 7).toInt()
+        "$day.$month."
+    } catch (e: NumberFormatException) {
+        date
     }
 }
 
