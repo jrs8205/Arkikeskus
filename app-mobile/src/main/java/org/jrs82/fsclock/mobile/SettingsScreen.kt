@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -349,11 +350,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                         DynamicColorRow(prefs, context)
                         RowDivider()
                     }
-                    InfoRow(title = "Versio", value = appVersion(context))
-                    RowDivider()
                     InfoRow(title = "Viimeisin sääpäivitys", value = lastUpdateText())
                 }
             }
+
+            // ---------- Tietoja sovelluksesta (versio + päivitys + GitHub) ----------
+            item { AppInfoSection(context) }
         }
     }
 
@@ -841,6 +843,75 @@ private fun RowDivider() {
         color = MaterialTheme.colorScheme.surfaceVariant,
         thickness = 1.dp,
     )
+}
+
+/**
+ * Tietoja sovelluksesta: nykyinen versio, päivitystarkistus (GitHub-julkaisut) ja GitHub-linkki.
+ * Jos uudempi versio löytyy, se voidaan ladata ja asentaa suoraan ([AppUpdater]).
+ */
+@Composable
+private fun AppInfoSection(context: Context) {
+    val current = remember { appVersion(context) }
+    var status by remember { mutableStateOf<String?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    var downloading by remember { mutableStateOf(false) }
+    var update by remember { mutableStateOf<AppUpdater.ReleaseInfo?>(null) }
+
+    SectionHeader("Tietoja sovelluksesta")
+    Spacer(Modifier.height(4.dp))
+    SettingsCard {
+        InfoRow(title = "Sovelluksen versio", value = current)
+        RowDivider()
+        ClickableRow(
+            title = if (checking) "Tarkistetaan päivityksiä…" else "Tarkista päivitykset",
+            subtitle = status,
+        ) {
+            if (checking || downloading) return@ClickableRow
+            checking = true
+            status = null
+            update = null
+            AppUpdater.checkLatest(current) { rel, newer ->
+                checking = false
+                update = if (newer) rel else null
+                status = when {
+                    rel == null -> "Päivitystarkistus epäonnistui. Tarkista verkkoyhteys."
+                    newer -> "Uudempi versio ${rel.versionName} on saatavilla."
+                    else -> "Sovellus on ajan tasalla."
+                }
+            }
+        }
+        val avail = update
+        if (avail?.apkUrl != null) {
+            RowDivider()
+            ClickableRow(
+                title = if (downloading) "Ladataan ja asennetaan…" else "Lataa ja asenna ${avail.versionName}",
+                subtitle = "Haetaan GitHub-julkaisusta. Asennukseen tarvitaan lupa asentaa tuntemattomista lähteistä.",
+            ) {
+                if (downloading) return@ClickableRow
+                downloading = true
+                AppUpdater.downloadAndInstall(context, avail.apkUrl) { msg ->
+                    downloading = false
+                    status = msg
+                }
+            }
+        }
+        RowDivider()
+        ClickableRow(
+            title = "GitHub – lähdekoodi ja julkaisut",
+            subtitle = "github.com/jrs8205/Arkikeskus",
+        ) {
+            openUrl(context, AppUpdater.REPO_URL)
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+}
+
+private fun openUrl(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (e: Exception) {
+        toast(context, "Selainta ei löytynyt")
+    }
 }
 
 // ===================== Apufunktiot =====================
