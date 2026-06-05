@@ -12,6 +12,7 @@ import android.os.Looper
 import android.view.View
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -369,13 +370,12 @@ internal fun SpeedometerSection() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("GPS-nopeus", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
         if (!granted) {
+            Spacer(Modifier.height(12.dp))
             Text(
                 "Salli sijainti, jotta nopeus voidaan mitata.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -388,7 +388,15 @@ internal fun SpeedometerSection() {
                 )
             }) { Text("Salli sijainti") }
         } else {
-            GpsSpeedContent(context)
+            // Mittari keskitetään käytettävissä olevaan tilaan (ei jää ylälaitaan tyhjän ylle).
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    GpsSpeedContent(context)
+                }
+            }
         }
     }
 }
@@ -468,7 +476,7 @@ private fun GpsSpeedContent(context: Context) {
     AndroidView(
         factory = { GpsSpeedometerView(it) },
         update = { it.setSpeedKmh(kmh) },
-        modifier = Modifier.size(260.dp),
+        modifier = Modifier.size(340.dp),
     )
     Spacer(Modifier.height(8.dp))
     Text(

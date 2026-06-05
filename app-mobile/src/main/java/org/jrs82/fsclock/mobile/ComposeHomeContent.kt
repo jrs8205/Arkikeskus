@@ -855,7 +855,7 @@ internal fun NewsSection() {
             )
             else -> {
                 val shown = items.take(50)
-                val note = if (shown.size < items.size) "Näytetään ${shown.size}/${items.size} otsikkoa" else "${items.size} uutista"
+                val note = if (shown.size < items.size) "Näytetään ${shown.size} uusinta uutista" else "${items.size} uutista"
                 Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 shown.forEach { NewsRow(context, it) }
             }
