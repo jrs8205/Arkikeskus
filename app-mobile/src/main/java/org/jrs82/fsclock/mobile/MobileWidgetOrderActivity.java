@@ -42,7 +42,7 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         MobileThemeController.apply(this);
         super.onCreate(savedInstanceState);
-        setTitle(R.string.mobile_pref_widget_order);
+        setTitle("Etusivun kortit");
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
@@ -80,11 +80,10 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
         }
     }
 
-    /** Tallennettu järjestys + kaikki tunnetut widgetit jotka puuttuvat. */
+    /** Tallennettu järjestys + kaikki tunnetut etusivun kortit jotka puuttuvat. */
     private List<String> loadOrder() {
         List<String> order = new ArrayList<>();
-        String raw = prefs.getString(MobileThemeController.KEY_WIDGET_ORDER,
-                MobileThemeController.DEFAULT_WIDGET_ORDER);
+        String raw = prefs.getString(ComposeHomeWidgetsKt.KEY_HOME_ORDER, null);
         if (raw != null) {
             for (String token : raw.split(",")) {
                 String id = token.trim();
@@ -99,26 +98,20 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
 
     private List<String> allKnownWidgets() {
         List<String> all = new ArrayList<>();
-        all.add(MobileThemeController.WIDGET_WEATHER);
-        all.add(MobileThemeController.WIDGET_ELECTRICITY);
-        all.add(MobileThemeController.WIDGET_WARNINGS);
-        all.add(MobileThemeController.WIDGET_SENSORS);
-        all.add(MobileThemeController.WIDGET_TRAFFIC);
-        all.add(MobileThemeController.WIDGET_GPS_SPEED);
-        all.add(MobileThemeController.WIDGET_STEPS);
-        all.add(MobileThemeController.WIDGET_NEWS);
-        for (NewsFeed feed : NewsFeedStore.allFeeds(prefs)) {
-            all.add(feed.widgetId());
-        }
+        for (HomeWidget w : HomeWidget.values()) all.add(w.getId());
         return all;
     }
 
     private boolean isKnown(String id) {
-        if (MobileThemeController.isNewsFeedWidget(id)) {
-            String feedId = MobileThemeController.newsFeedIdFromWidget(id);
-            return NewsFeedStore.feedById(prefs, feedId) != null;
+        return homeWidgetById(id) != null;
+    }
+
+    private HomeWidget homeWidgetById(String id) {
+        if (id == null) return null;
+        for (HomeWidget w : HomeWidget.values()) {
+            if (w.getId().equals(id)) return w;
         }
-        return allKnownWidgets().contains(id);
+        return null;
     }
 
     private void persist() {
@@ -130,77 +123,33 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
             String key = visibilityKey(r.id);
             if (key != null) editor.putBoolean(key, r.visible);
         }
-        editor.putString(MobileThemeController.KEY_WIDGET_ORDER, order.toString());
+        editor.putString(ComposeHomeWidgetsKt.KEY_HOME_ORDER, order.toString());
         editor.apply();
     }
 
     // ---- Näkyvyys ----
 
-    /** Sää on aina näkyvissä → ei togglea. Muilla on. */
+    /** Kaikki etusivun kortit voi piilottaa. */
     private boolean hasToggle(String id) {
-        return !MobileThemeController.WIDGET_WEATHER.equals(id);
+        return true;
     }
 
     private String visibilityKey(String id) {
-        if (MobileThemeController.WIDGET_ELECTRICITY.equals(id)) {
-            return MobileThemeController.KEY_SHOW_ELECTRICITY_WIDGET;
-        }
-        if (MobileThemeController.WIDGET_WARNINGS.equals(id)) {
-            return MobileThemeController.KEY_SHOW_WARNINGS_WIDGET;
-        }
-        if (MobileThemeController.WIDGET_SENSORS.equals(id)) {
-            return MobileThemeController.KEY_SHOW_SENSORS_WIDGET;
-        }
-        if (MobileThemeController.WIDGET_TRAFFIC.equals(id)) {
-            return MobileThemeController.KEY_SHOW_TRAFFIC_WIDGET;
-        }
-        if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) {
-            return MobileThemeController.KEY_SHOW_GPS_SPEED_WIDGET;
-        }
-        if (MobileThemeController.WIDGET_STEPS.equals(id)) {
-            return MobileThemeController.KEY_SHOW_STEPS_WIDGET;
-        }
-        if (MobileThemeController.WIDGET_NEWS.equals(id)) {
-            return MobileThemeController.KEY_SHOW_NEWS_WIDGET;
-        }
-        if (MobileThemeController.isNewsFeedWidget(id)) {
-            return MobileThemeController.newsFeedVisibilityKey(
-                    MobileThemeController.newsFeedIdFromWidget(id));
-        }
-        return null;
+        return ComposeHomeWidgetsKt.KEY_HOME_SHOW_PREFIX + id;
     }
 
     private boolean defaultVisible(String id) {
-        if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)
-                || MobileThemeController.WIDGET_STEPS.equals(id)
-                || MobileThemeController.isNewsFeedWidget(id)) {
-            return false;
-        }
-        return true; // weather, electricity, warnings, sensors, traffic, news
+        HomeWidget w = homeWidgetById(id);
+        return w == null || w.getDefaultVisible();
     }
 
     private boolean isVisible(String id) {
-        String key = visibilityKey(id);
-        if (key == null) return true; // weather
-        return prefs.getBoolean(key, defaultVisible(id));
+        return prefs.getBoolean(visibilityKey(id), defaultVisible(id));
     }
 
     private String widgetTitle(String id) {
-        if (MobileThemeController.WIDGET_WEATHER.equals(id)) return getString(R.string.mobile_widget_weather);
-        if (MobileThemeController.WIDGET_ELECTRICITY.equals(id)) return getString(R.string.mobile_widget_electricity);
-        if (MobileThemeController.WIDGET_WARNINGS.equals(id)) return getString(R.string.mobile_widget_warnings);
-        if (MobileThemeController.WIDGET_SENSORS.equals(id)) return getString(R.string.mobile_widget_sensors);
-        if (MobileThemeController.WIDGET_TRAFFIC.equals(id)) return getString(R.string.mobile_widget_traffic);
-        if (MobileThemeController.WIDGET_GPS_SPEED.equals(id)) return getString(R.string.mobile_widget_gps_speed);
-        if (MobileThemeController.WIDGET_STEPS.equals(id)) return "Askeleet";
-        if (MobileThemeController.WIDGET_NEWS.equals(id)) return getString(R.string.mobile_widget_news);
-        if (MobileThemeController.isNewsFeedWidget(id)) {
-            NewsFeed feed = NewsFeedStore.feedById(prefs,
-                    MobileThemeController.newsFeedIdFromWidget(id));
-            String name = feed != null ? feed.name : id;
-            return getString(R.string.mobile_widget_news) + ": " + name;
-        }
-        return id;
+        HomeWidget w = homeWidgetById(id);
+        return w != null ? w.getTitle() : id;
     }
 
     private int themeColor(int attr, int fallback) {

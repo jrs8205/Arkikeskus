@@ -32,7 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -144,8 +143,6 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                         }
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                CustomizeHomeButton()
             }
         }
     }
@@ -252,22 +249,6 @@ private fun HomeSensorsWidget(prefs: SharedPreferences) {
     SensorsCard(prefs, ruuvi, sensorTick)
 }
 
-@Composable
-private fun CustomizeHomeButton() {
-    val context = LocalContext.current
-    FilledTonalButton(
-        onClick = { context.startActivity(Intent(context, HomeCustomizeActivity::class.java)) },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Icon(
-            painterResource(R.drawable.mobile_ic_drag_handle_24),
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text("Muokkaa etusivua")
-    }
-}
 
 @Composable
 private fun ClockBlock(nowMs: Long) {

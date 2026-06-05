@@ -4,36 +4,21 @@ import android.content.SharedPreferences
 import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,7 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,8 +67,9 @@ enum class HomeWidget(val id: String, val title: String, val defaultVisible: Boo
     TRANSIT("transit", "Lähilähdöt", true),
 }
 
-private const val KEY_HOME_ORDER = "mobile_home_order"
-private const val KEY_HOME_SHOW_PREFIX = "mobile_home_show_"
+// Julkisia, jotta View-pohjainen MobileWidgetOrderActivity (raahausjärjestely) lukee/kirjoittaa samat avaimet.
+const val KEY_HOME_ORDER = "mobile_home_order"
+const val KEY_HOME_SHOW_PREFIX = "mobile_home_show_"
 
 /** Onko avain etusivun widget-järjestykseen/näkyvyyteen liittyvä (etusivun uudelleenluentaa varten). */
 internal fun isHomeWidgetKey(key: String?): Boolean =
@@ -111,121 +96,10 @@ internal fun isHomeWidgetVisible(prefs: SharedPreferences, w: HomeWidget): Boole
 internal fun visibleHomeWidgets(prefs: SharedPreferences): List<HomeWidget> =
     homeWidgetOrder(prefs).filter { isHomeWidgetVisible(prefs, it) }
 
-private fun setHomeWidgetVisible(prefs: SharedPreferences, w: HomeWidget, visible: Boolean) {
-    prefs.edit().putBoolean(KEY_HOME_SHOW_PREFIX + w.id, visible).apply()
-}
+// Etusivun korttien näkyvyys + järjestys muokataan View-pohjaisessa [MobileWidgetOrderActivity]ssa
+// (raahaus, kuten 1.15.x). Se kirjoittaa samat avaimet (KEY_HOME_ORDER / KEY_HOME_SHOW_PREFIX).
 
-private fun setHomeWidgetOrder(prefs: SharedPreferences, order: List<HomeWidget>) {
-    prefs.edit().putString(KEY_HOME_ORDER, order.joinToString(",") { it.id }).apply()
-}
-
-// ===================== Etusivun muokkausnäkymä =====================
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeCustomizeScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
-    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
-    val order = remember { mutableStateListOf<HomeWidget>().also { it.addAll(homeWidgetOrder(prefs)) } }
-    val visible = remember {
-        mutableStateMapOf<HomeWidget, Boolean>().apply {
-            HomeWidget.entries.forEach { put(it, isHomeWidgetVisible(prefs, it)) }
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Etusivun widgetit") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = painterResource(R.drawable.mobile_ic_arrow_back),
-                            contentDescription = "Takaisin",
-                        )
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item {
-                Text(
-                    "Valitse mitkä kortit näkyvät etusivulla ja järjestä ne ylös/alas-nuolilla. " +
-                        "Jokaisen kortin voi myös piilottaa.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            itemsIndexed(order) { index, w ->
-                WidgetRow(
-                    title = w.title,
-                    visible = visible[w] ?: w.defaultVisible,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < order.lastIndex,
-                    onToggle = { checked ->
-                        visible[w] = checked
-                        setHomeWidgetVisible(prefs, w, checked)
-                    },
-                    onUp = {
-                        if (index > 0) {
-                            val t = order[index]; order[index] = order[index - 1]; order[index - 1] = t
-                            setHomeWidgetOrder(prefs, order.toList())
-                        }
-                    },
-                    onDown = {
-                        if (index < order.lastIndex) {
-                            val t = order[index]; order[index] = order[index + 1]; order[index + 1] = t
-                            setHomeWidgetOrder(prefs, order.toList())
-                        }
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WidgetRow(
-    title: String,
-    visible: Boolean,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    onToggle: (Boolean) -> Unit,
-    onUp: () -> Unit,
-    onDown: () -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (visible) FontWeight.Medium else FontWeight.Normal,
-                color = if (visible) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Switch(checked = visible, onCheckedChange = onToggle)
-            IconButton(onClick = onUp, enabled = canMoveUp) {
-                Icon(painterResource(R.drawable.mobile_ic_arrow_up_24), contentDescription = "Siirrä ylös")
-            }
-            IconButton(onClick = onDown, enabled = canMoveDown) {
-                Icon(painterResource(R.drawable.mobile_ic_arrow_down_24), contentDescription = "Siirrä alas")
-            }
-        }
-    }
-}
+// ===================== Etusivun muokkausnäkymä (POISTETTU) =====================
 
 // ===================== Uutiset-widget (kevyt, etusivulle) =====================
 
