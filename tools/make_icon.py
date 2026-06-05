@@ -62,7 +62,7 @@ aw, ah = A.size
 print("A bbox =", (x0, y0, x1, y1), "size", (aw, ah))
 
 # ---------- adaptiiviset foreground + monochrome tiheydet ----------
-TARGET_FRAC = 0.56  # A:n suurin sivu = 56% kankaasta (mukava letter-glyph turva-alueella)
+TARGET_FRAC = 0.54  # A:n suurin sivu = 54% kankaasta (~2 dp pienempi: A ei enaa ihan reunoissa)
 DENS = {"mdpi": 108, "hdpi": 162, "xhdpi": 216, "xxhdpi": 324, "xxxhdpi": 432}
 
 
