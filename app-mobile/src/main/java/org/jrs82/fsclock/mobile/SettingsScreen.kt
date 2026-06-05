@@ -252,10 +252,10 @@ fun SettingsScreen(onBack: () -> Unit) {
             item {
                 SettingsCard {
                     ClickableRow(
-                        title = "Widgettien järjestys",
-                        subtitle = "Järjestä etusivun widgetit raahaamalla ja valitse näkyvät",
+                        title = "Etusivun widgetit",
+                        subtitle = "Valitse näkyvät kortit ja järjestä ne (kello, sää, sähkö, anturit, uutiset, lähilähdöt…)",
                     ) {
-                        context.startActivity(Intent(context, MobileWidgetOrderActivity::class.java))
+                        context.startActivity(Intent(context, HomeCustomizeActivity::class.java))
                     }
                 }
             }

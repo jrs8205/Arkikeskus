@@ -101,6 +101,14 @@
             android:parentActivityName="org.jrs82.fsclock.mobile.MobileSettingsActivity"
             android:theme="@style/MobileSettingsTheme" />
 
+        <!-- Compose-etusivun widgettien muokkaus (nakyvyys + jarjestys). -->
+        <activity
+            android:name="org.jrs82.fsclock.mobile.HomeCustomizeActivity"
+            android:exported="false"
+            android:label="@string/mobile_pref_widget_order"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
+            android:theme="@style/MobileComposeTheme" />
+
         <activity
             android:name="org.jrs82.fsclock.history.HistoryActivity"
             android:exported="false"
