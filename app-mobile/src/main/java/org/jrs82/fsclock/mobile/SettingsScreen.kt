@@ -146,7 +146,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     // --- Sää: automaattinen sijainti + lupavirta ---
     var autoLocation by remember {
-        mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false))
+        mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true))
     }
     val locationPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -159,6 +159,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             .remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
             .apply()
         autoLocation = precise
+        if (precise) resetAutoLocationThrottle()
         toast(
             context,
             if (precise) "Automaattinen sijainti on käytössä."
@@ -224,6 +225,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 prefs.edit()
                                     .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)
                                     .apply()
+                                resetAutoLocationThrottle()
                             } else {
                                 prefs.edit()
                                     .putBoolean(MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED, true)

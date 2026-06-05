@@ -141,35 +141,6 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
         }
     }
 
-    // --- Laitteen sijainti (lupavirta + reverse-geokoodaus) ---
-    var autoRequest by remember { mutableStateOf(0) }
-    var autoStatus by remember { mutableStateOf("") }
-    val locationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { granted -> if (granted.values.any { it }) autoRequest++ }
-    LaunchedEffect(autoRequest) {
-        if (autoRequest == 0) return@LaunchedEffect
-        autoStatus = "Haetaan laitteen sijaintia…"
-        val loc = lastKnownLocation(context)
-        if (loc == null) {
-            autoStatus = "Sijaintia ei saatu. Varmista paikannus ja yritä uudelleen."
-            return@LaunchedEffect
-        }
-        val place = withContext(Dispatchers.IO) {
-            try {
-                MmlGeocodingClient.reversePlace(loc.latitude, loc.longitude)
-            } catch (e: Exception) {
-                null
-            }
-        }
-        if (place == null) {
-            autoStatus = "Paikan nimeä ei löytynyt sijainnille."
-            return@LaunchedEffect
-        }
-        chooseHomePlace(prefs, place.dataPlace, true, place.displayPlace, loc.latitude, loc.longitude)
-        onPlaceChosen()
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -179,7 +150,9 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
         Text("Paikkakunnat", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Valitse sääpaikka hakemalla, laitteen sijainnista tai suosikeista.",
+            "Etusivun sää käyttää laitteen sijaintia automaattisesti. Voit myös hakea kaupungin tai " +
+                "valita suosikin — valinta näkyy, kunnes avaat sovelluksen uudelleen. Automaattisen " +
+                "sijainnin voi kytkeä pois Asetuksista.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -216,27 +189,8 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
             }
         }
 
-        // Laitteen sijainti
-        Spacer(Modifier.height(12.dp))
-        FilledTonalButton(
-            onClick = {
-                locationLauncher.launch(
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(painterResource(R.drawable.mobile_ic_my_location_24), contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Käytä laitteen sijaintia")
-        }
-        if (autoStatus.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(autoStatus, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
         // Haku
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
@@ -370,7 +324,7 @@ private fun dataPlaceFromDisplay(display: String?): String {
  * Replikoi View-appin selectHomePlace: asettaa kotipaikan + koordinaatit + näyttönimen samoihin
  * SharedPreferences-/SettingsManager-avaimiin ja nollaa sää-cachen, jotta etusivu hakee uuden paikan.
  */
-private fun chooseHomePlace(
+internal fun chooseHomePlace(
     prefs: SharedPreferences,
     dataPlace: String,
     fromLocation: Boolean,
@@ -392,7 +346,9 @@ private fun chooseHomePlace(
     }
     val editor = prefs.edit()
     if (!fromLocation) {
-        editor.putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false)
+        // Kaupungin/suosikin valinta EI sammuta automaattista sijaintia: valinta on tilapäinen ja
+        // palautuu laitteen sijaintiin seuraavalla avauksella (kun auto on päällä). Pysyvän kiinteän
+        // paikan saa kytkemällä automaattisen sijainnin pois Asetuksista.
         if (disp.isNotEmpty() && !disp.equals(data, ignoreCase = true)) {
             editor.putString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, disp)
         } else {
@@ -411,7 +367,7 @@ private fun chooseHomePlace(
     MobileMainActivity.sLastWeather = null
 }
 
-private fun lastKnownLocation(context: Context): Location? {
+internal fun lastKnownLocation(context: Context): Location? {
     if (!hasGranted(context, Manifest.permission.ACCESS_FINE_LOCATION) &&
         !hasGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION)
     ) {

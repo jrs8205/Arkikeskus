@@ -1,7 +1,11 @@
 package org.jrs82.fsclock.mobile
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
-import android.widget.Toast
+import android.content.pm.PackageManager
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +31,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -35,14 +40,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.preference.PreferenceManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -71,6 +86,44 @@ private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
  * käyttäjä katsoo. Oletus 0; ei vaikuta ennen ensimmäistä painallusta.
  */
 val LocalRefreshTick = compositionLocalOf { 0 }
+
+/** Automaattisen sijaintipäivityksen aikaleima (per prosessi) — estää tiheän peräkkäisen geokoodauksen. */
+internal var sLastAutoLocMs = 0L
+
+/** Pakottaa seuraavan resume-päivityksen hakemaan sijainnin heti (esim. kun automaattinen sijainti
+ *  kytketään päälle asetuksista). */
+internal fun resetAutoLocationThrottle() {
+    sLastAutoLocMs = 0L
+}
+
+/**
+ * Päivittää etusivun sääpaikan laitteen sijainnista, jos automaattinen sijainti on päällä (oletus)
+ * ja sijaintilupa on annettu. Reverse-geokoodaa MML:llä ja asettaa kotipaikan kuten Paikkakunnat-näkymä
+ * ([chooseHomePlace]). Palauttaa true jos paikka päivittyi → kutsuja voi pyytää sään haun uudelleen.
+ * [force] ohittaa lyhyen aikaikkunan (suoja resume-tapahtuman toistolle).
+ */
+internal suspend fun maybeRefreshDeviceLocation(context: Context, force: Boolean): Boolean {
+    val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    if (!prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)) return false
+    if (!hasLocationPermission(context)) return false
+    val now = System.currentTimeMillis()
+    if (!force && now - sLastAutoLocMs < 15_000L) return false
+    val loc = lastKnownLocation(context) ?: return false
+    val place = withContext(Dispatchers.IO) {
+        try {
+            MmlGeocodingClient.reversePlace(loc.latitude, loc.longitude)
+        } catch (e: Exception) {
+            null
+        }
+    } ?: return false
+    chooseHomePlace(prefs, place.dataPlace, true, place.displayPlace, loc.latitude, loc.longitude)
+    sLastAutoLocMs = now
+    return true
+}
+
+private fun hasLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
 /** Päänäkymän sektiot (vastaavat nykyisen valikon kohtia). */
 enum class HomeSection(val title: String) {
@@ -102,6 +155,22 @@ fun ComposeMainScreen() {
     val scope = rememberCoroutineScope()
     // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
     var refreshTick by remember { mutableStateOf(0) }
+    val haptic = LocalHapticFeedback.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val refreshRotation = remember { Animatable(0f) }
+
+    // Etusivun sää käyttää laitteen sijaintia: päivitä se kun sovellus tulee etualalle
+    // (automaattinen sijainti päällä + lupa annettu). Kaupungin valinta Paikkakunnilla on
+    // tilapäinen ja palautuu laitteen sijaintiin seuraavalla avauksella.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                scope.launch { if (maybeRefreshDeviceLocation(context, force = false)) refreshTick++ }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -143,10 +212,22 @@ fun ComposeMainScreen() {
                             Icon(painterResource(R.drawable.ic_home_24), contentDescription = "Etusivu")
                         }
                         IconButton(onClick = {
-                            refreshTick++
-                            Toast.makeText(context, "Päivitetään…", Toast.LENGTH_SHORT).show()
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            scope.launch {
+                                refreshRotation.snapTo(0f)
+                                refreshRotation.animateTo(360f, animationSpec = tween(700))
+                            }
+                            scope.launch {
+                                // Pakota laitteen sijainnin päivitys (jos auto päällä) + datan haku.
+                                maybeRefreshDeviceLocation(context, force = true)
+                                refreshTick++
+                            }
                         }) {
-                            Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = "Päivitä")
+                            Icon(
+                                painterResource(R.drawable.mobile_ic_refresh_24),
+                                contentDescription = "Päivitä",
+                                modifier = Modifier.rotate(refreshRotation.value),
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
