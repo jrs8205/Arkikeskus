@@ -246,9 +246,10 @@ private val FI_X = Locale("fi", "FI")
 internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
     val context = LocalContext.current
     val repo = remember { TrafficNoticesRepository() }
+    val refresh = LocalRefreshTick.current
     var notices by remember(kind) { mutableStateOf<List<TrafficNotice>?>(null) }
     var status by remember(kind) { mutableStateOf("Haetaan liikennetiedotteita…") }
-    LaunchedEffect(kind) {
+    LaunchedEffect(kind, refresh) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
             status = "Salli sijainti, jotta lähialueen tiedotteet voidaan hakea."
@@ -257,7 +258,7 @@ internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
         }
         val result = withContext(Dispatchers.IO) {
             try {
-                repo.fetchNearby(ref[0], ref[1], kind, false)
+                repo.fetchNearby(ref[0], ref[1], kind, refresh > 0)
             } catch (e: Exception) {
                 null
             }
