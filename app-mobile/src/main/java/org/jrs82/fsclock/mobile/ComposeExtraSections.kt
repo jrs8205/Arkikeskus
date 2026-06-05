@@ -346,7 +346,7 @@ private fun trafficValidity(n: TrafficNotice): String {
 }
 
 /** Sama lähde kuin View-appin searchReferenceCoordinates: tuore laitesijainti tai kotikoordinaatit. */
-private fun referenceCoordinates(context: Context): DoubleArray? {
+internal fun referenceCoordinates(context: Context): DoubleArray? {
     val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     val savedAt = prefs.getLong(MobileThemeController.KEY_LAST_DEVICE_LOCATION_TIME, 0L)
     if (savedAt > 0L && System.currentTimeMillis() - savedAt <= 24L * 3600_000L) {

@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -95,10 +96,66 @@ private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
-    // Yläpalkin Päivitä-ikoni kasvattaa tätä → sää ja pörssisähkö haetaan uudelleen.
-    val refresh = LocalRefreshTick.current
 
-    // Kello (sekuntitarkkuus)
+    // Etusivun kortit ja niiden järjestys luetaan asetuksista. Kun käyttäjä muuttaa niitä
+    // muokkausnäkymässä, SharedPreferences-kuuntelija päivittää listan → muutos näkyy kun palaa.
+    var widgetTick by remember { mutableStateOf(0) }
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (isHomeWidgetKey(key)) widgetTick++
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val widgets = remember(widgetTick) { visibleHomeWidgets(prefs) }
+
+    // Kevyt sisääntulo (OSA B / B6): pehmeä fade + slide kun etusivu avautuu. Spring, ei välkkyvä.
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        AnimatedVisibility(
+            visible = shown,
+            enter = fadeIn(spring()) + slideInVertically(spring()) { it / 10 },
+        ) {
+            Column(modifier = Modifier.animateContentSize()) {
+                Spacer(Modifier.height(12.dp))
+                if (widgets.isEmpty()) {
+                    GenericCard(
+                        "Etusivu on tyhjä",
+                        "Kaikki kortit on piilotettu. Lisää niitä Muokkaa etusivua -painikkeesta.",
+                    )
+                } else {
+                    widgets.forEachIndexed { i, w ->
+                        if (i > 0) Spacer(Modifier.height(12.dp))
+                        when (w) {
+                            HomeWidget.CLOCK -> HomeClockWidget()
+                            HomeWidget.HOLIDAY -> HomeHolidayWidget()
+                            HomeWidget.WEATHER -> HomeWeatherWidget(prefs)
+                            HomeWidget.ELECTRICITY -> HomeElectricityWidget(prefs)
+                            HomeWidget.SENSORS -> HomeSensorsWidget(prefs)
+                            HomeWidget.NEWS -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })
+                            HomeWidget.TRANSIT -> HomeTransitCard(onOpenTransit = { onOpenSection(HomeSection.TRANSIT) })
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                CustomizeHomeButton()
+            }
+        }
+    }
+}
+
+// Itsenäiset etusivun widgetit: kukin hoitaa oman datansa, jotta ne voi renderöidä missä
+// järjestyksessä tahansa. Esityskerros (ClockBlock/HolidayCard/WeatherCard/…) on jaettu alla.
+
+@Composable
+private fun HomeClockWidget() {
     var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -106,55 +163,11 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
             delay(1000L)
         }
     }
+    ClockBlock(nowMs)
+}
 
-    // Sää: seed viimeisimmästä haetusta + taustahaku
-    var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
-    LaunchedEffect(refresh) {
-        val fresh = withContext(Dispatchers.IO) {
-            try {
-                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, refresh > 0)
-            } catch (e: Exception) {
-                null
-            }
-        }
-        if (fresh != null) {
-            MobileMainActivity.sLastWeather = fresh
-            weather = fresh
-        }
-    }
-
-    // Pörssisähkö: hae jos cache vanha → tick pakottaa uudelleenluennan
-    val elecRepo = remember { ElectricityRepository.get(context) }
-    var elecTick by remember { mutableStateOf(0) }
-    LaunchedEffect(refresh) {
-        withContext(Dispatchers.IO) {
-            try {
-                elecRepo.fetchIfStale()
-            } catch (e: Exception) {
-                // jätetään cachen varaan
-            }
-        }
-        elecTick++
-    }
-
-    // Anturit: live-päivitys RuuviRepositoryn kuuntelijalla
-    val ruuvi = remember { RuuviRepository.get(context) }
-    var sensorTick by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        try {
-            ruuvi.start()
-        } catch (e: Exception) {
-            // skannaus vaatii BLE-luvan; ilman sitä näytetään olemassa oleva snapshot
-        }
-    }
-    DisposableEffect(Unit) {
-        val main = Handler(Looper.getMainLooper())
-        val listener = RuuviRepository.Listener { _, _ -> main.post { sensorTick++ } }
-        ruuvi.addListener(listener)
-        onDispose { ruuvi.removeListener(listener) }
-    }
-
-    // Seuraava pyhä (verkko + cache) + seuraava virallinen liputuspäivä (laskettu paikallisesti).
+@Composable
+private fun HomeHolidayWidget() {
     var holidayLine by remember { mutableStateOf("") }
     val flagLine = remember {
         val f = nextOfficialFlagDay(Calendar.getInstance(HELSINKI, FI))
@@ -175,31 +188,84 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
             }
         }
     }
+    HolidayCard(holidayLine, flagLine)
+}
 
-    // Kevyt sisääntulo (OSA B / B6): pehmeä fade + slide kun etusivu avautuu. Spring, ei välkkyvä.
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-    ) {
-        AnimatedVisibility(
-            visible = shown,
-            enter = fadeIn(spring()) + slideInVertically(spring()) { it / 10 },
-        ) {
-            Column(modifier = Modifier.animateContentSize()) {
-                Spacer(Modifier.height(12.dp))
-                ClockBlock(nowMs)
-                HolidayCard(holidayLine, flagLine)
-                Spacer(Modifier.height(8.dp))
-                WeatherCard(context, prefs, weather)
-                ElectricityCard(prefs, elecRepo, elecTick)
-                SensorsCard(prefs, ruuvi, sensorTick)
+@Composable
+private fun HomeWeatherWidget(prefs: SharedPreferences) {
+    val context = LocalContext.current
+    val refresh = LocalRefreshTick.current
+    var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
+    LaunchedEffect(refresh) {
+        val fresh = withContext(Dispatchers.IO) {
+            try {
+                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, refresh > 0)
+            } catch (e: Exception) {
+                null
             }
         }
+        if (fresh != null) {
+            MobileMainActivity.sLastWeather = fresh
+            weather = fresh
+        }
+    }
+    WeatherCard(context, prefs, weather)
+}
+
+@Composable
+private fun HomeElectricityWidget(prefs: SharedPreferences) {
+    val context = LocalContext.current
+    val refresh = LocalRefreshTick.current
+    val elecRepo = remember { ElectricityRepository.get(context) }
+    var elecTick by remember { mutableStateOf(0) }
+    LaunchedEffect(refresh) {
+        withContext(Dispatchers.IO) {
+            try {
+                elecRepo.fetchIfStale()
+            } catch (e: Exception) {
+                // jätetään cachen varaan
+            }
+        }
+        elecTick++
+    }
+    ElectricityCard(prefs, elecRepo, elecTick)
+}
+
+@Composable
+private fun HomeSensorsWidget(prefs: SharedPreferences) {
+    val context = LocalContext.current
+    val ruuvi = remember { RuuviRepository.get(context) }
+    var sensorTick by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        try {
+            ruuvi.start()
+        } catch (e: Exception) {
+            // skannaus vaatii BLE-luvan; ilman sitä näytetään olemassa oleva snapshot
+        }
+    }
+    DisposableEffect(Unit) {
+        val main = Handler(Looper.getMainLooper())
+        val listener = RuuviRepository.Listener { _, _ -> main.post { sensorTick++ } }
+        ruuvi.addListener(listener)
+        onDispose { ruuvi.removeListener(listener) }
+    }
+    SensorsCard(prefs, ruuvi, sensorTick)
+}
+
+@Composable
+private fun CustomizeHomeButton() {
+    val context = LocalContext.current
+    FilledTonalButton(
+        onClick = { context.startActivity(Intent(context, HomeCustomizeActivity::class.java)) },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Icon(
+            painterResource(R.drawable.mobile_ic_drag_handle_24),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text("Muokkaa etusivua")
     }
 }
 
@@ -245,7 +311,7 @@ private fun ClockBlock(nowMs: Long) {
 @Composable
 private fun HolidayCard(holidayLine: String, flagLine: String) {
     if (holidayLine.isEmpty() && flagLine.isEmpty()) return
-    Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             if (holidayLine.isNotEmpty()) {
                 HolidayRow("Seuraava pyhä", holidayLine)
@@ -342,7 +408,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
     }
     val arki = ArkiTheme.colors
     Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = arki.weatherContainer,
             contentColor = arki.onWeatherContainer,
@@ -480,7 +546,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val notice = remember(tick) { cheapNotice(prefs, repo) }
     val threshold = remember(tick) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
-    Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
             Text("Pörssisähkö", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
@@ -566,7 +632,7 @@ private fun PricePill(level: PriceLevel) {
 @Composable
 private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: Int) {
     val sensors = remember(tick) { buildSensors(prefs, repo) }
-    Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Anturit", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
@@ -646,7 +712,7 @@ private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
 
 @Composable
 private fun GenericCard(title: String, note: String) {
-    Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
@@ -1226,7 +1292,7 @@ private fun NewsRow(context: Context, item: NewsItem) {
     }
 }
 
-private fun openUrl(context: Context, url: String?) {
+internal fun openUrl(context: Context, url: String?) {
     if (url.isNullOrBlank()) return
     try {
         CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(context, Uri.parse(url))
