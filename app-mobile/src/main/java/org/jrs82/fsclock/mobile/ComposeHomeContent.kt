@@ -715,6 +715,7 @@ internal fun ElectricitySection() {
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val repo = remember { ElectricityRepository.get(context) }
     val threshold = remember { cheapThreshold(prefs) }
+    var dayOffset by remember { mutableStateOf(0) }
     var tick by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -726,11 +727,6 @@ internal fun ElectricitySection() {
         }
         tick++
     }
-    val now = remember(tick) { repo.currentQuarter() }
-    val today = remember(tick) {
-        val c = Calendar.getInstance(HELSINKI, FI)
-        repo.dayQuarters(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
-    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -738,41 +734,214 @@ internal fun ElectricitySection() {
             .padding(16.dp),
     ) {
         Text("Pörssisähkö", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(10.dp))
-        if (now == null) {
-            Text("Nykyistä varttihintaa ei ole vielä saatavilla", style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ElecTab("Tänään", dayOffset == 0, Modifier.weight(1f)) { dayOffset = 0 }
+            ElecTab("Huomenna", dayOffset == 1, Modifier.weight(1f)) { dayOffset = 1 }
+            ElecTab("Vertailu", dayOffset == 2, Modifier.weight(1f)) { dayOffset = 2 }
+        }
+        Spacer(Modifier.height(14.dp))
+        if (dayOffset == 2) {
+            ElectricityCompare(context)
         } else {
-            val arki = ArkiTheme.colors
-            val level = priceLevel(now.sntPerKwh, threshold)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PricePill(level)
-                Spacer(Modifier.width(10.dp))
+            ElectricityDay(repo, threshold, dayOffset, tick)
+        }
+    }
+}
+
+@Composable
+private fun ElecTab(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Text(
+        label,
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        textAlign = TextAlign.Center,
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+    )
+}
+
+@Composable
+private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOffset: Int, tick: Int) {
+    val arki = ArkiTheme.colors
+    val data = remember(tick) { repo.peek() }
+    val quarters = remember(tick, dayOffset) {
+        val c = Calendar.getInstance(HELSINKI, FI)
+        c.add(Calendar.DAY_OF_YEAR, dayOffset)
+        repo.dayQuarters(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
+    }
+    val current = remember(tick, dayOffset) { if (dayOffset == 0) repo.currentQuarter() else null }
+
+    if (dayOffset == 1 && (quarters == null || quarters.size < 96)) {
+        Text(
+            "Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    if (quarters.isNullOrEmpty()) {
+        Text(
+            if (dayOffset == 0) "Tämän päivän varttihintoja ei ole saatavilla."
+            else "Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    val min = quarters.minByOrNull { it.sntPerKwh }
+    val max = quarters.maxByOrNull { it.sntPerKwh }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            if (dayOffset == 0 && current != null) {
+                val level = priceLevel(current.sntPerKwh, threshold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PricePill(level)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        String.format(FI, "Nyt klo %02d:%02d  %.3f c/kWh", current.hour, current.minute, current.sntPerKwh),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = priceAccent(level, arki),
+                    )
+                }
+            } else {
                 Text(
-                    String.format(FI, "Nyt klo %02d:%02d  %.3f c/kWh", now.hour, now.minute, now.sntPerKwh),
-                    style = MaterialTheme.typography.bodyLarge,
+                    if (dayOffset == 0) "Tänään" else "Huomenna",
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = priceAccent(level, arki),
                 )
             }
-        }
-        Spacer(Modifier.height(12.dp))
-        if (today.isEmpty()) {
+            if (min != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    String.format(FI, "Halvinta klo %02d:%02d  %.3f c/kWh", min.hour, min.minute, min.sntPerKwh),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = arki.priceCheap,
+                )
+            }
+            if (max != null) {
+                Text(
+                    String.format(FI, "Kalleinta klo %02d:%02d  %.3f c/kWh", max.hour, max.minute, max.sntPerKwh),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = arki.priceExpensive,
+                )
+            }
+            if (data != null && data.fetchedAt > 0) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Päivitetty klo " + hhmm(data.fetchedAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                "Tämän päivän hintoja ei ole vielä saatavilla.",
-                style = MaterialTheme.typography.bodyMedium,
+                "Lähde: Elering/Nord Pool. Hinnat ALV 0 %.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        } else {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    today.forEach { q ->
-                        QuarterRow(q, isCurrent = now != null && q.timestamp == now.timestamp, threshold = threshold)
-                    }
-                }
+        }
+    }
+    Spacer(Modifier.height(12.dp))
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            quarters.take(96).forEach { q ->
+                QuarterRow(q, isCurrent = current != null && q.timestamp == current.timestamp, threshold = threshold)
             }
         }
     }
 }
+
+private data class CompareRowData(val label: String, val value: Double, val highlight: Boolean, val isSection: Boolean)
+
+@Composable
+private fun ElectricityCompare(context: Context) {
+    var rows by remember { mutableStateOf<List<CompareRowData>?>(null) }
+    LaunchedEffect(Unit) {
+        rows = withContext(Dispatchers.IO) {
+            val out = ArrayList<CompareRowData>()
+            try {
+                val now = Calendar.getInstance(HELSINKI, FI)
+                val year = now.get(Calendar.YEAR)
+                val curMonth = now.get(Calendar.MONTH) + 1
+                val prev = ElectricityAverages.previousYearAverage(context, true)
+                if (prev != null) out.add(CompareRowData("${year - 1} keskihinta", prev.avgSntPerKwh, true, false))
+                out.add(CompareRowData("$year kuukausikeskiarvot", Double.NaN, false, true))
+                for (m in 1..curMonth) {
+                    val ma = ElectricityAverages.monthAverage(context, year, m, true) ?: continue
+                    val label = MONTHS_FI_ELEC[m - 1] + if (m == curMonth) " (kesken)" else ""
+                    out.add(CompareRowData(label, ma.avgSntPerKwh, false, false))
+                }
+            } catch (e: Exception) {
+                // näytetään mitä saatiin
+            }
+            out
+        }
+    }
+    Text(
+        "Pörssisähkön keskihinnat (ALV 0 %). Lähde: Elering/Nord Pool.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(Modifier.height(10.dp))
+    val r = rows
+    when {
+        r == null -> Text(
+            "Haetaan keskiarvoja…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        r.none { !it.isSection } -> Text(
+            "Keskiarvoja ei ole vielä saatavilla. Päivitä uudelleen verkkoyhteydellä.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        else -> Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                r.forEach { CompareRowView(it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompareRowView(row: CompareRowData) {
+    if (row.isSection) {
+        Text(
+            row.label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp, bottom = 2.dp),
+        )
+        return
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            row.label,
+            modifier = Modifier.weight(1f),
+            fontWeight = if (row.highlight) FontWeight.Bold else FontWeight.Normal,
+        )
+        Text(
+            String.format(FI, "%.3f c/kWh", row.value),
+            color = if (row.highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+private val MONTHS_FI_ELEC = arrayOf(
+    "Tammikuu", "Helmikuu", "Maaliskuu", "Huhtikuu", "Toukokuu", "Kesäkuu",
+    "Heinäkuu", "Elokuu", "Syyskuu", "Lokakuu", "Marraskuu", "Joulukuu",
+)
 
 @Composable
 private fun QuarterRow(q: ElectricityData.Quarter, isCurrent: Boolean, threshold: Double) {
