@@ -198,6 +198,10 @@ private fun DrawerContent(
                 onClick = { onSelect(HomeSection.HOME) },
                 modifier = Modifier.padding(vertical = 2.dp),
             )
+
+            // Valikko ryhmitelty otsikoiden alle selkeyden vuoksi (käyttäjän toive):
+            // säähän liittyvät, liikenne, joukkoliikenne ja loput "Muut"-otsikon alle.
+            DrawerHeader("Sää")
             DrawerItem(HomeSection.FORECAST, current, onSelect)
             DrawerItem(HomeSection.PLACES, current, onSelect)
             DrawerItem(HomeSection.SENSORS, current, onSelect)
@@ -214,10 +218,11 @@ private fun DrawerContent(
             DrawerItem(HomeSection.TRANSIT, current, onSelect)
             DrawerItem(HomeSection.ROUTE_PLANNER, current, onSelect)
 
+            DrawerHeader("Muut")
+            DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
+            DrawerItem(HomeSection.NEWS, current, onSelect)
             DrawerItem(HomeSection.SPEEDOMETER, current, onSelect)
             DrawerItem(HomeSection.STEPS, current, onSelect)
-            DrawerItem(HomeSection.NEWS, current, onSelect)
-            DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
             DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
