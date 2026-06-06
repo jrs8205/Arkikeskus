@@ -91,6 +91,10 @@ import java.util.TimeZone
 private val FI = Locale("fi", "FI")
 private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
+/** Etusivun sisääntuloanimaatio soitetaan vain KERRAN prosessin aikana, ei joka kerta kun
+ *  etusivulle palataan. Aiemmin slide-animaatio toistui joka paluulla → "koko sivu hyppäsi". */
+private var sHomeEntranceShown = false
+
 @Composable
 internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
     val context = LocalContext.current
@@ -108,9 +112,16 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
     }
     val widgets = remember(widgetTick) { visibleHomeWidgets(prefs) }
 
-    // Kevyt sisääntulo (OSA B / B6): pehmeä fade + slide kun etusivu avautuu. Spring, ei välkkyvä.
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
+    // Kevyt sisääntulo (OSA B / B6): pehmeä fade + slide — VAIN ensimmäisellä kerralla per prosessi.
+    // shown alustetaan jo "näkyväksi" jos animaatio on jo soinut → AnimatedVisibility ei animoi
+    // (vain false→true animoituu), joten etusivulle palatessa ei tule hyppäystä.
+    var shown by remember { mutableStateOf(sHomeEntranceShown) }
+    LaunchedEffect(Unit) {
+        if (!sHomeEntranceShown) {
+            shown = true
+            sHomeEntranceShown = true
+        }
+    }
 
     Column(
         modifier = Modifier
