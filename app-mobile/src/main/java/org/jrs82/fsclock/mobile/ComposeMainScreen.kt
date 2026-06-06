@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -320,12 +324,12 @@ private fun DrawerContent(
 
             // Valikko ryhmitelty otsikoiden alle selkeyden vuoksi (käyttäjän toive):
             // säähän liittyvät, liikenne, joukkoliikenne ja loput "Muut"-otsikon alle.
-            DrawerHeader("Sää")
+            DrawerHeader("Sää", R.drawable.mobile_ic_weather_24)
             DrawerItem(HomeSection.FORECAST, current, onSelect)
             DrawerItem(HomeSection.PLACES, current, onSelect)
             DrawerItem(HomeSection.SENSORS, current, onSelect)
 
-            DrawerHeader("Liikennetiedot")
+            DrawerHeader("Liikennetiedot", R.drawable.mobile_ic_car_24)
             DrawerItem(HomeSection.TRAFFIC_ACCIDENTS, current, onSelect)
             DrawerItem(HomeSection.TRAFFIC_ROADWORKS, current, onSelect)
             DrawerItem(HomeSection.TRAFFIC_WEIGHT, current, onSelect)
@@ -333,11 +337,11 @@ private fun DrawerContent(
             DrawerItem(HomeSection.TRAFFIC_CONGESTION, current, onSelect)
             DrawerItem(HomeSection.ROAD_CAMERAS, current, onSelect)
 
-            DrawerHeader("Joukkoliikenne (HSL)")
+            DrawerHeader("Joukkoliikenne (HSL)", R.drawable.mobile_ic_bus_24)
             DrawerItem(HomeSection.TRANSIT, current, onSelect)
             DrawerItem(HomeSection.ROUTE_PLANNER, current, onSelect)
 
-            DrawerHeader("Muut")
+            DrawerHeader("Muut", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
             DrawerItem(HomeSection.NEWS, current, onSelect)
             DrawerItem(HomeSection.SPEEDOMETER, current, onSelect)
@@ -367,12 +371,25 @@ private fun DrawerItem(section: HomeSection, current: HomeSection, onSelect: (Ho
 }
 
 @Composable
-private fun DrawerHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.Bold,
+private fun DrawerHeader(text: String, iconRes: Int? = null) {
+    Row(
         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (iconRes != null) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+        )
+    }
 }
