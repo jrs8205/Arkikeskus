@@ -61,6 +61,17 @@ import java.util.TimeZone
 private val FI_W = Locale("fi", "FI")
 private val HELSINKI_W: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
+// Etusivun korttien PROSESSITASON välimuisti: data säilyy kun siirrytään sivulta toiselle (ei
+// "katoa ja lataudu uudelleen" joka kerta), ja haetaan uudelleen vain sovelluksen avauksessa
+// (uusi prosessi → nämä nollautuvat) tai Päivitä-napista (LocalRefreshTick kasvaa). Säilytetään
+// myös viime onnistuneen haun tick, jotta tiedetään onko Päivitä-nappia painettu haun jälkeen.
+private var sHomeNewsCache: List<NewsItem>? = null
+private var sHomeNewsTick = -1
+private val sHomeFeedCache = HashMap<String, List<NewsItem>>()
+private val sHomeFeedTick = HashMap<String, Int>()
+private var sHomeTransitCache: List<Departure>? = null
+private var sHomeTransitTick = -1
+
 // ===================== Widget-malli + asetukset =====================
 
 /** Kiinteät etusivun kortit. id = talletusavain, title = muokkausnäkymän nimi, defaultVisible = oletusnäkyvyys.
@@ -150,10 +161,17 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
-    var items by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
+    var items by remember { mutableStateOf(sHomeNewsCache ?: emptyList()) }
+    var loading by remember { mutableStateOf(sHomeNewsCache == null) }
     LaunchedEffect(refresh) {
-        loading = true
+        val cached = sHomeNewsCache
+        if (cached != null && refresh == sHomeNewsTick) {
+            // Jo haettu tällä tickillä → näytä välimuisti heti, ei uutta hakua eikä latausvilkutusta.
+            items = cached
+            loading = false
+            return@LaunchedEffect
+        }
+        if (cached == null) loading = true
         val fresh = withContext(Dispatchers.IO) {
             try {
                 RssRepository.get().fetchEnabled(prefs, refresh > 0)
@@ -161,7 +179,11 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
                 null
             }
         }
-        items = fresh ?: emptyList()
+        if (fresh != null) {
+            sHomeNewsCache = fresh
+            sHomeNewsTick = refresh
+            items = fresh
+        }
         loading = false
     }
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -251,8 +273,13 @@ internal fun HomeNewsSourceCard(feedId: String) {
     val refresh = LocalRefreshTick.current
     val feed = remember(feedId) { NewsFeedStore.feedById(prefs, feedId) }
     if (feed == null) return // lähde poistettu → ei korttia
-    var items by remember(feedId) { mutableStateOf<List<NewsItem>?>(null) }
+    var items by remember(feedId) { mutableStateOf(sHomeFeedCache[feedId]) }
     LaunchedEffect(feedId, refresh) {
+        val cached = sHomeFeedCache[feedId]
+        if (cached != null && sHomeFeedTick[feedId] == refresh) {
+            items = cached
+            return@LaunchedEffect
+        }
         val fresh = withContext(Dispatchers.IO) {
             try {
                 RssRepository.get().fetchForFeed(feed, refresh > 0)
@@ -260,7 +287,13 @@ internal fun HomeNewsSourceCard(feedId: String) {
                 null
             }
         }
-        items = fresh ?: emptyList()
+        if (fresh != null) {
+            sHomeFeedCache[feedId] = fresh
+            sHomeFeedTick[feedId] = refresh
+            items = fresh
+        } else if (cached == null) {
+            items = emptyList()
+        }
     }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -471,13 +504,19 @@ private fun CompactTrafficRow(n: TrafficNotice) {
 internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
     val context = LocalContext.current
     val refresh = LocalRefreshTick.current
-    var deps by remember { mutableStateOf<List<Departure>?>(null) }
+    var deps by remember { mutableStateOf(sHomeTransitCache) }
     var note by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(refresh) {
+        val cached = sHomeTransitCache
+        if (cached != null && refresh == sHomeTransitTick) {
+            deps = cached
+            note = null
+            return@LaunchedEffect
+        }
         val ref = referenceCoordinates(context)
         if (ref == null) {
             note = "Salli sijainti tai aseta kotipaikka, niin lähilähdöt näkyvät."
-            deps = emptyList()
+            if (cached == null) deps = emptyList()
             return@LaunchedEffect
         }
         val result = withContext(Dispatchers.IO) {
@@ -489,9 +528,11 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
             }
         }
         if (result == null) {
-            note = "Lähtöjen haku epäonnistui."
-            deps = emptyList()
+            note = if (cached == null) "Lähtöjen haku epäonnistui." else null
+            if (cached == null) deps = emptyList()
         } else {
+            sHomeTransitCache = result
+            sHomeTransitTick = refresh
             note = null
             deps = result
         }
