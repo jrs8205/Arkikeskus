@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Käynnistyskuvan (splash) bränditausta: kiinteä brändisininen (sama vaalea/tumma). -->
+    <color name="mobile_splash_bg">#1B53C0</color>
     <color name="mobile_bg">#EDF1F6</color>
     <color name="mobile_card_bg">#FFFFFF</color>
     <color name="mobile_toolbar_bg">#C2D6F7</color>
