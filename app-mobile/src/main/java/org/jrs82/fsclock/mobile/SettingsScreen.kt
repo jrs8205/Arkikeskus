@@ -535,7 +535,15 @@ private fun RuuviScanDialog(
         val main = Handler(Looper.getMainLooper())
         val listener = RuuviRepository.Listener { _, _ -> main.post { samples = sortedSnapshot(repo) } }
         repo.addListener(listener)
-        onDispose { repo.removeListener(listener) }
+        try {
+            repo.start()
+        } catch (e: Exception) {
+            // skannaus vaatii BLE-luvan; lupavirta hoidettu ennen dialogin avausta
+        }
+        onDispose {
+            repo.removeListener(listener)
+            repo.stop() // pysäytä BLE-skannaus kun hakudialogi sulkeutuu (ei jää akkua syömään)
+        }
     }
 
     AlertDialog(
