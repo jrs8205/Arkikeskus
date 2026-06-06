@@ -39,6 +39,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -412,7 +415,8 @@ private fun GpsSpeedContent(context: Context) {
             kotlinx.coroutines.delay(1000L)
         }
     }
-    DisposableEffect(Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
         val main = Handler(Looper.getMainLooper())
         val listener = object : LocationListener {
@@ -438,36 +442,58 @@ private fun GpsSpeedContent(context: Context) {
                 satVisible = visible
             }
         }
-        try {
-            lm?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
-        } catch (e: SecurityException) {
-        } catch (e: IllegalArgumentException) {
-        }
-        try {
-            lm?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000L, 0f, listener)
-        } catch (e: SecurityException) {
-        } catch (e: IllegalArgumentException) {
-        }
-        try {
-            lm?.registerGnssStatusCallback(gnss, main)
-        } catch (e: SecurityException) {
-        }
-        try {
-            val g = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            val n = lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            location = when {
-                g != null && (n == null || g.time >= n.time) -> g
-                n != null -> n
-                else -> location
-            }
-        } catch (e: SecurityException) {
-        }
-        onDispose {
+        // GPS/GNSS-kuuntelijat sidotaan elinkaareen: kuunnellaan vain kun sovellus on etualalla (ON_START)
+        // ja pysäytetään taustalle/näytön lukitukseen (ON_STOP) → GPS ei jää päälle akkua syömään.
+        var registered = false
+        fun register() {
+            if (registered || lm == null) return
+            registered = true
             try {
-                lm?.removeUpdates(listener)
-                lm?.unregisterGnssStatusCallback(gnss)
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
+            } catch (e: SecurityException) {
+            } catch (e: IllegalArgumentException) {
+            }
+            try {
+                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000L, 0f, listener)
+            } catch (e: SecurityException) {
+            } catch (e: IllegalArgumentException) {
+            }
+            try {
+                lm.registerGnssStatusCallback(gnss, main)
+            } catch (e: SecurityException) {
+            }
+            try {
+                val g = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                val n = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                location = when {
+                    g != null && (n == null || g.time >= n.time) -> g
+                    n != null -> n
+                    else -> location
+                }
+            } catch (e: SecurityException) {
+            }
+        }
+        fun unregister() {
+            if (!registered || lm == null) return
+            registered = false
+            try {
+                lm.removeUpdates(listener)
+                lm.unregisterGnssStatusCallback(gnss)
             } catch (e: Exception) {
             }
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> register()
+                Lifecycle.Event.ON_STOP -> unregister()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) register()
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            unregister()
         }
     }
 
@@ -476,10 +502,11 @@ private fun GpsSpeedContent(context: Context) {
         factory = { GpsSpeedometerView(it) },
         update = { it.setSpeedKmh(kmh) },
         // Rajaa käytettävissä olevaan leveyteen (kork. 340 dp) ja pidä neliönä → ei leikkaudu kapeassa
-        // tilassa; pystyvieritys hoitaa korkeuden pienessä vaakanäkymässä.
+        // tilassa eikä veny leveällä; pystyvieritys hoitaa korkeuden pienessä vaakanäkymässä.
+        // widthIn ENNEN fillMaxWidth → 340 dp -katto pätee myös leveällä näytöllä.
         modifier = Modifier
-            .fillMaxWidth()
             .widthIn(max = 340.dp)
+            .fillMaxWidth()
             .aspectRatio(1f),
     )
     Spacer(Modifier.height(8.dp))

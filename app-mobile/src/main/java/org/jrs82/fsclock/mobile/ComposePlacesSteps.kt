@@ -412,23 +412,35 @@ internal suspend fun deviceLocation(context: Context, force: Boolean): Location?
     ) {
         return null
     }
+    val now = System.currentTimeMillis()
     val last = lastKnownLocation(context)
     // Päivitä-nappi (force) hakee AINA tuoreen sijainnin. Automaattipolku käyttää nopeaa viimeisintä
-    // tunnettua jos se on tuore (< 10 min), muuten hakee aktiivisesti.
-    if (!force && last != null && System.currentTimeMillis() - last.time < LOCATION_MAX_AGE_MS) return last
-    val fresh = requestCurrentLocation(context)
-    return fresh ?: last // jos tuoreen haku epäonnistuu, käytä vanhaa (parempi kuin ei mitään)
+    // tunnettua vain jos se on käyttökelpoinen (ikä 0..10 min), muuten hakee aktiivisesti.
+    if (!force && isFreshEnough(last, now)) return last
+    val fresh = requestCurrentLocation(context, force)
+    if (fresh != null) return fresh
+    // Aktiivinen haku epäonnistui: käytä viimeisintä tunnettua VAIN jos se on tuore — ei ammoin vanhaa
+    // eikä tulevaisuuteen päivättyä (parempi näyttää ei-päivitystä kuin väärää kaupunkia).
+    return if (isFreshEnough(last, now)) last else null
 }
 
-/** Aktiivinen tuore sijaintipyyntö (best-effort, aikaraja [CURRENT_LOCATION_TIMEOUT_MS]). */
-private suspend fun requestCurrentLocation(context: Context): Location? =
+/** true jos sijainti on käyttökelpoinen: ikä 0..10 min (ei tulevaisuudessa, ei liian vanha). */
+private fun isFreshEnough(loc: Location?, now: Long): Boolean {
+    if (loc == null) return false
+    val age = now - loc.time
+    return age in 0..LOCATION_MAX_AGE_MS
+}
+
+/** Aktiivinen tuore sijaintipyyntö (best-effort, aikaraja [CURRENT_LOCATION_TIMEOUT_MS]).
+ *  [force] (Päivitä-nappi) pakottaa oikeasti tuoreen lukeman: maxUpdateAge 0 + korkea tarkkuus. */
+private suspend fun requestCurrentLocation(context: Context, force: Boolean): Location? =
     suspendCancellableCoroutine { cont ->
         try {
             val client = LocationServices.getFusedLocationProviderClient(context)
             val cts = CancellationTokenSource()
             val request = CurrentLocationRequest.Builder()
-                .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
-                .setMaxUpdateAgeMillis(LOCATION_MAX_AGE_MS)
+                .setPriority(if (force) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+                .setMaxUpdateAgeMillis(if (force) 0L else LOCATION_MAX_AGE_MS)
                 .setDurationMillis(CURRENT_LOCATION_TIMEOUT_MS)
                 .build()
             client.getCurrentLocation(request, cts.token)
@@ -546,12 +558,14 @@ internal fun StepsSection() {
     // vastaus voisi kirjoittaa uuden välilehden tekstin päälle. Vartija: kirjoita vain jos pyyntö on yhä uusin.
     val historyGen = remember { intArrayOf(0) }
     LaunchedEffect(tab, enabled, useHc, hcCaloriesGranted, refreshTrigger) {
+        // Kasvata generaatio ENNEN aikaisia return-kohtia → myös Tänään-välilehdelle siirtyminen mitätöi
+        // piilossa olevan historiakutsun (vanha callback ei kirjoita myöhemmin).
+        historyGen[0]++
+        val myGen = historyGen[0]
         if (tab == 0 || !enabled) {
             return@LaunchedEffect
         }
         historyText = "Ladataan…"
-        historyGen[0]++
-        val myGen = historyGen[0]
         if (useHc) {
             val period = when (tab) {
                 2 -> HealthConnectStepsBridge.PERIOD_WEEKS

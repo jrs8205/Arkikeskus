@@ -1080,8 +1080,10 @@ internal fun ForecastSection() {
     // Avaimitettu refreshillä → sijainnin vaihtuessa (refresh kasvaa) paikka luetaan uudelleen, jolloin
     // FMI ja Open-Meteo hakevat SAMAA paikkaa (ei kahden eri kaupungin sekoitusta otsikkoon/dataan).
     val place = remember(refresh) { displayPlace(prefs) }
-    var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
-    var openMeteo by remember { mutableStateOf(OpenMeteoRepository.get(context).peek(place)) }
+    // Avaimita sää + Open-Meteo PAIKALLA → paikan vaihtuessa data re-seedataan eikä vanhan paikan säätä
+    // näytetä uuden otsikon alla. Seed (sLastWeather/peek) vastaa nykyistä koti-/näyttöpaikkaa.
+    var weather by remember(place) { mutableStateOf(MobileMainActivity.sLastWeather) }
+    var openMeteo by remember(place) { mutableStateOf(OpenMeteoRepository.get(context).peek(place)) }
     LaunchedEffect(refresh) {
         val w = withContext(Dispatchers.IO) {
             try {
