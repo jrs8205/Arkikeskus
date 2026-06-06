@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,6 +55,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -265,21 +268,42 @@ private fun HomeElectricityWidget(prefs: SharedPreferences) {
 private fun HomeSensorsWidget(prefs: SharedPreferences) {
     val context = LocalContext.current
     val ruuvi = remember { RuuviRepository.get(context) }
-    var sensorTick by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        try {
-            ruuvi.start()
-        } catch (e: Exception) {
-            // skannaus vaatii BLE-luvan; ilman sitä näytetään olemassa oleva snapshot
+    val sensorTick = rememberRuuviScanTick(ruuvi)
+    SensorsCard(prefs, ruuvi, sensorTick)
+}
+
+/**
+ * Sitoo Ruuvi-BLE-skannauksen sekä näkymän ETTÄ sovelluksen elinkaareen: skannataan vain kun tämä
+ * sensorinäkymä on koottuna JA sovellus on etualalla. Skannaus pysäytetään taustalle siirryttäessä
+ * (ON_STOP) ja näkymästä poistuttaessa (onDispose) → ei jää päälle akkua syömään (aiemmin start()
+ * kutsuttiin mutta stop()ia ei koskaan). Palauttaa tickin joka kasvaa uudella mittauksella.
+ */
+@Composable
+private fun rememberRuuviScanTick(ruuvi: RuuviRepository): Int {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var tick by remember { mutableStateOf(0) }
+    DisposableEffect(lifecycleOwner) {
+        val main = Handler(Looper.getMainLooper())
+        val listener = RuuviRepository.Listener { _, _ -> main.post { tick++ } }
+        ruuvi.addListener(listener)
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> try { ruuvi.start() } catch (e: Exception) { }
+                Lifecycle.Event.ON_STOP -> ruuvi.stop()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            try { ruuvi.start() } catch (e: Exception) { }
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            ruuvi.removeListener(listener)
+            ruuvi.stop()
         }
     }
-    DisposableEffect(Unit) {
-        val main = Handler(Looper.getMainLooper())
-        val listener = RuuviRepository.Listener { _, _ -> main.post { sensorTick++ } }
-        ruuvi.addListener(listener)
-        onDispose { ruuvi.removeListener(listener) }
-    }
-    SensorsCard(prefs, ruuvi, sensorTick)
+    return tick
 }
 
 
@@ -742,20 +766,7 @@ internal fun SensorsSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val ruuvi = remember { RuuviRepository.get(context) }
-    var tick by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        try {
-            ruuvi.start()
-        } catch (e: Exception) {
-            // skannaus vaatii BLE-luvan
-        }
-    }
-    DisposableEffect(Unit) {
-        val main = Handler(Looper.getMainLooper())
-        val listener = RuuviRepository.Listener { _, _ -> main.post { tick++ } }
-        ruuvi.addListener(listener)
-        onDispose { ruuvi.removeListener(listener) }
-    }
+    val tick = rememberRuuviScanTick(ruuvi)
     val sensors = remember(tick) { buildSensors(prefs, ruuvi) }
     Column(
         modifier = Modifier
