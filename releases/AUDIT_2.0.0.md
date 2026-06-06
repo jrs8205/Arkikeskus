@@ -16,10 +16,12 @@ Arkikeskus-sovelluksen 2.0-julkaisusta mahdollisimman **vakaa** etsimällä buge
 ja Compose-sudenkuoppia ENNEN julkaisua.
 
 **Tärkeää konteksta:**
-- Sinulla on käytössä VAIN tämä auditti-dokumentti (kuvaus työstä, arkkitehtuurista, väreistä ja riskialueista).
-  Et näe lähdekoodia ellei sitä erikseen liitetä. **Älä keksi tiedostojen sisältöä.** Jos jokin väite vaatii
-  koodin näkemistä varmistuaksesi, **pyydä nimeltä ne tiedostot** jotka haluat nähdä (lista kohdassa 4),
-  niin käyttäjä liittää ne.
+- **Lähdekoodin saatavuus:** Jos sinulla on pääsy tiedostojärjestelmään / repoon (esim. ajat CLI-agenttina, kuten Codex),
+  **lue varsinaiset lähdetiedostot suoraan** äläkä luota pelkkään tähän auditiin — varmista väitteet koodista. Repo on
+  `C:\Android\projects\FsClock`, haara `mobile`; Compose-koodi `app-mobile\src\main\java\org\jrs82\fsclock\mobile\`,
+  resurssit `app-mobile\src\main\res\`. Tämä auditti on kartta, koodi on totuus.
+  Jos taas et pääse tiedostoihin (vain tämä dokumentti liitettynä), **älä keksi tiedostojen sisältöä** — pyydä nimeltä
+  ne tiedostot jotka haluat nähdä (lista kohdassa 4), niin käyttäjä liittää ne.
 - Sovellus on uudistettu View/XML → Compose. Logiikka (verkko/data/säikeet, Java-repositoryt) säilyi; vain UI uusittiin.
 - Kiinnitä erityishuomio **kohdan 6 riskialueisiin** (säikeistys, valikko-overlay + back-käsittely, edge-to-edge-insetit,
   Lähilähtöjen inline-reitti, prosessivälimuisti, Java↔Kotlin-interop, Compose-state taustasäikeestä, fragment-in-Compose).
