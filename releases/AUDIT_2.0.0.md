@@ -9,6 +9,33 @@ vakaa 2.0-julkaisu.
 
 ---
 
+## 0. Ohje tarkistajalle (ChatGPT) — lue tämä ensin
+
+Olet kokenut Android / Kotlin / Jetpack Compose -koodikatselmoija. **Tehtäväsi:** auttaa tekemään tästä
+Arkikeskus-sovelluksen 2.0-julkaisusta mahdollisimman **vakaa** etsimällä bugeja, regressioita, kaatumisriskejä
+ja Compose-sudenkuoppia ENNEN julkaisua.
+
+**Tärkeää konteksta:**
+- Sinulla on käytössä VAIN tämä auditti-dokumentti (kuvaus työstä, arkkitehtuurista, väreistä ja riskialueista).
+  Et näe lähdekoodia ellei sitä erikseen liitetä. **Älä keksi tiedostojen sisältöä.** Jos jokin väite vaatii
+  koodin näkemistä varmistuaksesi, **pyydä nimeltä ne tiedostot** jotka haluat nähdä (lista kohdassa 4),
+  niin käyttäjä liittää ne.
+- Sovellus on uudistettu View/XML → Compose. Logiikka (verkko/data/säikeet, Java-repositoryt) säilyi; vain UI uusittiin.
+- Kiinnitä erityishuomio **kohdan 6 riskialueisiin** (säikeistys, valikko-overlay + back-käsittely, edge-to-edge-insetit,
+  Lähilähtöjen inline-reitti, prosessivälimuisti, Java↔Kotlin-interop, Compose-state taustasäikeestä, fragment-in-Compose).
+
+**Mitä haluan sinun tekevän:**
+1. Käy läpi auditti ja etsi todennäköiset ongelmat: kaatumiset, säikeistysvirheet (Compose-state väärästä säikeestä),
+   muisti-/elinkaarivuodot, takaisin-painikkeen käsittely, null/edge-caset, insetit, suorituskyky, regressiot vanhaan nähden.
+2. Listaa löydökset **prioriteetilla**: 🔴 Kriittinen (kaatuu / rikkoo) · 🟡 Keskitaso · ⚪ Pieni / kosmeettinen.
+3. Anna jokaisesta: **(a) missä** (tiedosto/alue), **(b) mikä ongelma**, **(c) miksi se on ongelma**, **(d) ehdotettu korjaus**.
+4. Lopuksi: listaa **mitkä lähdetiedostot haluat nähdä** varmistaaksesi epävarmat kohdat.
+5. Vastaa **suomeksi**. Älä ehdota koko uudelleenkirjoitusta — pieniä, kohdistettuja korjauksia.
+
+(Käyttäjä korjaa löydökset ennen 2.0-julkaisua.)
+
+---
+
 ## 1. Yleiskatsaus
 
 - **Mikä tämä on:** Arkikeskus-mobiilisovelluksen **koko käyttöliittymän uudistus View/XML → Jetpack Compose + Material 3**.
