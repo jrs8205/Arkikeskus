@@ -743,6 +743,7 @@ private fun ClickableRow(
     title: String,
     subtitle: String? = null,
     trailingIconRes: Int? = null,
+    titleIconRes: Int? = null,
     onClick: () -> Unit,
 ) {
     Row(
@@ -753,7 +754,20 @@ private fun ClickableRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (titleIconRes != null) {
+                // Ikoni heti otsikon vieressä (ei rivin oikeassa reunassa).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        painter = painterResource(titleIconRes),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+            }
             if (subtitle != null) {
                 Text(
                     subtitle,
@@ -883,7 +897,7 @@ private fun AppInfoSection(context: Context) {
         ClickableRow(
             title = if (checking) "Tarkistetaan päivityksiä…" else "Tarkista päivitykset",
             subtitle = status,
-            trailingIconRes = R.drawable.mobile_ic_refresh_24,
+            titleIconRes = R.drawable.mobile_ic_refresh_24,
         ) {
             if (checking || downloading) return@ClickableRow
             checking = true
