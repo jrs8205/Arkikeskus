@@ -18,11 +18,20 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="8dp"
             android:text="Reittihaku"
             android:textColor="@color/mobile_text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="10dp"
+            android:text="Minne olet matkalla?"
+            android:textColor="@color/mobile_text_muted"
+            android:textSize="14sp" />
 
         <!-- Hakukortti: Mistä/Minne (väritetyt pisteet) + swap + aika + ensisijainen Hae reitit -->
         <LinearLayout
@@ -167,7 +176,7 @@
                 android:paddingTop="11dp"
                 android:paddingEnd="12dp"
                 android:paddingBottom="11dp"
-                android:text="Lähde nyt"
+                android:text="Lähtö nyt"
                 android:textColor="@color/mobile_text_primary"
                 android:textSize="14sp" />
 

@@ -263,7 +263,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         Context ctx = getContext();
         if (ctx == null) return;
         new AlertDialog.Builder(ctx)
-                .setItems(new CharSequence[]{"Lähde nyt", "Lähde klo…", "Perillä klo…"}, (d, w) -> {
+                .setItems(new CharSequence[]{"Lähtö nyt", "Lähtö klo…", "Perillä klo…"}, (d, w) -> {
                     if (w == 0) {
                         timeEpochMs = 0L;
                         arriveBy = false;
@@ -297,9 +297,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     private void updateTimeButton() {
         if (timeEpochMs <= 0) {
-            timeBtn.setText("Lähde nyt");
+            timeBtn.setText("Lähtö nyt");
         } else {
-            timeBtn.setText((arriveBy ? "Perillä " : "Lähde ") + TIME_LABEL.format(new Date(timeEpochMs)));
+            timeBtn.setText((arriveBy ? "Perillä " : "Lähtö ") + TIME_LABEL.format(new Date(timeEpochMs)));
         }
     }
 
