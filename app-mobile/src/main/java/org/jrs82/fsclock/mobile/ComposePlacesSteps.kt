@@ -60,12 +60,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
+import com.google.android.gms.location.CurrentLocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import java.util.Locale
+import kotlin.coroutines.resume
 
 /**
  * OSA A (viimeiset inline-sektiot): Paikkakunnat (PLACES) + Askeleet (STEPS) Composeen.
@@ -389,6 +395,53 @@ internal fun lastKnownLocation(context: Context): Location? {
 
 private fun hasGranted(context: Context, perm: String): Boolean =
     ContextCompat.checkSelfPermission(context, perm) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+private const val LOCATION_MAX_AGE_MS = 10L * 60_000L
+private const val CURRENT_LOCATION_TIMEOUT_MS = 8_000L
+
+/**
+ * Laitteen sijainti sääpaikan automaattipäivitykseen. **Nopea polku säilyy:** jos viimeisin tunnettu
+ * sijainti on tuore (< 10 min), se palautetaan VÄLITTÖMÄSTI. Vain jos se on null (esim. puhdas asennus)
+ * tai liian vanha (esim. matkustettu toiseen kaupunkiin), haetaan AKTIIVISESTI tuore sijainti
+ * (FusedLocationProviderClient.getCurrentLocation, kuten vanha View-UI). Korjaa "ei sijaintia" ja
+ * "väärä kaupunki" -tilanteet rikkomatta nopeaa toimintaa.
+ */
+internal suspend fun deviceLocation(context: Context, force: Boolean): Location? {
+    if (!hasGranted(context, Manifest.permission.ACCESS_FINE_LOCATION) &&
+        !hasGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+    ) {
+        return null
+    }
+    val last = lastKnownLocation(context)
+    // Päivitä-nappi (force) hakee AINA tuoreen sijainnin. Automaattipolku käyttää nopeaa viimeisintä
+    // tunnettua jos se on tuore (< 10 min), muuten hakee aktiivisesti.
+    if (!force && last != null && System.currentTimeMillis() - last.time < LOCATION_MAX_AGE_MS) return last
+    val fresh = requestCurrentLocation(context)
+    return fresh ?: last // jos tuoreen haku epäonnistuu, käytä vanhaa (parempi kuin ei mitään)
+}
+
+/** Aktiivinen tuore sijaintipyyntö (best-effort, aikaraja [CURRENT_LOCATION_TIMEOUT_MS]). */
+private suspend fun requestCurrentLocation(context: Context): Location? =
+    suspendCancellableCoroutine { cont ->
+        try {
+            val client = LocationServices.getFusedLocationProviderClient(context)
+            val cts = CancellationTokenSource()
+            val request = CurrentLocationRequest.Builder()
+                .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+                .setMaxUpdateAgeMillis(LOCATION_MAX_AGE_MS)
+                .setDurationMillis(CURRENT_LOCATION_TIMEOUT_MS)
+                .build()
+            client.getCurrentLocation(request, cts.token)
+                .addOnSuccessListener { loc -> if (cont.isActive) cont.resume(loc) }
+                .addOnFailureListener { if (cont.isActive) cont.resume(null) }
+                .addOnCanceledListener { if (cont.isActive) cont.resume(null) }
+            cont.invokeOnCancellation { cts.cancel() }
+        } catch (e: SecurityException) {
+            if (cont.isActive) cont.resume(null)
+        } catch (e: Exception) {
+            if (cont.isActive) cont.resume(null)
+        }
+    }
 
 // ============================================================================
 //  ASKELEET (STEPS)
