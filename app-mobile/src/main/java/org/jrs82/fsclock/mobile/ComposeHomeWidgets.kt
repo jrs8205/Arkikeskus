@@ -71,6 +71,15 @@ private var sHomeNewsTick = -1
 private val sHomeFeedCache = HashMap<String, List<NewsItem>>()
 private val sHomeFeedTick = HashMap<String, Int>()
 
+/** Tyhjentää etusivun uutisvälimuistin → seuraava haku noutaa nykyisillä lähteillä (esim. kun lähde
+ *  laitetaan pois/päälle tai oma syöte muuttuu). Kutsutaan asetusmuutoksen yhteydessä. */
+internal fun invalidateHomeNewsCache() {
+    sHomeNewsCache = null
+    sHomeNewsTick = -1
+    sHomeFeedCache.clear()
+    sHomeFeedTick.clear()
+}
+
 // ===================== Widget-malli + asetukset =====================
 
 /** Kiinteät etusivun kortit. id = talletusavain, title = muokkausnäkymän nimi, defaultVisible = oletusnäkyvyys.
@@ -97,6 +106,22 @@ const val HOME_NEWS_FEED_PREFIX = "news:"
 /** Onko avain etusivun widget-järjestykseen/näkyvyyteen liittyvä (etusivun uudelleenluentaa varten). */
 internal fun isHomeWidgetKey(key: String?): Boolean =
     key != null && (key == KEY_HOME_ORDER || key.startsWith(KEY_HOME_SHOW_PREFIX))
+
+/** Uutislähteisiin liittyvä avain (lista lisätään/poistetaan) → etusivun korttilista + uutisvälimuisti
+ *  pitää päivittää (esim. poistettu oma syöte ei jää näkyviin). */
+internal fun isHomeNewsListKey(key: String?): Boolean =
+    key != null && (key == NewsFeedStore.KEY_CUSTOM_FEEDS || key.startsWith("mobile_news_src_"))
+
+/** Asetukset jotka vaikuttavat etusivun DATAAN (ei pelkkä widget-järjestys) → vaativat virkistyksen,
+ *  jotta muutos näkyy heti asetuksista palatessa (uutislähteet, sähköraja/-tila/-huomio, anturinimet). */
+internal fun isHomeDataPrefKey(key: String?): Boolean {
+    if (key == null) return false
+    return isHomeNewsListKey(key) ||
+        key == MobileThemeController.KEY_CHEAP_ELECTRICITY_THRESHOLD ||
+        key == MobileThemeController.KEY_CHEAP_ELECTRICITY_MODE ||
+        key == MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE ||
+        key.startsWith("mobile_sensor_name_")
+}
 
 /** Kaikki tunnetut etusivun kortti-id:t: kiinteät widgetit + jokainen uutislähde per-lähde-korttina.
  *  Public (ei internal) jotta View-pohjainen [MobileWidgetOrderActivity] (Java) voi kutsua. */
@@ -270,7 +295,8 @@ internal fun HomeNewsSourceCard(feedId: String) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
-    val feed = remember(feedId) { NewsFeedStore.feedById(prefs, feedId) }
+    // Avaimitettu myös refreshillä → lähteen nimen/URL:n muutos (asetuksista) luetaan uudelleen.
+    val feed = remember(feedId, refresh) { NewsFeedStore.feedById(prefs, feedId) }
     if (feed == null) return // lähde poistettu → ei korttia
     var items by remember(feedId) { mutableStateOf(sHomeFeedCache[feedId]) }
     LaunchedEffect(feedId, refresh) {

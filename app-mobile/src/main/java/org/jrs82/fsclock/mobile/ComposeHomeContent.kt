@@ -107,7 +107,8 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
     var widgetTick by remember { mutableStateOf(0) }
     DisposableEffect(prefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (isHomeWidgetKey(key)) widgetTick++
+            // Myös uutislähteiden lisäys/poisto päivittää korttilistan (per-lähde-kortit ilmestyvät/katoavat).
+            if (isHomeWidgetKey(key) || isHomeNewsListKey(key)) widgetTick++
         }
         prefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
@@ -671,7 +672,9 @@ private fun PricePill(level: PriceLevel) {
 
 @Composable
 private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: Int) {
-    val sensors = remember(tick) { buildSensors(prefs, repo) }
+    // Avaimitettu myös refreshillä → anturinimien muutos (asetuksista) luetaan uudelleen.
+    val refresh = LocalRefreshTick.current
+    val sensors = remember(tick, refresh) { buildSensors(prefs, repo) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Anturit", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -769,7 +772,8 @@ internal fun SensorsSection() {
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val ruuvi = remember { RuuviRepository.get(context) }
     val tick = rememberRuuviScanTick(ruuvi)
-    val sensors = remember(tick) { buildSensors(prefs, ruuvi) }
+    val refresh = LocalRefreshTick.current
+    val sensors = remember(tick, refresh) { buildSensors(prefs, ruuvi) }
     Column(
         modifier = Modifier
             .fillMaxSize()
