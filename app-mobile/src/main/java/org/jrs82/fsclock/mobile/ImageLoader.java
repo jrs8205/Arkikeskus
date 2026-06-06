@@ -9,6 +9,7 @@ import android.widget.ImageView;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.ExecutorService;
@@ -68,13 +69,17 @@ final class ImageLoader {
             return;
         }
         target.setImageResource(placeholderRes);
+        // Pidä kohde-ImageViewstä vain HEIKKO viite, ettei pitkä latausjono (esim. 50 uutisriviä hitaalla
+        // verkolla) pidä poistettuja näkymiä / Activitya muistissa. Tag-tarkistus estää väärän kuvan piirron.
+        final WeakReference<ImageView> ref = new WeakReference<>(target);
         executor.execute(() -> {
             final Bitmap bmp = download(key);
             if (bmp == null) return;
             cache.put(key, bmp);
             main.post(() -> {
-                if (key.equals(target.getTag())) {
-                    target.setImageBitmap(bmp);
+                ImageView t = ref.get();
+                if (t != null && key.equals(t.getTag())) {
+                    t.setImageBitmap(bmp);
                 }
             });
         });
