@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -77,6 +78,9 @@ import java.util.Locale
  */
 
 private val FI = Locale("fi", "FI")
+
+/** Yhtenäinen pyöristetty laatikkomuoto valikon ja asetusten kohdille (sama molemmilla sivuilla). */
+internal val ItemBoxShape = RoundedCornerShape(20.dp)
 
 private val THEME_OPTIONS = listOf(
     MobileThemeController.VALUE_SYSTEM to "Järjestelmän mukaan",
@@ -774,11 +778,15 @@ private fun SectionHeader(text: String, iconRes: Int? = null) {
     }
 }
 
+/** Osion sisältö: kukin rivi on nyt OMA pyöristetty laatikko (ClickableRow/SwitchRow/InfoRow),
+ *  joten tämä on vain väljästi välistetty Column (ei enää yhtä korttia + erotinviivoja). */
 @Composable
 private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(content = content)
-    }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
 }
 
 @Composable
@@ -789,33 +797,35 @@ private fun ClickableRow(
     trailingIconRes: Int? = null,
     onClick: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (leadingIconRes != null) {
-            RowLeadingIcon(leadingIconRes)
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            if (subtitle != null) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    Card(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingIconRes != null) {
+                RowLeadingIcon(leadingIconRes)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (trailingIconRes != null) {
+                Spacer(Modifier.width(12.dp))
+                Icon(
+                    painter = painterResource(trailingIconRes),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
-        }
-        if (trailingIconRes != null) {
-            Spacer(Modifier.width(12.dp))
-            Icon(
-                painter = painterResource(trailingIconRes),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
         }
     }
 }
@@ -834,22 +844,24 @@ private fun RowLeadingIcon(iconRes: Int) {
 
 @Composable
 private fun InfoRow(title: String, value: String, leadingIconRes: Int? = null) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (leadingIconRes != null) {
-            RowLeadingIcon(leadingIconRes)
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    Card(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingIconRes != null) {
+                RowLeadingIcon(leadingIconRes)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -862,28 +874,30 @@ private fun SwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (leadingIconRes != null) {
-            RowLeadingIcon(leadingIconRes)
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            if (subtitle != null) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    Card(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onCheckedChange(!checked) }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingIconRes != null) {
+                RowLeadingIcon(leadingIconRes)
             }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
-        Spacer(Modifier.width(12.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -928,10 +942,7 @@ private fun PrefSwitchRow(
 
 @Composable
 private fun RowDivider() {
-    HorizontalDivider(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        thickness = 1.dp,
-    )
+    // Ei enää erotinviivaa: kukin rivi on oma pyöristetty laatikko, väli tulee Columnin spacingista.
 }
 
 /**
