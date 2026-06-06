@@ -44,6 +44,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -153,11 +156,19 @@ enum class HomeSection(val title: String) {
     DEVICE_INFO("Puhelimen tiedot"),
 }
 
+/** Sektion talletus Activityn uudelleenluontiin (rememberSaveable): enum → nimi → enum. */
+private val HomeSectionSaver = Saver<HomeSection, String>(
+    save = { it.name },
+    restore = { runCatching { HomeSection.valueOf(it) }.getOrDefault(HomeSection.HOME) },
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComposeMainScreen() {
     val context = LocalContext.current
-    var section by remember { mutableStateOf(HomeSection.HOME) }
+    // rememberSaveable → valittu sektio säilyy Activityn uudelleenluonnissa (esim. dynamic-color-/teemanvaihto),
+    // jolloin hostatut fragmentit (kelikamerat/lähilähdöt/reittihaku) eivät jää orvoiksi näkymättömään konttiin.
+    var section by rememberSaveable(stateSaver = HomeSectionSaver) { mutableStateOf(HomeSection.HOME) }
     // Valikko (hampurilainen): piirretään sisältöalueen päälle ILMAN liukuanimaatiota (ilmestyy
     // heti kun Valikkoa klikataan) ja JÄTTÄÄ alapalkin näkyviin (overlay vain sisällön päällä).
     var menuOpen by remember { mutableStateOf(false) }
@@ -174,11 +185,34 @@ fun ComposeMainScreen() {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                scope.launch { if (maybeRefreshDeviceLocation(context, force = false)) refreshTick++ }
+                // Virkistä näkyvä data palatessa etualalle / asetuksista → asetusmuutokset (uutislähteet,
+                // sähköraja/-tila, anturinimet…) näkyvät heti. Päivittää myös laitteen sijainnin (jos auto päällä).
+                scope.launch {
+                    maybeRefreshDeviceLocation(context, force = false)
+                    refreshTick++
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Automaattinen päivitysväli (asetus): kasvata refreshTickiä valitun välin mukaan VAIN sovelluksen
+    // ollessa etualalla (repeatOnLifecycle RESUMED → silmukka pysähtyy taustalla, ei turhaa verkkoa/akkua).
+    // Väli luetaan joka kierroksella, joten asetusmuutos otetaan huomioon.
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                val minutes = (
+                    PreferenceManager.getDefaultSharedPreferences(context).getString(
+                        MobileThemeController.KEY_UPDATE_INTERVAL_MINUTES,
+                        MobileThemeController.DEFAULT_UPDATE_INTERVAL_MINUTES,
+                    )?.toIntOrNull() ?: 15
+                    ).coerceAtLeast(1)
+                delay(minutes * 60_000L)
+                refreshTick++
+            }
+        }
     }
 
     Scaffold(
