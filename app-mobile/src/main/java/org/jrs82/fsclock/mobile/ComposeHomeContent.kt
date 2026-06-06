@@ -69,6 +69,7 @@ import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.WeatherCondition
 import org.jrs82.fsclock.WeatherData
+import org.jrs82.fsclock.WarningsRepository
 import org.jrs82.fsclock.WeatherIconView
 import org.jrs82.fsclock.WeatherRepository
 import org.jrs82.fsclock.WeatherTextFormatter
@@ -110,7 +111,23 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
         prefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    val widgets = remember(widgetTick) { visibleHomeWidgets(prefs) }
+    // Säävaroitukset näytetään etusivulla vain kun voimassa olevia varoituksia on (kuten 1.15.1).
+    // Tarkistetaan synkronisesti repositoryn muistivälimuistista jo listaa rakennettaessa, jottei
+    // tyhjä varoituskortti jätä turhaa väliä; kuuntelija päivittää kun varoitukset muuttuvat.
+    val warningsRepo = remember { WarningsRepository.get() }
+    var warningsTick by remember { mutableStateOf(0) }
+    DisposableEffect(Unit) {
+        val main = Handler(Looper.getMainLooper())
+        val l = WarningsRepository.Listener { main.post { warningsTick++ } }
+        warningsRepo.addListener(l)
+        warningsRepo.refreshIfStale()
+        onDispose { warningsRepo.removeListener(l) }
+    }
+    val hasWarnings = remember(warningsTick) { warningsRepo.getLatest().isNotEmpty() }
+
+    val widgets = remember(widgetTick, hasWarnings) {
+        visibleHomeWidgetIds(prefs).filter { it != HomeWidget.WARNINGS.id || hasWarnings }
+    }
 
     // Kevyt sisääntulo (OSA B / B6): pehmeä fade + slide — VAIN ensimmäisellä kerralla per prosessi.
     // shown alustetaan jo "näkyväksi" jos animaatio on jo soinut → AnimatedVisibility ei animoi
@@ -141,16 +158,21 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                         "Kaikki kortit on piilotettu. Lisää niitä Muokkaa etusivua -painikkeesta.",
                     )
                 } else {
-                    widgets.forEachIndexed { i, w ->
+                    widgets.forEachIndexed { i, id ->
                         if (i > 0) Spacer(Modifier.height(12.dp))
-                        when (w) {
-                            HomeWidget.CLOCK -> HomeClockWidget()
-                            HomeWidget.HOLIDAY -> HomeHolidayWidget()
-                            HomeWidget.WEATHER -> HomeWeatherWidget(prefs)
-                            HomeWidget.ELECTRICITY -> HomeElectricityWidget(prefs)
-                            HomeWidget.SENSORS -> HomeSensorsWidget(prefs)
-                            HomeWidget.NEWS -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })
-                            HomeWidget.TRANSIT -> HomeTransitCard(onOpenTransit = { onOpenSection(HomeSection.TRANSIT) })
+                        when (id) {
+                            HomeWidget.CLOCK.id -> HomeClockWidget()
+                            HomeWidget.HOLIDAY.id -> HomeHolidayWidget()
+                            HomeWidget.WEATHER.id -> HomeWeatherWidget(prefs)
+                            HomeWidget.ELECTRICITY.id -> HomeElectricityWidget(prefs)
+                            HomeWidget.WARNINGS.id -> HomeWarningsCard()
+                            HomeWidget.SENSORS.id -> HomeSensorsWidget(prefs)
+                            HomeWidget.TRAFFIC.id -> HomeTrafficCard(onOpenTraffic = { onOpenSection(HomeSection.TRAFFIC_INCIDENTS) })
+                            HomeWidget.NEWS.id -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })
+                            HomeWidget.TRANSIT.id -> HomeTransitCard(onOpenTransit = { onOpenSection(HomeSection.TRANSIT) })
+                            else -> if (id.startsWith(HOME_NEWS_FEED_PREFIX)) {
+                                HomeNewsSourceCard(id.substring(HOME_NEWS_FEED_PREFIX.length))
+                            }
                         }
                     }
                 }

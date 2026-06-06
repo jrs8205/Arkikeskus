@@ -52,6 +52,21 @@ final class RssRepository {
         return out;
     }
 
+    /** Hakee (tarvittaessa) yhden lähteen ja palauttaa sen otsikot uusin ensin. Käytetään
+     *  etusivun per-lähde-uutiskortissa riippumatta siitä onko lähde "päällä" yhdistetyssä virrassa. */
+    List<NewsItem> fetchForFeed(NewsFeed feed, boolean forced) {
+        if (feed == null) return new ArrayList<>();
+        long now = System.currentTimeMillis();
+        CacheEntry entry;
+        synchronized (cache) {
+            entry = cache.get(feed.id);
+        }
+        if (forced || entry == null || (now - entry.timestamp) >= CACHE_TTL_MS) {
+            refresh(feed);
+        }
+        return peekForFeed(feed.id);
+    }
+
     /** Yhden lähteen otsikot välimuistista (per-lähde-widget), uusin ensin. */
     List<NewsItem> peekForFeed(String feedId) {
         List<NewsItem> out = new ArrayList<>();

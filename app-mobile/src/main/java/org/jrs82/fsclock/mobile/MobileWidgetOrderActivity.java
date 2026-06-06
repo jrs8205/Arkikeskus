@@ -96,22 +96,13 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
         return order;
     }
 
+    /** Kaikki tunnetut etusivun kortit: kiinteät + per-lähde-uutiskortit (Kotlin-malli). */
     private List<String> allKnownWidgets() {
-        List<String> all = new ArrayList<>();
-        for (HomeWidget w : HomeWidget.values()) all.add(w.getId());
-        return all;
+        return ComposeHomeWidgetsKt.allHomeWidgetIds(prefs);
     }
 
     private boolean isKnown(String id) {
-        return homeWidgetById(id) != null;
-    }
-
-    private HomeWidget homeWidgetById(String id) {
-        if (id == null) return null;
-        for (HomeWidget w : HomeWidget.values()) {
-            if (w.getId().equals(id)) return w;
-        }
-        return null;
+        return id != null && allKnownWidgets().contains(id);
     }
 
     private void persist() {
@@ -139,8 +130,7 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
     }
 
     private boolean defaultVisible(String id) {
-        HomeWidget w = homeWidgetById(id);
-        return w == null || w.getDefaultVisible();
+        return ComposeHomeWidgetsKt.defaultVisibleForId(id);
     }
 
     private boolean isVisible(String id) {
@@ -148,8 +138,7 @@ public class MobileWidgetOrderActivity extends AppCompatActivity {
     }
 
     private String widgetTitle(String id) {
-        HomeWidget w = homeWidgetById(id);
-        return w != null ? w.getTitle() : id;
+        return ComposeHomeWidgetsKt.homeWidgetTitleForId(prefs, id);
     }
 
     private int themeColor(int attr, int fallback) {

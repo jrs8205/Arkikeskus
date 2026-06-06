@@ -1,13 +1,17 @@
 package org.jrs82.fsclock.mobile
 
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +42,8 @@ import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
+import org.jrs82.fsclock.WarningsRepository
+import org.jrs82.fsclock.WeatherWarning
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -56,13 +63,16 @@ private val HELSINKI_W: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
 // ===================== Widget-malli + asetukset =====================
 
-/** Etusivun kortit. id = talletusavain, title = muokkausnäkymän nimi, defaultVisible = oletusnäkyvyys. */
+/** Kiinteät etusivun kortit. id = talletusavain, title = muokkausnäkymän nimi, defaultVisible = oletusnäkyvyys.
+ *  Näiden lisäksi etusivulla on dynaamisia per-lähde-uutiskortteja ("news:<feedId>", oletuksena piilossa). */
 enum class HomeWidget(val id: String, val title: String, val defaultVisible: Boolean) {
     CLOCK("clock", "Kello ja päivämäärä", true),
     HOLIDAY("holiday", "Pyhä- ja liputuspäivät", true),
     WEATHER("weather", "Sää", true),
     ELECTRICITY("electricity", "Pörssisähkö", true),
+    WARNINGS("warnings", "Säävaroitukset", true),
     SENSORS("sensors", "Anturit", true),
+    TRAFFIC("traffic", "Liikennetiedot", true),
     NEWS("news", "Uutiset", true),
     TRANSIT("transit", "Lähilähdöt", true),
 }
@@ -71,30 +81,62 @@ enum class HomeWidget(val id: String, val title: String, val defaultVisible: Boo
 const val KEY_HOME_ORDER = "mobile_home_order"
 const val KEY_HOME_SHOW_PREFIX = "mobile_home_show_"
 
+/** Per-lähde-uutiskortin id-etuliite (sama kuin [NewsFeed.widgetId]: "news:<feedId>"). */
+const val HOME_NEWS_FEED_PREFIX = "news:"
+
 /** Onko avain etusivun widget-järjestykseen/näkyvyyteen liittyvä (etusivun uudelleenluentaa varten). */
 internal fun isHomeWidgetKey(key: String?): Boolean =
     key != null && (key == KEY_HOME_ORDER || key.startsWith(KEY_HOME_SHOW_PREFIX))
 
-/** Tallennettu järjestys; puuttuvat/uudet widgetit lisätään loppuun oletusjärjestyksessä. */
-internal fun homeWidgetOrder(prefs: SharedPreferences): List<HomeWidget> {
-    val byId = HomeWidget.entries.associateBy { it.id }
-    val out = ArrayList<HomeWidget>()
+/** Kaikki tunnetut etusivun kortti-id:t: kiinteät widgetit + jokainen uutislähde per-lähde-korttina.
+ *  Public (ei internal) jotta View-pohjainen [MobileWidgetOrderActivity] (Java) voi kutsua. */
+fun allHomeWidgetIds(prefs: SharedPreferences): List<String> {
+    val ids = ArrayList<String>()
+    for (w in HomeWidget.entries) ids.add(w.id)
+    for (f in NewsFeedStore.allFeeds(prefs)) ids.add(HOME_NEWS_FEED_PREFIX + f.id)
+    return ids
+}
+
+/** Tallennettu järjestys; puuttuvat/uudet kortit lisätään loppuun oletusjärjestyksessä. */
+internal fun homeWidgetIds(prefs: SharedPreferences): List<String> {
+    val known = allHomeWidgetIds(prefs)
+    val knownSet = known.toHashSet()
+    val out = ArrayList<String>()
     val raw = prefs.getString(KEY_HOME_ORDER, null)
     if (raw != null) {
         for (token in raw.split(",")) {
-            val w = byId[token.trim()]
-            if (w != null && !out.contains(w)) out.add(w)
+            val id = token.trim()
+            if (id in knownSet && id !in out) out.add(id)
         }
     }
-    for (w in HomeWidget.entries) if (!out.contains(w)) out.add(w)
+    for (id in known) if (id !in out) out.add(id)
     return out
 }
 
-internal fun isHomeWidgetVisible(prefs: SharedPreferences, w: HomeWidget): Boolean =
-    prefs.getBoolean(KEY_HOME_SHOW_PREFIX + w.id, w.defaultVisible)
+/** Oletusnäkyvyys: kiinteät enum-oletuksensa mukaan, per-lähde-uutiskortit oletuksena piilossa.
+ *  Public jotta [MobileWidgetOrderActivity] (Java) voi kutsua. */
+fun defaultVisibleForId(id: String): Boolean {
+    val w = HomeWidget.entries.firstOrNull { it.id == id }
+    return w?.defaultVisible ?: false
+}
 
-internal fun visibleHomeWidgets(prefs: SharedPreferences): List<HomeWidget> =
-    homeWidgetOrder(prefs).filter { isHomeWidgetVisible(prefs, it) }
+internal fun isHomeWidgetVisibleId(prefs: SharedPreferences, id: String): Boolean =
+    prefs.getBoolean(KEY_HOME_SHOW_PREFIX + id, defaultVisibleForId(id))
+
+internal fun visibleHomeWidgetIds(prefs: SharedPreferences): List<String> =
+    homeWidgetIds(prefs).filter { isHomeWidgetVisibleId(prefs, it) }
+
+/** Otsikko muokkausnäkymälle (MobileWidgetOrderActivity, Java). Per-lähde: "Uutiset: <nimi>". */
+fun homeWidgetTitleForId(prefs: SharedPreferences, id: String): String {
+    val w = HomeWidget.entries.firstOrNull { it.id == id }
+    if (w != null) return w.title
+    if (id.startsWith(HOME_NEWS_FEED_PREFIX)) {
+        val feedId = id.substring(HOME_NEWS_FEED_PREFIX.length)
+        val feed = NewsFeedStore.feedById(prefs, feedId)
+        return "Uutiset: " + (feed?.name?.ifEmpty { feedId } ?: feedId)
+    }
+    return id
+}
 
 // Etusivun korttien näkyvyys + järjestys muokataan View-pohjaisessa [MobileWidgetOrderActivity]ssa
 // (raahaus, kuten 1.15.x). Se kirjoittaa samat avaimet (KEY_HOME_ORDER / KEY_HOME_SHOW_PREFIX).
@@ -192,6 +234,234 @@ private fun CompactNewsRow(item: NewsItem) {
                 }
             }
         }
+    }
+}
+
+// ===================== Per-lähde-uutiskortti (yksi uutislähde, etusivulle) =====================
+
+/**
+ * Yhden uutislähteen kortti etusivulle ("Uutiset: HS" jne.). Lähteen voi laittaa näkyviin ja
+ * sen paikkaa voi siirtää etusivun muokkauksessa (id "news:<feedId>"). Toimii myös käyttäjän
+ * omille RSS-syötteille. Hakee oman lähteensä riippumatta yhdistetyn virran päällä/pois-tilasta.
+ */
+@Composable
+internal fun HomeNewsSourceCard(feedId: String) {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    val refresh = LocalRefreshTick.current
+    val feed = remember(feedId) { NewsFeedStore.feedById(prefs, feedId) }
+    if (feed == null) return // lähde poistettu → ei korttia
+    var items by remember(feedId) { mutableStateOf<List<NewsItem>?>(null) }
+    LaunchedEffect(feedId, refresh) {
+        val fresh = withContext(Dispatchers.IO) {
+            try {
+                RssRepository.get().fetchForFeed(feed, refresh > 0)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        items = fresh ?: emptyList()
+    }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                feed.name.ifEmpty { "Uutiset" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = ArkiTheme.colors.newsAccent,
+            )
+            val list = items
+            when {
+                list == null -> Text(
+                    "Haetaan uutisia…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                list.isEmpty() -> Text(
+                    "Ei uutisia tästä lähteestä juuri nyt.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> list.take(5).forEach { CompactNewsRow(it) }
+            }
+        }
+    }
+}
+
+// ===================== Säävaroitukset-widget (etusivulle) =====================
+
+/** Säävaroitukset etusivulla — näkyy vain kun voimassa olevia varoituksia on (kuten 1.15.1). */
+@Composable
+internal fun HomeWarningsCard() {
+    val repo = remember { WarningsRepository.get() }
+    var tick by remember { mutableStateOf(0) }
+    DisposableEffect(Unit) {
+        val main = Handler(Looper.getMainLooper())
+        val l = WarningsRepository.Listener { main.post { tick++ } }
+        repo.addListener(l) // kutsuu heti nykyisellä listalla
+        repo.refreshIfStale()
+        onDispose { repo.removeListener(l) }
+    }
+    val warnings = remember(tick) { repo.getLatest() }
+    if (warnings.isEmpty()) return
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Säävaroitukset",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = ArkiTheme.colors.warning,
+            )
+            warnings.take(4).forEach { WarningRow(it) }
+        }
+    }
+}
+
+@Composable
+private fun WarningRow(w: WeatherWarning) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(w.level.color)),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (w.event.isNotEmpty()) w.event else w.level.fiName,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (w.areaDesc.isNotEmpty()) {
+            Text(
+                w.areaDesc,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        val v = warningValidity(w)
+        if (v.isNotEmpty()) {
+            Text(
+                v,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun warningValidity(w: WeatherWarning): String {
+    if (w.onsetMs <= 0L && w.expiresMs <= 0L) return ""
+    val dt = SimpleDateFormat("d.M. HH:mm", FI_W)
+    dt.timeZone = HELSINKI_W
+    return when {
+        w.onsetMs <= 0L -> "voimassa asti " + dt.format(Date(w.expiresMs))
+        w.expiresMs <= 0L -> "alkaen " + dt.format(Date(w.onsetMs))
+        else -> dt.format(Date(w.onsetMs)) + " – " + dt.format(Date(w.expiresMs))
+    }
+}
+
+// ===================== Liikennetiedot-widget (kevyt, etusivulle) =====================
+
+/** Liikennetiedot etusivulla: 3 lähintä tiedotetta (kaikki tyypit) tiivistettynä. */
+@Composable
+internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
+    val context = LocalContext.current
+    val repo = remember { TrafficNoticesRepository() }
+    val refresh = LocalRefreshTick.current
+    var notices by remember { mutableStateOf<List<TrafficNotice>?>(null) }
+    var note by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(refresh) {
+        val ref = referenceCoordinates(context)
+        if (ref == null) {
+            note = "Salli sijainti, niin lähialueen liikennetiedot näkyvät."
+            notices = emptyList()
+            return@LaunchedEffect
+        }
+        val result = withContext(Dispatchers.IO) {
+            try {
+                repo.fetchNearby(ref[0], ref[1], TrafficNotice.Kind.ALL, refresh > 0)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        if (result == null) {
+            note = "Liikennetietojen haku epäonnistui."
+            notices = emptyList()
+        } else {
+            note = null
+            notices = result
+        }
+    }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Liikennetiedot",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                if (!notices.isNullOrEmpty()) {
+                    TextButton(onClick = onOpenTraffic) { Text("Kaikki") }
+                }
+            }
+            val list = notices
+            when {
+                list == null -> Text(
+                    "Haetaan liikennetietoja…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                list.isEmpty() -> Text(
+                    note ?: "Ei tiedotteita lähistöllä juuri nyt.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> {
+                    list.take(3).forEach { CompactTrafficRow(it) }
+                    if (list.size > 3) {
+                        Text(
+                            "+ ${list.size - 3} lisää",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onOpenTraffic)
+                                .padding(top = 10.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactTrafficRow(n: TrafficNotice) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(
+            n.title.ifEmpty { n.kind.title },
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = ArkiTheme.colors.warning,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        val meta = buildList {
+            add(n.kind.title)
+            if (!n.distanceMeters.isNaN()) add(distanceText(n.distanceMeters))
+        }.joinToString("  ·  ")
+        Text(
+            meta,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
