@@ -174,6 +174,10 @@ fun ComposeMainScreen() {
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        // Valikko avautuu VAIN hampurilaisikonista (alapalkki) — ei reunavedoksesta. Tämä estää
+        // valikon avautumisen oikealle vetäessä joka sivulla ja palauttaa esim. kelikamerakartan
+        // yhden sormen panoroinnin (reunavedos söi sen aiemmin).
+        gesturesEnabled = false,
         drawerContent = {
             DrawerContent(
                 current = section,
