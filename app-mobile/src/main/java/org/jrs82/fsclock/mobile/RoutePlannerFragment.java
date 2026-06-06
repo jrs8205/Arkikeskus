@@ -67,6 +67,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private EditText fromField, toField;
     private TextView swapBtn, timeBtn, searchBtn, status;
     private TextView fromClear, toClear;
+    private View titleView, subtitleView;
     private RecyclerView list;
     private RoutePlannerAdapter adapter;
 
@@ -119,6 +120,8 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         timeBtn = view.findViewById(R.id.route_time);
         searchBtn = view.findViewById(R.id.route_search);
         status = view.findViewById(R.id.route_status);
+        titleView = view.findViewById(R.id.route_title);
+        subtitleView = view.findViewById(R.id.route_subtitle);
         list = view.findViewById(R.id.route_list);
         list.setLayoutManager(new LinearLayoutManager(requireContext()));
         adapter = new RoutePlannerAdapter(this);
@@ -143,8 +146,18 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
 
         fromField.setText(MY_LOCATION);
-        fromField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 1; offerMyLocationIfEmpty(fromField, 1); } });
-        toField.setOnFocusChangeListener((v, f) -> { if (f) { activeField = 2; offerMyLocationIfEmpty(toField, 2); } });
+        // Kentän fokusoituessa siirrytään "hakutilaan" (kuten HSL Reittiopas): otsikko, alaotsikko,
+        // aikavalinta ja Hae reitit -nappi piilotetaan, jolloin hakukenttä nousee ylös ja ennakoiville
+        // ehdotuksille jää koko ruutu. Kun molemmat kentät menettävät fokuksen (esim. ehdotus valittu),
+        // palataan normaalitilaan.
+        fromField.setOnFocusChangeListener((v, f) -> {
+            if (f) { activeField = 1; setSearchMode(true); offerMyLocationIfEmpty(fromField, 1); }
+            else { ui.post(this::updateSearchModeFromFocus); }
+        });
+        toField.setOnFocusChangeListener((v, f) -> {
+            if (f) { activeField = 2; setSearchMode(true); offerMyLocationIfEmpty(toField, 2); }
+            else { ui.post(this::updateSearchModeFromFocus); }
+        });
         fromField.addTextChangedListener(new SimpleWatcher(1));
         toField.addTextChangedListener(new SimpleWatcher(2));
 
@@ -168,6 +181,22 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
      *  sieppaamaan back-painallusta muilla sivuilla. */
     void onSectionHidden() {
         closeDetail();
+    }
+
+    /** "Hakutila" (kuten HSL): piilottaa ylimääräisen kromin (otsikko/alaotsikko/aika/Hae reitit),
+     *  jolloin hakukenttä nousee ylös ja ennakoiville ehdotuksille jää koko ruutu. */
+    private void setSearchMode(boolean active) {
+        int chrome = active ? View.GONE : View.VISIBLE;
+        if (titleView != null) titleView.setVisibility(chrome);
+        if (subtitleView != null) subtitleView.setVisibility(chrome);
+        if (timeBtn != null) timeBtn.setVisibility(chrome);
+        if (searchBtn != null) searchBtn.setVisibility(chrome);
+    }
+
+    /** Palaa normaalitilaan kun kumpikaan hakukenttä ei ole enää fokuksessa. */
+    private void updateSearchModeFromFocus() {
+        if (fromField == null || toField == null) return;
+        if (!fromField.hasFocus() && !toField.hasFocus()) setSearchMode(false);
     }
 
     // --- Ehdotushaku (geokoodaus kirjoittaessa) ---
