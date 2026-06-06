@@ -51,11 +51,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
@@ -531,18 +534,28 @@ private fun RuuviScanDialog(
     var samples by remember { mutableStateOf(sortedSnapshot(repo)) }
     var assignMac by remember { mutableStateOf<String?>(null) }
 
-    DisposableEffect(Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
         val main = Handler(Looper.getMainLooper())
         val listener = RuuviRepository.Listener { _, _ -> main.post { samples = sortedSnapshot(repo) } }
         repo.addListener(listener)
-        try {
-            repo.start()
-        } catch (e: Exception) {
-            // skannaus vaatii BLE-luvan; lupavirta hoidettu ennen dialogin avausta
+        // Skannaus sidottu elinkaareen: pysähtyy myös koti-painikkeesta / näytön lukituksesta (ON_STOP),
+        // ei vain dialogia suljettaessa → BLE ei jää taustalle akkua syömään.
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> try { repo.start() } catch (e: Exception) { }
+                Lifecycle.Event.ON_STOP -> repo.stop()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            try { repo.start() } catch (e: Exception) { }
         }
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             repo.removeListener(listener)
-            repo.stop() // pysäytä BLE-skannaus kun hakudialogi sulkeutuu (ei jää akkua syömään)
+            repo.stop()
         }
     }
 

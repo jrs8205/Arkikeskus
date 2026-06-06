@@ -3,6 +3,7 @@ package org.jrs82.fsclock.mobile
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
@@ -100,6 +101,10 @@ val LocalRefreshTick = compositionLocalOf { 0 }
 /** Automaattisen sijaintipäivityksen aikaleima (per prosessi) — estää tiheän peräkkäisen geokoodauksen. */
 internal var sLastAutoLocMs = 0L
 
+/** Viimeisimmän ON_RESUME-virkistyksen aikaleima (per prosessi) — throttle, jottei esim. selaimesta tai
+ *  lupadialogista palaaminen pakota toistuvia verkkohakuja. Asetusmuutokset virkistyvät erikseen. */
+private var sLastResumeRefreshMs = 0L
+
 /** Pakottaa seuraavan resume-päivityksen hakemaan sijainnin heti (esim. kun automaattinen sijainti
  *  kytketään päälle asetuksista). */
 internal fun resetAutoLocationThrottle() {
@@ -186,11 +191,16 @@ fun ComposeMainScreen() {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                // Virkistä näkyvä data palatessa etualalle / asetuksista → asetusmuutokset (uutislähteet,
-                // sähköraja/-tila, anturinimet…) näkyvät heti. Päivittää myös laitteen sijainnin (jos auto päällä).
+                // Virkistä näkyvä data palatessa etualalle (esim. sovelluksen uudelleenavaus) — THROTTLATTU
+                // (väh. 30 s välein), jottei selaimesta/lupadialogista palaaminen pakota toistuvia hakuja.
+                // Päivittää myös laitteen sijainnin (jos auto päällä). Asetusmuutokset virkistyvät erikseen.
                 scope.launch {
                     maybeRefreshDeviceLocation(context, force = false)
-                    refreshTick++
+                    val now = System.currentTimeMillis()
+                    if (now - sLastResumeRefreshMs > 30_000L) {
+                        sLastResumeRefreshMs = now
+                        refreshTick++
+                    }
                 }
             }
         }
@@ -214,6 +224,21 @@ fun ComposeMainScreen() {
                 refreshTick++
             }
         }
+    }
+
+    // Asetusmuutokset (uutislähteet, oma syöte, sähköraja/-tila/-huomio, anturinimet) → virkistä etusivu
+    // HETI ja tyhjennä uutisvälimuisti, jotta muutos näkyy asetuksista palatessa (ei vasta seuraavalla
+    // Päivitä-painalluksella). Tämä on erillään ON_RESUME-throttlesta → kohdistettu, ei turhaa verkkoa.
+    DisposableEffect(Unit) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (isHomeDataPrefKey(key)) {
+                if (isHomeNewsListKey(key)) invalidateHomeNewsCache()
+                refreshTick++
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
     Scaffold(
