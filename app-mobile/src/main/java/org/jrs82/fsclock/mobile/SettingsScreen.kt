@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
@@ -207,16 +208,18 @@ fun SettingsScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            // Kapeat reunamarginaalit → kortit lähes koko sivun levyisiä (kuten HSL), enemmän tilaa.
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // ---------- Sää ----------
-            item { SectionHeader("Sää") }
+            item { SectionHeader("Sää", R.drawable.mobile_ic_location_24) }
             item {
                 SettingsCard {
                     SwitchRow(
                         title = "Automaattinen sijainti",
                         subtitle = "Päivitä paikkakunta laitteen sijainnin perusteella, jos lupa on annettu",
+                        leadingIconRes = R.drawable.mobile_ic_location_24,
                         checked = autoLocation,
                     ) { enable ->
                         if (enable) {
@@ -250,12 +253,13 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             // ---------- Etusivu ----------
-            item { SectionHeader("Etusivu") }
+            item { SectionHeader("Etusivu", R.drawable.mobile_ic_dashboard_24) }
             item {
                 SettingsCard {
                     ClickableRow(
                         title = "Etusivun kortit",
                         subtitle = "Valitse näkyvät kortit ja järjestä ne raahaamalla (kello, sää, sähkö, anturit, uutiset, lähilähdöt…)",
+                        leadingIconRes = R.drawable.mobile_ic_dashboard_24,
                     ) {
                         context.startActivity(Intent(context, MobileWidgetOrderActivity::class.java))
                     }
@@ -263,38 +267,46 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             // ---------- Uutislähteet ----------
-            item { SectionHeader("Uutislähteet") }
+            item { SectionHeader("Uutislähteet", R.drawable.mobile_ic_news_24) }
             item {
                 SettingsCard {
                     builtinFeeds.forEachIndexed { index, feed ->
-                        PrefSwitchRow(prefs, feed.enabledKey(), feed.name, default = true)
+                        PrefSwitchRow(
+                            prefs, feed.enabledKey(), feed.name,
+                            leadingIconRes = R.drawable.mobile_ic_news_24, default = true,
+                        )
                         if (index < builtinFeeds.lastIndex) RowDivider()
                     }
                 }
             }
 
             // ---------- Omat uutissyötteet ----------
-            item { SectionHeader("Omat uutissyötteet") }
+            item { SectionHeader("Omat uutissyötteet", R.drawable.mobile_ic_rss_24) }
             item {
                 SettingsCard {
                     customFeeds.forEach { feed ->
-                        ClickableRow(title = feed.name, subtitle = feed.url) { editFeed = feed }
+                        ClickableRow(
+                            title = feed.name, subtitle = feed.url,
+                            leadingIconRes = R.drawable.mobile_ic_rss_24,
+                        ) { editFeed = feed }
                         RowDivider()
                     }
                     ClickableRow(
                         title = "Lisää oma syöte",
                         subtitle = "Lisää oma RSS- tai Atom-syöte (nimi + osoite)",
+                        leadingIconRes = R.drawable.mobile_ic_add_24,
                     ) { addFeed = true }
                 }
             }
 
             // ---------- Ruuvi-anturit ----------
-            item { SectionHeader("Ruuvi-anturit") }
+            item { SectionHeader("Ruuvi-anturit", R.drawable.mobile_ic_thermometer_24) }
             item {
                 SettingsCard {
                     ClickableRow(
                         title = "Etsi antureita (Bluetooth)",
                         subtitle = "Skannaa lähellä olevat RuuviTagit ja liitä huoneeseen",
+                        leadingIconRes = R.drawable.mobile_ic_bluetooth_24,
                     ) { requestScan(null) }
                 }
             }
@@ -304,15 +316,21 @@ fun SettingsScreen(onBack: () -> Unit) {
                     val mac = remember(refreshTick) { SettingsManager.get().getRuuviMac(slot) }
                     val macSummary = remember(refreshTick) { slotSummary(repo, mac) }
                     SettingsCard {
-                        ClickableRow(title = "Anturin nimi", subtitle = name) { editSensorSlot = slot }
+                        ClickableRow(
+                            title = "Anturin nimi", subtitle = name,
+                            leadingIconRes = R.drawable.mobile_ic_thermometer_24,
+                        ) { editSensorSlot = slot }
                         RowDivider()
-                        ClickableRow(title = "Liitetty Ruuvi", subtitle = macSummary) { requestScan(slot) }
+                        ClickableRow(
+                            title = "Liitetty Ruuvi", subtitle = macSummary,
+                            leadingIconRes = R.drawable.mobile_ic_bluetooth_24,
+                        ) { requestScan(slot) }
                     }
                 }
             }
 
             // ---------- Pörssisähkö ----------
-            item { SectionHeader("Pörssisähkö") }
+            item { SectionHeader("Pörssisähkö", R.drawable.mobile_ic_bolt_24) }
             item {
                 SettingsCard {
                     PrefSwitchRow(
@@ -320,31 +338,39 @@ fun SettingsScreen(onBack: () -> Unit) {
                         MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE,
                         "Halvan sähkön huomio",
                         subtitle = "Näytä huomio etusivulla kun sähkö on halpaa",
+                        leadingIconRes = R.drawable.mobile_ic_bolt_24,
                         default = true,
                     )
                     RowDivider()
                     ClickableRow(
                         title = "Halvan sähkön raja",
                         subtitle = "$threshold c/kWh (ALV 0 %)",
+                        leadingIconRes = R.drawable.mobile_ic_bolt_24,
                     ) { showThresholdDialog = true }
                     RowDivider()
                     ClickableRow(
                         title = "Milloin huomio näytetään",
                         subtitle = labelFor(CHEAP_MODE_OPTIONS, cheapMode),
+                        leadingIconRes = R.drawable.mobile_ic_clock_24,
                     ) { showModeDialog = true }
                 }
             }
 
             // ---------- Sovellus ----------
-            item { SectionHeader("Sovellus") }
+            item { SectionHeader("Sovellus", R.drawable.mobile_ic_tune_24) }
             item {
                 SettingsCard {
                     ClickableRow(
                         title = "Automaattinen päivitysväli",
                         subtitle = labelFor(INTERVAL_OPTIONS, interval),
+                        leadingIconRes = R.drawable.mobile_ic_clock_24,
                     ) { showIntervalDialog = true }
                     RowDivider()
-                    ClickableRow(title = "Teema", subtitle = labelFor(THEME_OPTIONS, themeMode)) {
+                    ClickableRow(
+                        title = "Teema",
+                        subtitle = labelFor(THEME_OPTIONS, themeMode),
+                        leadingIconRes = R.drawable.mobile_ic_palette_24,
+                    ) {
                         showThemeDialog = true
                     }
                     RowDivider()
@@ -352,7 +378,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                         DynamicColorRow(prefs, context)
                         RowDivider()
                     }
-                    InfoRow(title = "Viimeisin sääpäivitys", value = lastUpdateText())
+                    InfoRow(
+                        title = "Viimeisin sääpäivitys",
+                        value = lastUpdateText(),
+                        leadingIconRes = R.drawable.mobile_ic_clock_24,
+                    )
                 }
             }
 
@@ -721,14 +751,27 @@ private fun CustomFeedDialog(
 // ===================== Rivikomponentit =====================
 
 @Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.Bold,
+private fun SectionHeader(text: String, iconRes: Int? = null) {
+    Row(
         modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (iconRes != null) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+        )
+    }
 }
 
 @Composable
@@ -742,8 +785,8 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 private fun ClickableRow(
     title: String,
     subtitle: String? = null,
+    leadingIconRes: Int? = null,
     trailingIconRes: Int? = null,
-    titleIconRes: Int? = null,
     onClick: () -> Unit,
 ) {
     Row(
@@ -753,21 +796,11 @@ private fun ClickableRow(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (leadingIconRes != null) {
+            RowLeadingIcon(leadingIconRes)
+        }
         Column(modifier = Modifier.weight(1f)) {
-            if (titleIconRes != null) {
-                // Ikoni heti otsikon vieressä (ei rivin oikeassa reunassa).
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.bodyLarge)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        painter = painterResource(titleIconRes),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            } else {
-                Text(title, style = MaterialTheme.typography.bodyLarge)
-            }
+            Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle != null) {
                 Text(
                     subtitle,
@@ -787,19 +820,37 @@ private fun ClickableRow(
     }
 }
 
+/** HSL-tyylinen sininen leading-ikoni asetusrivin vasemmalla (kutsutaan RowScopessa). */
 @Composable
-private fun InfoRow(title: String, value: String) {
-    Column(
+private fun RowLeadingIcon(iconRes: Int) {
+    Icon(
+        painter = painterResource(iconRes),
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(24.dp),
+    )
+    Spacer(Modifier.width(16.dp))
+}
+
+@Composable
+private fun InfoRow(title: String, value: String, leadingIconRes: Int? = null) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (leadingIconRes != null) {
+            RowLeadingIcon(leadingIconRes)
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -807,6 +858,7 @@ private fun InfoRow(title: String, value: String) {
 private fun SwitchRow(
     title: String,
     subtitle: String? = null,
+    leadingIconRes: Int? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
@@ -817,6 +869,9 @@ private fun SwitchRow(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (leadingIconRes != null) {
+            RowLeadingIcon(leadingIconRes)
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle != null) {
@@ -845,6 +900,7 @@ private fun DynamicColorRow(prefs: android.content.SharedPreferences, context: C
     SwitchRow(
         title = "Käytä laitteen värejä",
         subtitle = "Material You -värit taustakuvasta. Pois päältä: oma kirkas brändipaletti.",
+        leadingIconRes = R.drawable.mobile_ic_palette_24,
         checked = checked,
     ) {
         checked = it
@@ -860,10 +916,11 @@ private fun PrefSwitchRow(
     key: String,
     title: String,
     subtitle: String? = null,
+    leadingIconRes: Int? = null,
     default: Boolean,
 ) {
     var checked by remember { mutableStateOf(prefs.getBoolean(key, default)) }
-    SwitchRow(title = title, subtitle = subtitle, checked = checked) {
+    SwitchRow(title = title, subtitle = subtitle, leadingIconRes = leadingIconRes, checked = checked) {
         checked = it
         prefs.edit().putBoolean(key, it).apply()
     }
@@ -889,15 +946,19 @@ private fun AppInfoSection(context: Context) {
     var downloading by remember { mutableStateOf(false) }
     var update by remember { mutableStateOf<AppUpdater.ReleaseInfo?>(null) }
 
-    SectionHeader("Tietoja sovelluksesta")
+    SectionHeader("Tietoja sovelluksesta", R.drawable.mobile_ic_info_24)
     Spacer(Modifier.height(4.dp))
     SettingsCard {
-        InfoRow(title = "Sovelluksen versio", value = current)
+        InfoRow(
+            title = "Sovelluksen versio",
+            value = current,
+            leadingIconRes = R.drawable.mobile_ic_info_24,
+        )
         RowDivider()
         ClickableRow(
             title = if (checking) "Tarkistetaan päivityksiä…" else "Tarkista päivitykset",
             subtitle = status,
-            titleIconRes = R.drawable.mobile_ic_refresh_24,
+            leadingIconRes = R.drawable.mobile_ic_refresh_24,
         ) {
             if (checking || downloading) return@ClickableRow
             checking = true
@@ -919,6 +980,7 @@ private fun AppInfoSection(context: Context) {
             ClickableRow(
                 title = if (downloading) "Ladataan ja asennetaan…" else "Lataa ja asenna ${avail.versionName}",
                 subtitle = "Haetaan GitHub-julkaisusta. Asennukseen tarvitaan lupa asentaa tuntemattomista lähteistä.",
+                leadingIconRes = R.drawable.mobile_ic_download_24,
             ) {
                 if (downloading) return@ClickableRow
                 downloading = true
@@ -932,6 +994,7 @@ private fun AppInfoSection(context: Context) {
         ClickableRow(
             title = "GitHub – lähdekoodi ja julkaisut",
             subtitle = "github.com/jrs8205/Arkikeskus",
+            leadingIconRes = R.drawable.mobile_ic_code_24,
         ) {
             openUrl(context, AppUpdater.REPO_URL)
         }
