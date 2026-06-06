@@ -24,13 +24,14 @@ import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -305,8 +306,9 @@ private fun DrawerContent(
     onSettings: () -> Unit,
 ) {
     Surface(
+        // Sama taustaväri kuin asetussivulla → valikko ja asetukset näyttävät yhtenäisiltä.
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.background,
     ) {
         Column(
             modifier = Modifier
@@ -348,13 +350,20 @@ private fun DrawerContent(
             DrawerItem(HomeSection.STEPS, current, onSelect)
             DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            NavigationDrawerItem(
-                label = { Text("Asetukset") },
-                selected = false,
+            Spacer(Modifier.height(8.dp))
+            Card(
                 onClick = onSettings,
-                modifier = Modifier.padding(vertical = 2.dp),
-            )
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 3.dp),
+                shape = ItemBoxShape,
+            ) {
+                Text(
+                    "Asetukset",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -362,12 +371,31 @@ private fun DrawerContent(
 
 @Composable
 private fun DrawerItem(section: HomeSection, current: HomeSection, onSelect: (HomeSection) -> Unit) {
-    NavigationDrawerItem(
-        label = { Text(section.title) },
-        selected = current == section,
+    // Kukin valikon kohta omana pyöristettynä laatikkona (sama tyyli kuin asetussivulla).
+    // Nykyinen sektio korostetaan primaryContainer-värillä.
+    val selected = current == section
+    Card(
         onClick = { onSelect(section) },
-        modifier = Modifier.padding(vertical = 2.dp),
-    )
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        shape = ItemBoxShape,
+        colors = if (selected) {
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        } else {
+            CardDefaults.cardColors()
+        },
+    ) {
+        Text(
+            section.title,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        )
+    }
 }
 
 @Composable
