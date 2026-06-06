@@ -61,16 +61,15 @@ import java.util.TimeZone
 private val FI_W = Locale("fi", "FI")
 private val HELSINKI_W: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
-// Etusivun korttien PROSESSITASON välimuisti: data säilyy kun siirrytään sivulta toiselle (ei
-// "katoa ja lataudu uudelleen" joka kerta), ja haetaan uudelleen vain sovelluksen avauksessa
-// (uusi prosessi → nämä nollautuvat) tai Päivitä-napista (LocalRefreshTick kasvaa). Säilytetään
-// myös viime onnistuneen haun tick, jotta tiedetään onko Päivitä-nappia painettu haun jälkeen.
+// Etusivun UUTISKORTTIEN PROSESSITASON välimuisti: uutiset säilyvät kun siirrytään sivulta toiselle
+// (ei "katoa ja lataudu uudelleen" joka kerta), ja haetaan uudelleen vain sovelluksen avauksessa
+// (uusi prosessi → nämä nollautuvat) tai Päivitä-napista (LocalRefreshTick kasvaa). Säilytetään myös
+// viime onnistuneen haun tick, jotta tiedetään onko Päivitä-nappia painettu haun jälkeen.
+// HUOM: Lähilähtöjä EI välimuisteta — niiden reaaliaikaisuus on tärkeä, ne haetaan tuoreina aina.
 private var sHomeNewsCache: List<NewsItem>? = null
 private var sHomeNewsTick = -1
 private val sHomeFeedCache = HashMap<String, List<NewsItem>>()
 private val sHomeFeedTick = HashMap<String, Int>()
-private var sHomeTransitCache: List<Departure>? = null
-private var sHomeTransitTick = -1
 
 // ===================== Widget-malli + asetukset =====================
 
@@ -504,19 +503,14 @@ private fun CompactTrafficRow(n: TrafficNotice) {
 internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
     val context = LocalContext.current
     val refresh = LocalRefreshTick.current
-    var deps by remember { mutableStateOf(sHomeTransitCache) }
+    // Lähilähtöjä EI välimuisteta — haetaan aina tuoreina, jotta reaaliaikaisuus säilyy.
+    var deps by remember { mutableStateOf<List<Departure>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(refresh) {
-        val cached = sHomeTransitCache
-        if (cached != null && refresh == sHomeTransitTick) {
-            deps = cached
-            note = null
-            return@LaunchedEffect
-        }
         val ref = referenceCoordinates(context)
         if (ref == null) {
             note = "Salli sijainti tai aseta kotipaikka, niin lähilähdöt näkyvät."
-            if (cached == null) deps = emptyList()
+            deps = emptyList()
             return@LaunchedEffect
         }
         val result = withContext(Dispatchers.IO) {
@@ -528,11 +522,9 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
             }
         }
         if (result == null) {
-            note = if (cached == null) "Lähtöjen haku epäonnistui." else null
-            if (cached == null) deps = emptyList()
+            note = "Lähtöjen haku epäonnistui."
+            deps = emptyList()
         } else {
-            sHomeTransitCache = result
-            sHomeTransitTick = refresh
             note = null
             deps = result
         }
