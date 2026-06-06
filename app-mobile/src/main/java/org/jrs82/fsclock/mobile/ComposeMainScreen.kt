@@ -6,13 +6,18 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerValue
@@ -197,10 +202,14 @@ fun ComposeMainScreen() {
                 // Kiinteä alapalkki (HSL Reittiopas -tyyli): kolme ikonia tekstilappuineen.
                 // Koti (vasen) korostuu kun ollaan etusivulla; Päivitä (keski) hakee datan
                 // pyörähdys- + värinäanimaatiolla; Valikko (oikea) avaa hampurilaisvalikon.
-                // NavigationBarItem antaa automaattisesti ≥48dp kosketusalat ja reunainsetit.
-                // Sovelluksen nimeä ei näytetä (ei enää yläpalkkia eikä otsikkoa).
+                // NavigationBarItem antaa automaattisesti ≥48dp kosketusalat. Sovelluksen nimeä
+                // ei näytetä. Erotinviivat + oma sävy puhelimen navigaatiopalkin (nuolet) alueelle,
+                // jotta sovelluksen palkki erottuu järjestelmän palkista (erit. tumma teema).
+                Column(modifier = Modifier.fillMaxWidth()) {
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    windowInsets = WindowInsets(0, 0, 0, 0),
                 ) {
                     NavigationBarItem(
                         selected = section == HomeSection.HOME,
@@ -241,6 +250,15 @@ fun ComposeMainScreen() {
                         },
                         label = { Text("Valikko") },
                     )
+                }
+                // Puhelimen oman navigaatiopalkin (koti/takaisin/nuolet) alue: oma sävy + erotinviiva.
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                )
                 }
             },
         ) { padding ->
