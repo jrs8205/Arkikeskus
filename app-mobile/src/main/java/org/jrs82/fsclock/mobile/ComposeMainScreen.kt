@@ -4,14 +4,17 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,20 +23,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -156,7 +157,9 @@ enum class HomeSection(val title: String) {
 fun ComposeMainScreen() {
     val context = LocalContext.current
     var section by remember { mutableStateOf(HomeSection.HOME) }
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    // Valikko (hampurilainen): piirretään sisältöalueen päälle ILMAN liukuanimaatiota (ilmestyy
+    // heti kun Valikkoa klikataan) ja JÄTTÄÄ alapalkin näkyviin (overlay vain sisällön päällä).
+    var menuOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
     var refreshTick by remember { mutableStateOf(0) }
@@ -177,27 +180,7 @@ fun ComposeMainScreen() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        // Valikko avautuu VAIN hampurilaisikonista (alapalkki) — ei reunavedoksesta. Tämä estää
-        // valikon avautumisen oikealle vetäessä joka sivulla ja palauttaa esim. kelikamerakartan
-        // yhden sormen panoroinnin (reunavedos söi sen aiemmin).
-        gesturesEnabled = false,
-        drawerContent = {
-            DrawerContent(
-                current = section,
-                onSelect = { s ->
-                    section = s
-                    scope.launch { drawerState.close() }
-                },
-                onSettings = {
-                    context.startActivity(Intent(context, MobileSettingsActivity::class.java))
-                    scope.launch { drawerState.close() }
-                },
-            )
-        },
-    ) {
-        Scaffold(
+    Scaffold(
             bottomBar = {
                 // Kiinteä alapalkki (HSL Reittiopas -tyyli): kolme ikonia tekstilappuineen.
                 // Koti (vasen) korostuu kun ollaan etusivulla; Päivitä (keski) hakee datan
@@ -244,7 +227,7 @@ fun ComposeMainScreen() {
                     )
                     NavigationBarItem(
                         selected = false,
-                        onClick = { scope.launch { drawerState.open() } },
+                        onClick = { menuOpen = true },
                         icon = {
                             Icon(painterResource(R.drawable.mobile_ic_menu_24), contentDescription = "Valikko")
                         },
@@ -288,18 +271,45 @@ fun ComposeMainScreen() {
                     HomeSection.TRAFFIC_CONGESTION -> TrafficSection(TrafficNotice.Kind.CONGESTION, section.title)
                 }
                 }
+
+                // Valikko-overlay: piirtyy sisällön päälle (EI alapalkin päälle → alapalkki näkyy),
+                // ilmestyy heti ilman liukuanimaatiota. Scrim sulkee napauttamalla, samoin Takaisin.
+                if (menuOpen) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { menuOpen = false },
+                    )
+                    DrawerContent(
+                        modifier = Modifier.align(Alignment.CenterStart),
+                        current = section,
+                        onSelect = { s ->
+                            section = s
+                            menuOpen = false
+                        },
+                        onSettings = {
+                            context.startActivity(Intent(context, MobileSettingsActivity::class.java))
+                            menuOpen = false
+                        },
+                    )
+                    BackHandler(enabled = true) { menuOpen = false }
+                }
             }
         }
-    }
 }
 
 @Composable
 private fun DrawerContent(
+    modifier: Modifier = Modifier,
     current: HomeSection,
     onSelect: (HomeSection) -> Unit,
     onSettings: () -> Unit,
 ) {
-    ModalDrawerSheet {
+    ModalDrawerSheet(modifier = modifier.fillMaxHeight()) {
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -307,19 +317,12 @@ private fun DrawerContent(
         ) {
             Spacer(Modifier.height(16.dp))
             Text(
-                "Arkikeskus",
+                "Valikko",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
             )
-            // Selkeä koti-navigointi: HOME-sektioon pääsee aina valikon ylälaidasta.
-            NavigationDrawerItem(
-                icon = { Icon(painterResource(R.drawable.ic_home_24), contentDescription = null) },
-                label = { Text("Etusivu") },
-                selected = current == HomeSection.HOME,
-                onClick = { onSelect(HomeSection.HOME) },
-                modifier = Modifier.padding(vertical = 2.dp),
-            )
+            // Etusivulle pääsee alapalkin Koti-painikkeesta → ei erillistä "Etusivu"-kohtaa valikossa.
 
             // Valikko ryhmitelty otsikoiden alle selkeyden vuoksi (käyttäjän toive):
             // säähän liittyvät, liikenne, joukkoliikenne ja loput "Muut"-otsikon alle.
