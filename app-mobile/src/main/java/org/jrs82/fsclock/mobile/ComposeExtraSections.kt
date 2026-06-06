@@ -15,11 +15,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -368,9 +370,11 @@ internal fun SpeedometerSection() {
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { granted = hasPerm(context, Manifest.permission.ACCESS_FINE_LOCATION) }
+    // Pystyvieritys: pienessä vaakanäkymässä mittari + tekstit eivät leikkaudu vaan niitä voi vierittää.
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -389,15 +393,9 @@ internal fun SpeedometerSection() {
                 )
             }) { Text("Salli sijainti") }
         } else {
-            // Mittari keskitetään käytettävissä olevaan tilaan (ei jää ylälaitaan tyhjän ylle).
-            Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    GpsSpeedContent(context)
-                }
-            }
+            Spacer(Modifier.height(16.dp))
+            GpsSpeedContent(context)
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -477,7 +475,12 @@ private fun GpsSpeedContent(context: Context) {
     AndroidView(
         factory = { GpsSpeedometerView(it) },
         update = { it.setSpeedKmh(kmh) },
-        modifier = Modifier.size(340.dp),
+        // Rajaa käytettävissä olevaan leveyteen (kork. 340 dp) ja pidä neliönä → ei leikkaudu kapeassa
+        // tilassa; pystyvieritys hoitaa korkeuden pienessä vaakanäkymässä.
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 340.dp)
+            .aspectRatio(1f),
     )
     Spacer(Modifier.height(8.dp))
     Text(

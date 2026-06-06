@@ -240,6 +240,8 @@ private fun HomeWeatherWidget(prefs: SharedPreferences) {
         if (fresh != null) {
             MobileMainActivity.sLastWeather = fresh
             weather = fresh
+            // Tallenna onnistuneen FMI-haun aikaleima → "Viimeisin sääpäivitys" (asetukset) pysyy ajan tasalla.
+            if (fresh.fetchedAt > 0L) SettingsManager.get().setLastSuccessfulFmiUpdate(fresh.fetchedAt)
         }
     }
     WeatherCard(context, prefs, weather)
@@ -1091,6 +1093,7 @@ internal fun ForecastSection() {
         if (w != null) {
             MobileMainActivity.sLastWeather = w
             weather = w
+            if (w.fetchedAt > 0L) SettingsManager.get().setLastSuccessfulFmiUpdate(w.fetchedAt)
         }
         val om = withContext(Dispatchers.IO) {
             try {
