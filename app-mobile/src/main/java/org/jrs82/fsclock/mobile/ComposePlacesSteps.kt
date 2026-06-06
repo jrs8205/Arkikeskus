@@ -541,11 +541,17 @@ internal fun StepsSection() {
     }
 
     // Historia (Päivät/Viikot/Kuukaudet)
+    // Generaatiolaskuri: jokainen historian latauspyyntö saa oman numeron. Health Connect -kutsut ovat
+    // callback-pohjaisia (eivät peruunnu LaunchedEffectin mukana), joten nopeassa välilehtivaihdossa vanha
+    // vastaus voisi kirjoittaa uuden välilehden tekstin päälle. Vartija: kirjoita vain jos pyyntö on yhä uusin.
+    val historyGen = remember { intArrayOf(0) }
     LaunchedEffect(tab, enabled, useHc, hcCaloriesGranted, refreshTrigger) {
         if (tab == 0 || !enabled) {
             return@LaunchedEffect
         }
         historyText = "Ladataan…"
+        historyGen[0]++
+        val myGen = historyGen[0]
         if (useHc) {
             val period = when (tab) {
                 2 -> HealthConnectStepsBridge.PERIOD_WEEKS
@@ -558,10 +564,13 @@ internal fun StepsSection() {
                 else -> 14
             }
             HealthConnectStepsBridge.historyWithCalories(context, period, count, hcCaloriesGranted) { labels, steps, active, total ->
-                historyText = formatHcHistory(prefs, labels, steps, active, total, period)
+                if (myGen == historyGen[0]) {
+                    historyText = formatHcHistory(prefs, labels, steps, active, total, period)
+                }
             }
         } else {
-            historyText = withContext(Dispatchers.IO) { StepsHistory.build(context, tab).toString() }
+            val text = withContext(Dispatchers.IO) { StepsHistory.build(context, tab).toString() }
+            if (myGen == historyGen[0]) historyText = text
         }
     }
 
