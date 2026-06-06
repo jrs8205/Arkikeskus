@@ -23,11 +23,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -189,29 +189,26 @@ fun ComposeMainScreen() {
         },
     ) {
         Scaffold(
-            topBar = {
-                // Yläpalkki: aina keskitetty "Arkikeskus" (ei per-sivu otsikkoa → ei tuplaotsikoita,
-                // koska jokaisella sivulla on jo oma otsikkonsa). Vasemmalla ☰-valikko; oikealla
-                // pysyvä koti-ikoni + ainoa toimintoikoni Päivitä. Haku ja sijainti poistettu:
-                // paikkahaku on valikon "Paikkakunnat" ja sijainti päivittyy automaattisesti.
-                // surfaceContainer-tausta erottaa kiinteän (sticky) palkin vierivästä sisällöstä.
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            "Arkikeskus",
-                            modifier = Modifier.clickable { section = HomeSection.HOME },
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Text("☰", fontSize = 24.sp)
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { section = HomeSection.HOME }) {
+            bottomBar = {
+                // Kiinteä alapalkki (HSL Reittiopas -tyyli): kolme ikonia tekstilappuineen.
+                // Koti (vasen) korostuu kun ollaan etusivulla; Päivitä (keski) hakee datan
+                // pyörähdys- + värinäanimaatiolla; Valikko (oikea) avaa hampurilaisvalikon.
+                // NavigationBarItem antaa automaattisesti ≥48dp kosketusalat ja reunainsetit.
+                // Sovelluksen nimeä ei näytetä (ei enää yläpalkkia eikä otsikkoa).
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    NavigationBarItem(
+                        selected = section == HomeSection.HOME,
+                        onClick = { section = HomeSection.HOME },
+                        icon = {
                             Icon(painterResource(R.drawable.ic_home_24), contentDescription = "Etusivu")
-                        }
-                        IconButton(onClick = {
+                        },
+                        label = { Text("Koti") },
+                    )
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             scope.launch {
                                 refreshRotation.snapTo(0f)
@@ -222,18 +219,25 @@ fun ComposeMainScreen() {
                                 maybeRefreshDeviceLocation(context, force = true)
                                 refreshTick++
                             }
-                        }) {
+                        },
+                        icon = {
                             Icon(
                                 painterResource(R.drawable.mobile_ic_refresh_24),
                                 contentDescription = "Päivitä",
                                 modifier = Modifier.rotate(refreshRotation.value),
                             )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-                )
+                        },
+                        label = { Text("Päivitä") },
+                    )
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { scope.launch { drawerState.open() } },
+                        icon = {
+                            Icon(painterResource(R.drawable.mobile_ic_menu_24), contentDescription = "Valikko")
+                        },
+                        label = { Text("Valikko") },
+                    )
+                }
             },
         ) { padding ->
             Box(
