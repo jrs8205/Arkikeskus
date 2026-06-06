@@ -45,4 +45,12 @@
         <item name="android:windowBackground">@color/mobile_bg</item>
         <item name="android:colorBackground">@color/mobile_bg</item>
     </style>
+
+    <!-- Käynnistyskuva (splash, androidx core-splashscreen): bränditausta + sovelluksen ikoni.
+         postSplashScreenTheme vaihtaa varsinaiseen teemaan kun sovellus on valmis. -->
+    <style name="Theme.Arkikeskus.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/mobile_splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/MobileComposeTheme</item>
+    </style>
 </resources>

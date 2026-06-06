@@ -87,7 +87,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_mobile_name"
-            android:theme="@style/MobileComposeTheme">
+            android:theme="@style/Theme.Arkikeskus.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
