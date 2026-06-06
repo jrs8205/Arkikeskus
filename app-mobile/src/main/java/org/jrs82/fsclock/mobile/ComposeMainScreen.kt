@@ -118,7 +118,8 @@ internal suspend fun maybeRefreshDeviceLocation(context: Context, force: Boolean
     if (!hasLocationPermission(context)) return false
     val now = System.currentTimeMillis()
     if (!force && now - sLastAutoLocMs < 15_000L) return false
-    val loc = lastKnownLocation(context) ?: return false
+    // force (Päivitä-nappi) → aina tuore aktiivinen haku; muuten nopea polku jos viimeisin tunnettu on tuore.
+    val loc = deviceLocation(context, force) ?: return false
     val place = withContext(Dispatchers.IO) {
         try {
             MmlGeocodingClient.reversePlace(loc.latitude, loc.longitude)

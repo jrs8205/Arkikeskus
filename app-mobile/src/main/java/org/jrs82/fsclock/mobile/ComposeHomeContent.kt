@@ -1063,8 +1063,10 @@ private fun QuarterRow(q: ElectricityData.Quarter, isCurrent: Boolean, threshold
 internal fun ForecastSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
-    val place = remember { displayPlace(prefs) }
     val refresh = LocalRefreshTick.current
+    // Avaimitettu refreshillä → sijainnin vaihtuessa (refresh kasvaa) paikka luetaan uudelleen, jolloin
+    // FMI ja Open-Meteo hakevat SAMAA paikkaa (ei kahden eri kaupungin sekoitusta otsikkoon/dataan).
+    val place = remember(refresh) { displayPlace(prefs) }
     var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
     var openMeteo by remember { mutableStateOf(OpenMeteoRepository.get(context).peek(place)) }
     LaunchedEffect(refresh) {
