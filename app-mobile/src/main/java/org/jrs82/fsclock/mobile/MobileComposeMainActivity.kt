@@ -12,6 +12,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.SettingsManager
 
+/** Käynnistyskuvan minimikesto millisekunteina, jotta sen ehtii nähdä (muuten vilahtaa ohi). */
+private const val SPLASH_MIN_MS = 900L
+
 /**
  * Compose-pääruudun ESIKATSELU-Activity (Vaihe 2/3 migraatiossa). Erillinen nykyisestä
  * [MobileMainActivity]sta, avataan valikon "Uusi ulkoasu (esikatselu)" -kohdasta, jotta
@@ -38,7 +41,10 @@ class MobileComposeMainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Käynnistyskuva (bränditausta + sovelluksen ikoni). Asennettava ennen super.onCreatea;
         // postSplashScreenTheme vaihtaa varsinaiseen teemaan kun ensimmäinen ruutu on valmis.
-        installSplashScreen()
+        // Pidetään splash näkyvissä lyhyen minimiajan, jotta sen ehtii nähdä (muuten vilahtaa ohi).
+        val splash = installSplashScreen()
+        val splashStart = System.currentTimeMillis()
+        splash.setKeepOnScreenCondition { System.currentTimeMillis() - splashStart < SPLASH_MIN_MS }
         MobileThemeController.apply(this)
         delegate.setLocalNightMode(MobileThemeController.nightMode(this))
         enableEdgeToEdge()
