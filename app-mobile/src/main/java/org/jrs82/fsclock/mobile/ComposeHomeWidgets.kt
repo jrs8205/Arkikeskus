@@ -506,6 +506,8 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
     // Lähilähtöjä EI välimuisteta — haetaan aina tuoreina, jotta reaaliaikaisuus säilyy.
     var deps by remember { mutableStateOf<List<Departure>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
+    // Mikä lähtörivi on laajennettuna (reitti auki). Yksi kerrallaan; napautus togglaa.
+    var expandedKey by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(refresh) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
@@ -548,7 +550,14 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 else -> {
-                    list.take(5).forEach { DepartureRow(it, onOpenTransit) }
+                    list.take(5).forEach { d ->
+                        val key = departureKey(d)
+                        DepartureRow(
+                            d = d,
+                            expanded = expandedKey == key,
+                            onToggle = { expandedKey = if (expandedKey == key) null else key },
+                        )
+                    }
                     if (list.size > 5) {
                         Text(
                             "+ ${list.size - 5} lähtöä lisää",
@@ -568,49 +577,147 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
 }
 
 @Composable
-private fun DepartureRow(d: Departure, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(top = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            if (d.routeShortName.isNullOrEmpty()) "?" else d.routeShortName,
+private fun DepartureRow(d: Departure, expanded: Boolean, onToggle: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(colorResource(transitModeColorRes(d.mode)))
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-            color = Color.White,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .padding(top = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
-                if (d.headsign.isNullOrEmpty()) "—" else d.headsign,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                if (d.routeShortName.isNullOrEmpty()) "?" else d.routeShortName,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colorResource(transitModeColorRes(d.mode)))
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
             )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (d.headsign.isNullOrEmpty()) "—" else d.headsign,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    departureSub(d),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
             Text(
-                departureSub(d),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                departureTimeText(d),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (d.realtime) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
             )
         }
+        // Napautus avaa vuoron reitin (pysäkit + live-sijainti) suoraan tähän; uusi napautus piilottaa.
+        if (expanded) {
+            TripTimelineInline(d)
+        }
+    }
+}
+
+/** Yhden vuoron reitti (pysäkit aikoineen + nousupysäkki + ajoneuvon sijainti) inline lähtörivin alla.
+ *  Haetaan tuoreena joka avauksella (live-data); koko sivu vierii, joten pitkäkin reitti on luettavissa. */
+@Composable
+private fun TripTimelineInline(d: Departure) {
+    var timeline by remember(d.tripGtfsId, d.stopGtfsId) { mutableStateOf<TripTimeline?>(null) }
+    var loading by remember(d.tripGtfsId, d.stopGtfsId) { mutableStateOf(true) }
+    LaunchedEffect(d.tripGtfsId, d.stopGtfsId) {
+        loading = true
+        val tl = withContext(Dispatchers.IO) {
+            try {
+                DigitransitApi.tripTimeline(d.tripGtfsId, d.patternCode, d.stopGtfsId)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        timeline = tl
+        loading = false
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, top = 6.dp, bottom = 8.dp),
+    ) {
+        val tl = timeline
+        when {
+            loading -> Text(
+                "Haetaan reittiä…",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            tl == null || tl.stops.isEmpty() -> Text(
+                "Reittiä ei saatu juuri nyt.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> tl.stops.forEachIndexed { i, s ->
+                TimelineStopRow(
+                    s = s,
+                    isBoard = i == tl.boardStopIndex,
+                    hasVehicle = tl.vehicleStopIndices.contains(i),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineStopRow(s: TimelineStop, isBoard: Boolean, hasVehicle: Boolean) {
+    val dotColor = when {
+        hasVehicle -> MaterialTheme.colorScheme.secondary
+        isBoard -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(if (hasVehicle || isBoard) 10.dp else 7.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(dotColor),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            if (s.name.isNullOrEmpty()) "—" else s.name,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isBoard) FontWeight.Bold else FontWeight.Normal,
+            color = if (isBoard) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
         Spacer(Modifier.width(8.dp))
         Text(
-            departureTimeText(d),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (d.realtime) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
+            stopTimeText(s.depEpochSec),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (s.realtime) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+private fun departureKey(d: Departure): String =
+    "${d.tripGtfsId}|${d.stopGtfsId}|${d.departureEpochSec}"
+
+private fun stopTimeText(epochSec: Long): String {
+    if (epochSec <= 0L) return ""
+    val f = SimpleDateFormat("HH:mm", FI_W)
+    f.timeZone = HELSINKI_W
+    return f.format(Date(epochSec * 1000L))
 }
 
 // ===================== Apurit =====================
