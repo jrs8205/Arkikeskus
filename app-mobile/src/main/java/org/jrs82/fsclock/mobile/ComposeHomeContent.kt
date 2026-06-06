@@ -9,10 +9,8 @@ import android.os.Looper
 import android.widget.ImageView
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -148,9 +146,11 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
     ) {
         AnimatedVisibility(
             visible = shown,
-            enter = fadeIn(spring()) + slideInVertically(spring()) { it / 10 },
+            // Vain pehmeä häivähdys (läpinäkyvyys), EI slide- eikä korkeusanimaatiota → etusivu ei
+            // "hyppää" ylös/alas avattaessa tai sivua vaihtaessa eikä kun kortit lataavat dataa.
+            enter = fadeIn(spring()),
         ) {
-            Column(modifier = Modifier.animateContentSize()) {
+            Column {
                 Spacer(Modifier.height(12.dp))
                 if (widgets.isEmpty()) {
                     GenericCard(
@@ -428,7 +428,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
             contentColor = arki.onWeatherContainer,
         ),
     ) {
-        Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(displayPlace(prefs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (weather.fetchedAt > 0) {
                 Text(
@@ -561,7 +561,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val threshold = remember(tick) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp).animateContentSize()) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text("Pörssisähkö", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             if (q == null) {
