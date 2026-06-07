@@ -23,16 +23,51 @@ Vaatii **Android 11 (API 30)** tai uudemman. APK on tarkoitettu ARM-laitteille (
 
 ## 📱 Kuvakaappauksia
 
+### 🏠 Etusivu
 | | | |
 |:---:|:---:|:---:|
-| ![Etusivu](screenshots/01-etusivu.png) | ![Anturit](screenshots/02-anturit.png) | ![Pörssisähkö](screenshots/03-porssisahko.png) |
-| **Etusivu (kojelauta)** | **Anturit (Ruuvi)** | **Pörssisähkö** |
-| ![Pörssisähkö – Vertailu](screenshots/04-porssisahko-vertailu.png) | ![Joukkoliikenne](screenshots/05-joukkoliikenne.png) | ![Kelikamerat](screenshots/06-kelikamerat.png) |
-| **Pörssisähkö – Vertailu** | **Joukkoliikenne (HSL)** | **Kelikamerat (kartta)** |
-| ![Liikennetiedot](screenshots/07-liikennetiedot.png) | ![Uutiset](screenshots/08-uutiset.png) | ![GPS-nopeusmittari](screenshots/09-gps-mittari.png) |
-| **Liikennetiedot** | **Uutiset** | **GPS-nopeusmittari** |
-| ![Askelmittari](screenshots/10-askelmittari.png) | ![Puhelimen tiedot](screenshots/11-puhelimen-tiedot.png) | ![Asetukset](screenshots/12-asetukset.png) |
-| **Askelmittari** | **Puhelimen tiedot** | **Asetukset** |
+| ![Etusivu](screenshots/etusivu_1.png) | ![Etusivu](screenshots/etusivu_2.png) | ![Etusivu](screenshots/etusivu_3.png) |
+| Kojelauta | Kortteja | Lisää kortteja |
+
+### 🌤️ Sää, pörssisähkö ja anturit
+| | | |
+|:---:|:---:|:---:|
+| ![Sää-ennuste](screenshots/saa-ennuste.png) | ![Pörssisähkö](screenshots/porssisahko_1.png) | ![Pörssisähkö](screenshots/porssisahko_2.png) |
+| Sää-ennuste | Pörssisähkö | Pörssisähkö |
+| ![Pörssisähkö](screenshots/porssisahko_3.png) | ![Anturit](screenshots/anturit.png) | ![Paikkakunnat](screenshots/paikkakunnat_suosikit.png) |
+| Pörssisähkö | Anturit | Paikkakunnat & suosikit |
+
+### 🚌 Joukkoliikenne (HSL)
+| | | |
+|:---:|:---:|:---:|
+| ![Lähilähdöt](screenshots/lahilahdot_1.png) | ![Lähilähdöt](screenshots/lahilahdot_2.png) | ![Reittihaku](screenshots/reittihaku_1.png) |
+| Lähilähdöt | Lähilähdöt | Reittihaku |
+| ![Reittihaku](screenshots/reittihaku_2.png) | | |
+| Reittihaku | | |
+
+### 🚦 Liikennetiedot ja kelikamerat
+| | | |
+|:---:|:---:|:---:|
+| ![Liikennetiedot](screenshots/liikennetiedot.png) | ![Onnettomuudet](screenshots/onnettomuudet.png) | ![Tietyöt](screenshots/tietyot.png) |
+| Tiedotteet | Onnettomuudet | Tietyöt |
+| ![Kelikamerat](screenshots/kelikamerat_1.png) | ![Kelikamerat](screenshots/kelikamerat_2.png) | |
+| Kelikamerat | Kelikamerat | |
+
+### 📰 Uutiset, GPS ja askelmittari
+| | | |
+|:---:|:---:|:---:|
+| ![Uutiset](screenshots/uutiset.png) | ![GPS-nopeusmittari](screenshots/gps-nopeus.png) | ![Askelmittari](screenshots/askeleet_1.png) |
+| Uutiset | GPS-nopeusmittari | Askelmittari |
+| ![Askelmittari](screenshots/askeleet_2.png) | | |
+| Askelmittari | | |
+
+### 📱 Puhelimen tiedot ja asetukset
+| | | |
+|:---:|:---:|:---:|
+| ![Puhelimen tiedot](screenshots/puhelimen-tiedot.png) | ![Asetukset](screenshots/asetukset_1.png) | ![Asetukset](screenshots/asetukset_2.png) |
+| Puhelimen tiedot | Asetukset | Asetukset |
+| ![Asetukset](screenshots/asetukset_3.png) | ![Asetukset](screenshots/asetukset_4.png) | |
+| Asetukset | Asetukset | |
 
 ---
 
