@@ -38,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -96,6 +98,30 @@ private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 /** Etusivun sisääntuloanimaatio soitetaan vain KERRAN prosessin aikana, ei joka kerta kun
  *  etusivulle palataan. Aiemmin slide-animaatio toistui joka paluulla → "koko sivu hyppäsi". */
 private var sHomeEntranceShown = false
+private var sHomeWeatherKey: String? = null
+private var sHomeWeather: WeatherData? = null
+private var sForecastWeatherKey: String? = null
+private var sForecastWeather: WeatherData? = null
+private var sForecastOpenMeteoKey: String? = null
+private var sForecastOpenMeteo: OpenMeteoData? = null
+
+internal fun invalidateHomeWeatherCache() {
+    if (sHomeWeatherKey == currentHomeWeatherKey()) return
+    sHomeWeatherKey = null
+    sHomeWeather = null
+    MobileMainActivity.sLastWeather = null
+}
+
+private fun currentHomeWeatherKey(): String {
+    val sm = SettingsManager.get()
+    val place = sm.homePlace.trim().lowercase(Locale.ROOT)
+    return if (sm.hasHomeCoordinates()) {
+        "$place|${String.format(Locale.ROOT, "%.3f", sm.homeLatitude)}|" +
+            String.format(Locale.ROOT, "%.3f", sm.homeLongitude)
+    } else {
+        "$place|null|null"
+    }
+}
 
 @Composable
 internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
@@ -202,12 +228,32 @@ private fun HomeClockWidget() {
 
 @Composable
 private fun HomeHolidayWidget() {
-    var holidayLine by remember { mutableStateOf("") }
-    val flagLine = remember {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var dayKey by remember {
+        mutableIntStateOf(dateKeyCal(Calendar.getInstance(HELSINKI, FI)))
+    }
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                val now = Calendar.getInstance(HELSINKI, FI)
+                dayKey = dateKeyCal(now)
+                val nextMidnight = (now.clone() as Calendar).apply {
+                    add(Calendar.DAY_OF_YEAR, 1)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                delay((nextMidnight.timeInMillis - now.timeInMillis).coerceAtLeast(1000L))
+            }
+        }
+    }
+    val flagLine = remember(dayKey) {
         val f = nextOfficialFlagDay(Calendar.getInstance(HELSINKI, FI))
         if (f != null) "${f.name} ${calDayMonth(f.cal)}" else ""
     }
-    LaunchedEffect(Unit) {
+    var holidayLine by remember(dayKey) { mutableStateOf("") }
+    LaunchedEffect(dayKey) {
         holidayLine = withContext(Dispatchers.IO) {
             try {
                 val ev = MobileHolidayProvider.next(Calendar.getInstance(HELSINKI, FI))
@@ -229,17 +275,26 @@ private fun HomeHolidayWidget() {
 private fun HomeWeatherWidget(prefs: SharedPreferences) {
     val context = LocalContext.current
     val refresh = LocalRefreshTick.current
-    var weather by remember { mutableStateOf(MobileMainActivity.sLastWeather) }
-    LaunchedEffect(refresh) {
+    val settingsRevision = LocalHomeDataRevision.current
+    val weatherKey = remember(settingsRevision) { currentHomeWeatherKey() }
+    var weather by remember(weatherKey) {
+        val seed = if (sHomeWeatherKey == weatherKey) sHomeWeather else null
+        mutableStateOf(seed)
+    }
+    LaunchedEffect(refresh, weatherKey) {
+        val weatherSeed = if (sHomeWeatherKey == weatherKey) sHomeWeather else null
+        if (weatherSeed == null) weather = null
         val fresh = withContext(Dispatchers.IO) {
             try {
-                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, refresh > 0)
+                WeatherRepository.get(context).fetchHome(weatherSeed, refresh > 0)
             } catch (e: Exception) {
                 null
             }
         }
         if (fresh != null) {
             MobileMainActivity.sLastWeather = fresh
+            sHomeWeatherKey = weatherKey
+            sHomeWeather = fresh
             weather = fresh
             // Tallenna onnistuneen FMI-haun aikaleima → "Viimeisin sääpäivitys" (asetukset) pysyy ajan tasalla.
             if (fresh.fetchedAt > 0L) SettingsManager.get().setLastSuccessfulFmiUpdate(fresh.fetchedAt)
@@ -583,9 +638,10 @@ private fun ChipIconRow(iconRes: Int, text: String) {
 
 @Composable
 private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepository, tick: Int) {
+    val settingsRevision = LocalHomeDataRevision.current
     val q = remember(tick) { repo.currentQuarter() }
-    val notice = remember(tick) { cheapNotice(prefs, repo) }
-    val threshold = remember(tick) { cheapThreshold(prefs) }
+    val notice = remember(tick, settingsRevision) { cheapNotice(prefs, repo) }
+    val threshold = remember(tick, settingsRevision) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -672,9 +728,8 @@ private fun PricePill(level: PriceLevel) {
 
 @Composable
 private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: Int) {
-    // Avaimitettu myös refreshillä → anturinimien muutos (asetuksista) luetaan uudelleen.
-    val refresh = LocalRefreshTick.current
-    val sensors = remember(tick, refresh) { buildSensors(prefs, repo) }
+    val settingsRevision = LocalHomeDataRevision.current
+    val sensors = remember(tick, settingsRevision) { buildSensors(prefs, repo) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Anturit", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -772,8 +827,8 @@ internal fun SensorsSection() {
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val ruuvi = remember { RuuviRepository.get(context) }
     val tick = rememberRuuviScanTick(ruuvi)
-    val refresh = LocalRefreshTick.current
-    val sensors = remember(tick, refresh) { buildSensors(prefs, ruuvi) }
+    val settingsRevision = LocalHomeDataRevision.current
+    val sensors = remember(tick, settingsRevision) { buildSensors(prefs, ruuvi) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -813,7 +868,8 @@ internal fun ElectricitySection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val repo = remember { ElectricityRepository.get(context) }
-    val threshold = remember { cheapThreshold(prefs) }
+    val settingsRevision = LocalHomeDataRevision.current
+    val threshold = remember(settingsRevision) { cheapThreshold(prefs) }
     val refresh = LocalRefreshTick.current
     var dayOffset by remember { mutableStateOf(0) }
     var tick by remember { mutableStateOf(0) }
@@ -842,7 +898,7 @@ internal fun ElectricitySection() {
         }
         Spacer(Modifier.height(14.dp))
         if (dayOffset == 2) {
-            ElectricityCompare(context)
+            ElectricityCompare(context, refresh)
         } else {
             ElectricityDay(repo, threshold, dayOffset, tick)
         }
@@ -961,9 +1017,9 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
 private data class CompareRowData(val label: String, val value: Double, val highlight: Boolean, val isSection: Boolean)
 
 @Composable
-private fun ElectricityCompare(context: Context) {
+private fun ElectricityCompare(context: Context, refresh: Int) {
     var rows by remember { mutableStateOf<List<CompareRowData>?>(null) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refresh) {
         rows = withContext(Dispatchers.IO) {
             val out = ArrayList<CompareRowData>()
             try {
@@ -1081,34 +1137,72 @@ internal fun ForecastSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
+    val settingsRevision = LocalHomeDataRevision.current
     // Avaimitettu refreshillä → sijainnin vaihtuessa (refresh kasvaa) paikka luetaan uudelleen, jolloin
     // FMI ja Open-Meteo hakevat SAMAA paikkaa (ei kahden eri kaupungin sekoitusta otsikkoon/dataan).
-    val place = remember(refresh) { displayPlace(prefs) }
-    // Avaimita sää + Open-Meteo PAIKALLA → paikan vaihtuessa data re-seedataan eikä vanhan paikan säätä
-    // näytetä uuden otsikon alla. Seed (sLastWeather/peek) vastaa nykyistä koti-/näyttöpaikkaa.
-    var weather by remember(place) { mutableStateOf(MobileMainActivity.sLastWeather) }
-    var openMeteo by remember(place) { mutableStateOf(OpenMeteoRepository.get(context).peek(place)) }
-    LaunchedEffect(refresh) {
+    val place = remember(refresh, settingsRevision) { displayPlace(prefs) }
+    val coordinates = remember(place, refresh, settingsRevision) {
+        val sm = SettingsManager.get()
+        val latitude = sm.homeLatitude
+        val longitude = sm.homeLongitude
+        if (sm.hasHomeCoordinates() && latitude.isFinite() && longitude.isFinite() &&
+            latitude in -90.0..90.0 && longitude in -180.0..180.0
+        ) {
+            latitude to longitude
+        } else {
+            null
+        }
+    }
+    val forecastKey = remember(settingsRevision, coordinates) { currentHomeWeatherKey() }
+    val weatherSeed = remember(forecastKey) {
+        if (sForecastWeatherKey == forecastKey) sForecastWeather else null
+    }
+    val openMeteoSeed = remember(forecastKey) {
+        if (sForecastOpenMeteoKey == forecastKey) sForecastOpenMeteo else null
+    }
+    // Seedataan vain samalla paikka- ja koordinaattiavaimella haettu data.
+    var weather by remember(forecastKey) { mutableStateOf(weatherSeed) }
+    var openMeteo by remember(forecastKey) { mutableStateOf(openMeteoSeed) }
+    LaunchedEffect(refresh, forecastKey) {
+        val forceNetwork = refresh > 0
+        val weatherCache = weather
+        val forceOpenMeteo = forceNetwork || sForecastOpenMeteoKey != forecastKey
         val w = withContext(Dispatchers.IO) {
             try {
-                WeatherRepository.get(context).fetchHome(MobileMainActivity.sLastWeather, refresh > 0)
+                WeatherRepository.get(context).fetchHome(weatherCache, forceNetwork)
             } catch (e: Exception) {
                 null
             }
         }
         if (w != null) {
             MobileMainActivity.sLastWeather = w
+            sForecastWeatherKey = forecastKey
+            sForecastWeather = w
             weather = w
             if (w.fetchedAt > 0L) SettingsManager.get().setLastSuccessfulFmiUpdate(w.fetchedAt)
         }
         val om = withContext(Dispatchers.IO) {
             try {
-                OpenMeteoRepository.get(context).fetch(place, refresh > 0)
+                val repo = OpenMeteoRepository.get(context)
+                if (coordinates != null) {
+                    repo.fetch(
+                        place,
+                        coordinates.first,
+                        coordinates.second,
+                        forceOpenMeteo,
+                    )
+                } else {
+                    repo.fetch(place, forceNetwork)
+                }
             } catch (e: Exception) {
-                OpenMeteoRepository.get(context).peek(place)
+                openMeteoSeed
             }
         }
-        if (om != null) openMeteo = om
+        if (om != null) {
+            sForecastOpenMeteoKey = forecastKey
+            sForecastOpenMeteo = om
+            openMeteo = om
+        }
     }
 
     val w = weather
@@ -1239,13 +1333,17 @@ internal fun NewsSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
+    val newsRevision = LocalHomeNewsRevision.current
     var items by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    LaunchedEffect(refresh) {
+    var handledRefresh by remember { mutableIntStateOf(refresh) }
+    LaunchedEffect(refresh, newsRevision) {
+        val forceNetwork = refresh != handledRefresh
+        handledRefresh = refresh
         loading = true
         val fresh = withContext(Dispatchers.IO) {
             try {
-                RssRepository.get().fetchEnabled(prefs, refresh > 0)
+                RssRepository.get().fetchEnabled(prefs, forceNetwork)
             } catch (e: Exception) {
                 null
             }

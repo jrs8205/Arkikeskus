@@ -398,6 +398,7 @@ private fun hasGranted(context: Context, perm: String): Boolean =
 
 private const val LOCATION_MAX_AGE_MS = 10L * 60_000L
 private const val CURRENT_LOCATION_TIMEOUT_MS = 8_000L
+private const val MAX_AUTO_LOCATION_ACCURACY_M = 1500f
 
 /**
  * Laitteen sijainti sääpaikan automaattipäivitykseen. **Nopea polku säilyy:** jos viimeisin tunnettu
@@ -415,20 +416,21 @@ internal suspend fun deviceLocation(context: Context, force: Boolean): Location?
     val now = System.currentTimeMillis()
     val last = lastKnownLocation(context)
     // Päivitä-nappi (force) hakee AINA tuoreen sijainnin. Automaattipolku käyttää nopeaa viimeisintä
-    // tunnettua vain jos se on käyttökelpoinen (ikä 0..10 min), muuten hakee aktiivisesti.
-    if (!force && isFreshEnough(last, now)) return last
+    // tunnettua vain jos se on käyttökelpoinen (ikä 0..10 min, tarkkuus enintään 1500 m), muuten hakee aktiivisesti.
+    if (!force && isUsableAutoLocation(last, now)) return last
     val fresh = requestCurrentLocation(context, force)
-    if (fresh != null) return fresh
-    // Aktiivinen haku epäonnistui: käytä viimeisintä tunnettua VAIN jos se on tuore — ei ammoin vanhaa
-    // eikä tulevaisuuteen päivättyä (parempi näyttää ei-päivitystä kuin väärää kaupunkia).
-    return if (isFreshEnough(last, now)) last else null
+    val completedAt = System.currentTimeMillis()
+    if (isUsableAutoLocation(fresh, completedAt)) return fresh
+    // Automaattipolku voi palata käyttökelpoiseen fallbackiin. Pakotettu haku ei käytä vanhaa sijaintia.
+    return if (!force && isUsableAutoLocation(last, completedAt)) last else null
 }
 
-/** true jos sijainti on käyttökelpoinen: ikä 0..10 min (ei tulevaisuudessa, ei liian vanha). */
-private fun isFreshEnough(loc: Location?, now: Long): Boolean {
+/** true jos sijainti on käyttökelpoinen: ikä 0..10 min ja ilmoitettu tarkkuus enintään 1500 m. */
+private fun isUsableAutoLocation(loc: Location?, now: Long): Boolean {
     if (loc == null) return false
     val age = now - loc.time
-    return age in 0..LOCATION_MAX_AGE_MS
+    if (age !in 0..LOCATION_MAX_AGE_MS) return false
+    return !loc.hasAccuracy() || loc.accuracy <= MAX_AUTO_LOCATION_ACCURACY_M
 }
 
 /** Aktiivinen tuore sijaintipyyntö (best-effort, aikaraja [CURRENT_LOCATION_TIMEOUT_MS]).

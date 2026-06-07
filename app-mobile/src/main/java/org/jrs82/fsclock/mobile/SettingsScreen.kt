@@ -495,6 +495,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             onSave = { name, url ->
                 if (isValidFeedUrl(url)) {
                     NewsFeedStore.updateCustom(prefs, feed.id, name, url)
+                    RssRepository.get().invalidate(feed.id)
                     editFeed = null
                     refreshTick++
                 } else {
@@ -503,6 +504,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             },
             onDelete = {
                 NewsFeedStore.removeCustom(prefs, feed.id)
+                RssRepository.get().invalidate(feed.id)
                 editFeed = null
                 refreshTick++
             },

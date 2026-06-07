@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -409,13 +410,15 @@ private fun GpsSpeedContent(context: Context) {
     var satUsed by remember { mutableStateOf(0) }
     var satVisible by remember { mutableStateOf(0) }
     var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            nowMs = System.currentTimeMillis()
-            kotlinx.coroutines.delay(1000L)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                nowMs = System.currentTimeMillis()
+                kotlinx.coroutines.delay(1000L)
+            }
         }
     }
-    val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
         val main = Handler(Looper.getMainLooper())
@@ -478,6 +481,9 @@ private fun GpsSpeedContent(context: Context) {
             registered = false
             try {
                 lm.removeUpdates(listener)
+            } catch (e: Exception) {
+            }
+            try {
                 lm.unregisterGnssStatusCallback(gnss)
             } catch (e: Exception) {
             }

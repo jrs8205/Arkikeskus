@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,6 +43,7 @@ import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
+import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.WarningsRepository
 import org.jrs82.fsclock.WeatherWarning
 import java.text.SimpleDateFormat
@@ -112,14 +114,30 @@ internal fun isHomeWidgetKey(key: String?): Boolean =
 internal fun isHomeNewsListKey(key: String?): Boolean =
     key != null && (key == NewsFeedStore.KEY_CUSTOM_FEEDS || key.startsWith("mobile_news_src_"))
 
+/** Sijaintiasetukset, joiden muutos pitää välittää Compose-näkymille heti. */
+internal fun isHomeLocationPrefKey(key: String?): Boolean =
+    key == MobileThemeController.KEY_USE_AUTOMATIC_LOCATION ||
+        key == MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME ||
+        isHomeWeatherIdentityPrefKey(key)
+
+/** Avaimet, joiden muutos tarkoittaa varsinaisen sääpaikan tai sen koordinaattien vaihtumista. */
+internal fun isHomeWeatherIdentityPrefKey(key: String?): Boolean =
+    key == SettingsManager.KEY_HOME_PLACE ||
+        key == SettingsManager.KEY_HOME_LATITUDE ||
+        key == SettingsManager.KEY_HOME_LONGITUDE
+
 /** Asetukset jotka vaikuttavat etusivun DATAAN (ei pelkkä widget-järjestys) → vaativat virkistyksen,
  *  jotta muutos näkyy heti asetuksista palatessa (uutislähteet, sähköraja/-tila/-huomio, anturinimet). */
 internal fun isHomeDataPrefKey(key: String?): Boolean {
     if (key == null) return false
     return isHomeNewsListKey(key) ||
+        isHomeLocationPrefKey(key) ||
         key == MobileThemeController.KEY_CHEAP_ELECTRICITY_THRESHOLD ||
         key == MobileThemeController.KEY_CHEAP_ELECTRICITY_MODE ||
         key == MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE ||
+        key == SettingsManager.KEY_RUUVI_MAC_BEDROOM ||
+        key == SettingsManager.KEY_RUUVI_MAC_LIVINGROOM ||
+        key == SettingsManager.KEY_RUUVI_MAC_BALCONY ||
         key.startsWith("mobile_sensor_name_")
 }
 
@@ -185,9 +203,11 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
+    val newsRevision = LocalHomeNewsRevision.current
     var items by remember { mutableStateOf(sHomeNewsCache ?: emptyList()) }
     var loading by remember { mutableStateOf(sHomeNewsCache == null) }
-    LaunchedEffect(refresh) {
+    var handledRefresh by remember { mutableIntStateOf(refresh) }
+    LaunchedEffect(refresh, newsRevision) {
         val cached = sHomeNewsCache
         if (cached != null && refresh == sHomeNewsTick) {
             // Jo haettu tällä tickillä → näytä välimuisti heti, ei uutta hakua eikä latausvilkutusta.
@@ -195,10 +215,15 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
             loading = false
             return@LaunchedEffect
         }
-        if (cached == null) loading = true
+        if (cached == null) {
+            items = emptyList()
+            loading = true
+        }
+        val forceNetwork = refresh != handledRefresh
+        handledRefresh = refresh
         val fresh = withContext(Dispatchers.IO) {
             try {
-                RssRepository.get().fetchEnabled(prefs, refresh > 0)
+                RssRepository.get().fetchEnabled(prefs, forceNetwork)
             } catch (e: Exception) {
                 null
             }
@@ -295,19 +320,22 @@ internal fun HomeNewsSourceCard(feedId: String) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
-    // Avaimitettu myös refreshillä → lähteen nimen/URL:n muutos (asetuksista) luetaan uudelleen.
-    val feed = remember(feedId, refresh) { NewsFeedStore.feedById(prefs, feedId) }
+    val newsRevision = LocalHomeNewsRevision.current
+    val feed = remember(feedId, newsRevision) { NewsFeedStore.feedById(prefs, feedId) }
     if (feed == null) return // lähde poistettu → ei korttia
     var items by remember(feedId) { mutableStateOf(sHomeFeedCache[feedId]) }
-    LaunchedEffect(feedId, refresh) {
+    var handledRefresh by remember(feedId) { mutableIntStateOf(refresh) }
+    LaunchedEffect(feedId, refresh, newsRevision) {
         val cached = sHomeFeedCache[feedId]
         if (cached != null && sHomeFeedTick[feedId] == refresh) {
             items = cached
             return@LaunchedEffect
         }
+        val forceNetwork = refresh != handledRefresh
+        handledRefresh = refresh
         val fresh = withContext(Dispatchers.IO) {
             try {
-                RssRepository.get().fetchForFeed(feed, refresh > 0)
+                RssRepository.get().fetchForFeed(feed, forceNetwork)
             } catch (e: Exception) {
                 null
             }
