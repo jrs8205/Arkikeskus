@@ -48,7 +48,7 @@ public final class OpenMeteoRepository {
         if (placeName == null || placeName.trim().isEmpty()) {
             throw new IllegalArgumentException("placeName tyhjä");
         }
-        String key = placeName.trim().toLowerCase(Locale.ROOT);
+        String key = placeKey(placeName);
         long now = System.currentTimeMillis();
         if (!forceNetwork) {
             synchronized (cache) {
@@ -79,7 +79,7 @@ public final class OpenMeteoRepository {
             throw new IllegalArgumentException("koordinaatit puuttuvat");
         }
         String name = (label == null || label.trim().isEmpty()) ? "Sijainti" : label.trim();
-        String key = name.toLowerCase(Locale.ROOT);
+        String key = coordinateKey(name, latitude, longitude);
         long now = System.currentTimeMillis();
         if (!forceNetwork) {
             synchronized (cache) {
@@ -101,11 +101,30 @@ public final class OpenMeteoRepository {
     /** Palauttaa muistissa olevan version välittömästi (null jos ei haettu vielä). */
     public OpenMeteoData peek(String placeName) {
         if (placeName == null) return null;
-        String key = placeName.trim().toLowerCase(Locale.ROOT);
+        String key = placeKey(placeName);
         synchronized (cache) {
             CacheEntry hit = cache.get(key);
             return hit != null ? hit.data : null;
         }
+    }
+
+    /** Koordinaateilla haetun ennusteen muistiversio samalla avaimella kuin fetch-overloadissa. */
+    public OpenMeteoData peek(String label, double latitude, double longitude) {
+        if (Double.isNaN(latitude) || Double.isNaN(longitude)) return null;
+        String name = (label == null || label.trim().isEmpty()) ? "Sijainti" : label.trim();
+        String key = coordinateKey(name, latitude, longitude);
+        synchronized (cache) {
+            CacheEntry hit = cache.get(key);
+            return hit != null ? hit.data : null;
+        }
+    }
+
+    private static String placeKey(String placeName) {
+        return placeName.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String coordinateKey(String label, double latitude, double longitude) {
+        return placeKey(label) + "|" + Double.toString(latitude) + "|" + Double.toString(longitude);
     }
 
     private GeoPlace resolvePlace(String placeName) {

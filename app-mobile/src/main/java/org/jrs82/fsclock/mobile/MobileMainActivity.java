@@ -1129,7 +1129,8 @@ public class MobileMainActivity extends AppCompatActivity {
                     freshOpenMeteo = OpenMeteoRepository.get(this)
                             .fetch(startedPlace, coords[0], coords[1], forcedByUser);
                 } catch (Exception ignored) {
-                    freshOpenMeteo = OpenMeteoRepository.get(this).peek(startedPlace);
+                    freshOpenMeteo = OpenMeteoRepository.get(this)
+                            .peek(startedPlace, coords[0], coords[1]);
                 }
             }
             try {

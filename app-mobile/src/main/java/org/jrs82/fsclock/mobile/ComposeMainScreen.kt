@@ -42,6 +42,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,6 +71,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
+import org.jrs82.fsclock.SettingsManager
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -98,6 +100,12 @@ private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
  */
 val LocalRefreshTick = compositionLocalOf { 0 }
 
+/** Paikallinen asetus-/datarevision signaali. Ei pakota verkkohakuja kuten [LocalRefreshTick]. */
+val LocalHomeDataRevision = compositionLocalOf { 0 }
+
+/** Uutislähteiden revisiosignaali. Käynnistää RSS-haun ilman pakotettua verkkopyyntöä. */
+val LocalHomeNewsRevision = compositionLocalOf { 0 }
+
 /** Automaattisen sijaintipäivityksen aikaleima (per prosessi) — estää tiheän peräkkäisen geokoodauksen. */
 internal var sLastAutoLocMs = 0L
 
@@ -114,7 +122,7 @@ internal fun resetAutoLocationThrottle() {
 /**
  * Päivittää etusivun sääpaikan laitteen sijainnista, jos automaattinen sijainti on päällä (oletus)
  * ja sijaintilupa on annettu. Reverse-geokoodaa MML:llä ja asettaa kotipaikan kuten Paikkakunnat-näkymä
- * ([chooseHomePlace]). Palauttaa true jos paikka päivittyi → kutsuja voi pyytää sään haun uudelleen.
+ * ([chooseHomePlace]). Palauttaa true jos data- tai näyttöpaikka muuttui → kutsuja voi pyytää sään haun uudelleen.
  * [force] ohittaa lyhyen aikaikkunan (suoja resume-tapahtuman toistolle).
  */
 internal suspend fun maybeRefreshDeviceLocation(context: Context, force: Boolean): Boolean {
@@ -132,9 +140,16 @@ internal suspend fun maybeRefreshDeviceLocation(context: Context, force: Boolean
             null
         }
     } ?: return false
+    val previousDataPlace = SettingsManager.get().homePlace.trim()
+    val previousDisplayPlace = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "")
+        ?.trim().orEmpty()
+    val newDataPlace = place.dataPlace.trim()
+    val newDisplayPlace = place.displayPlace.trim()
+    val placeChanged = !previousDataPlace.equals(newDataPlace, ignoreCase = true) ||
+        !previousDisplayPlace.equals(newDisplayPlace, ignoreCase = true)
     chooseHomePlace(prefs, place.dataPlace, true, place.displayPlace, loc.latitude, loc.longitude)
     sLastAutoLocMs = now
-    return true
+    return placeChanged
 }
 
 private fun hasLocationPermission(context: Context): Boolean =
@@ -181,6 +196,8 @@ fun ComposeMainScreen() {
     val scope = rememberCoroutineScope()
     // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
     var refreshTick by remember { mutableStateOf(0) }
+    var homeDataRevision by remember { mutableIntStateOf(0) }
+    var homeNewsRevision by remember { mutableIntStateOf(0) }
     val haptic = LocalHapticFeedback.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val refreshRotation = remember { Animatable(0f) }
@@ -195,9 +212,9 @@ fun ComposeMainScreen() {
                 // (väh. 30 s välein), jottei selaimesta/lupadialogista palaaminen pakota toistuvia hakuja.
                 // Päivittää myös laitteen sijainnin (jos auto päällä). Asetusmuutokset virkistyvät erikseen.
                 scope.launch {
-                    maybeRefreshDeviceLocation(context, force = false)
+                    val placeChanged = maybeRefreshDeviceLocation(context, force = false)
                     val now = System.currentTimeMillis()
-                    if (now - sLastResumeRefreshMs > 30_000L) {
+                    if (placeChanged || now - sLastResumeRefreshMs > 30_000L) {
                         sLastResumeRefreshMs = now
                         refreshTick++
                     }
@@ -233,8 +250,14 @@ fun ComposeMainScreen() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (isHomeDataPrefKey(key)) {
-                if (isHomeNewsListKey(key)) invalidateHomeNewsCache()
-                refreshTick++
+                if (isHomeNewsListKey(key)) {
+                    invalidateHomeNewsCache()
+                    homeNewsRevision++
+                }
+                if (isHomeWeatherIdentityPrefKey(key)) {
+                    invalidateHomeWeatherCache()
+                }
+                homeDataRevision++
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(listener)
@@ -314,7 +337,11 @@ fun ComposeMainScreen() {
                     .fillMaxSize()
                     .padding(padding),
             ) {
-                CompositionLocalProvider(LocalRefreshTick provides refreshTick) {
+                CompositionLocalProvider(
+                    LocalRefreshTick provides refreshTick,
+                    LocalHomeDataRevision provides homeDataRevision,
+                    LocalHomeNewsRevision provides homeNewsRevision,
+                ) {
                 when (section) {
                     HomeSection.HOME -> HomeDashboard(onOpenSection = { section = it })
                     HomeSection.FORECAST -> ForecastSection()

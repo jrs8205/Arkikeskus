@@ -29,6 +29,8 @@ final class RssRepository {
     private static volatile RssRepository INSTANCE;
 
     private final Map<String, CacheEntry> cache = new HashMap<>();
+    /** Invalidointigeneraatio estää ennen URL-muutosta alkaneen haun kirjoittamisen takaisin cacheen. */
+    private final Map<String, Long> cacheGenerations = new HashMap<>();
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
     private RssRepository() {}
@@ -40,6 +42,15 @@ final class RssRepository {
             }
         }
         return INSTANCE;
+    }
+
+    /** Tyhjentää yhden lähteen välimuistin (esim. URL:n muutos → heti tuoreet uutiset). */
+    void invalidate(String feedId) {
+        if (feedId == null) return;
+        synchronized (cache) {
+            cache.remove(feedId);
+            cacheGenerations.put(feedId, generationLocked(feedId) + 1L);
+        }
     }
 
     /** Yhdistetty virta kaikista päällä olevista lähteistä, uusin ensin. */
@@ -58,11 +69,14 @@ final class RssRepository {
         if (feed == null) return new ArrayList<>();
         long now = System.currentTimeMillis();
         CacheEntry entry;
+        long generation;
         synchronized (cache) {
             entry = cache.get(feed.id);
+            generation = generationLocked(feed.id);
         }
-        if (forced || entry == null || (now - entry.timestamp) >= CACHE_TTL_MS) {
-            refresh(feed);
+        if (forced || entry == null || !entry.sourceUrl.equals(feed.url)
+                || (now - entry.timestamp) >= CACHE_TTL_MS) {
+            refresh(feed, generation);
         }
         return peekForFeed(feed.id);
     }
@@ -85,20 +99,23 @@ final class RssRepository {
 
     List<NewsItem> fetchEnabled(SharedPreferences prefs, boolean forced) {
         long now = System.currentTimeMillis();
-        List<NewsFeed> toFetch = new ArrayList<>();
+        List<FetchRequest> toFetch = new ArrayList<>();
         for (NewsFeed f : NewsFeedStore.enabledFeeds(prefs)) {
             CacheEntry entry;
+            long generation;
             synchronized (cache) {
                 entry = cache.get(f.id);
+                generation = generationLocked(f.id);
             }
-            if (forced || entry == null || (now - entry.timestamp) >= CACHE_TTL_MS) {
-                toFetch.add(f);
+            if (forced || entry == null || !entry.sourceUrl.equals(f.url)
+                    || (now - entry.timestamp) >= CACHE_TTL_MS) {
+                toFetch.add(new FetchRequest(f, generation));
             }
         }
         if (!toFetch.isEmpty()) {
             List<Future<?>> futures = new ArrayList<>();
-            for (NewsFeed f : toFetch) {
-                futures.add(executor.submit(() -> refresh(f)));
+            for (FetchRequest request : toFetch) {
+                futures.add(executor.submit(() -> refresh(request.feed, request.generation)));
             }
             long deadline = System.currentTimeMillis() + HARD_TIMEOUT_MS;
             for (Future<?> f : futures) {
@@ -117,23 +134,31 @@ final class RssRepository {
         return peekEnabled(prefs);
     }
 
-    private void refresh(NewsFeed feed) {
+    private void refresh(NewsFeed feed, long generation) {
         try {
             List<NewsItem> items = RssClient.fetch(feed);
             synchronized (cache) {
-                cache.put(feed.id, new CacheEntry(items, System.currentTimeMillis()));
+                if (generationLocked(feed.id) == generation) {
+                    cache.put(feed.id, new CacheEntry(items, System.currentTimeMillis(), feed.url));
+                }
             }
         } catch (Exception e) {
             Log.w(TAG, feed.name + " fetch failed: " + e.getMessage());
             // Säilytetään aiempi cache jos sellainen on; muuten tallennetaan
             // tyhjä lista ettei hakua yritetä joka swipellä uudestaan.
             synchronized (cache) {
-                if (!cache.containsKey(feed.id)) {
+                if (generationLocked(feed.id) == generation && !cache.containsKey(feed.id)) {
                     cache.put(feed.id, new CacheEntry(
-                            Collections.<NewsItem>emptyList(), System.currentTimeMillis()));
+                            Collections.<NewsItem>emptyList(), System.currentTimeMillis(), feed.url));
                 }
             }
         }
+    }
+
+    /** Kutsuttava vain cache-lukon sisältä. */
+    private long generationLocked(String feedId) {
+        Long generation = cacheGenerations.get(feedId);
+        return generation != null ? generation : 0L;
     }
 
     private static void sortByTime(List<NewsItem> items) {
@@ -148,10 +173,22 @@ final class RssRepository {
     private static final class CacheEntry {
         final List<NewsItem> items;
         final long timestamp;
+        final String sourceUrl;
 
-        CacheEntry(List<NewsItem> items, long timestamp) {
+        CacheEntry(List<NewsItem> items, long timestamp, String sourceUrl) {
             this.items = items;
             this.timestamp = timestamp;
+            this.sourceUrl = sourceUrl == null ? "" : sourceUrl;
+        }
+    }
+
+    private static final class FetchRequest {
+        final NewsFeed feed;
+        final long generation;
+
+        FetchRequest(NewsFeed feed, long generation) {
+            this.feed = feed;
+            this.generation = generation;
         }
     }
 }
