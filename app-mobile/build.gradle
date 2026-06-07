@@ -25,11 +25,11 @@ android {
     }
 
     defaultConfig {
-        applicationId 'org.jrs82.fsclock.mobile'
+        applicationId 'org.jrs82.arkikeskus'
         minSdk 30
         targetSdk 35
-        versionCode 50
-        versionName '2.0.0-mobile'
+        versionCode 51
+        versionName '2.1.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
 
@@ -86,6 +86,9 @@ android {
 
     buildTypes {
         debug {
+            // Debug-buildit omalle tunnukselle, jotta Android Studion "Run" ei saastuta
+            // oikeaa pakettia debug-avaimella (Developer Verification -rekisteröinnin takia).
+            applicationIdSuffix '.debug'
         }
         release {
             minifyEnabled false
