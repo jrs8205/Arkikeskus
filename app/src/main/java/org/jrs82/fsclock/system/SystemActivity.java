@@ -53,11 +53,13 @@ public class SystemActivity extends AppCompatActivity {
         @Override public void onReceive(Context ctx, Intent intent) {
             int tempTenths = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
             int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+            int pct = (level >= 0 && scale > 0) ? Math.round(level * 100f / scale) : level;
             if (tempTenths < 0 || level < 0) {
                 batteryCurrent.setText(R.string.system_battery_current_unknown);
             } else {
                 batteryCurrent.setText(getString(R.string.system_battery_current,
-                        level, tempTenths / 10.0));
+                        pct, tempTenths / 10.0));
             }
         }
     };
@@ -84,7 +86,7 @@ public class SystemActivity extends AppCompatActivity {
         exportBatteryButton = findViewById(R.id.export_battery);
         openHistoryButton = findViewById(R.id.open_history);
 
-        exportAllButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.RAW_ALL));
+        exportAllButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.RAW_WEATHER_BATTERY));
         exportWeatherButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.WEATHER_HUMAN));
         exportBatteryButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.BATTERY_HUMAN));
         openHistoryButton.setOnClickListener(v -> startActivity(

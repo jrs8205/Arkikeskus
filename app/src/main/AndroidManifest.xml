@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- WiFi-signaalin ja linkkinopeuden luku headerin mittariin.
+         Ei vaadi sijaintilupaa, koska emme lue SSID/BSSID:tä. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
     <!-- Ruuvi BLE-skannaus: kuuntelee 0x0499-mainospaketteja, ei pariteta -->
     <!-- API 31+ käyttää BLUETOOTH_SCAN (neverForLocation), API ≤30 vanhoja BLUETOOTH-lupia
          + ACCESS_FINE_LOCATION (BLE scan vaati sijaintia ennen Android 12:ta). -->

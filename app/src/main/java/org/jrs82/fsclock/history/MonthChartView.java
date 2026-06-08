@@ -37,8 +37,11 @@ public class MonthChartView extends View {
     private final Paint maxPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint bandPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path bandPath = new Path();
+    private final Path linePath = new Path();
 
     private final Map<Integer, DailyStat> byDay = new HashMap<>();
+    private final List<Integer> sortedDays = new ArrayList<>();
     private YearMonth month = YearMonth.now();
 
     public MonthChartView(Context ctx) { super(ctx); init(); }
@@ -77,6 +80,9 @@ public class MonthChartView extends View {
                 } catch (Exception ignored) {}
             }
         }
+        sortedDays.clear();
+        sortedDays.addAll(byDay.keySet());
+        java.util.Collections.sort(sortedDays);
         invalidate();
     }
 
@@ -126,25 +132,23 @@ public class MonthChartView extends View {
         }
 
         // Min-max -kaista
-        Path band = new Path();
-        List<Integer> sortedDays = new ArrayList<>(byDay.keySet());
-        java.util.Collections.sort(sortedDays);
+        bandPath.reset();
         boolean first = true;
         for (Integer d : sortedDays) {
             DailyStat s = byDay.get(d);
             float x = xForDay(d, days, padL, plotW);
             float yMax = yForVal(s.maxTemp, minVal, maxVal, padT, plotH);
-            if (first) { band.moveTo(x, yMax); first = false; }
-            else band.lineTo(x, yMax);
+            if (first) { bandPath.moveTo(x, yMax); first = false; }
+            else bandPath.lineTo(x, yMax);
         }
         for (int i = sortedDays.size() - 1; i >= 0; i--) {
             DailyStat s = byDay.get(sortedDays.get(i));
             float x = xForDay(sortedDays.get(i), days, padL, plotW);
             float yMin = yForVal(s.minTemp, minVal, maxVal, padT, plotH);
-            band.lineTo(x, yMin);
+            bandPath.lineTo(x, yMin);
         }
-        band.close();
-        canvas.drawPath(band, bandPaint);
+        bandPath.close();
+        canvas.drawPath(bandPath, bandPaint);
 
         drawLine(canvas, sortedDays, days, padL, plotW, padT, plotH, minVal, maxVal, minPaint, ValueKind.MIN);
         drawLine(canvas, sortedDays, days, padL, plotW, padT, plotH, minVal, maxVal, maxPaint, ValueKind.MAX);
@@ -159,7 +163,7 @@ public class MonthChartView extends View {
     private void drawLine(Canvas c, List<Integer> sortedDays, int days,
                           float padL, float plotW, float padT, float plotH,
                           double minVal, double maxVal, Paint paint, ValueKind kind) {
-        Path p = new Path();
+        linePath.reset();
         boolean first = true;
         for (Integer d : sortedDays) {
             DailyStat s = byDay.get(d);
@@ -171,10 +175,10 @@ public class MonthChartView extends View {
             }
             float x = xForDay(d, days, padL, plotW);
             float y = yForVal(v, minVal, maxVal, padT, plotH);
-            if (first) { p.moveTo(x, y); first = false; }
-            else p.lineTo(x, y);
+            if (first) { linePath.moveTo(x, y); first = false; }
+            else linePath.lineTo(x, y);
         }
-        c.drawPath(p, paint);
+        c.drawPath(linePath, paint);
     }
 
     private float xForDay(int day, int days, float padL, float plotW) {

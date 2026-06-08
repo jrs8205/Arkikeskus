@@ -191,7 +191,7 @@
     <string name="system_chart_label">Akun lämpötila (24 h)</string>
     <string name="system_chart_no_data">Ei dataa vielä — odota muutama minuutti</string>
     <string name="system_export_csv">Vie battery-data CSV (Downloads)</string>
-    <string name="system_export_all">Vie raaka CSV (kaikki kanavat)</string>
+    <string name="system_export_all">Vie sää- ja akkuraakadata CSV</string>
     <string name="system_export_weather">Vie sää-CSV (luettava)</string>
     <string name="system_export_battery">Vie akku-CSV (luettava)</string>
     <string name="system_open_history">Avaa historia</string>
@@ -228,7 +228,7 @@
     <string name="pref_db_size_summary">%1$d mittausta  ·  %2$s</string>
     <string name="pref_db_size_loading">—</string>
     <string name="pref_retention_days">Säilytysaika</string>
-    <string name="pref_export_csv">Vie kaikki data CSV:ksi</string>
+    <string name="pref_export_csv">Vie sää- ja akkuraakadata CSV:ksi</string>
     <string name="pref_clear_db">Tyhjennä tietokanta</string>
     <string name="pref_clear_db_summary">VAROITUS: poistaa kaikki mittaukset</string>
 

@@ -183,9 +183,8 @@ public class FinnishHolidays {
         list.add(new Holiday("Kaatuneitten muistopäivä", year, 5, kaatuneet, EventType.FLAG_DAY));
         list.add(new Holiday("Puolustusvoimain lippujuhlan päivä",
                 year, 6, 4, EventType.FLAG_DAY));
-        int einoLeino = nthWeekdayOfMonth(year, Calendar.JULY, Calendar.SATURDAY, 2);
         list.add(new Holiday("Eino Leinon päivä, runon ja suven päivä",
-                year, 7, einoLeino, EventType.FLAG_DAY));
+                year, 7, 6, EventType.FLAG_DAY));
         int luonnonpaiva = lastWeekdayOfMonth(year, Calendar.AUGUST, Calendar.SATURDAY);
         list.add(new Holiday("Suomen luonnon päivä", year, 8, luonnonpaiva, EventType.FLAG_DAY));
         list.add(new Holiday("Aleksis Kiven päivä, suomalaisen kirjallisuuden päivä",

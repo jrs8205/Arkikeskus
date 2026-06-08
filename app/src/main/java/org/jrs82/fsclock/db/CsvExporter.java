@@ -21,9 +21,9 @@ import java.util.Locale;
 public final class CsvExporter {
 
     public enum Kind {
-        /** Kaikki kanavat ja kaikki kentät raaka-muodossa, ISO-ms aikaleima.
+        /** Sää- ja akkukanavat kaikkine kenttineen raaka-muodossa, ISO-ms aikaleima.
          *  Ei kommenttirivejä, jotta CSV-parserit toimivat suoraan. */
-        RAW_ALL,
+        RAW_WEATHER_BATTERY,
         /** Ihmisluettava sää-CSV: vain fmi_*-kanavat, paikallinen aika, kommenttirivit. */
         WEATHER_HUMAN,
         /** Ihmisluettava akku-CSV: vain battery-kanava, paikallinen aika, kommenttirivit. */
@@ -88,7 +88,7 @@ public final class CsvExporter {
         switch (kind) {
             case WEATHER_HUMAN: prefix = "arkikeskus_weather_"; break;
             case BATTERY_HUMAN: prefix = "arkikeskus_battery_"; break;
-            case RAW_ALL: default: prefix = "arkikeskus_all_"; break;
+            case RAW_WEATHER_BATTERY: default: prefix = "arkikeskus_weather_battery_raw_"; break;
         }
         return prefix + LocalDateTime.now(ZONE).format(STAMP)
                 + "_" + safeModel() + ".csv";
@@ -102,7 +102,7 @@ public final class CsvExporter {
             FsClockDb db = FsClockDb.get(context);
             List<WeatherSample> rows;
             switch (kind) {
-                case RAW_ALL:
+                case RAW_WEATHER_BATTERY:
                     rows = db.weatherDao().getAll();
                     break;
                 case WEATHER_HUMAN:
@@ -132,7 +132,7 @@ public final class CsvExporter {
             try (OutputStream os = context.getContentResolver().openOutputStream(uri);
                  Writer w = new OutputStreamWriter(os, StandardCharsets.UTF_8)) {
                 switch (kind) {
-                    case RAW_ALL:
+                    case RAW_WEATHER_BATTERY:
                         w.write(RAW_HEADER);
                         w.write('\n');
                         for (WeatherSample s : rows) appendRawRow(w, s);

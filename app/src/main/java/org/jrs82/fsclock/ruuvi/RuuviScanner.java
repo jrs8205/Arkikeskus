@@ -11,6 +11,8 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.core.content.ContextCompat;
@@ -24,6 +26,7 @@ import java.util.List;
 public class RuuviScanner {
 
     private static final String TAG = "RuuviScanner";
+    private static final long RETRY_DELAY_MS = 5_000L;
 
     public interface Listener {
         /** Kutsutaan UI-säikeen ulkopuolella. */
@@ -33,7 +36,12 @@ public class RuuviScanner {
     private final Context appCtx;
     private final Listener listener;
     private BluetoothLeScanner scanner;
-    private boolean running;
+    private volatile boolean running;
+    private volatile boolean requested;
+    private final Handler retryHandler = new Handler(Looper.getMainLooper());
+    private final Runnable retryStart = () -> {
+        if (requested && !running) start();
+    };
 
     public RuuviScanner(Context ctx, Listener listener) {
         this.appCtx = ctx.getApplicationContext();
@@ -42,6 +50,7 @@ public class RuuviScanner {
 
     /** Käynnistää skannauksen. Palauttaa false jos BLE puuttuu tai lupia ei ole. */
     public synchronized boolean start() {
+        requested = true;
         if (running) return true;
         if (!hasPermission()) {
             Log.w(TAG, "BLE-lupa puuttuu, ei käynnistetä");
@@ -53,6 +62,7 @@ public class RuuviScanner {
             adapter = bm == null ? null : bm.getAdapter();
             if (adapter == null || !adapter.isEnabled()) {
                 Log.w(TAG, "BT-adapter null tai pois päältä");
+                scheduleRetry();
                 return false;
             }
             scanner = adapter.getBluetoothLeScanner();
@@ -65,6 +75,7 @@ public class RuuviScanner {
         }
         if (scanner == null) {
             Log.w(TAG, "BluetoothLeScanner null");
+            scheduleRetry();
             return false;
         }
 
@@ -86,18 +97,23 @@ public class RuuviScanner {
         try {
             scanner.startScan(filters, settings, callback);
             running = true;
+            retryHandler.removeCallbacks(retryStart);
             Log.i(TAG, "BLE-skannaus käynnistetty (manufacturer 0x0499 RAWv2)");
             return true;
         } catch (SecurityException e) {
             Log.w(TAG, "startScan SecurityException", e);
+            scheduleRetry();
             return false;
         } catch (Exception e) {
             Log.w(TAG, "startScan epäonnistui", e);
+            scheduleRetry();
             return false;
         }
     }
 
     public synchronized void stop() {
+        requested = false;
+        retryHandler.removeCallbacks(retryStart);
         if (!running || scanner == null) {
             running = false;
             return;
@@ -143,8 +159,18 @@ public class RuuviScanner {
         @Override
         public void onScanFailed(int errorCode) {
             Log.w(TAG, "BLE-skannaus epäonnistui, errorCode=" + errorCode);
+            synchronized (RuuviScanner.this) {
+                running = false;
+                scanner = null;
+                scheduleRetry();
+            }
         }
     };
+
+    private void scheduleRetry() {
+        retryHandler.removeCallbacks(retryStart);
+        if (requested) retryHandler.postDelayed(retryStart, RETRY_DELAY_MS);
+    }
 
     private void handle(ScanResult result) {
         if (result == null || result.getScanRecord() == null) return;

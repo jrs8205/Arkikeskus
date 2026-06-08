@@ -85,6 +85,8 @@ public class BatteryMonitor {
 
         int tempTenths = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
         int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+        int pct = (level >= 0 && scale > 0) ? Math.round(level * 100f / scale) : level;
         if (tempTenths < 0) return;
 
         lastSavedAt = now;
@@ -93,7 +95,7 @@ public class BatteryMonitor {
         sample.channel = CHANNEL;
         sample.timestamp = now;
         sample.temperature = tempTenths / 10.0;
-        sample.batteryLevel = (level >= 0) ? level : null;
+        sample.batteryLevel = (pct >= 0) ? pct : null;
 
         LocalDate today = LocalDate.now(ZONE);
         repo.io().execute(() -> {

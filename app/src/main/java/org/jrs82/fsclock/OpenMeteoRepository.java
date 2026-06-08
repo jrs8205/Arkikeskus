@@ -108,7 +108,7 @@ public final class OpenMeteoRepository {
         }
     }
 
-    private GeoPlace resolvePlace(String placeName) {
+    private GeoPlace resolvePlace(String placeName) throws Exception {
         SettingsManager sm = SettingsManager.get();
         String trimmed = placeName == null ? "" : placeName.trim();
         String home = sm.getHomePlace() == null ? "" : sm.getHomePlace().trim();
@@ -118,7 +118,14 @@ public final class OpenMeteoRepository {
                 || trimmed.toLowerCase(Locale.ROOT).startsWith(home.toLowerCase(Locale.ROOT) + ","))) {
             return GeoPlace.custom(trimmed, sm.getHomeLatitude(), sm.getHomeLongitude());
         }
-        return GeoPlace.forPlace(placeName);
+        GeoPlace known = GeoPlace.tryForPlace(trimmed);
+        if (known != null) return known;
+
+        // FMI:n kaupunkihaku rekisteröi myös listan ulkopuoliset kunnat GeoPlaceen.
+        FmiPlaceSearch.fetchCityNames();
+        known = GeoPlace.tryForPlace(trimmed);
+        if (known != null) return known;
+        throw new IllegalArgumentException("Tuntematon Open-Meteo-paikka: " + trimmed);
     }
 
     private static final class CacheEntry {

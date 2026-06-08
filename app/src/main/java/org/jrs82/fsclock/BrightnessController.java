@@ -74,7 +74,8 @@ public class BrightnessController {
     private boolean isNightBrightness(int hourOfDay) {
         int morning = settings.getMorningHour();
         int evening = settings.getEveningHour();
-        return hourOfDay >= evening || hourOfDay < morning;
+        if (evening >= morning) return hourOfDay >= evening || hourOfDay < morning;
+        return hourOfDay >= evening && hourOfDay < morning;
     }
 
     private final Runnable tick = new Runnable() {

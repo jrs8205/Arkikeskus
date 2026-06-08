@@ -36,6 +36,8 @@ public class WeatherIconView extends View {
     private int symbol = SUNNY;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
+    private final Path maskPath = new Path();
+    private final RectF cloudBase = new RectF();
 
     public WeatherIconView(Context c) { super(c); }
     public WeatherIconView(Context c, AttributeSet a) { super(c, a); }
@@ -162,9 +164,9 @@ public class WeatherIconView extends View {
             path.reset();
             float r = s * 0.10f;
             path.addCircle(scx, scy, r, Path.Direction.CW);
-            Path mask = new Path();
-            mask.addCircle(scx + s * 0.05f, scy - s * 0.025f, r * 0.95f, Path.Direction.CW);
-            path.op(mask, Path.Op.DIFFERENCE);
+            maskPath.reset();
+            maskPath.addCircle(scx + s * 0.05f, scy - s * 0.025f, r * 0.95f, Path.Direction.CW);
+            path.op(maskPath, Path.Op.DIFFERENCE);
             c.drawPath(path, paint);
         } else {
             paint.setColor(0xFFFFD700);
@@ -252,9 +254,9 @@ public class WeatherIconView extends View {
             path.reset();
             float r = s * 0.16f;
             path.addCircle(scx, scy, r, Path.Direction.CW);
-            Path mask = new Path();
-            mask.addCircle(scx + s * 0.08f, scy - s * 0.04f, r * 0.95f, Path.Direction.CW);
-            path.op(mask, Path.Op.DIFFERENCE);
+            maskPath.reset();
+            maskPath.addCircle(scx + s * 0.08f, scy - s * 0.04f, r * 0.95f, Path.Direction.CW);
+            path.op(maskPath, Path.Op.DIFFERENCE);
             c.drawPath(path, paint);
         } else {
             // Pieni aurinko + säteet
@@ -354,9 +356,9 @@ public class WeatherIconView extends View {
         path.reset();
         float r = s * 0.30f;
         path.addCircle(cx + s * 0.05f, cy, r, Path.Direction.CW);
-        Path mask = new Path();
-        mask.addCircle(cx + s * 0.18f, cy - s * 0.06f, r * 0.95f, Path.Direction.CW);
-        path.op(mask, Path.Op.DIFFERENCE);
+        maskPath.reset();
+        maskPath.addCircle(cx + s * 0.18f, cy - s * 0.06f, r * 0.95f, Path.Direction.CW);
+        path.op(maskPath, Path.Op.DIFFERENCE);
         c.drawPath(path, paint);
     }
 
@@ -371,8 +373,8 @@ public class WeatherIconView extends View {
         c.drawCircle(cx - s * 0.18f, by + s * 0.04f, r1, paint);
         c.drawCircle(cx + s * 0.02f, by - s * 0.05f, r2, paint);
         c.drawCircle(cx + s * 0.20f, by + s * 0.02f, r3, paint);
-        RectF base = new RectF(cx - s * 0.30f, by, cx + s * 0.30f, by + s * 0.15f);
-        c.drawRoundRect(base, s * 0.08f, s * 0.08f, paint);
+        cloudBase.set(cx - s * 0.30f, by, cx + s * 0.30f, by + s * 0.15f);
+        c.drawRoundRect(cloudBase, s * 0.08f, s * 0.08f, paint);
     }
 
     private void drawSunCloud(Canvas c, float cx, float cy, float s) {

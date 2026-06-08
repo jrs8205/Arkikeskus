@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
 public final class ElectricityPageBuilder {
 
@@ -26,7 +27,7 @@ public final class ElectricityPageBuilder {
 
     private final Context ctx;
     private final ElectricityRepository repo;
-    private final ExecutorService io;
+    private ExecutorService io;
 
     private TextView tabTodayBtn, tabTomorrowBtn;
     private LinearLayout contentContainer;
@@ -45,6 +46,11 @@ public final class ElectricityPageBuilder {
         this.ctx = ctx;
         this.repo = repo;
         this.io = io;
+    }
+
+    public void setExecutor(ExecutorService io) {
+        this.io = io;
+        this.fetchInFlight = false;
     }
 
     public View buildPage() {
@@ -192,16 +198,21 @@ public final class ElectricityPageBuilder {
     private void triggerFetch() {
         if (fetchInFlight || io == null) return;
         fetchInFlight = true;
-        io.execute(() -> {
-            try {
-                repo.fetchNow();
-            } catch (Exception ignored) { }
-            ui.post(() -> {
-                fetchInFlight = false;
-                if (!active) return;
-                renderActiveTab();
+        try {
+            io.execute(() -> {
+                try {
+                    repo.fetchNow();
+                } catch (Exception ignored) { }
+                ui.post(() -> {
+                    fetchInFlight = false;
+                    if (!active) return;
+                    renderActiveTab();
+                });
             });
-        });
+        } catch (RejectedExecutionException e) {
+            fetchInFlight = false;
+            android.util.Log.w("ElectricityPage", "Sähköhaun executor on suljettu", e);
+        }
     }
 
     private void addSummary(LinearLayout dest, List<ElectricityData.Quarter> qs) {

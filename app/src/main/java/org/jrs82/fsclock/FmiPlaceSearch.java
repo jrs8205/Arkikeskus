@@ -77,6 +77,7 @@ public final class FmiPlaceSearch {
             conn.setRequestProperty("Accept", "application/xml");
             int code = conn.getResponseCode();
             if (code != 200) {
+                HttpConnectionUtils.drainErrorStream(conn);
                 throw new Exception("FMI city list HTTP " + code);
             }
             in = conn.getInputStream();

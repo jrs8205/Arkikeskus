@@ -324,6 +324,7 @@ public class FmiClient {
             conn.setRequestProperty("Accept", "application/xml");
             int code = conn.getResponseCode();
             if (code != 200) {
+                HttpConnectionUtils.drainErrorStream(conn);
                 throw new Exception("FMI HTTP " + code);
             }
             in = conn.getInputStream();

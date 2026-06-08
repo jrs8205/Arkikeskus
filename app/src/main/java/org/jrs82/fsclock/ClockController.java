@@ -5,6 +5,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.app.AlertDialog;
 import android.os.BatteryManager;
 import android.os.Handler;
@@ -35,6 +38,7 @@ import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.jrs82.fsclock.ruuvi.RuuviRepository;
 import org.jrs82.fsclock.ruuvi.RuuviSample;
@@ -80,6 +84,11 @@ public class ClockController {
     private android.widget.ImageButton favoriteButton, browsePlaceButton, homePlaceButton;
     private android.widget.ImageButton settingsButton;
     private TextView electricityPriceText;
+    private View wifiStatusContainer;
+    private WifiSignalView wifiSignalView;
+    private TextView wifiSpeedText;
+    private WifiManager wifiManager;
+    private int wifiTickCounter = 0;
     private TextView pageIndicatorTop;
     private TextView navKoti, navForecast, navElectricity;
     private ElectricityPageBuilder electricityPage;
@@ -130,6 +139,7 @@ public class ClockController {
     private static final long WEATHER_STALE_SLOT_RETRY_MS = 90_000L;
     private Runnable settingsClickCallback;
     private final AtomicBoolean active = new AtomicBoolean(false);
+    private final AtomicLong weatherFetchGeneration = new AtomicLong(0L);
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefsListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
@@ -153,6 +163,7 @@ public class ClockController {
                     updateStatus();
                     break;
                 case SettingsManager.KEY_HOME_PLACE:
+                    weatherFetchGeneration.incrementAndGet();
                     homeData = null;
                     renderStaticContent();
                     updatePlaceControls();
@@ -177,6 +188,11 @@ public class ClockController {
         // Globaali header näkyy joka sivulla
         browsePlaceLabel = root.findViewById(R.id.browse_place_label);
         electricityPriceText = root.findViewById(R.id.electricity_price_text);
+        wifiStatusContainer = root.findViewById(R.id.wifi_status_container);
+        wifiSignalView = root.findViewById(R.id.wifi_signal_view);
+        wifiSpeedText = root.findViewById(R.id.wifi_speed_text);
+        wifiManager = (WifiManager) ctx.getApplicationContext()
+                .getSystemService(Context.WIFI_SERVICE);
         favoriteButton = root.findViewById(R.id.favorite_button);
         browsePlaceButton = root.findViewById(R.id.browse_place_button);
         homePlaceButton = root.findViewById(R.id.home_place_button);
@@ -215,6 +231,7 @@ public class ClockController {
         });
 
         pageController.start();
+        pageController.setAvailablePages(PAGE_COUNT);
 
         boolean tablet = UiMetrics.isTabletLike(ctx.getResources());
         if (navKoti != null) navKoti.setVisibility(tablet ? View.VISIBLE : View.GONE);
@@ -303,6 +320,7 @@ public class ClockController {
         active.set(true);
         lastRefreshDay = Calendar.getInstance(FI).get(Calendar.DAY_OF_YEAR);
         if (io == null) io = Executors.newSingleThreadExecutor();
+        if (electricityPage != null) electricityPage.setExecutor(io);
         SettingsManager.get().registerListener(prefsListener);
         renderStaticContent();
         updatePlaceControls();
@@ -327,6 +345,7 @@ public class ClockController {
 
     public void stop() {
         active.set(false);
+        weatherFetchGeneration.incrementAndGet();
         try { SettingsManager.get().unregisterListener(prefsListener); } catch (Exception ignored) { }
         WarningsRepository.get().removeListener(warningsListener);
         try {
@@ -363,7 +382,12 @@ public class ClockController {
             io.execute(() -> {
                 if (!active.get()) return;
                 try {
-                    ElectricityRepository.get(ctx).fetchIfStale();
+                    ElectricityRepository repo = ElectricityRepository.get(ctx);
+                    Calendar c = Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"));
+                    int hour = c.get(Calendar.HOUR_OF_DAY);
+                    boolean publishWindow = hour >= 13 && hour <= 21;
+                    if (!repo.hasTomorrow() && publishWindow) repo.fetchNow();
+                    else repo.fetchIfStale();
                 } catch (Exception e) {
                     Log.w(TAG, "Elering fetch failed", e);
                 }
@@ -994,9 +1018,43 @@ public class ClockController {
         @Override public void run() {
             updateClock();
             updateBattery();
+            if (wifiTickCounter++ % 5 == 0) updateWifi();   // ~5 s välein
             checkDailyRefresh();
             ui.postDelayed(this, TICK_MS - (System.currentTimeMillis() % TICK_MS));
         }
+    }
+
+    /**
+     * Päivittää headerin WiFi-mittarin: signaalitaso (1..5 palkkia) ja linkkinopeus
+     * (Mb). Piilottaa widgetin kokonaan jos WiFi ei ole päällä tai yhteyttä ei ole
+     * (esim. mobiilidata). getLinkSpeed() on neuvoteltu linkkinopeus, ei mitattu läpäisy.
+     */
+    @SuppressWarnings("deprecation")
+    private void updateWifi() {
+        if (wifiStatusContainer == null) return;
+        boolean show = false;
+        try {
+            WifiManager wm = wifiManager;
+            if (wm != null && wm.isWifiEnabled()) {
+                WifiInfo info = wm.getConnectionInfo();
+                if (info != null && info.getSupplicantState() == SupplicantState.COMPLETED) {
+                    int rssi = info.getRssi();
+                    if (rssi != Integer.MIN_VALUE && rssi > -127) {
+                        int level = WifiManager.calculateSignalLevel(rssi, 5) + 1; // 1..5
+                        wifiSignalView.setLevel(level);
+                        int linkSpeed = info.getLinkSpeed(); // Mbps, -1 = tuntematon
+                        if (linkSpeed > 0) {
+                            wifiSpeedText.setText(linkSpeed + " Mb");
+                            wifiSpeedText.setVisibility(View.VISIBLE);
+                        } else {
+                            wifiSpeedText.setVisibility(View.GONE);
+                        }
+                        show = true;
+                    }
+                }
+            }
+        } catch (Exception ignored) { }
+        wifiStatusContainer.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private void updateBattery() {
@@ -1080,6 +1138,7 @@ public class ClockController {
         browseUntilMs = 0L;
         ui.removeCallbacks(returnHomeRunnable);
         data = homeData;
+        kickOpenMeteoFetch(SettingsManager.get().getHomePlace());
         updatePlaceControls();
         renderSunMoon();
         if (data != null) {
@@ -1112,28 +1171,39 @@ public class ClockController {
 
     private final Runnable fetchWeather = new FetchWeatherRunnable();
     private class FetchWeatherRunnable implements Runnable {
-        @Override public void run() { if (io != null) io.execute(new FetchWorker(homeData)); }
+        @Override public void run() {
+            if (!active.get() || io == null) return;
+            long generation = weatherFetchGeneration.incrementAndGet();
+            String place = SettingsManager.get().getHomePlace();
+            io.execute(new FetchWorker(homeData, generation, place));
+        }
     }
     private class FetchWorker implements Runnable {
         final WeatherData cached;
-        FetchWorker(WeatherData cached) { this.cached = cached; }
+        final long generation;
+        final String place;
+        FetchWorker(WeatherData cached, long generation, String place) {
+            this.cached = cached;
+            this.generation = generation;
+            this.place = place;
+        }
         @Override public void run() {
-            if (!active.get()) return;
+            if (!isCurrentWeatherFetch(generation, place)) return;
             // Offline-testitila: ei lähetä pyyntöä, simuloidaan virhe
             if (SettingsManager.get().getActiveTestMode() == SettingsManager.TEST_OFFLINE) {
-                if (!active.get()) return;
+                if (!isCurrentWeatherFetch(generation, place)) return;
                 Log.i(TAG, "Offline-testitila päällä, ohitetaan FMI-haku");
-                ui.post(new RetryWeather());
+                ui.post(new RetryWeather(generation, place));
                 return;
             }
             try {
                 WeatherData wd = WeatherRepository.get(ctx).fetchHome(cached);
-                if (!active.get()) return;
-                ui.post(new ApplyWeather(wd));
+                if (!isCurrentWeatherFetch(generation, place)) return;
+                ui.post(new ApplyWeather(wd, generation, place));
             } catch (Exception e) {
-                if (!active.get()) return;
+                if (!isCurrentWeatherFetch(generation, place)) return;
                 Log.w(TAG, "FMI fetch failed", e);
-                ui.post(new RetryWeather());
+                ui.post(new RetryWeather(generation, place));
             }
         }
     }
@@ -1163,9 +1233,15 @@ public class ClockController {
     }
     private class ApplyWeather implements Runnable {
         final WeatherData wd;
-        ApplyWeather(WeatherData wd) { this.wd = wd; }
+        final long generation;
+        final String place;
+        ApplyWeather(WeatherData wd, long generation, String place) {
+            this.wd = wd;
+            this.generation = generation;
+            this.place = place;
+        }
         @Override public void run() {
-            if (!active.get()) return;
+            if (!isCurrentWeatherFetch(generation, place)) return;
             homeData = wd;
             retryStep = 0;
             SettingsManager.get().setLastSuccessfulFmiUpdate(wd.fetchedAt);
@@ -1252,14 +1328,27 @@ public class ClockController {
         }
     }
     private class RetryWeather implements Runnable {
+        final long generation;
+        final String place;
+        RetryWeather(long generation, String place) {
+            this.generation = generation;
+            this.place = place;
+        }
         @Override public void run() {
-            if (!active.get()) return;
+            if (!isCurrentWeatherFetch(generation, place)) return;
             long delay = WEATHER_RETRY_MS[Math.min(retryStep, WEATHER_RETRY_MS.length - 1)];
             retryStep++;
             updateStatus();
             ui.removeCallbacks(fetchWeather);
             ui.postDelayed(fetchWeather, delay);
         }
+    }
+
+    private boolean isCurrentWeatherFetch(long generation, String place) {
+        return active.get()
+                && generation == weatherFetchGeneration.get()
+                && place != null
+                && place.equalsIgnoreCase(SettingsManager.get().getHomePlace());
     }
 
     // ============================================================
