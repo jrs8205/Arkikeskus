@@ -51,7 +51,10 @@ public class AlmanakkaClient {
             out = null;
 
             int code = conn.getResponseCode();
-            if (code != 200) throw new Exception("Almanakka HTTP " + code);
+            if (code != 200) {
+                HttpConnectionUtils.drainErrorStream(conn);
+                throw new Exception("Almanakka HTTP " + code);
+            }
 
             in = conn.getInputStream();
             BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));

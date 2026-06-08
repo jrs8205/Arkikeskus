@@ -40,10 +40,8 @@ public class SwipeInterceptLayout extends FrameLayout {
                     float dx = Math.abs(ev.getX() - downX);
                     float dy = Math.abs(ev.getY() - downY);
                     if (dx > touchSlop || dy > touchSlop) {
-                        if (dx > dy) {
-                            decidedIntercept = true;
-                            return true;
-                        }
+                        decidedIntercept = true;
+                        return dx > dy;
                     }
                 }
                 break;

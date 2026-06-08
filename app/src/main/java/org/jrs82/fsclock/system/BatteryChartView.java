@@ -22,6 +22,7 @@ public class BatteryChartView extends View {
     private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint axisTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path linePath = new Path();
 
     private List<WeatherSample> samples = new ArrayList<>();
     private long rangeStartMs = 0;
@@ -109,15 +110,15 @@ public class BatteryChartView extends View {
         }
 
         // Viiva
-        Path path = new Path();
+        linePath.reset();
         boolean first = true;
         for (WeatherSample s : samples) {
             float x = paddingLeft + (float) ((s.timestamp - rangeStartMs) / (double) rangeMs * plotW);
             float y = paddingTop + (float) ((maxT - s.temperature) / rangeT * plotH);
-            if (first) { path.moveTo(x, y); first = false; }
-            else path.lineTo(x, y);
+            if (first) { linePath.moveTo(x, y); first = false; }
+            else linePath.lineTo(x, y);
         }
-        canvas.drawPath(path, linePaint);
+        canvas.drawPath(linePath, linePaint);
     }
 
     private float dp(float v) {

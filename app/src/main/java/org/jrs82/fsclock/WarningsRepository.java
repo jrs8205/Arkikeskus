@@ -58,6 +58,7 @@ public class WarningsRepository {
     /** Hakee uudet varoitukset jos viimeisestä kerrasta on yli REFRESH_MIN_INTERVAL_MS. */
     public void refreshIfStale() {
         long now = System.currentTimeMillis();
+        pruneExpired(now);
         if (inFlight) return;
         if (now - lastFetchAt < REFRESH_MIN_INTERVAL_MS && lastFetchAt > 0L) return;
         refreshNow();
@@ -69,13 +70,12 @@ public class WarningsRepository {
         io.execute(() -> {
             try {
                 List<WeatherWarning> list = client.fetch();
+                removeExpired(list, System.currentTimeMillis());
                 sortBySeverityThenOnset(list);
-                latest = list;
+                latest = Collections.unmodifiableList(new ArrayList<>(list));
                 lastFetchAt = System.currentTimeMillis();
                 Log.d(TAG, "Refreshed: " + list.size() + " warnings");
-                for (Listener l : listeners) {
-                    try { l.onWarningsChanged(latest); } catch (Exception ignored) {}
-                }
+                notifyListeners();
             } catch (Exception e) {
                 Log.w(TAG, "Warnings fetch failed: " + e.getMessage());
             } finally {
@@ -95,5 +95,25 @@ public class WarningsRepository {
         });
         list.clear();
         list.addAll(tmp);
+    }
+
+    private void pruneExpired(long now) {
+        List<WeatherWarning> current = latest;
+        List<WeatherWarning> filtered = new ArrayList<>(current);
+        removeExpired(filtered, now);
+        if (filtered.size() == current.size()) return;
+        latest = Collections.unmodifiableList(filtered);
+        notifyListeners();
+    }
+
+    private static void removeExpired(List<WeatherWarning> list, long now) {
+        list.removeIf(w -> w != null && w.expiresMs > 0L && w.expiresMs < now);
+    }
+
+    private void notifyListeners() {
+        List<WeatherWarning> snapshot = latest;
+        for (Listener l : listeners) {
+            try { l.onWarningsChanged(snapshot); } catch (Exception ignored) {}
+        }
     }
 }

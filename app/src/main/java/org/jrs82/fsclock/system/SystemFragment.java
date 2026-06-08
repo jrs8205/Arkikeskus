@@ -54,12 +54,14 @@ public class SystemFragment extends Fragment {
         @Override public void onReceive(Context ctx, Intent intent) {
             int tempTenths = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
             int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+            int pct = (level >= 0 && scale > 0) ? Math.round(level * 100f / scale) : level;
             if (batteryCurrent == null) return;
             if (tempTenths < 0 || level < 0) {
                 batteryCurrent.setText(R.string.system_battery_current_unknown);
             } else {
                 batteryCurrent.setText(getString(R.string.system_battery_current,
-                        level, tempTenths / 10.0));
+                        pct, tempTenths / 10.0));
             }
         }
     };
@@ -86,7 +88,7 @@ public class SystemFragment extends Fragment {
         exportBatteryButton = view.findViewById(R.id.export_battery);
         openHistoryButton = view.findViewById(R.id.open_history);
 
-        exportAllButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.RAW_ALL));
+        exportAllButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.RAW_WEATHER_BATTERY));
         exportWeatherButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.WEATHER_HUMAN));
         exportBatteryButton.setOnClickListener(v -> exportCsv(CsvExporter.Kind.BATTERY_HUMAN));
         openHistoryButton.setOnClickListener(v -> startActivity(
@@ -107,12 +109,13 @@ public class SystemFragment extends Fragment {
     }
 
     private void loadData() {
+        Context appCtx = requireContext().getApplicationContext();
         repo.io().execute(() -> {
             long now = System.currentTimeMillis();
             long start = now - 24L * 3_600_000L;
             List<WeatherSample> samples = repo.getSamplesBetween("battery", start, now);
             LocalDate today = LocalDate.now(ZONE);
-            DailyStat todayStat = FsClockDb.get(requireContext()).dailyStatDao().get("battery", today.toString());
+            DailyStat todayStat = FsClockDb.get(appCtx).dailyStatDao().get("battery", today.toString());
             long count = repo.sampleCount();
             main.post(() -> renderData(samples, todayStat, count, start, now));
         });
@@ -143,9 +146,10 @@ public class SystemFragment extends Fragment {
     private void exportCsv(CsvExporter.Kind kind) {
         setExportButtonsEnabled(false);
         final String fileName = CsvExporter.buildFileName(kind);
+        Context appCtx = requireContext().getApplicationContext();
         repo.io().execute(() -> {
             final CsvExporter.Result result =
-                    CsvExporter.export(requireContext(), kind, fileName);
+                    CsvExporter.export(appCtx, kind, fileName);
             main.post(() -> {
                 if (!isAdded() || isDetached()) return;
                 try {

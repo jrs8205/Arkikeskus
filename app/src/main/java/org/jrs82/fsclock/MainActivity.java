@@ -32,8 +32,13 @@ public class MainActivity extends Activity {
         controller.setSettingsClickCallback(new Runnable() {
             @Override public void run() { openSettings(); }
         });
-        controller.start();
         applySystemBars();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (controller != null) controller.start();
     }
 
     @Override
@@ -73,9 +78,9 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onDestroy() {
+    protected void onStop() {
         if (controller != null) controller.stop();
-        super.onDestroy();
+        super.onStop();
     }
 
     private void openSettings() {

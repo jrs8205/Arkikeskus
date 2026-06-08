@@ -35,7 +35,10 @@ public class WarningsClient {
             conn.setReadTimeout(TIMEOUT_MS);
             conn.setRequestProperty("Accept", "application/json");
             int code = conn.getResponseCode();
-            if (code != 200) throw new Exception("MeteoAlarm HTTP " + code);
+            if (code != 200) {
+                HttpConnectionUtils.drainErrorStream(conn);
+                throw new Exception("MeteoAlarm HTTP " + code);
+            }
             in = conn.getInputStream();
             StringBuilder sb = new StringBuilder();
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));

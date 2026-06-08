@@ -208,6 +208,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         // setText kirjoittaa SharedPreferencesiin avaimella "home_place"
                         // ja triggeröi FsClockApp:n kanavavaihdon. Ei tarvita erillistä
                         // SettingsManager.setHomePlace-kutsua.
+                        SettingsManager.get().clearHomeCoordinates();
                         pref.setText(newPlace);
                     } finally {
                         settingHomePlaceProgrammatically = false;
@@ -269,9 +270,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         final Context ctx = requireContext().getApplicationContext();
         final HistoryRepository repo = HistoryRepository.get(ctx);
         final Handler main = new Handler(Looper.getMainLooper());
-        final String fileName = CsvExporter.buildFileName(CsvExporter.Kind.RAW_ALL);
+        final String fileName = CsvExporter.buildFileName(CsvExporter.Kind.RAW_WEATHER_BATTERY);
         repo.io().execute(() -> {
-            CsvExporter.Result result = CsvExporter.export(ctx, CsvExporter.Kind.RAW_ALL, fileName);
+            CsvExporter.Result result = CsvExporter.export(ctx, CsvExporter.Kind.RAW_WEATHER_BATTERY, fileName);
             main.post(() -> {
                 if (!isAdded()) return;
                 if (result.ok) {

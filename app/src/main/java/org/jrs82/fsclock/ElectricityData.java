@@ -15,7 +15,7 @@ public class ElectricityData {
         public int dayOfMonth;       // paikallinen
         public int month;            // 1..12
         public int year;
-        public double sntPerKwh;     // ALV mukana
+        public double sntPerKwh;     // snt/kWh, alv 0 %
     }
 
     public long fetchedAt = 0L;

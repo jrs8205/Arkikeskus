@@ -55,6 +55,7 @@ public final class ElectricityClient {
         try {
             int code = conn.getResponseCode();
             if (code != 200) {
+                HttpConnectionUtils.drainErrorStream(conn);
                 throw new RuntimeException("HTTP " + code + " " + conn.getResponseMessage());
             }
             try (InputStream is = conn.getInputStream();

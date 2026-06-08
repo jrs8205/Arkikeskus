@@ -8,4 +8,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "FsClock"
 include ":app"
-include ":app-mobile"
