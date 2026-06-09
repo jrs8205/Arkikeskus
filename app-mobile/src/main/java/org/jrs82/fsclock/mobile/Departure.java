@@ -18,10 +18,13 @@ final class Departure {
     final String tripGtfsId;
     final String patternCode;
     final String routeGtfsId;
+    final String patternFirstStop;
+    final String patternLastStop;
 
     Departure(String routeShortName, String headsign, String mode, long departureEpochSec,
               int delaySeconds, boolean realtime, double distanceMeters, String stopName,
-              String stopGtfsId, String tripGtfsId, String patternCode, String routeGtfsId) {
+              String stopGtfsId, String tripGtfsId, String patternCode, String routeGtfsId,
+              String patternFirstStop, String patternLastStop) {
         this.routeShortName = routeShortName;
         this.headsign = headsign;
         this.mode = mode;
@@ -34,5 +37,16 @@ final class Departure {
         this.tripGtfsId = tripGtfsId;
         this.patternCode = patternCode;
         this.routeGtfsId = routeGtfsId;
+        this.patternFirstStop = patternFirstStop;
+        this.patternLastStop = patternLastStop;
+    }
+
+    String directionLabel() {
+        if (patternFirstStop != null && !patternFirstStop.isEmpty()
+                && patternLastStop != null && !patternLastStop.isEmpty()
+                && !patternFirstStop.equalsIgnoreCase(patternLastStop)) {
+            return patternFirstStop + " \u2192 " + patternLastStop;
+        }
+        return headsign == null ? "" : headsign;
     }
 }

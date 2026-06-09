@@ -16,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,11 +34,36 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.gms.location.CurrentLocationRequest;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Granularity;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.CancellationTokenSource;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 
 import org.jrs82.fsclock.R;
+import org.maplibre.android.MapLibre;
+import org.maplibre.android.camera.CameraUpdateFactory;
+import org.maplibre.android.geometry.LatLng;
+import org.maplibre.android.geometry.LatLngBounds;
+import org.maplibre.android.location.LocationComponent;
+import org.maplibre.android.location.LocationComponentActivationOptions;
+import org.maplibre.android.location.modes.CameraMode;
+import org.maplibre.android.location.modes.RenderMode;
+import org.maplibre.android.maps.MapLibreMap;
+import org.maplibre.android.maps.MapView;
+import org.maplibre.android.maps.Style;
+import org.maplibre.android.style.expressions.Expression;
+import org.maplibre.android.style.layers.CircleLayer;
+import org.maplibre.android.style.layers.LineLayer;
+import org.maplibre.android.style.layers.Property;
+import org.maplibre.android.style.layers.PropertyFactory;
+import org.maplibre.android.style.sources.GeoJsonSource;
+import org.maplibre.geojson.Feature;
+import org.maplibre.geojson.FeatureCollection;
+import org.maplibre.geojson.LineString;
+import org.maplibre.geojson.Point;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -63,6 +89,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     /** Erikoisehdotus, jonka valinta tarkoittaa "käytä GPS-sijaintia" (lat/lon NaN). */
     private static final GeoPlace MY_LOC =
             new GeoPlace(MY_LOCATION, "Nykyinen sijaintisi (GPS)", Double.NaN, Double.NaN, "my-location");
+    private static final LatLng HELSINKI = new LatLng(60.1699, 24.9384);
 
     private EditText fromField, toField;
     private TextView swapBtn, timeBtn, searchBtn, status;
@@ -71,7 +98,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private RecyclerView list;
     private RoutePlannerAdapter adapter;
 
-    private View detailOverlay;
+    private View searchBox;
     private TextView detailTitle, detailSummary;
     private RecyclerView detailList;
     private RoutePlannerAdapter detailAdapter;
@@ -90,6 +117,29 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private boolean pendingSearch = false;
     private List<Itinerary> itineraries = null;
 
+    // Reittikartta (Digitransit/OSM): MapView + vedettävä alapaneeli.
+    private MapView mapView;
+    private MapLibreMap map;
+    private boolean routeReady = false;
+    private GeoJsonSource lineSource, pointSource, busSource, allStopsSource;
+    private Itinerary pendingItinerary;
+    private BottomSheetBehavior<View> sheetBehavior;
+    private View sheetView;
+    private Style mapStyle;
+    private HslMqttClient mqtt;   // reitin live-bussi (V4)
+    private ImageView locButton;  // paikannusnappi (kartan oikea alakulma / paneelin yläreuna)
+    private boolean following = false;  // seuraako kamera omaa sijaintia (napin sininen/harmaa)
+    private boolean pendingRouteFit = false;
+    private int pendingRouteFitRetries = 0;
+    private FusedLocationProviderClient followLocationClient;
+    private LocationCallback followLocationCallback;
+    private boolean followUpdatesActive = false;
+
+    private boolean sectionVisible = false;
+    private long viewGeneration = 0L;
+    private long planGeneration = 0L;
+    private long liveBusGeneration = 0L;
+
     private interface LocCb { void onLoc(double lat, double lon); }
 
     private final Runnable suggestRunnable = this::runSuggest;
@@ -98,22 +148,32 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             new ActivityResultContracts.RequestMultiplePermissions(), result -> {
                 boolean granted = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION))
                         || Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_COARSE_LOCATION));
-                if (granted && pendingSearch) {
+                if (granted) {
+                    enableLocationDotIfReady();
+                    if (pendingSearch) {
+                        pendingSearch = false;
+                        if (hasLiveView()) doSearch();
+                    } else if (sectionVisible) {
+                        centerOnUser();
+                    }
+                } else {
                     pendingSearch = false;
-                    if (isAdded() && fromField != null) doSearch();   // lupa voi palata irrotuksen jälkeen
-                } else if (!granted) showStatus("Sijaintilupa tarvitaan, kun lähtö on oma sijainti.");
+                    showStatus("Sijaintilupa tarvitaan, kun lähtö on oma sijainti.");
+                }
             });
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
+        MapLibre.getInstance(requireContext());
         return inflater.inflate(R.layout.fragment_route_planner, container, false);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        final long viewToken = ++viewGeneration;
         fromField = view.findViewById(R.id.route_from);
         toField = view.findViewById(R.id.route_to);
         swapBtn = view.findViewById(R.id.route_swap);
@@ -131,7 +191,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         fromClear.setOnClickListener(v -> clearField(1));
         toClear.setOnClickListener(v -> clearField(2));
 
-        detailOverlay = view.findViewById(R.id.route_detail_overlay);
+        searchBox = view.findViewById(R.id.route_search_box);
         detailTitle = view.findViewById(R.id.route_detail_title);
         detailSummary = view.findViewById(R.id.route_detail_summary);
         detailList = view.findViewById(R.id.route_detail_list);
@@ -139,6 +199,52 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         detailAdapter = new RoutePlannerAdapter(this);
         detailList.setAdapter(detailAdapter);
         view.findViewById(R.id.route_detail_back).setOnClickListener(v -> closeDetail());
+
+        // Reittikartta + vedettävä alapaneeli.
+        mapView = view.findViewById(R.id.route_map);
+        mapView.onCreate(savedInstanceState);
+        locButton = view.findViewById(R.id.route_loc_btn);
+        locButton.setOnClickListener(v -> centerOnUser());
+        setFollowing(false);
+        mapView.getMapAsync(m -> {
+            if (!isViewCurrent(viewToken)) return;
+            map = m;
+            m.getUiSettings().setRotateGesturesEnabled(false);
+            m.getUiSettings().setTiltGesturesEnabled(false);
+            // Käyttäjän kartan raahaus → ei enää seuraa sijaintia (nappi harmaaksi).
+            m.addOnCameraMoveStartedListener(reason -> {
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) setFollowing(false);
+            });
+            m.moveCamera(CameraUpdateFactory.newLatLngZoom(HELSINKI, 11));
+            m.setStyle(new Style.Builder().fromJson(DigitransitMapStyle.rasterStyleJson()), style -> {
+                if (!isViewCurrent(viewToken)) return;
+                mapStyle = style;
+                addRouteLayers(style);
+                enableLocationDot(style);
+                routeReady = true;
+                updateMapPadding();
+                if (pendingItinerary != null) requestRouteFit(pendingItinerary);
+                else if (sectionVisible) centerOnUser();
+            });
+        });
+        sheetView = view.findViewById(R.id.route_sheet);
+        sheetBehavior = BottomSheetBehavior.from(sheetView);
+        sheetBehavior.setFitToContents(false);
+        sheetBehavior.setHalfExpandedRatio(0.52f);
+        sheetBehavior.setHideable(false);
+        sheetBehavior.setPeekHeight(dpPx(150));
+        sheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+        sheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                updateMapPadding();
+                if (newState == BottomSheetBehavior.STATE_COLLAPSED) fitPendingRouteIfReady();
+            }
+
+            @Override public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+                updateMapPadding();
+            }
+        });
+        sheetView.post(this::updateMapPadding);
 
         backCallback = new OnBackPressedCallback(false) {
             @Override public void handleOnBackPressed() { closeDetail(); }
@@ -172,15 +278,26 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     /** Avattaessa sivu valikosta: hae sijainti hakuehdotusten kohdistusta varten (best-effort). */
     void onSectionShown() {
+        sectionVisible = true;
+        enableLocationDotIfReady();
         if (isAdded() && hasLocationPermission() && Double.isNaN(gpsLat)) {
-            fetchLocation((lat, lon) -> { gpsLat = lat; gpsLon = lon; });
+            final long token = viewGeneration;
+            fetchLocation((lat, lon) -> {
+                if (!isViewCurrent(token) || !validCoordinate(lat, lon)) return;
+                gpsLat = lat;
+                gpsLon = lon;
+            });
         }
     }
 
     /** Kutsutaan kun sektiosta poistutaan: sulje osat-overlay, ettei takaisin-callback jää
      *  sieppaamaan back-painallusta muilla sivuilla. */
     void onSectionHidden() {
-        closeDetail();
+        sectionVisible = false;
+        planGeneration++;
+        closeDetail(false);
+        setFollowing(false);
+        updateLocationComponentEnabled();
     }
 
     /** "Hakutila" (kuten HSL): piilottaa ylimääräisen kromin (otsikko/alaotsikko/aika/Hae reitit),
@@ -191,6 +308,11 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (subtitleView != null) subtitleView.setVisibility(chrome);
         if (timeBtn != null) timeBtn.setVisibility(chrome);
         if (searchBtn != null) searchBtn.setVisibility(chrome);
+        // Fokusoituna paneeli laajenee → ehdotuksille koko tila; muuten takaisin puoliväliin.
+        if (sheetBehavior != null) {
+            sheetBehavior.setState(active ? BottomSheetBehavior.STATE_EXPANDED
+                    : BottomSheetBehavior.STATE_HALF_EXPANDED);
+        }
     }
 
     /** Palaa normaalitilaan kun kumpikaan hakukenttä ei ole enää fokuksessa. */
@@ -217,6 +339,8 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     }
 
     private void runSuggest() {
+        if (!hasLiveView()) return;
+        final long viewToken = viewGeneration;
         final int field = activeField;
         final String q = (field == 2 ? toField : fromField).getText().toString().trim();
         if (q.isEmpty()) { offerMyLocationIfEmpty(field == 2 ? toField : fromField, field); return; }
@@ -227,7 +351,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             catch (Exception e) { res = new ArrayList<>(); }
             final List<GeoPlace> r = res;
             ui.post(() -> {
-                if (!isAdded()) return;
+                if (!isViewCurrent(viewToken) || !sectionVisible || adapter == null) return;
                 String cur = (field == 2 ? toField : fromField).getText().toString().trim();
                 if (field != activeField || !q.equals(cur)) return;  // vanhentunut
                 adapter.submit(r);
@@ -336,6 +460,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     private void doSearch() {
         if (!isAdded() || fromField == null || toField == null) return;
+        final long request = ++planGeneration;
         hideKeyboard();
         fromField.clearFocus();
         toField.clearFocus();
@@ -363,21 +488,25 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             }
             showStatus("Haetaan sijaintia…");
             fetchLocation((lat, lon) -> {
-                if (Double.isNaN(lat)) { showStatus("Sijaintia ei saatu. Yritä uudelleen."); return; }
+                if (!hasLiveView() || request != planGeneration || !sectionVisible) return;
+                if (!validCoordinate(lat, lon)) {
+                    showStatus("Sijaintia ei saatu. Yritä uudelleen.");
+                    return;
+                }
                 gpsLat = lat;
                 gpsLon = lon;
                 double fLat = fromMy ? lat : fromPlace.lat;
                 double fLon = fromMy ? lon : fromPlace.lon;
                 double tLat = toMy ? lat : toPlace.lat;
                 double tLon = toMy ? lon : toPlace.lon;
-                runPlan(fLat, fLon, tLat, tLon);
+                runPlan(request, fLat, fLon, tLat, tLon);
             });
         } else {
-            runPlan(fromPlace.lat, fromPlace.lon, toPlace.lat, toPlace.lon);
+            runPlan(request, fromPlace.lat, fromPlace.lon, toPlace.lat, toPlace.lon);
         }
     }
 
-    private void runPlan(double fromLat, double fromLon, double toLat, double toLon) {
+    private void runPlan(long request, double fromLat, double fromLon, double toLat, double toLon) {
         showStatus("Haetaan reittejä…");
         adapter.submit(new ArrayList<>());
         final String iso = isoFor(timeEpochMs);
@@ -388,7 +517,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             catch (Exception e) { res = null; }
             final List<Itinerary> r = res;
             ui.post(() -> {
-                if (!isAdded()) return;
+                if (!hasLiveView() || !sectionVisible || request != planGeneration || adapter == null) return;
                 if (r == null) { showStatus("Reittihaku epäonnistui. Yritä uudelleen."); return; }
                 itineraries = r;
                 adapter.submit(r);
@@ -413,8 +542,396 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         detailTitle.setText("Reitti");
         detailSummary.setText(routeSummary(it));
         detailAdapter.submit(it.legs);
-        detailOverlay.setVisibility(View.VISIBLE);
+        hideKeyboard();
+        setDetailMode(true);
+        if (sheetBehavior != null) sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
         if (backCallback != null) backCallback.setEnabled(true);
+        pendingItinerary = it;
+        if (map != null && routeReady) requestRouteFit(it);
+    }
+
+    private void requestRouteFit(Itinerary it) {
+        if (it == null) return;
+        pendingRouteFit = true;
+        pendingRouteFitRetries = 0;
+        if (sheetBehavior == null || sheetBehavior.getState() == BottomSheetBehavior.STATE_COLLAPSED) {
+            fitPendingRouteIfReady();
+        } else if (sheetView != null) {
+            sheetView.postDelayed(this::fitPendingRouteIfReady, 260L);
+        }
+    }
+
+    private void fitPendingRouteIfReady() {
+        if (!pendingRouteFit || pendingItinerary == null || map == null || !routeReady) return;
+        if (sheetBehavior != null
+                && sheetBehavior.getState() != BottomSheetBehavior.STATE_COLLAPSED
+                && pendingRouteFitRetries++ < 10) {
+            if (sheetView != null) sheetView.postDelayed(this::fitPendingRouteIfReady, 100L);
+            return;
+        }
+        pendingRouteFit = false;
+        updateMapPadding();
+        drawItinerary(pendingItinerary);
+    }
+
+    /** Vaihtaa hakutilan ja reitin osat -tilan välillä (jaettu kartta + paneeli). */
+    private void setDetailMode(boolean detail) {
+        if (searchBox != null) searchBox.setVisibility(detail ? View.GONE : View.VISIBLE);
+        if (list != null) list.setVisibility(detail ? View.GONE : View.VISIBLE);
+        if (detailTitle != null) detailTitle.setVisibility(detail ? View.VISIBLE : View.GONE);
+        if (detailSummary != null) detailSummary.setVisibility(detail ? View.VISIBLE : View.GONE);
+        if (detailList != null) detailList.setVisibility(detail ? View.VISIBLE : View.GONE);
+        View v = getView();
+        View back = v == null ? null : v.findViewById(R.id.route_detail_back);
+        if (back != null) back.setVisibility(detail ? View.VISIBLE : View.GONE);
+        if (detail) hideStatus();
+    }
+
+    private void clearRoute(boolean recenter) {
+        pendingItinerary = null;
+        pendingRouteFit = false;
+        stopLiveBus();
+        if (lineSource != null) lineSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+        if (pointSource != null) pointSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+        if (allStopsSource != null) allStopsSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+        if (recenter && sectionVisible) centerOnUser();
+    }
+
+    /** Keskittää kameran omaan sijaintiin (kartan padding nostaa pisteen paneelin yläpuolelle). */
+    @SuppressLint("MissingPermission") // lupa tarkistettu hasLocationPermission():lla
+    private void centerOnUser() {
+        if (!sectionVisible || !isAdded() || !hasLocationPermission() || map == null) return;
+        final long token = viewGeneration;
+        fetchLocation((lat, lon) -> {
+            if (!isViewCurrent(token) || !sectionVisible || map == null) return;
+            if (!validCoordinate(lat, lon)) {
+                setFollowing(false);
+                Toast.makeText(requireContext(), "Sijaintia ei saatu. Yritä uudelleen.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            gpsLat = lat;
+            gpsLon = lon;
+            // Kohde pidetään täsmälleen GPS-koordinaatissa. Näkyvä alue varataan alapaneelilta
+            // MapLibren paddingilla, jotta sijainti ei vääristy kilometrejä ruudun ulkopuolelle.
+            updateMapPadding();
+            map.easeCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lon), 14), 500);
+            setFollowing(true);
+        });
+    }
+
+    /** Paikannusnapin tila: sininen = kamera seuraa omaa sijaintia, harmaa = ei. */
+    private void setFollowing(boolean f) {
+        following = f;
+        if (locButton != null) locButton.setColorFilter(f ? 0xFF1A73E8 : 0xFF5F6368);
+        if (f) startFollowLocationUpdates();
+        else stopFollowLocationUpdates();
+        if (map != null) {
+            try {
+                LocationComponent lc = map.getLocationComponent();
+                if (lc.isLocationComponentActivated() && lc.isLocationComponentEnabled()) {
+                    // CameraMode.TRACKING keskittää sijainnin paneelin alle. Pidetään kamera
+                    // manuaalisesti nostetussa kohteessa; nappi kertoo vain viimeisimmän keskityksen.
+                    lc.setCameraMode(CameraMode.NONE);
+                }
+            } catch (Exception ignored) { }
+        }
+    }
+
+    /** Elävä sininen sijaintipiste (MapLibre LocationComponent): näyttää sijainnin + suunnan, seuraa GPS:ää. */
+    @SuppressLint("MissingPermission") // lupa tarkistettu hasLocationPermission():lla
+    private void enableLocationDot(Style style) {
+        if (map == null || !hasLocationPermission()) return;
+        try {
+            LocationComponent lc = map.getLocationComponent();
+            if (!lc.isLocationComponentActivated()) {
+                lc.activateLocationComponent(LocationComponentActivationOptions
+                        .builder(requireContext(), style)
+                        .useDefaultLocationEngine(true)
+                        .build());
+            }
+            lc.setRenderMode(RenderMode.GPS);
+            updateLocationComponentEnabled();
+        } catch (Exception ignored) { }
+    }
+
+    private void enableLocationDotIfReady() {
+        if (mapStyle != null) enableLocationDot(mapStyle);
+    }
+
+    @SuppressLint("MissingPermission") // enabled=false ilman lupaa; enabled=true vain hasLocationPermission():n jälkeen
+    private void updateLocationComponentEnabled() {
+        if (map == null) return;
+        try {
+            LocationComponent lc = map.getLocationComponent();
+            if (!lc.isLocationComponentActivated()) return;
+            boolean enabled = sectionVisible && isResumed() && hasLocationPermission();
+            lc.setLocationComponentEnabled(enabled);
+            lc.setCameraMode(CameraMode.NONE);
+        } catch (Exception ignored) { }
+    }
+
+    private void updateMapPadding() {
+        if (map == null || mapView == null || sheetView == null) return;
+        map.setPadding(0, dpPx(12), 0, mapBottomPadding(72));
+        updateFloatingControls();
+    }
+
+    private int sheetCoveredHeight() {
+        int fallback = Math.round(getResources().getDisplayMetrics().heightPixels * 0.52f);
+        if (mapView == null) return fallback;
+        int mapHeight = mapView.getHeight();
+        if (mapHeight <= 0) return fallback;
+        int top = sheetView == null ? 0 : sheetView.getTop();
+        if (top <= 0) {
+            if (sheetBehavior != null && sheetBehavior.getState() == BottomSheetBehavior.STATE_COLLAPSED) {
+                return dpPx(150);
+            }
+            if (sheetBehavior != null && sheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+                return mapHeight;
+            }
+            return Math.round(mapHeight * 0.52f);
+        }
+        return Math.max(0, mapHeight - top);
+    }
+
+    private int mapBottomPadding(int extraDp) {
+        int bottom = sheetCoveredHeight() + dpPx(extraDp);
+        if (mapView == null || mapView.getHeight() <= 0) return bottom;
+        return Math.min(bottom, Math.max(0, mapView.getHeight() - dpPx(96)));
+    }
+
+    @SuppressLint("MissingPermission") // kutsutaan vain kun hasLocationPermission() on true
+    private void startFollowLocationUpdates() {
+        if (followUpdatesActive || !sectionVisible || !isResumed() || !hasLocationPermission()) return;
+        if (followLocationClient == null) {
+            followLocationClient = LocationServices.getFusedLocationProviderClient(requireContext());
+        }
+        if (followLocationCallback == null) {
+            followLocationCallback = new LocationCallback() {
+                @Override public void onLocationResult(@NonNull LocationResult result) {
+                    android.location.Location loc = result.getLastLocation();
+                    if (loc == null || !validCoordinate(loc.getLatitude(), loc.getLongitude())) return;
+                    onFollowLocation(loc.getLatitude(), loc.getLongitude());
+                }
+            };
+        }
+        LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1_500L)
+                .setMinUpdateIntervalMillis(700L)
+                .setMaxUpdateDelayMillis(0L)
+                .build();
+        try {
+            followLocationClient.requestLocationUpdates(req, followLocationCallback, Looper.getMainLooper());
+            followUpdatesActive = true;
+        } catch (Exception ignored) { }
+    }
+
+    private void stopFollowLocationUpdates() {
+        if (!followUpdatesActive || followLocationClient == null || followLocationCallback == null) return;
+        try { followLocationClient.removeLocationUpdates(followLocationCallback); }
+        catch (Exception ignored) { }
+        followUpdatesActive = false;
+    }
+
+    private void onFollowLocation(double lat, double lon) {
+        gpsLat = lat;
+        gpsLon = lon;
+        if (!following || map == null || !sectionVisible || !hasLiveView()) return;
+        updateMapPadding();
+        map.easeCamera(CameraUpdateFactory.newLatLng(new LatLng(lat, lon)), 350);
+    }
+
+    private void updateFloatingControls() {
+        if (locButton == null || mapView == null) return;
+        int buttonW = locButton.getWidth() > 0 ? locButton.getWidth() : dpPx(44);
+        int buttonH = locButton.getHeight() > 0 ? locButton.getHeight() : dpPx(44);
+        int margin = dpPx(14);
+        int mapW = mapView.getWidth() > 0 ? mapView.getWidth() : getResources().getDisplayMetrics().widthPixels;
+        int mapH = mapView.getHeight() > 0 ? mapView.getHeight() : getResources().getDisplayMetrics().heightPixels;
+        int sheetTop = mapH - sheetCoveredHeight();
+        locButton.setX(mapW - buttonW - margin);
+        locButton.setY(Math.max(dpPx(16), sheetTop - buttonH - margin));
+        locButton.bringToFront();
+    }
+
+    // --- Reittikartta: piirrä valitun reitin osat (legGeometry) + markerit + sovita kamera ---
+
+    private void addRouteLayers(Style style) {
+        lineSource = new GeoJsonSource("route-lines", FeatureCollection.fromFeatures(new ArrayList<>()));
+        pointSource = new GeoJsonSource("route-points", FeatureCollection.fromFeatures(new ArrayList<>()));
+        style.addSource(lineSource);
+        style.addSource(pointSource);
+
+        LineLayer walk = new LineLayer("route-walk", "route-lines");
+        walk.setFilter(Expression.eq(Expression.get("walk"), Expression.literal(true)));
+        walk.setProperties(
+                PropertyFactory.lineColor(Expression.toColor(Expression.get("color"))),
+                PropertyFactory.lineWidth(4f),
+                PropertyFactory.lineDasharray(new Float[]{1.5f, 1.5f}),
+                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND));
+        style.addLayer(walk);
+
+        LineLayer transit = new LineLayer("route-transit", "route-lines");
+        transit.setFilter(Expression.neq(Expression.get("walk"), Expression.literal(true)));
+        transit.setProperties(
+                PropertyFactory.lineColor(Expression.toColor(Expression.get("color"))),
+                PropertyFactory.lineWidth(6f),
+                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND));
+        style.addLayer(transit);
+
+        // Kaikki reitin pysäkit pieninä valkoisina pisteinä (kuten HSL) — viivan päällä, isojen alla.
+        allStopsSource = new GeoJsonSource("route-allstops", FeatureCollection.fromFeatures(new ArrayList<>()));
+        style.addSource(allStopsSource);
+        CircleLayer allStops = new CircleLayer("route-allstops-dot", "route-allstops");
+        allStops.setProperties(
+                PropertyFactory.circleColor("#FFFFFF"),
+                PropertyFactory.circleRadius(3.2f),
+                PropertyFactory.circleStrokeColor("#5F6368"),
+                PropertyFactory.circleStrokeWidth(1.4f));
+        style.addLayer(allStops);
+
+        CircleLayer stops = new CircleLayer("route-stops", "route-points");
+        stops.setProperties(
+                PropertyFactory.circleColor(Expression.toColor(Expression.get("color"))),
+                PropertyFactory.circleRadius(6f),
+                PropertyFactory.circleStrokeColor("#FFFFFF"),
+                PropertyFactory.circleStrokeWidth(2f));
+        style.addLayer(stops);
+
+        // Live-bussi (V4) — päällimmäisenä, moodivärillä, isompi + valkoinen reunus.
+        busSource = new GeoJsonSource("route-bus", FeatureCollection.fromFeatures(new ArrayList<>()));
+        style.addSource(busSource);
+        CircleLayer bus = new CircleLayer("route-bus-dot", "route-bus");
+        bus.setProperties(
+                PropertyFactory.circleColor(Expression.toColor(Expression.get("color"))),
+                PropertyFactory.circleRadius(9f),
+                PropertyFactory.circleStrokeColor("#FFFFFF"),
+                PropertyFactory.circleStrokeWidth(3f));
+        style.addLayer(bus);
+    }
+
+    private void drawItinerary(Itinerary it) {
+        if (map == null || lineSource == null || pointSource == null || getContext() == null) return;
+        stopLiveBus();
+        lineSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+        pointSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+        if (allStopsSource != null) {
+            allStopsSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+        }
+        setFollowing(false);   // kamera siirtyy reitille → ei enää seuraa omaa sijaintia
+        Context ctx = getContext();
+        List<Feature> lines = new ArrayList<>();
+        List<Feature> pts = new ArrayList<>();
+        List<LatLng> all = new ArrayList<>();
+        List<double[]> firstGeom = null, lastGeom = null;
+        for (Leg leg : it.legs) {
+            if (leg.geometry == null || leg.geometry.size() < 2) continue;
+            List<Point> line = new ArrayList<>();
+            for (double[] p : leg.geometry) {
+                line.add(Point.fromLngLat(p[1], p[0]));   // [lat,lon] → lngLat(lon,lat)
+                all.add(new LatLng(p[0], p[1]));
+            }
+            Feature f = Feature.fromGeometry(LineString.fromLngLats(line));
+            String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitAdapter.modeColor(ctx, leg.mode));
+            f.addStringProperty("color", leg.isWalk() ? "#9AA0A6" : hex);
+            f.addBooleanProperty("walk", leg.isWalk());
+            lines.add(f);
+            if (firstGeom == null) firstGeom = leg.geometry;
+            lastGeom = leg.geometry;
+        }
+        if (lines.isEmpty()) return;
+        addPoint(pts, firstGeom.get(0), "#34A853");                          // lähtö (vihreä)
+        addPoint(pts, lastGeom.get(lastGeom.size() - 1), "#EA4335");         // määränpää (punainen)
+        for (int i = 0; i < it.legs.size() - 1; i++) {
+            Leg leg = it.legs.get(i);
+            if (leg.geometry != null && leg.geometry.size() >= 2) {
+                addPoint(pts, leg.geometry.get(leg.geometry.size() - 1), "#FFFFFF");  // vaihtopiste
+            }
+        }
+        lineSource.setGeoJson(FeatureCollection.fromFeatures(lines));
+        pointSource.setGeoJson(FeatureCollection.fromFeatures(pts));
+
+        // Kaikki joukkoliikenneosuuksien pysäkit pieninä pisteinä.
+        List<Feature> stopFeats = new ArrayList<>();
+        for (Leg leg : it.legs) {
+            if (leg.isWalk()) continue;
+            for (double[] s : leg.stops) stopFeats.add(Feature.fromGeometry(Point.fromLngLat(s[1], s[0])));
+        }
+        if (allStopsSource != null) allStopsSource.setGeoJson(FeatureCollection.fromFeatures(stopFeats));
+
+        if (all.size() >= 2) {
+            LatLngBounds.Builder b = new LatLngBounds.Builder();
+            for (LatLng ll : all) b.include(ll);
+            try {
+                map.easeCamera(CameraUpdateFactory.newLatLngBounds(
+                        b.build(),
+                        dpPx(42),
+                        dpPx(56),
+                        dpPx(42),
+                        mapBottomPadding(56)), 600);
+            } catch (Exception ignored) { }
+        }
+        subscribeLiveBus(it, ctx);
+    }
+
+    // --- Live-bussi reittikartalla (V4): MQTT-VP → liikkuva merkki ---
+
+    private void subscribeLiveBus(Itinerary it, Context ctx) {
+        stopLiveBus();
+        if (!sectionVisible || !isResumed() || pendingItinerary != it) return;
+        final long request = liveBusGeneration;
+        Leg transit = null;
+        for (Leg leg : it.legs) {
+            if (!leg.isWalk() && !leg.tripGtfsId.isEmpty() && !leg.patternCode.isEmpty()) {
+                transit = leg;
+                break;
+            }
+        }
+        if (transit == null) return;
+        final Leg leg = transit;
+        final String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitAdapter.modeColor(ctx, leg.mode));
+        searchIo.execute(() -> {
+            String vid;
+            try { vid = DigitransitApi.vehicleForTrip(leg.patternCode, leg.tripGtfsId); }
+            catch (Exception e) { vid = ""; }
+            if (vid == null || vid.isEmpty()) return;
+            final String vehicleId = vid;
+            ui.post(() -> {
+                if (!hasLiveView() || !sectionVisible || !isResumed() || busSource == null
+                        || request != liveBusGeneration || pendingItinerary != it) return;
+                if (mqtt == null) mqtt = new HslMqttClient();
+                mqtt.subscribeVehicle(vehicleId,
+                        (lat, lon, spd, dl, loc, hdg, tsi) ->
+                                ui.post(() -> updateBus(lat, lon, hex, tsi, request)));
+            });
+        });
+    }
+
+    private void updateBus(double lat, double lon, String hex, long tsi, long request) {
+        if (!hasLiveView() || !sectionVisible || busSource == null || request != liveBusGeneration
+                || !validCoordinate(lat, lon)) return;
+        long nowSec = System.currentTimeMillis() / 1000L;
+        if (tsi > 0 && (tsi < nowSec - 60 || tsi > nowSec + 30)) return;
+        Feature f = Feature.fromGeometry(Point.fromLngLat(lon, lat));
+        f.addStringProperty("color", hex);
+        busSource.setGeoJson(FeatureCollection.fromFeatures(java.util.Collections.singletonList(f)));
+    }
+
+    private void stopLiveBus() {
+        liveBusGeneration++;
+        if (mqtt != null) mqtt.disconnect();
+        if (busSource != null) busSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
+    }
+
+    private static void addPoint(List<Feature> pts, double[] latlon, String colorHex) {
+        Feature f = Feature.fromGeometry(Point.fromLngLat(latlon[1], latlon[0]));
+        f.addStringProperty("color", colorHex);
+        pts.add(f);
+    }
+
+    private int dpPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     private String routeSummary(Itinerary it) {
@@ -428,8 +945,13 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     }
 
     private void closeDetail() {
-        if (detailOverlay != null) detailOverlay.setVisibility(View.GONE);
+        closeDetail(true);
+    }
+
+    private void closeDetail(boolean recenter) {
+        setDetailMode(false);
         if (backCallback != null) backCallback.setEnabled(false);
+        clearRoute(recenter);
     }
 
     // --- Sijainti ---
@@ -464,6 +986,19 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasLiveView() {
+        return isAdded() && getView() != null && fromField != null && toField != null;
+    }
+
+    private boolean isViewCurrent(long token) {
+        return token == viewGeneration && hasLiveView();
+    }
+
+    private static boolean validCoordinate(double lat, double lon) {
+        return Double.isFinite(lat) && Double.isFinite(lon)
+                && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
     }
 
     private boolean isMyLocation(EditText field) {
@@ -525,8 +1060,8 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     /** Back-to-top: skrollaa näkyvän listan (reittilista tai osat-overlay) alkuun. */
     void scrollToTop() {
-        if (detailOverlay != null && detailOverlay.getVisibility() == View.VISIBLE) {
-            if (detailList != null) detailList.smoothScrollToPosition(0);
+        if (detailList != null && detailList.getVisibility() == View.VISIBLE) {
+            detailList.smoothScrollToPosition(0);
         } else if (list != null) {
             list.smoothScrollToPosition(0);
         }
@@ -552,9 +1087,59 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (status != null) status.setVisibility(View.GONE);
     }
 
+    // --- MapView lifecycle (fragmentin elinkaaressa) ---
+    @Override public void onStart() { super.onStart(); if (mapView != null) mapView.onStart(); }
+    @Override public void onResume() {
+        super.onResume();
+        if (mapView != null) mapView.onResume();
+        updateLocationComponentEnabled();
+        if (following) startFollowLocationUpdates();
+        if (sectionVisible && pendingItinerary != null && getContext() != null) {
+            subscribeLiveBus(pendingItinerary, getContext());
+        }
+    }
+    @Override public void onPause() {
+        stopFollowLocationUpdates();
+        stopLiveBus();
+        if (mapView != null) mapView.onPause();
+        super.onPause();
+        updateLocationComponentEnabled();
+    }
+    @Override public void onStop() { if (mapView != null) mapView.onStop(); super.onStop(); }
+    @Override public void onLowMemory() { super.onLowMemory(); if (mapView != null) mapView.onLowMemory(); }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (mapView != null) mapView.onSaveInstanceState(outState);
+    }
+
     @Override
     public void onDestroyView() {
+        viewGeneration++;
+        planGeneration++;
+        liveBusGeneration++;
         ui.removeCallbacks(suggestRunnable);
+        stopFollowLocationUpdates();
+        followLocationCallback = null;
+        followLocationClient = null;
+        if (mqtt != null) { mqtt.disconnect(); mqtt = null; }
+        if (mapView != null) { mapView.onDestroy(); mapView = null; }
+        map = null;
+        lineSource = null;
+        pointSource = null;
+        busSource = null;
+        allStopsSource = null;
+        sheetBehavior = null;
+        sheetView = null;
+        mapStyle = null;
+        pendingItinerary = null;
+        pendingRouteFit = false;
+        routeReady = false;
+        searchBox = null;
+        locButton = null;
+        titleView = null;
+        subtitleView = null;
         fromField = null;
         toField = null;
         fromClear = null;
@@ -565,7 +1150,6 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         status = null;
         list = null;
         adapter = null;
-        detailOverlay = null;
         detailTitle = null;
         detailSummary = null;
         detailList = null;
