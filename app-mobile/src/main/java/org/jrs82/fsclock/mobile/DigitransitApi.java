@@ -30,15 +30,15 @@ final class DigitransitApi {
     // Yhteinen lähtökenttäjoukko (nearest + stop). "... on Stop" pakollinen nearestissa.
     private static final String STOPTIME_FIELDS =
             "scheduledDeparture realtimeDeparture realtime serviceDay headsign"
-            + " trip { gtfsId routeShortName pattern { code } route { gtfsId mode } }";
+            + " trip { gtfsId routeShortName pattern { code stops { name } } route { gtfsId mode } }";
 
     private static final String NEAREST_QUERY =
             "query Nearest($lat: Float!, $lon: Float!) {"
             + " nearest(lat: $lat, lon: $lon, maxResults: 20, maxDistance: 700,"
             + " filterByPlaceTypes: [STOP]) {"
             + " edges { node { distance place { ... on Stop {"
-            + " gtfsId name code vehicleMode"
-            + " stoptimesWithoutPatterns(numberOfDepartures: 3) { " + STOPTIME_FIELDS + " } } } } } } }";
+            + " gtfsId name code zoneId vehicleMode"
+            + " stoptimesWithoutPatterns(numberOfDepartures: 5) { " + STOPTIME_FIELDS + " } } } } } } }";
 
     private static final String ROUTES_QUERY =
             "query Routes($name: String!) { routes(name: $name) {"
@@ -48,19 +48,20 @@ final class DigitransitApi {
             "query TL($trip: String!, $pat: String!) {"
             + " trip(id: $trip) { routeShortName tripHeadsign route { mode }"
             + " stoptimesForDate { scheduledDeparture realtimeDeparture realtime serviceDay"
-            + " stop { gtfsId name code } } }"
-            + " pattern(id: $pat) { vehiclePositions { trip { gtfsId }"
+            + " stop { gtfsId name code lat lon } } }"
+            + " pattern(id: $pat) { patternGeometry { points }"
+            + " vehiclePositions { vehicleId trip { gtfsId }"
             + " stopRelationship { status stop { gtfsId } } } } }";
 
     private static final String STOP_QUERY =
             "query Stop($id: String!) { stop(id: $id) {"
-            + " gtfsId name code vehicleMode"
+            + " gtfsId name code zoneId vehicleMode"
             + " stoptimesWithoutPatterns(numberOfDepartures: 5) { " + STOPTIME_FIELDS + " } } }";
 
     // Asema (station) on oma tyyppinsä: stop(id:) palauttaa null asema-id:lle → käytä station(id:).
     private static final String STATION_QUERY =
             "query Station($id: String!) { station(id: $id) {"
-            + " gtfsId name code"
+            + " gtfsId name code zoneId"
             + " stoptimesWithoutPatterns(numberOfDepartures: 6) { " + STOPTIME_FIELDS + " } } }";
 
     // Paikkahaun geokoodaus (Pelias-autocomplete). sources=gtfshsl → vain HSL-pysäkit/asemat,
@@ -70,7 +71,7 @@ final class DigitransitApi {
 
     private static final String ROUTE_PATTERNS_QUERY =
             "query RP($id: String!) { route(id: $id) {"
-            + " shortName longName mode patterns { code directionId headsign } } }";
+            + " shortName longName mode patterns { code directionId headsign stops { name } } } }";
 
     private static final String PATTERN_TIMETABLE_QUERY =
             "query PT($id: String!) { pattern(id: $id) { headsign directionId"
@@ -130,6 +131,7 @@ final class DigitransitApi {
         String name = place.optString("name", "");
         // optString palauttaa merkkijonon "null" jos arvo on JSONObject.NULL → suojaa isNull():lla.
         String code = place.isNull("code") ? "" : place.optString("code", "");
+        String zoneId = place.isNull("zoneId") ? "" : place.optString("zoneId", "");
         String vehicleMode = place.optString("vehicleMode", "");
         String gtfsId = place.optString("gtfsId", "");
         JSONArray times = place.optJSONArray("stoptimesWithoutPatterns");
@@ -140,7 +142,7 @@ final class DigitransitApi {
                 if (d != null) departures.add(d);
             }
         }
-        return new NearbyStop(gtfsId, name, code, vehicleMode, distance, departures);
+        return new NearbyStop(gtfsId, name, code, zoneId, vehicleMode, distance, departures);
     }
 
     private static Departure parseStoptime(JSONObject st, String stopMode, double distance,
@@ -162,12 +164,23 @@ final class DigitransitApi {
         String tripGtfsId = "";
         String patternCode = "";
         String routeGtfsId = "";
+        String patternFirstStop = "";
+        String patternLastStop = "";
         JSONObject trip = st.optJSONObject("trip");
         if (trip != null) {
             routeShortName = trip.optString("routeShortName", "");
             tripGtfsId = trip.optString("gtfsId", "");
             JSONObject pattern = trip.optJSONObject("pattern");
-            if (pattern != null) patternCode = pattern.optString("code", "");
+            if (pattern != null) {
+                patternCode = pattern.optString("code", "");
+                JSONArray stops = pattern.optJSONArray("stops");
+                if (stops != null && stops.length() > 0) {
+                    JSONObject first = stops.optJSONObject(0);
+                    JSONObject last = stops.optJSONObject(stops.length() - 1);
+                    patternFirstStop = first == null ? "" : first.optString("name", "");
+                    patternLastStop = last == null ? "" : last.optString("name", "");
+                }
+            }
             JSONObject route = trip.optJSONObject("route");
             if (route != null) {
                 routeGtfsId = route.optString("gtfsId", "");
@@ -176,7 +189,8 @@ final class DigitransitApi {
             }
         }
         return new Departure(routeShortName, headsign, mode, epoch, delay, realtime, distance,
-                stopName, stopGtfsId, tripGtfsId, patternCode, routeGtfsId);
+                stopName, stopGtfsId, tripGtfsId, patternCode, routeGtfsId,
+                patternFirstStop, patternLastStop);
     }
 
     // --- Linjahaku ---
@@ -316,7 +330,8 @@ final class DigitransitApi {
                 + "edges{node{duration numberOfTransfers start end walkDistance "
                 + "legs{mode duration distance start{scheduledTime estimated{time}} "
                 + "end{scheduledTime estimated{time}} from{name stop{code platformCode}} to{name} route{shortName} "
-                + "trip{tripHeadsign}}}}}}";
+                + "trip{tripHeadsign gtfsId pattern{code}} stopCalls{stopLocation{... on Stop{lat lon}}}"
+                + " legGeometry{points}}}}}}";
         JSONObject data = postQuery(q, new JSONObject());
         List<Itinerary> out = new ArrayList<>();
         JSONObject pc = data == null ? null : data.optJSONObject("planConnection");
@@ -354,6 +369,24 @@ final class DigitransitApi {
         String fCode = (fromStop == null || fromStop.isNull("code")) ? "" : fromStop.optString("code", "");
         String fPlat = (fromStop == null || fromStop.isNull("platformCode"))
                 ? "" : fromStop.optString("platformCode", "");
+        JSONObject geo = lg.optJSONObject("legGeometry");
+        List<double[]> geometry = geo == null
+                ? java.util.Collections.emptyList() : PolylineDecoder.decode(geo.optString("points", ""));
+        String tripGtfsId = trip == null ? "" : trip.optString("gtfsId", "");
+        JSONObject pat = trip == null ? null : trip.optJSONObject("pattern");
+        String patternCode = pat == null ? "" : pat.optString("code", "");
+        List<double[]> stops = new ArrayList<>();
+        JSONArray sc = lg.optJSONArray("stopCalls");
+        if (sc != null) {
+            for (int i = 0; i < sc.length(); i++) {
+                JSONObject call = sc.optJSONObject(i);
+                JSONObject sl = call == null ? null : call.optJSONObject("stopLocation");
+                if (sl == null) continue;
+                double slat = sl.optDouble("lat", Double.NaN);
+                double slon = sl.optDouble("lon", Double.NaN);
+                if (!Double.isNaN(slat) && !Double.isNaN(slon)) stops.add(new double[]{slat, slon});
+            }
+        }
         return new Leg(lg.optString("mode", ""), st[0], en[0],
                 (int) Math.round(lg.optDouble("duration", 0)),
                 (int) Math.round(lg.optDouble("distance", 0)),
@@ -361,7 +394,30 @@ final class DigitransitApi {
                 to == null ? "" : to.optString("name", ""),
                 route == null ? "" : route.optString("shortName", ""),
                 trip == null ? "" : trip.optString("tripHeadsign", ""),
-                st[1] == 1L, fCode, fPlat);
+                st[1] == 1L, fCode, fPlat, geometry, tripGtfsId, patternCode, stops);
+    }
+
+    /** Etsii vuorolla (tripGtfsId) tällä hetkellä liikkeellä olevan ajoneuvon vehicleId:n
+     *  ("HSL:oper/veh") MQTT-livetilausta varten, tai "" jos vuoro ei ole liikkeellä. */
+    static String vehicleForTrip(String patternCode, String tripGtfsId) throws Exception {
+        if (patternCode == null || patternCode.isEmpty() || tripGtfsId == null || tripGtfsId.isEmpty()) return "";
+        JSONObject variables = new JSONObject();
+        variables.put("pat", patternCode);
+        JSONObject data = postQuery(
+                "query VT($pat: String!) { pattern(id: $pat) {"
+                + " vehiclePositions { vehicleId trip { gtfsId } } } }", variables);
+        JSONObject pattern = data == null ? null : data.optJSONObject("pattern");
+        JSONArray vps = pattern == null ? null : pattern.optJSONArray("vehiclePositions");
+        if (vps == null) return "";
+        for (int i = 0; i < vps.length(); i++) {
+            JSONObject vp = vps.optJSONObject(i);
+            if (vp == null) continue;
+            JSONObject t = vp.optJSONObject("trip");
+            if (t != null && tripGtfsId.equals(t.optString("gtfsId", ""))) {
+                return vp.optString("vehicleId", "");
+            }
+        }
+        return "";
     }
 
     /** start/end-objektista [epochMs, realtimeFlag]; käyttää reaaliaika-arviota jos saatavilla. */
@@ -418,8 +474,10 @@ final class DigitransitApi {
                 String sid = stop == null ? "" : stop.optString("gtfsId", "");
                 String sname = stop == null ? "" : stop.optString("name", "");
                 String scode = (stop == null || stop.isNull("code")) ? "" : stop.optString("code", "");
+                double slat = stop == null ? Double.NaN : stop.optDouble("lat", Double.NaN);
+                double slon = stop == null ? Double.NaN : stop.optDouble("lon", Double.NaN);
                 stops.add(new TimelineStop(sid, sname, scode,
-                        (chosen >= 0 && serviceDay > 0) ? serviceDay + chosen : 0L, realtime));
+                        (chosen >= 0 && serviceDay > 0) ? serviceDay + chosen : 0L, realtime, slat, slon));
                 if (boardStopGtfsId != null && boardStopGtfsId.equals(sid)) boardIndex = stops.size() - 1;
             }
         }
@@ -427,6 +485,7 @@ final class DigitransitApi {
         // Ajoneuvon sijainti: etsi vehiclePositions josta trip.gtfsId täsmää tähän vuoroon.
         int currentIndex = -1;
         boolean incoming = true;
+        String matchedVehicleId = "";   // "HSL:oper/veh" → MQTT-livetilausta varten (A-strategia)
         JSONObject pattern = data.optJSONObject("pattern");
         JSONArray vps = pattern == null ? null : pattern.optJSONArray("vehiclePositions");
         if (vps != null) {
@@ -436,10 +495,13 @@ final class DigitransitApi {
                 JSONObject vtrip = vp.optJSONObject("trip");
                 String vtid = vtrip == null ? "" : vtrip.optString("gtfsId", "");
                 if (tripGtfsId == null || !tripGtfsId.equals(vtid)) continue;
+                matchedVehicleId = vp.optString("vehicleId", "");
                 JSONObject rel = vp.optJSONObject("stopRelationship");
                 if (rel == null) break;
                 String status = rel.optString("status", "");
-                incoming = !"AT_POSITION".equalsIgnoreCase(status) && !"ARRIVED".equalsIgnoreCase(status);
+                // VehicleStopStatus (GTFS-RT / Digitransit): STOPPED_AT = pysäkillä;
+                // IN_TRANSIT_TO / INCOMING_AT = lähestyy pysäkkiä (ei vielä saapunut sille).
+                incoming = !"STOPPED_AT".equalsIgnoreCase(status);
                 JSONObject vstop = rel.optJSONObject("stop");
                 String vsid = vstop == null ? "" : vstop.optString("gtfsId", "");
                 for (int k = 0; k < stops.size(); k++) {
@@ -448,9 +510,14 @@ final class DigitransitApi {
                 break;
             }
         }
+        // Reitin muoto (encoded polyline) bussin GPS:n projisointiin (V2).
+        List<double[]> shape = new ArrayList<>();
+        JSONObject pg = pattern == null ? null : pattern.optJSONObject("patternGeometry");
+        if (pg != null) shape = PolylineDecoder.decode(pg.optString("points", ""));
         List<Integer> vehIdx = new ArrayList<>();
         if (currentIndex >= 0) vehIdx.add(currentIndex);
-        return new TripTimeline(routeShortName, headsign, mode, stops, vehIdx, boardIndex, incoming);
+        return new TripTimeline(routeShortName, headsign, mode, stops, vehIdx, boardIndex, incoming,
+                matchedVehicleId, shape);
     }
 
     // --- Linjanäkymä: suunnat + suunnan aikataulu (seuraava lähtö per pysäkki) + live-ajoneuvot ---
@@ -467,8 +534,18 @@ final class DigitransitApi {
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject p = arr.optJSONObject(i);
                 if (p == null) continue;
+                String firstStop = "";
+                String lastStop = "";
+                JSONArray stops = p.optJSONArray("stops");
+                if (stops != null && stops.length() > 0) {
+                    JSONObject first = stops.optJSONObject(0);
+                    JSONObject last = stops.optJSONObject(stops.length() - 1);
+                    firstStop = first == null ? "" : first.optString("name", "");
+                    lastStop = last == null ? "" : last.optString("name", "");
+                }
                 pats.add(new RoutePatterns.Pat(p.optString("code", ""),
-                        p.optInt("directionId", 0), p.optString("headsign", "")));
+                        p.optInt("directionId", 0), p.optString("headsign", ""),
+                        firstStop, lastStop));
             }
         }
         return new RoutePatterns(route.optString("shortName", ""),

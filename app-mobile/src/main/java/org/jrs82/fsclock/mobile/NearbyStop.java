@@ -8,15 +8,17 @@ final class NearbyStop {
     final String gtfsId;
     final String name;
     final String code;
+    final String zoneId;
     final String vehicleMode;     // pysäkin päämoodi (BUS/TRAM/RAIL/SUBWAY…)
     final double distanceMeters;
     final List<Departure> departures;
 
-    NearbyStop(String gtfsId, String name, String code, String vehicleMode,
+    NearbyStop(String gtfsId, String name, String code, String zoneId, String vehicleMode,
                double distanceMeters, List<Departure> departures) {
         this.gtfsId = gtfsId;
         this.name = name;
         this.code = code;
+        this.zoneId = zoneId;
         this.vehicleMode = vehicleMode;
         this.distanceMeters = distanceMeters;
         this.departures = departures;

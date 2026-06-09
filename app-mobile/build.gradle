@@ -28,8 +28,8 @@ android {
         applicationId 'org.jrs82.arkikeskus'
         minSdk 30
         targetSdk 35
-        versionCode 51
-        versionName '2.1.0-mobile'
+        versionCode 52
+        versionName '2.2.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
 
@@ -99,6 +99,13 @@ android {
     lint {
         abortOnError false
     }
+
+    // HiveMQ vetää Netty:n → useita jareja tarjoaa samat META-INF-tiedostot. Karsitaan duplikaatit.
+    packaging {
+        resources {
+            excludes += ['META-INF/INDEX.LIST', 'META-INF/io.netty.versions.properties']
+        }
+    }
 }
 
 configurations.all {
@@ -129,11 +136,17 @@ dependencies {
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    // Reittikartan vedettävä alapaneeli (BottomSheetBehavior + CoordinatorLayout).
+    implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.browser:browser:1.8.0'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
     implementation 'org.maplibre.gl:android-sdk:11.5.2'
+    // HSL HFP -live-ajoneuvosijainnit (MQTT over TLS). minSdk 30 → ei android-retrofix-tarvetta.
+    implementation 'com.hivemq:hivemq-mqtt-client:1.3.14'
     implementation 'androidx.health.connect:connect-client:1.1.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    testImplementation 'junit:junit:4.13.2'
 
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"

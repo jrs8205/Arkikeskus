@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/** Aikajana: pysäkit järjestyksessä. Korostaa ajoneuvojen pysäkit (moodiväri, "bussi tässä") ja
+/** Aikajana: pysäkit järjestyksessä. Korostaa ajoneuvojen pysäkit (moodiväri, "bussi tässä/tulossa") ja
  *  käyttäjän nousupysäkin (accent). Vuoronäkymässä ohitetut pysäkit himmennetään (passedBefore). */
 class TransitTimelineAdapter extends RecyclerView.Adapter<TransitTimelineAdapter.VH> {
 
@@ -33,9 +33,10 @@ class TransitTimelineAdapter extends RecyclerView.Adapter<TransitTimelineAdapter
     private int boardIndex = -1;
     private int passedBefore = -1;
     private String mode = "";
+    private boolean vehicleApproaching = false;  // true = ajoneuvo lähestyy korostettua pysäkkiä (ei vielä sillä)
 
     void submit(List<TimelineStop> newStops, Set<Integer> vehicles, int boardIndex,
-                int passedBefore, String mode) {
+                int passedBefore, String mode, boolean vehicleApproaching) {
         stops.clear();
         if (newStops != null) stops.addAll(newStops);
         vehicleIdx.clear();
@@ -43,6 +44,7 @@ class TransitTimelineAdapter extends RecyclerView.Adapter<TransitTimelineAdapter
         this.boardIndex = boardIndex;
         this.passedBefore = passedBefore;
         this.mode = mode;
+        this.vehicleApproaching = vehicleApproaching;
         notifyDataSetChanged();
     }
 
@@ -69,7 +71,7 @@ class TransitTimelineAdapter extends RecyclerView.Adapter<TransitTimelineAdapter
         h.dot.setBackgroundTintList(ColorStateList.valueOf(dotColor));
 
         String label = s.name == null ? "" : s.name;
-        if (isVehicle) label += "  • " + modeWord(mode) + " tässä";
+        if (isVehicle) label += "  • " + modeWord(mode) + (vehicleApproaching ? " tulossa" : " tässä");
         else if (isBoard) label += "  • oma pysäkki";
         h.name.setText(label);
         h.name.setTypeface(null, (isVehicle || isBoard) ? Typeface.BOLD : Typeface.NORMAL);

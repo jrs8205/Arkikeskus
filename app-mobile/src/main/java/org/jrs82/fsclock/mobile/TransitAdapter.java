@@ -11,6 +11,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.jrs82.fsclock.R;
@@ -37,7 +38,26 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     static final class Header {
         final String title;
         final String mode;
-        Header(String title, String mode) { this.title = title; this.mode = mode; }
+        final String key;
+        final String zoneId;
+        Header(String title, String mode, String key) {
+            this(title, mode, key, "");
+        }
+        Header(String title, String mode, String key, String zoneId) {
+            this.title = title;
+            this.mode = mode;
+            this.key = key;
+            this.zoneId = zoneId;
+        }
+    }
+
+    static final class DepartureRow {
+        final Departure departure;
+        final String key;
+        DepartureRow(Departure departure, String key) {
+            this.departure = departure;
+            this.key = key;
+        }
     }
 
     private static final int TYPE_HEADER = 0;
@@ -53,9 +73,11 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     TransitAdapter(Listener listener) { this.listener = listener; }
 
     void submit(List<Object> newItems) {
+        List<Object> next = newItems == null ? new ArrayList<>() : new ArrayList<>(newItems);
+        DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new DiffCallback(new ArrayList<>(items), next));
         items.clear();
-        if (newItems != null) items.addAll(newItems);
-        notifyDataSetChanged();
+        items.addAll(next);
+        diff.dispatchUpdatesTo(this);  // granulaarit päivitykset → ei koko listan nytkähdystä
     }
 
     @Override
@@ -94,6 +116,14 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             vh.icon.setImageResource(modeIcon(h.mode));
             vh.icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
             vh.badge.setBackgroundTintList(ColorStateList.valueOf(modeColor(ctx, h.mode)));
+            if (h.zoneId == null || h.zoneId.isEmpty()) {
+                vh.zone.setVisibility(View.GONE);
+            } else {
+                vh.zone.setText(h.zoneId);
+                vh.zone.setBackgroundTintList(ColorStateList.valueOf(
+                        ContextCompat.getColor(ctx, R.color.mobile_transit_bus)));
+                vh.zone.setVisibility(View.VISIBLE);
+            }
         } else if (item instanceof RouteHit) {
             RouteHit r = (RouteHit) item;
             RouteVH vh = (RouteVH) holder;
@@ -121,12 +151,14 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             });
             vh.itemView.setOnLongClickListener(null);
         } else {
-            Departure d = (Departure) item;
+            Departure d = item instanceof DepartureRow
+                    ? ((DepartureRow) item).departure : (Departure) item;
             DepartureVH vh = (DepartureVH) holder;
             vh.line.setText(d.routeShortName == null || d.routeShortName.isEmpty() ? "?" : d.routeShortName);
             vh.line.setBackgroundTintList(ColorStateList.valueOf(modeColor(ctx, d.mode)));
-            vh.headsign.setText(d.headsign == null || d.headsign.isEmpty() ? "—" : d.headsign);
-            vh.sub.setText(subLine(d));
+            String direction = d.directionLabel();
+            vh.headsign.setText(direction == null || direction.isEmpty() ? "—" : direction);
+            vh.sub.setVisibility(View.GONE);  // pysäkin nimi + etäisyys näkyy nyt osio-otsikossa
             vh.time.setText(timeText(d));
             vh.time.setTextColor(ContextCompat.getColor(ctx, d.realtime
                     ? R.color.mobile_transit_tram : R.color.mobile_text_secondary));
@@ -151,16 +183,51 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return items.size();
     }
 
-    private static String subLine(Departure d) {
-        String dist = distanceText(d.distanceMeters);
-        if (d.stopName == null || d.stopName.isEmpty()) return dist;
-        return dist.isEmpty() ? d.stopName : d.stopName + " · " + dist;
-    }
+    /** DiffUtil: päivittää vain oikeasti muuttuneet rivit → ei koko listan uudelleenpiirron nytkähdystä.
+     *  Lähtörivit piirretään aina (kellonajat tikittävät), mutta lisäys/poisto/siirto hoidetaan
+     *  rakenteellisesti. Otsikon identiteetti = nimi (ilman etäisyyttä) + moodi, ettei GPS-etäisyyden
+     *  pieni heilahtelu poista+lisää otsikkoa. */
+    private static final class DiffCallback extends DiffUtil.Callback {
+        private final List<Object> oldList, newList;
 
-    private static String distanceText(double meters) {
-        if (Double.isNaN(meters) || meters < 0) return "";
-        if (meters < 1000) return Math.round(meters) + " m";
-        return String.format(FI, "%.1f km", meters / 1000.0);
+        DiffCallback(List<Object> oldList, List<Object> newList) {
+            this.oldList = oldList;
+            this.newList = newList;
+        }
+
+        @Override public int getOldListSize() { return oldList.size(); }
+
+        @Override public int getNewListSize() { return newList.size(); }
+
+        @Override public boolean areItemsTheSame(int o, int n) {
+            Object a = oldList.get(o), b = newList.get(n);
+            if (a instanceof Header && b instanceof Header) {
+                return eq(((Header) a).key, ((Header) b).key);
+            }
+            if (a instanceof DepartureRow && b instanceof DepartureRow) {
+                return eq(((DepartureRow) a).key, ((DepartureRow) b).key);
+            }
+            if (a instanceof RouteHit && b instanceof RouteHit) {
+                return eq(((RouteHit) a).gtfsId, ((RouteHit) b).gtfsId);
+            }
+            if (a instanceof PlaceHit && b instanceof PlaceHit) {
+                return eq(((PlaceHit) a).gtfsId, ((PlaceHit) b).gtfsId);
+            }
+            return false;
+        }
+
+        @Override public boolean areContentsTheSame(int o, int n) {
+            Object a = oldList.get(o), b = newList.get(n);
+            if (a instanceof Header && b instanceof Header) {
+                Header x = (Header) a, y = (Header) b;
+                return eq(x.title, y.title) && eq(x.mode, y.mode);
+            }
+            return false;  // lähtörivit: rebind aina (ajat päivittyvät), ei rakenteellista hyppyä
+        }
+
+        private static boolean eq(String a, String b) {
+            return a == null ? b == null : a.equals(b);
+        }
     }
 
     private static String timeText(Departure d) {
@@ -238,12 +305,13 @@ class TransitAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     static final class HeaderVH extends RecyclerView.ViewHolder {
         final View badge;
         final ImageView icon;
-        final TextView title;
+        final TextView title, zone;
         HeaderVH(@NonNull View v) {
             super(v);
             badge = v.findViewById(R.id.transit_header_badge);
             icon = v.findViewById(R.id.transit_header_icon);
             title = v.findViewById(R.id.transit_header_title);
+            zone = v.findViewById(R.id.transit_header_zone);
         }
     }
 

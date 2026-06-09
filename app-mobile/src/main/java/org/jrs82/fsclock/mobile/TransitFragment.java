@@ -42,10 +42,13 @@ import com.google.android.gms.tasks.CancellationTokenSource;
 
 import org.jrs82.fsclock.R;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,11 +59,10 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
 
     private static final long AUTO_REFRESH_MS = 25_000L;
     private static final long SEARCH_DEBOUNCE_MS = 280L;
-    private static final long LOCATION_FALLBACK_MAX_AGE_MS = 5L * 60_000L;
-    private static final float LOCATION_FALLBACK_MAX_ACCURACY_M = 1500f;
-    private static final String[] GROUP_MODES = {"BUS", "RAIL", "TRAM", "SUBWAY"};
-    private static final String[] GROUP_TITLES = {"Bussit", "Junat", "Raitiovaunut", "Metro"};
-    private static final int MAX_PER_GROUP = 15;
+    private static final long LOCATION_FALLBACK_MAX_AGE_MS = 2L * 60_000L;
+    private static final float LOCATION_FALLBACK_MAX_ACCURACY_M = 250f;
+    private static final int MAX_PER_STOP = 5;       // lähtöjä per lähipysäkki
+    private static final int MAX_NEARBY_STOPS = 10;  // näytettäviä lähipysäkkejä
     private static final int MAX_PER_FAV_STOP = 5;
     private static final int MAX_PER_SELECTED_STOP = 8;
 
@@ -81,6 +83,9 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean inFlight = false;
     private boolean ticking = false;
+    private long viewGeneration = 0L;
+    private long detailGeneration = 0L;
+    private long placeGeneration = 0L;
 
     private List<NearbyStop> lastStops = new ArrayList<>();
     private List<NearbyStop> favStopData = new ArrayList<>();
@@ -95,6 +100,15 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     private String openTrip, openPattern, openBoardStop, openMode, openShort;
     private RoutePatterns openRoutePatterns;
     private int openPatternIdx;
+
+    // Live-sijainti (HSL HFP MQTT): tarkka etäisyys reittiä pitkin omalle pysäkille.
+    private HslMqttClient mqtt;
+    private String mqttVehicleId = "";
+    private TripTimeline liveTrip;
+    private double[] liveCum;
+    private double[] liveStopDist;
+    private int[] liveStopVertex;
+    private double liveLastAlong = Double.NaN;
 
     private final Runnable autoRefresh = new Runnable() {
         @Override public void run() {
@@ -136,6 +150,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        viewGeneration++;
         searchField = view.findViewById(R.id.transit_search);
         searchClear = view.findViewById(R.id.transit_search_clear);
         swipe = view.findViewById(R.id.transit_swipe);
@@ -167,6 +182,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) { }
             @Override public void afterTextChanged(Editable s) {
+                placeGeneration++;
                 query = s.toString().trim();
                 searchClear.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
                 selectedStop = null;             // tekstin muokkaus poistaa valitun pysäkin
@@ -223,6 +239,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     public void onPause() {
         ticking = false;
         ui.removeCallbacks(autoRefresh);
+        stopLiveTracking();
         super.onPause();
     }
 
@@ -248,25 +265,38 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         try {
             FusedLocationProviderClient client =
                     LocationServices.getFusedLocationProviderClient(requireContext());
+            final Location fast = lastKnownFromLocationManager();
+            final boolean usedFast = fast != null;
+            if (usedFast) {
+                fetch(fast.getLatitude(), fast.getLongitude());
+                if (swipe != null) swipe.setRefreshing(true);
+            }
             CurrentLocationRequest request = new CurrentLocationRequest.Builder()
                     .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                     .setGranularity(Granularity.GRANULARITY_FINE)
-                    .setMaxUpdateAgeMillis(60_000L)
-                    .setDurationMillis(8_000L)
+                    .setMaxUpdateAgeMillis(usedFast ? 3_000L : 10_000L)
+                    .setDurationMillis(usedFast ? 5_000L : 8_000L)
                     .build();
             client.getCurrentLocation(request, new CancellationTokenSource().getToken())
                     .addOnSuccessListener(requireActivity(), location -> {
                         if (!isAdded()) { inFlight = false; return; }
                         if (location == null) {
-                            fetchFallbackLocation(client,
-                                    "Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen.");
+                            if (!usedFast) {
+                                fetchFallbackLocation(client,
+                                        "Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen.");
+                            }
                             return;
                         }
-                        fetch(location.getLatitude(), location.getLongitude());
+                        if (!usedFast || shouldFetchRefinedLocation(fast, location)) {
+                            fetch(location.getLatitude(), location.getLongitude());
+                        }
                     })
-                    .addOnFailureListener(requireActivity(),
-                            e -> fetchFallbackLocation(client,
-                                    "Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen."));
+                    .addOnFailureListener(requireActivity(), e -> {
+                        if (!usedFast) {
+                            fetchFallbackLocation(client,
+                                    "Sijaintia ei saatu. Vedä alas yrittääksesi uudelleen.");
+                        }
+                    });
         } catch (Exception e) {
             onFetchFail("Sijaintia ei voitu lukea.");
         }
@@ -327,6 +357,27 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         long age = System.currentTimeMillis() - location.getTime();
         if (age < 0L || age > LOCATION_FALLBACK_MAX_AGE_MS) return false;
         return !location.hasAccuracy() || location.getAccuracy() <= LOCATION_FALLBACK_MAX_ACCURACY_M;
+    }
+
+    private static boolean shouldFetchRefinedLocation(Location first, Location next) {
+        if (next == null) return false;
+        if (first == null) return true;
+        float firstAcc = first.hasAccuracy() ? first.getAccuracy() : LOCATION_FALLBACK_MAX_ACCURACY_M;
+        float nextAcc = next.hasAccuracy() ? next.getAccuracy() : firstAcc;
+        if (nextAcc + 15f < firstAcc) return true;
+        return metersBetween(first.getLatitude(), first.getLongitude(),
+                next.getLatitude(), next.getLongitude()) >= 20.0;
+    }
+
+    private static double metersBetween(double lat1, double lon1, double lat2, double lon2) {
+        double r = 6371000.0;
+        double p1 = Math.toRadians(lat1);
+        double p2 = Math.toRadians(lat2);
+        double dp = Math.toRadians(lat2 - lat1);
+        double dl = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dp / 2.0) * Math.sin(dp / 2.0)
+                + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2.0) * Math.sin(dl / 2.0);
+        return 2.0 * r * Math.atan2(Math.sqrt(a), Math.sqrt(1.0 - a));
     }
 
     private void fetch(double lat, double lon) {
@@ -398,56 +449,69 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             deps.sort(Comparator.comparingLong(d -> d.departureEpochSec));
             String title = selectedStop.name == null || selectedStop.name.isEmpty()
                     ? "Pysäkki" : selectedStop.name;
-            items.add(new TransitAdapter.Header(title, headerMode(selectedStop)));
+            String sectionKey = "selected-stop|" + selectedStop.gtfsId;
+            items.add(new TransitAdapter.Header(stopHeader(selectedStop), headerMode(selectedStop),
+                    sectionKey, zoneLabel(selectedStop)));
             int n = Math.min(deps.size(), MAX_PER_SELECTED_STOP);
-            for (int i = 0; i < n; i++) items.add(deps.get(i));
+            addDepartureRows(items, deps, n, sectionKey);
             return items;
         }
 
         // Ennakoiva haku: linjat (numerolla) + pysäkit/asemat (paikan nimellä).
         if (!query.isEmpty()) {
             if (searchResults != null && !searchResults.isEmpty()) {
-                items.add(new TransitAdapter.Header("Linjat", "FAV"));
+                items.add(new TransitAdapter.Header("Linjat", "FAV", "search-routes"));
                 items.addAll(searchResults);
             }
             if (placeResults != null && !placeResults.isEmpty()) {
-                items.add(new TransitAdapter.Header("Pysäkit ja asemat", "BUS"));
+                items.add(new TransitAdapter.Header("Pysäkit ja asemat", "BUS", "search-places"));
                 items.addAll(placeResults);
             }
             return items;
         }
 
-        // Oletus: suosikit + lähimmät lähdöt ryhmiteltyinä.
+        // Oletus: suosikit + lähimmät lähdöt PYSÄKEITTÄIN (lähin ensin) — selkeä mikä on oma pysäkki.
         for (NearbyStop fs : favStopData) {
             List<Departure> deps = new ArrayList<>(fs.departures);
             deps.sort(Comparator.comparingLong(d -> d.departureEpochSec));
             int n = Math.min(deps.size(), MAX_PER_FAV_STOP);
             if (n == 0) continue;
-            items.add(new TransitAdapter.Header(fs.name + " ★", fs.vehicleMode));
-            for (int i = 0; i < n; i++) items.add(deps.get(i));
+            String sectionKey = "favorite-stop|" + fs.gtfsId;
+            items.add(new TransitAdapter.Header(stopHeader(fs) + " ★", fs.vehicleMode,
+                    sectionKey, zoneLabel(fs)));
+            addDepartureRows(items, deps, n, sectionKey);
         }
 
         List<RouteHit> favLines = TransitFavorites.getLines(ctx);
         if (!favLines.isEmpty()) {
-            items.add(new TransitAdapter.Header("Suosikkilinjat", "FAV"));
+            items.add(new TransitAdapter.Header("Suosikkilinjat", "FAV", "favorite-routes"));
             items.addAll(favLines);
         }
 
-        for (int g = 0; g < GROUP_MODES.length; g++) {
-            String mode = GROUP_MODES[g];
-            List<Departure> group = new ArrayList<>();
-            for (NearbyStop stop : lastStops) {
-                for (Departure d : stop.departures) {
-                    if (mode.equals(d.mode)) group.add(d);
-                }
-            }
-            if (group.isEmpty()) continue;
-            group.sort(Comparator.comparingLong(d -> d.departureEpochSec));
-            items.add(new TransitAdapter.Header(GROUP_TITLES[g], mode));
-            int n = Math.min(group.size(), MAX_PER_GROUP);
-            for (int i = 0; i < n; i++) items.add(group.get(i));
+        int stopsShown = 0;
+        for (NearbyStop stop : lastStops) {
+            if (stop.departures.isEmpty()) continue;
+            if (stopsShown >= MAX_NEARBY_STOPS) break;
+            List<Departure> deps = new ArrayList<>(stop.departures);
+            deps.sort(Comparator.comparingLong(d -> d.departureEpochSec));
+            String sectionKey = "nearby-stop|" + stop.gtfsId;
+            items.add(new TransitAdapter.Header(stopHeader(stop), headerMode(stop),
+                    sectionKey, zoneLabel(stop)));
+            int n = Math.min(deps.size(), MAX_PER_STOP);
+            addDepartureRows(items, deps, n, sectionKey);
+            stopsShown++;
         }
         return items;
+    }
+
+    private static void addDepartureRows(List<Object> items, List<Departure> departures,
+                                         int count, String sectionKey) {
+        for (int i = 0; i < count; i++) {
+            Departure d = departures.get(i);
+            String key = sectionKey + "|" + d.tripGtfsId + "|" + d.stopGtfsId
+                    + "|" + d.departureEpochSec;
+            items.add(new TransitAdapter.DepartureRow(d, key));
+        }
     }
 
     private static String headerMode(NearbyStop s) {
@@ -456,6 +520,25 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             if (d.mode != null && !d.mode.isEmpty()) return d.mode;
         }
         return "BUS";
+    }
+
+    /** Lähipysäkin osio-otsikko: nimi + pysäkkikoodi + etäisyys (esim. "Laajametsänkuja H1234 · 210 m"). */
+    private static String stopHeader(NearbyStop s) {
+        String name = s.name == null || s.name.isEmpty() ? "Pysäkki" : s.name;
+        String code = s.code == null || s.code.isEmpty() ? "" : " " + s.code;
+        if (Double.isNaN(s.distanceMeters) || s.distanceMeters < 0) return name + code;
+        long m = Math.round(s.distanceMeters);
+        return m < 1000 ? name + code + " · " + m + " m"
+                : name + code + " · " + String.format(new Locale("fi", "FI"), "%.1f km", m / 1000.0);
+    }
+
+    private static String zoneLabel(NearbyStop s) {
+        if (s == null || s.zoneId == null) return "";
+        String z = s.zoneId.trim();
+        if (z.isEmpty()) return "";
+        int colon = z.lastIndexOf(':');
+        if (colon >= 0 && colon + 1 < z.length()) z = z.substring(colon + 1);
+        return z.toUpperCase(Locale.ROOT);
     }
 
     /** Ennakoiva haku: linjat (routes) + pysäkit/asemat (geokoodaus) rinnakkain samalla kyselyllä. */
@@ -519,7 +602,8 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     @Override
     public void onRouteClick(RouteHit r) {
         // Napautus AVAA linjan (reitti + aikataulu); suosikki hoidetaan tähdellä.
-        openRoute(r.gtfsId, r.shortName, r.mode);
+        Departure preferred = preferredDepartureForRoute(r.gtfsId);
+        openRoute(r.gtfsId, r.shortName, r.mode, preferred);
     }
 
     @Override
@@ -535,6 +619,8 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         final String id = p.gtfsId;
         final boolean station = p.station;
         final String nm = p.name;
+        final long request = ++placeGeneration;
+        final long viewToken = viewGeneration;
         searchIo.execute(() -> {
             NearbyStop ns;
             try {
@@ -544,7 +630,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             }
             final NearbyStop res = ns;
             ui.post(() -> {
-                if (!isAdded()) return;
+                if (!isViewCurrent(viewToken) || request != placeGeneration) return;
                 if (res == null || res.departures.isEmpty()) {
                     showStatus("Ei tulevia lähtöjä: " + nm);
                     return;
@@ -563,17 +649,39 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         return ctx != null && TransitFavorites.isLineFav(ctx, routeGtfsId);
     }
 
+    private Departure preferredDepartureForRoute(String routeGtfsId) {
+        if (routeGtfsId == null || routeGtfsId.isEmpty()) return null;
+        Departure best = null;
+        double bestScore = Double.POSITIVE_INFINITY;
+        long now = System.currentTimeMillis() / 1000L;
+        for (NearbyStop stop : lastStops) {
+            if (stop == null || stop.departures == null) continue;
+            double dist = Double.isFinite(stop.distanceMeters) ? Math.max(0, stop.distanceMeters) : 1000.0;
+            for (Departure d : stop.departures) {
+                if (d == null || !routeGtfsId.equals(d.routeGtfsId)) continue;
+                long waitSec = Math.max(0, d.departureEpochSec - now);
+                double score = dist + Math.min(waitSec / 60.0, 60.0) * 2.0;
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = d;
+                }
+            }
+        }
+        return best;
+    }
+
     // --- Aikajana: vuoronäkymä ---
 
     private void openTimeline(Departure d) {
         if (d == null || d.tripGtfsId == null || d.tripGtfsId.isEmpty()) return;
+        detailGeneration++;
         openIsRoute = false;
         openTrip = d.tripGtfsId; openPattern = d.patternCode; openBoardStop = d.stopGtfsId;
         openMode = d.mode; openShort = d.routeShortName;
         openRoutePatterns = null;
-        showDetailHeader(d.routeShortName, d.headsign == null ? "" : d.headsign, d.mode, false);
+        showDetailHeader(d.routeShortName, d.directionLabel(), d.mode, false);
         detailBanner.setText("Haetaan vuoron tietoja…");
-        timelineAdapter.submit(new ArrayList<>(), null, -1, -1, openMode);
+        timelineAdapter.submit(new ArrayList<>(), null, -1, -1, openMode, false);
         detailOverlay.setVisibility(View.VISIBLE);
         if (backCallback != null) backCallback.setEnabled(true);
         reloadTimeline();
@@ -582,13 +690,21 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     // --- Linjanäkymä: reitti + aikataulu + live-vuorot ---
 
     private void openRoute(String routeGtfsId, String shortName, String mode) {
+        openRoute(routeGtfsId, shortName, mode, null);
+    }
+
+    private void openRoute(String routeGtfsId, String shortName, String mode, Departure preferred) {
         if (routeGtfsId == null || routeGtfsId.isEmpty()) return;
+        final long request = ++detailGeneration;
+        final long viewToken = viewGeneration;
+        final String preferredPattern = preferred == null ? "" : preferred.patternCode;
+        final String preferredHeadsign = preferred == null ? "" : preferred.headsign;
         openIsRoute = true;
         openMode = mode; openShort = shortName; openTrip = null;
         openRoutePatterns = null; openPatternIdx = 0;
-        showDetailHeader(shortName, "", mode, false);
+        showDetailHeader(shortName, preferredHeadsign, mode, false);
         detailBanner.setText("Haetaan linjan tietoja…");
-        timelineAdapter.submit(new ArrayList<>(), null, -1, -1, openMode);
+        timelineAdapter.submit(new ArrayList<>(), null, -1, -1, openMode, false);
         detailOverlay.setVisibility(View.VISIBLE);
         if (backCallback != null) backCallback.setEnabled(true);
         io.execute(() -> {
@@ -597,35 +713,56 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
             catch (Exception e) { rp = null; }
             final RoutePatterns result = rp;
             ui.post(() -> {
-                if (!isAdded() || !openIsRoute || detailOverlay == null
+                if (!isViewCurrent(viewToken) || request != detailGeneration
+                        || !openIsRoute || detailOverlay == null
                         || detailOverlay.getVisibility() != View.VISIBLE) return;
                 if (result == null || result.patterns.isEmpty()) {
                     detailBanner.setText("Linjan tietoja ei saatu.");
                     return;
                 }
                 openRoutePatterns = result;
-                openPatternIdx = 0;
+                openPatternIdx = preferredPatternIndex(result, preferredPattern, preferredHeadsign);
                 detailSwap.setVisibility(result.patterns.size() > 1 ? View.VISIBLE : View.GONE);
                 loadPattern();
             });
         });
     }
 
+    private int preferredPatternIndex(RoutePatterns patterns, String patternCode, String headsign) {
+        if (patterns == null || patterns.patterns == null || patterns.patterns.isEmpty()) return 0;
+        if (patternCode != null && !patternCode.isEmpty()) {
+            for (int i = 0; i < patterns.patterns.size(); i++) {
+                RoutePatterns.Pat p = patterns.patterns.get(i);
+                if (patternCode.equals(p.code)) return i;
+            }
+        }
+        if (headsign != null && !headsign.isEmpty()) {
+            for (int i = 0; i < patterns.patterns.size(); i++) {
+                RoutePatterns.Pat p = patterns.patterns.get(i);
+                if (headsign.equalsIgnoreCase(p.headsign)) return i;
+            }
+        }
+        return 0;
+    }
+
     private void loadPattern() {
         if (openRoutePatterns == null || openRoutePatterns.patterns.isEmpty()) return;
         RoutePatterns.Pat p = openRoutePatterns.patterns.get(openPatternIdx);
-        detailDest.setText(p.headsign);
+        detailDest.setText(p.directionLabel());
         detailBanner.setText("Haetaan aikataulua…");
         reloadTimeline();
     }
 
     private void swapDirection() {
         if (openRoutePatterns == null || openRoutePatterns.patterns.size() < 2) return;
+        detailGeneration++;
         openPatternIdx = (openPatternIdx + 1) % openRoutePatterns.patterns.size();
         loadPattern();
     }
 
     private void reloadTimeline() {
+        final long request = detailGeneration;
+        final long viewToken = viewGeneration;
         if (openIsRoute) {
             if (openRoutePatterns == null || openRoutePatterns.patterns.isEmpty()) return;
             final String code = openRoutePatterns.patterns.get(openPatternIdx).code;
@@ -636,7 +773,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
                 catch (Exception e) { tl = null; }
                 final TripTimeline res = tl;
                 ui.post(() -> {
-                    if (!isAdded() || detailOverlay == null
+                    if (!isViewCurrent(viewToken) || request != detailGeneration || detailOverlay == null
                             || detailOverlay.getVisibility() != View.VISIBLE || !openIsRoute) return;
                     applyTimeline(res, true);
                 });
@@ -650,7 +787,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
                 catch (Exception e) { tl = null; }
                 final TripTimeline res = tl;
                 ui.post(() -> {
-                    if (!isAdded() || detailOverlay == null
+                    if (!isViewCurrent(viewToken) || request != detailGeneration || detailOverlay == null
                             || detailOverlay.getVisibility() != View.VISIBLE
                             || openIsRoute || !trip.equals(openTrip)) return;
                     applyTimeline(res, false);
@@ -667,22 +804,31 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         Set<Integer> veh = new HashSet<>(tl.vehicleStopIndices);
         int passedBefore = (!isRoute && tl.vehicleStopIndices.size() == 1)
                 ? tl.vehicleStopIndices.get(0) : -1;
-        timelineAdapter.submit(tl.stops, veh, tl.boardStopIndex, passedBefore, openMode);
+        timelineAdapter.submit(tl.stops, veh, tl.boardStopIndex, passedBefore, openMode,
+                !isRoute && tl.vehicleIncoming);
         detailBanner.setText(isRoute ? routeBanner(tl) : tripBanner(tl));
+        if (isRoute) stopLiveTracking();
+        else setupLiveTracking(tl);
     }
 
     private String tripBanner(TripTimeline tl) {
         String word = modeWord(openMode);
         if (tl.vehicleStopIndices.isEmpty()) return "Ei live-sijaintia — vuoro ei ole vielä liikkeellä.";
-        int idx = tl.vehicleStopIndices.get(0);
-        String at = idx >= 0 && idx < tl.stops.size() ? tl.stops.get(idx).name : "";
+        int relIdx = tl.vehicleStopIndices.get(0);
+        boolean approaching = tl.vehicleIncoming;  // IN_TRANSIT_TO / INCOMING_AT: ei vielä relIdx:llä
+        String at = relIdx >= 0 && relIdx < tl.stops.size() ? tl.stops.get(relIdx).name : "";
+        // Lähestyttäessä bussi on vielä edellisellä välillä → efektiivinen "viimeksi ohitettu" = relIdx-1.
+        int effIdx = approaching ? relIdx - 1 : relIdx;
         if (tl.boardStopIndex >= 0) {
-            int n = tl.boardStopIndex - idx;
-            if (n > 0) return word + " on " + n + " pysäkin päässä pysäkistäsi (nyt: " + at + ").";
-            if (n == 0) return word + " on pysäkilläsi (" + at + ").";
+            int n = tl.boardStopIndex - effIdx;
+            if (n > 0) {
+                String pos = approaching ? "matkalla pysäkille " + at : "pysäkillä " + at;
+                return word + " on " + n + " pysäkin päässä pysäkistäsi (nyt " + pos + ").";
+            }
+            if (n == 0) return word + " on pysäkilläsi tai aivan vieressä (" + at + ").";
             return word + " on jo ohittanut pysäkkisi (nyt: " + at + ").";
         }
-        return word + (tl.vehicleIncoming ? " on tulossa pysäkille " : " on pysäkillä ") + at + ".";
+        return word + (approaching ? " on matkalla pysäkille " : " on pysäkillä ") + at + ".";
     }
 
     private String routeBanner(TripTimeline tl) {
@@ -690,6 +836,99 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
         if (c == 0) return "Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat.";
         return c + (c == 1 ? " vuoro liikkeellä" : " vuoroa liikkeellä")
                 + " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä.";
+    }
+
+    // --- Live-sijainti MQTT:llä (HSL HFP): tarkka etäisyys reittiä pitkin pysäkillesi ---
+
+    private void setupLiveTracking(TripTimeline tl) {
+        if (tl == null || tl.boardStopIndex < 0 || tl.vehicleId == null || tl.vehicleId.isEmpty()
+                || tl.shape == null || tl.shape.size() < 2) {
+            stopLiveTracking();
+            return;
+        }
+        liveTrip = tl;
+        liveCum = RouteProjection.cumulative(tl.shape);
+        liveStopVertex = new int[tl.stops.size()];
+        liveStopDist = RouteProjection.stopDistances(tl.shape, liveCum, tl.stops, liveStopVertex);
+        liveLastAlong = Double.NaN;
+        if (!tl.vehicleId.equals(mqttVehicleId)) {
+            if (mqtt == null) mqtt = new HslMqttClient();
+            mqttVehicleId = tl.vehicleId;
+            mqtt.subscribeVehicle(tl.vehicleId,
+                    (lat, lon, spd, dl, loc, hdg, tsi) ->
+                            ui.post(() -> onLiveVehicle(lat, lon, dl, loc, tsi)));
+        }
+    }
+
+    private void stopLiveTracking() {
+        mqttVehicleId = "";
+        liveTrip = null;
+        liveCum = null;
+        liveStopDist = null;
+        liveStopVertex = null;
+        liveLastAlong = Double.NaN;
+        if (mqtt != null) mqtt.disconnect();
+    }
+
+    /** VP-päivitys (UI-säie): projisoi bussin GPS reitille → "~X m ennen pysäkkiäsi (~Y min)". */
+    private void onLiveVehicle(double lat, double lon, int delay, String loc, long tsi) {
+        if (!isAdded() || openIsRoute || liveTrip == null || detailBanner == null) return;
+        if (detailOverlay == null || detailOverlay.getVisibility() != View.VISIBLE) return;
+        if (!Double.isFinite(lat) || !Double.isFinite(lon)
+                || lat < -90 || lat > 90 || lon < -180 || lon > 180) return;
+        long nowSec = System.currentTimeMillis() / 1000L;
+        if (tsi > 0 && (tsi < nowSec - 60 || tsi > nowSec + 30)) return;
+        TripTimeline tl = liveTrip;
+        int board = tl.boardStopIndex;
+        if (liveStopDist == null || board < 0 || board >= liveStopDist.length) return;
+
+        int loV = 0, hiV = tl.shape.size() - 1;
+        if (!tl.vehicleStopIndices.isEmpty() && liveStopVertex != null) {
+            int relIdx = Math.max(0, Math.min(tl.vehicleStopIndices.get(0), liveStopVertex.length - 1));
+            int loIdx = Math.max(0, relIdx - 2);
+            int hiIdx = Math.min(liveStopVertex.length - 1, relIdx + 3);
+            loV = Math.max(0, liveStopVertex[loIdx] - 4);
+            hiV = Math.min(tl.shape.size() - 1, liveStopVertex[hiIdx] + 4);
+            if (hiV - loV < 2) { loV = 0; hiV = tl.shape.size() - 1; }
+        }
+        double minAlong = Double.isFinite(liveLastAlong) ? Math.max(0, liveLastAlong - 75) : 0;
+        double[] pr = RouteProjection.project(tl.shape, liveCum, lat, lon, loV, hiV, minAlong);
+        if (!Double.isFinite(pr[0]) || pr[1] > 250) return;
+        if (Double.isFinite(liveLastAlong) && pr[0] + 30 < liveLastAlong) return;
+        liveLastAlong = Double.isFinite(liveLastAlong) ? Math.max(liveLastAlong, pr[0]) : pr[0];
+        double toBoard = liveStopDist[board] - liveLastAlong;
+        String word = modeWord(openMode);
+        String src = "GPS".equalsIgnoreCase(loc) ? "" : " (arvio)";
+        if (toBoard < -30) {
+            detailBanner.setText(word + " on jo ohittanut pysäkkisi" + src + ".");
+            return;
+        }
+        long boardEpoch = tl.stops.get(board).depEpochSec;
+        String eta = "";
+        if (boardEpoch > 0) {
+            long secs = boardEpoch - System.currentTimeMillis() / 1000L;
+            if (secs >= 0 && secs < 3600) {
+                eta = " (saapuu ~klo " + liveClock(boardEpoch)
+                        + ", ~" + Math.max(1, Math.round(secs / 60.0)) + " min)";
+            } else {
+                eta = " (saapuu ~klo " + liveClock(boardEpoch) + ")";
+            }
+        }
+        detailBanner.setText(word + " ~" + formatMeters(Math.max(0, toBoard))
+                + " ennen pysäkkiäsi" + eta + src + ".");
+    }
+
+    private static final SimpleDateFormat LIVE_CLOCK =
+            new SimpleDateFormat("HH:mm", new Locale("fi", "FI"));
+
+    private static String liveClock(long epochSec) {
+        return LIVE_CLOCK.format(new Date(epochSec * 1000L));
+    }
+
+    private static String formatMeters(double m) {
+        if (m >= 1000) return String.format(new Locale("fi", "FI"), "%.1f km", m / 1000.0);
+        long r = Math.round(m / 10.0) * 10;
+        return r + " m";
     }
 
     private void showDetailHeader(String shortName, String dest, String mode, boolean swapVisible) {
@@ -703,6 +942,8 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     }
 
     private void closeDetail() {
+        detailGeneration++;
+        stopLiveTracking();
         if (detailOverlay != null) detailOverlay.setVisibility(View.GONE);
         if (backCallback != null) backCallback.setEnabled(false);
         openTrip = null;
@@ -725,6 +966,10 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean isViewCurrent(long token) {
+        return token == viewGeneration && isAdded() && getView() != null && searchField != null;
     }
 
     private void hideKeyboard() {
@@ -756,9 +1001,13 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
 
     @Override
     public void onDestroyView() {
+        viewGeneration++;
+        detailGeneration++;
+        placeGeneration++;
         ui.removeCallbacks(autoRefresh);
         ui.removeCallbacks(searchDebounce);
         ticking = false;
+        stopLiveTracking();
         searchField = null;
         searchClear = null;
         swipe = null;
@@ -779,6 +1028,7 @@ public class TransitFragment extends Fragment implements TransitAdapter.Listener
     public void onDestroy() {
         io.shutdownNow();
         searchIo.shutdownNow();
+        if (mqtt != null) { mqtt.disconnect(); mqtt = null; }
         super.onDestroy();
     }
 }
