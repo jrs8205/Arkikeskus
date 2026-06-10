@@ -79,14 +79,11 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * Compose-pääruudun RUNKO (navigaatio + dashboard) — VAIHE 2/3 esikatselu. Tämä on uusi,
- * Compose-pohjainen päänäkymä joka korvaa lopulta View-pohjaisen [MobileMainActivity]n.
- * Ajetaan toistaiseksi ERILLISENÄ esikatseluna ([MobileComposeMainActivity], avataan valikosta),
- * jotta nykyinen toimiva sovellus ei riko ja käyttäjä voi testata rinnakkain.
- *
- * Tässä vaiheessa: M3-navigaatiodraweri + header + sektioreititys + etusivun elävä kello.
- * Sektioiden varsinainen sisältö (sää, sähkö, anturit, kartat, transit…) kytketään dataan
- * seuraavissa paloissa (ViewModel/repository-sauma). Raskaat näkymät näkyvät nyt paikkamerkkeinä.
+ * Compose-pääruudun runko: navigaatio (alapalkki + valikko-overlay) + sektioreititys.
+ * Tämä on sovelluksen ainoa päänäkymä ([MobileComposeMainActivity] = launcher); View-pohjainen
+ * MobileMainActivity on poistettu Compose-migraation valmistuttua. Kaikki sektiot ovat
+ * natiiveja composableja — paitsi Reittihaku, joka on tietoisesti View-toteutus
+ * Fragment-sillan takana (päätös 5.3-A, ks. reititys alla).
  */
 
 private val FI_MAIN = Locale("fi", "FI")
