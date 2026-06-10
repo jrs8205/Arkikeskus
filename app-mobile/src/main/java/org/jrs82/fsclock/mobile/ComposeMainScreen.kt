@@ -351,7 +351,9 @@ fun ComposeMainScreen() {
                     HomeSection.ELECTRICITY -> ElectricitySection()
                     HomeSection.NEWS -> NewsSection()
                     HomeSection.DEVICE_INFO -> DeviceInfoSection()
-                    HomeSection.ROAD_CAMERAS -> RoadCamerasHost()
+                    // Compose-migraation turvaverkko: flagi false palauttaa vanhan Fragment-sillan.
+                    HomeSection.ROAD_CAMERAS ->
+                        if (USE_COMPOSE_CAMERAS) RoadCamerasScreen() else RoadCamerasHost()
                     HomeSection.TRANSIT -> TransitHost()
                     HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
                     HomeSection.SPEEDOMETER -> SpeedometerSection()
