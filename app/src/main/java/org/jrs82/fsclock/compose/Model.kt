@@ -5,7 +5,7 @@ import org.jrs82.fsclock.WeatherCondition
 
 /* ---------------- Sivut ---------------- */
 
-enum class Page { HOME, INFO, FORECAST, ELECTRICITY }
+enum class Page { HOME, INFO, FORECAST, ELECTRICITY, SETTINGS, HISTORY }
 
 /* ---------------- Tilamalli ---------------- */
 

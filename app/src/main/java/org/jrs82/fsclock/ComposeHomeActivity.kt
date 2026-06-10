@@ -1,9 +1,9 @@
 package org.jrs82.fsclock
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -37,6 +37,22 @@ class ComposeHomeActivity : ComponentActivity() {
             if (data.hasLocationPermission()) data.fetchLocation()
         }
 
+    private val bleScanPerm =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            // Luvan jälkeen skanneri pitää potkaista käyntiin (start failasi ilman lupaa).
+            if (granted) org.jrs82.fsclock.ruuvi.RuuviRepository.get(this).let { it.start(); it.stop() }
+        }
+
+    /** Onko BLE-skannauslupa? Jos ei, käynnistää lupapyynnön ja palauttaa false.
+     *  API 31+ BLUETOOTH_SCAN, API ≤30 ACCESS_FINE_LOCATION. */
+    private fun ensureBleScan(): Boolean {
+        val perm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            Manifest.permission.BLUETOOTH_SCAN else Manifest.permission.ACCESS_FINE_LOCATION
+        if (ContextCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED) return true
+        bleScanPerm.launch(perm)
+        return false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -53,8 +69,10 @@ class ComposeHomeActivity : ComponentActivity() {
                     ui = data.uiState,
                     page = page,
                     onPage = { page = it },
-                    onSettings = { openSettings() },
-                    onRename = { slot, name -> data.setSensorName(slot, name) }
+                    onRename = { slot, name -> data.setSensorName(slot, name) },
+                    onBrightnessChanged = { brightness.reapply() },
+                    ensureBleScan = { ensureBleScan() },
+                    onSensorsChanged = { data.refreshSensors() },
                 )
             }
         }
@@ -81,13 +99,6 @@ class ComposeHomeActivity : ComponentActivity() {
         brightness.stop()
         data.stop()
         super.onStop()
-    }
-
-    /** Ratas avaa natiivin asetukset (Ruuvi-konffaus, anturien nimet, kirkkaus jne). */
-    private fun openSettings() {
-        try {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        } catch (_: Exception) {}
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

@@ -290,6 +290,19 @@ public final class SettingsManager {
         return sp().getBoolean(KEY_WARN_AUTO_SCROLL, true);
     }
 
+    public void setWarningsAutoScroll(boolean v) {
+        sp().edit().putBoolean(KEY_WARN_AUTO_SCROLL, v).apply();
+    }
+
+    public void setNightRedTint(boolean v) {
+        sp().edit().putBoolean(KEY_NIGHT_RED_TINT, v).apply();
+    }
+
+    /** ListPreference-yhteensopivuus: säilytysaika tallennetaan String-arvona. */
+    public void setRetentionDays(int days) {
+        sp().edit().putString(KEY_RETENTION_DAYS, String.valueOf(days)).apply();
+    }
+
     /** Seuraako kotipaikka GPS-sijaintia. Kytketään pois kun käyttäjä asettaa
      *  kotipaikan käsin asetuksista (muuten GPS ylikirjoittaisi sen heti). */
     public boolean isFollowGpsLocation() {
