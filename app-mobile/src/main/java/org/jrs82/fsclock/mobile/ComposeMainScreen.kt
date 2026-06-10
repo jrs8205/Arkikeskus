@@ -354,7 +354,8 @@ fun ComposeMainScreen() {
                     // Compose-migraation turvaverkko: flagi false palauttaa vanhan Fragment-sillan.
                     HomeSection.ROAD_CAMERAS ->
                         if (USE_COMPOSE_CAMERAS) RoadCamerasScreen() else RoadCamerasHost()
-                    HomeSection.TRANSIT -> TransitHost()
+                    HomeSection.TRANSIT ->
+                        if (USE_COMPOSE_TRANSIT) TransitScreen() else TransitHost()
                     HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
                     HomeSection.SPEEDOMETER -> SpeedometerSection()
                     HomeSection.TRAFFIC_ACCIDENTS -> TrafficSection(TrafficNotice.Kind.ACCIDENT, section.title)
