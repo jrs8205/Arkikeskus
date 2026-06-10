@@ -146,10 +146,35 @@ class HomeDataController(activityCtx: Context) {
     private val deviceTick = object : Runnable {
         override fun run() {
             if (!active.get()) return
-            if (wifiTickCount++ % 5 == 0) pushWifi()
+            if (wifiTickCount++ % 5 == 0) {
+                pushWifi()
+                pushModes()
+            }
             pushBattery()
             ui.postDelayed(this, 1000L)
         }
+    }
+
+    /** Yön punasävy + offline-testitila (5 s välein — testitila vanhenee itsestään). */
+    private fun pushModes() {
+        try {
+            val sm = SettingsManager.get()
+            val test = sm.activeTestMode
+            val night = when (test) {
+                SettingsManager.TEST_NIGHT -> true
+                SettingsManager.TEST_DAY -> false
+                else -> {
+                    val hour = Calendar.getInstance(HELSINKI_TZ, FI).get(Calendar.HOUR_OF_DAY)
+                    val morning = sm.morningHour
+                    val evening = sm.eveningHour
+                    if (evening >= morning) hour >= evening || hour < morning
+                    else hour >= evening && hour < morning
+                }
+            }
+            val red = night && sm.isNightRedTint
+            val offline = test == SettingsManager.TEST_OFFLINE
+            update { it.copy(redTint = red, testOffline = offline) }
+        } catch (e: Exception) { Log.w(TAG, "modes", e) }
     }
 
     @Suppress("DEPRECATION")
@@ -191,10 +216,14 @@ class HomeDataController(activityCtx: Context) {
     private val weatherTick = object : Runnable {
         override fun run() {
             if (!active.get()) return
-            fetchWeatherNow(forceOm = false)
+            if (!isOfflineTest()) fetchWeatherNow(forceOm = false)
             ui.postDelayed(this, 10L * 60_000L)
         }
     }
+
+    /** Offline-testitila: verkkohaut ohitetaan, jolloin UI näyttää vanhenevan datan. */
+    private fun isOfflineTest(): Boolean =
+        try { SettingsManager.get().activeTestMode == SettingsManager.TEST_OFFLINE } catch (e: Exception) { false }
 
     private fun fetchWeatherNow(forceOm: Boolean) {
         executeCurrent { run ->
@@ -332,7 +361,7 @@ class HomeDataController(activityCtx: Context) {
     private val electricityTick = object : Runnable {
         override fun run() {
             if (!active.get()) return
-            executeCurrent { run ->
+            if (!isOfflineTest()) executeCurrent { run ->
                 try {
                     val repo = ElectricityRepository.get(ctx)
                     // Klo 14 jälkeen huomisen hinnat julkaistaan — ohita TTL kunnes ne ovat tulleet.
@@ -355,13 +384,17 @@ class HomeDataController(activityCtx: Context) {
         }
     }
 
+    /** Onko huominen oikeasti julkaistu? Nord Poolin CET-kauppapäivä ulottuu Suomen
+     *  aikaan klo 01:00 asti, joten "huomiselta" löytyy AINA 4 varttia (00:00–00:45)
+     *  ennen varsinaista julkaisua. Vaaditaan siksi vähintään 90/96 varttia. */
     private fun hasTomorrow(data: ElectricityData?): Boolean {
         if (data == null) return false
         val c = Calendar.getInstance(HELSINKI_TZ, FI)
         c.add(Calendar.DAY_OF_YEAR, 1)
         val d = c.get(Calendar.DAY_OF_MONTH); val m = c.get(Calendar.MONTH) + 1; val y = c.get(Calendar.YEAR)
-        for (q in data.quarters) if (q.dayOfMonth == d && q.month == m && q.year == y) return true
-        return false
+        var count = 0
+        for (q in data.quarters) if (q.dayOfMonth == d && q.month == m && q.year == y) count++
+        return count >= MIN_PUBLISHED_QUARTERS
     }
 
     private fun renderElectricity() {
@@ -371,7 +404,9 @@ class HomeDataController(activityCtx: Context) {
         val cTomorrow = Calendar.getInstance(HELSINKI_TZ, FI)
         cTomorrow.add(Calendar.DAY_OF_YEAR, 1)
         val today = buildDayPrices("Tänään", data, cToday, now)
-        val tomorrow = buildDayPrices("Huomenna", data, cTomorrow, now)
+        // CET-päivän vuotamat alkuvartit (≤4 kpl) eivät vielä ole "huominen julkaistu".
+        var tomorrow = buildDayPrices("Huomenna", data, cTomorrow, now)
+        if (tomorrow != null && tomorrow.quarters.size < MIN_PUBLISHED_QUARTERS) tomorrow = null
         var nowSnt: Float? = null
         today?.quarters?.forEach { if (it.isNow) nowSnt = it.snt }
         update { it.copy(elToday = today, elTomorrow = tomorrow, priceSnt = nowSnt ?: it.priceSnt) }
@@ -477,6 +512,12 @@ class HomeDataController(activityCtx: Context) {
 
     private fun renderWarnings(warnings: List<WeatherWarning>?) {
         val list = ArrayList<WarnUi>()
+        // Testivaroitus-testitila: injektoidaan keinotekoinen varoitus listan kärkeen.
+        if (SettingsManager.get().activeTestMode == SettingsManager.TEST_WARNING) {
+            list.add(WarnUi("TESTIVAROITUS", "Testitila — ei oikea varoitus", "",
+                "Tämä varoitus on kytketty päälle asetusten testinapista ja poistuu itsestään 30 minuutissa.",
+                Color(0xFFE6C32E)))
+        }
         if (warnings != null) {
             for (w in warnings) {
                 val validity = if (w.expiresMs > 0L) "voimassa ${fmtDay(w.expiresMs)} asti" else ""
@@ -519,6 +560,8 @@ class HomeDataController(activityCtx: Context) {
 
     fun fetchLocation() {
         if (!hasLocationPermission()) return
+        // GPS-seuranta pois päältä (tai käyttäjä asettanut kotipaikan käsin) → ei ylikirjoiteta.
+        if (!SettingsManager.get().isFollowGpsLocation) return
         executeCurrent { run ->
             try {
                 val loc = bestLocation() ?: return@executeCurrent
@@ -615,6 +658,8 @@ class HomeDataController(activityCtx: Context) {
 
     companion object {
         private const val TAG = "HomeDataController"
+        /** Vartteja joiden jälkeen huominen katsotaan julkaistuksi (96:sta). */
+        private const val MIN_PUBLISHED_QUARTERS = 90
         private val FI = Locale.Builder().setLanguage("fi").setRegion("FI").build()
         private val HELSINKI_TZ = TimeZone.getTimeZone("Europe/Helsinki")
         private val WD = arrayOf("su", "ma", "ti", "ke", "to", "pe", "la")

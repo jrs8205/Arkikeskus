@@ -84,7 +84,12 @@ public final class ElectricityRepository {
         return fresh;
     }
 
-    /** True jos välimuistissa on yhtään huomispäivän varttia. */
+    /** Vartteja joiden jälkeen huominen katsotaan julkaistuksi (96:sta). Nord Poolin
+     *  CET-kauppapäivä ulottuu Suomen aikaan klo 01:00 asti, joten "huomiselta" löytyy
+     *  AINA 4 varttia (00:00–00:45) jo ennen varsinaista julkaisua. */
+    public static final int MIN_PUBLISHED_QUARTERS = 90;
+
+    /** True jos huomispäivä on oikeasti julkaistu (≥ MIN_PUBLISHED_QUARTERS varttia). */
     public synchronized boolean hasTomorrow() {
         if (data == null) return false;
         TimeZone hel = TimeZone.getTimeZone("Europe/Helsinki");
@@ -93,10 +98,11 @@ public final class ElectricityRepository {
         int tomY = c.get(Calendar.YEAR);
         int tomM = c.get(Calendar.MONTH) + 1;
         int tomD = c.get(Calendar.DAY_OF_MONTH);
+        int count = 0;
         for (ElectricityData.Quarter q : data.quarters) {
-            if (q.year == tomY && q.month == tomM && q.dayOfMonth == tomD) return true;
+            if (q.year == tomY && q.month == tomM && q.dayOfMonth == tomD) count++;
         }
-        return false;
+        return count >= MIN_PUBLISHED_QUARTERS;
     }
 
     /** Palauttaa tämän hetken vartin (nykyaika EET) tai null jos cache ei kata

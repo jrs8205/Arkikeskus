@@ -234,12 +234,20 @@ public class WeatherCondition {
         }
 
         if (wawa >= 40 && wawa <= 42) {
-            c.type = Type.RAIN; c.intensity = Intensity.MODERATE; return c;
+            // WMO 4680: 40 = sadetta (määrittelemätön), 41 = heikkoa/kohtalaista, 42 = KOVAA.
+            c.type = Type.RAIN;
+            c.intensity = (wawa == 42) ? Intensity.HEAVY : Intensity.MODERATE;
+            return c;
         }
 
         if (wawa >= 50 && wawa <= 56) {
-            // tihku / jäätävä tihku = kevyt sade
-            c.type = Type.RAIN; c.intensity = Intensity.LIGHT; return c;
+            // Tihku / jäätävä tihku. WMO 4680: 50/51/54 = heikko, 52/55 = kohtalainen,
+            // 53/56 = KOVA. Näytetään sateena tihku-intensiteetin mukaan.
+            c.type = Type.RAIN;
+            if (wawa == 53 || wawa == 56) c.intensity = Intensity.HEAVY;
+            else if (wawa == 52 || wawa == 55) c.intensity = Intensity.MODERATE;
+            else c.intensity = Intensity.LIGHT;
+            return c;
         }
 
         if (wawa >= 60 && wawa <= 66) {
@@ -264,9 +272,11 @@ public class WeatherCondition {
         }
 
         if (wawa >= 80 && wawa <= 84) {
+            // WMO 4680: 80 = kuuro (intensiteetti määrittelemätön), 81 = heikko,
+            // 82 = kohtalainen, 83 = voimakas, 84 = ankara.
             c.type = Type.RAIN; c.isShower = true;
             if (wawa == 81) c.intensity = Intensity.LIGHT;
-            else if (wawa == 82) c.intensity = Intensity.MODERATE;
+            else if (wawa == 80 || wawa == 82) c.intensity = Intensity.MODERATE;
             else c.intensity = Intensity.HEAVY;
             return c;
         }
@@ -309,21 +319,27 @@ public class WeatherCondition {
         c.isNight = night;
         switch (code) {
             case 0:  c.type = Type.CLEAR;          c.intensity = Intensity.NONE;     break;
-            case 1:  c.type = Type.CLEAR;          c.intensity = Intensity.NONE;     break;
+            // 1 = "mainly clear" — sama luokka kuin FMI SmartSymbol 2 (enimmäkseen
+            // selkeää) → PARTLY_CLOUDY, jotta FMI/OM-vertailusarakkeet näyttävät
+            // samalla kelillä saman ikonin.
+            case 1:  c.type = Type.PARTLY_CLOUDY;  c.intensity = Intensity.NONE;     break;
             case 2:  c.type = Type.PARTLY_CLOUDY;  c.intensity = Intensity.NONE;     break;
             case 3:  c.type = Type.CLOUDY;         c.intensity = Intensity.NONE;     break;
             case 45: case 48:
                      c.type = Type.FOG;            c.intensity = Intensity.NONE;     break;
+            // Tihku 51/53/55 = light/moderate/dense (WMO).
             case 51: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
-            case 53: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
-            case 55: c.type = Type.RAIN;           c.intensity = Intensity.MODERATE; break;
-            case 56: c.type = Type.SLEET;          c.intensity = Intensity.LIGHT;    break;
-            case 57: c.type = Type.SLEET;          c.intensity = Intensity.MODERATE; break;
+            case 53: c.type = Type.RAIN;           c.intensity = Intensity.MODERATE; break;
+            case 55: c.type = Type.RAIN;           c.intensity = Intensity.HEAVY;    break;
+            // Jäätävä tihku/sade ei ole räntää — näytetään sateena kuten FMI-polku
+            // (SmartSymbol 14/17 → RAIN), jotta lähteet näyttävät saman ikonin.
+            case 56: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
+            case 57: c.type = Type.RAIN;           c.intensity = Intensity.HEAVY;    break;
             case 61: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
             case 63: c.type = Type.RAIN;           c.intensity = Intensity.MODERATE; break;
             case 65: c.type = Type.RAIN;           c.intensity = Intensity.HEAVY;    break;
-            case 66: c.type = Type.SLEET;          c.intensity = Intensity.LIGHT;    break;
-            case 67: c.type = Type.SLEET;          c.intensity = Intensity.HEAVY;    break;
+            case 66: c.type = Type.RAIN;           c.intensity = Intensity.LIGHT;    break;
+            case 67: c.type = Type.RAIN;           c.intensity = Intensity.HEAVY;    break;
             case 71: c.type = Type.SNOW;           c.intensity = Intensity.LIGHT;    break;
             case 73: c.type = Type.SNOW;           c.intensity = Intensity.MODERATE; break;
             case 75: c.type = Type.SNOW;           c.intensity = Intensity.HEAVY;    break;

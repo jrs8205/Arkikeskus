@@ -68,19 +68,30 @@ public class WarningsClient {
             if (alert == null) continue;
             String status = alert.optString("status", "");
             if (!"Actual".equalsIgnoreCase(status)) continue;
+            // Perutut varoitukset eivät kuulu listalle (CAP msgType=Cancel).
+            String msgType = alert.optString("msgType", "");
+            if ("Cancel".equalsIgnoreCase(msgType)) continue;
             String identifier = alert.optString("identifier", "");
 
             JSONArray infos = alert.optJSONArray("info");
             if (infos == null) continue;
+            // Ensisijaisesti fi-FI, varalla en-GB/en, viimeisenä ensimmäinen info —
+            // varoitus on parempi näyttää väärällä kielellä kuin jättää näyttämättä.
             JSONObject info = null;
+            JSONObject infoEn = null;
+            JSONObject infoAny = null;
             for (int j = 0; j < infos.length(); j++) {
                 JSONObject c = infos.optJSONObject(j);
                 if (c == null) continue;
-                if ("fi-FI".equalsIgnoreCase(c.optString("language", ""))) {
+                String lang = c.optString("language", "");
+                if ("fi-FI".equalsIgnoreCase(lang)) {
                     info = c;
                     break;
                 }
+                if (infoEn == null && lang.toLowerCase(Locale.ROOT).startsWith("en")) infoEn = c;
+                if (infoAny == null) infoAny = c;
             }
+            if (info == null) info = infoEn != null ? infoEn : infoAny;
             if (info == null) continue;
 
             long onset = parseIso(iso, info.optString("onset", null));

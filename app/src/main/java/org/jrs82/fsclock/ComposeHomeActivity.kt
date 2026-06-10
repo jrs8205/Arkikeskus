@@ -29,6 +29,7 @@ class ComposeHomeActivity : ComponentActivity() {
 
     private lateinit var data: HomeDataController
     private lateinit var pixelShift: PixelShiftController
+    private lateinit var brightness: BrightnessController
 
     private val locationPerm =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -42,6 +43,8 @@ class ComposeHomeActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideSystemBars()
+        SettingsManager.get().init(applicationContext)
+        brightness = BrightnessController(window, SettingsManager.get())
         data = HomeDataController(this)
         setContent {
             var page by remember { mutableStateOf(Page.HOME) }
@@ -61,6 +64,10 @@ class ComposeHomeActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         data.start()
+        // Päivä/yö-kirkkaus + testipäivä/yö (asetuksista). reapply() pakottaa
+        // Window-attribuutin uudelleen, koska asetuksia on voitu muuttaa välissä.
+        brightness.reapply()
+        brightness.start()
         if (!UiMetrics.isCompactHeight(resources)) pixelShift.start()
         if (!data.hasLocationPermission()) {
             locationPerm.launch(
@@ -71,6 +78,7 @@ class ComposeHomeActivity : ComponentActivity() {
 
     override fun onStop() {
         pixelShift.stop()
+        brightness.stop()
         data.stop()
         super.onStop()
     }
@@ -84,7 +92,11 @@ class ComposeHomeActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideSystemBars()
+        if (hasFocus) {
+            hideSystemBars()
+            // Järjestelmä on voinut palauttaa kirkkauden dialogien/asetusten jälkeen.
+            if (::brightness.isInitialized) brightness.reapply()
+        }
     }
 
     private fun hideSystemBars() {

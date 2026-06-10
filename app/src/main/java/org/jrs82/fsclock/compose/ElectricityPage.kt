@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,10 +72,16 @@ fun ElectricityPage(ui: HomeUi, s: Scale) {
         // Pylväsgraafi
         PriceBars(day.quarters, s, Modifier.fillMaxWidth().height(s.dh(22f)))
         Spacer(Modifier.height(s.dh(1.6f)))
-        // Varttilista
-        val scroll = rememberScrollState()
-        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(s.dh(0.5f))) {
-            for (q in day.quarters) QuarterRow(q, day.max, s)
+        // Varttilista. Tänään-näkymässä lista vieritetään automaattisesti nykyvarttiin
+        // (pari riviä kontekstia yläpuolelle); Huomenna alkaa alusta.
+        val listState = rememberLazyListState()
+        val nowIndex = day.quarters.indexOfFirst { it.isNow }
+        LaunchedEffect(day.label, nowIndex, day.quarters.size) {
+            if (nowIndex >= 0) listState.scrollToItem((nowIndex - 2).coerceAtLeast(0))
+            else listState.scrollToItem(0)
+        }
+        LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(s.dh(0.5f))) {
+            itemsIndexed(day.quarters) { _, q -> QuarterRow(q, day.max, s) }
         }
     }
 }
@@ -138,12 +146,17 @@ private fun QuarterRow(q: QuarterUi, maxV: Float, s: Scale) {
     ) {
         Text(q.label, color = Ark.Ink, fontFamily = HankenGrotesk, fontWeight = if (q.isNow) FontWeight.Bold else FontWeight.Medium, fontSize = s.sh(2.3f), maxLines = 1, modifier = Modifier.width(s.dw(7f)))
         Spacer(Modifier.width(s.dw(1.4f)))
-        // Pieni palkki
+        // Pieni palkki. Negatiivinen hinta ei piirry positiivisena — näytetään
+        // kapea viileänsininen merkki nollahinnan "alle".
         Box(Modifier.weight(1f).height(s.dh(2.2f)).background(Ark.Bg, RoundedCornerShape(4.dp))) {
-            Box(
-                Modifier.fillMaxHeight().fillMaxWidth((q.snt / maxV.coerceAtLeast(0.001f)).coerceIn(0.02f, 1f))
-                    .background(priceColor(q.snt), RoundedCornerShape(4.dp))
-            )
+            if (q.snt > 0f) {
+                Box(
+                    Modifier.fillMaxHeight().fillMaxWidth((q.snt / maxV.coerceAtLeast(0.001f)).coerceIn(0f, 1f))
+                        .background(priceColor(q.snt), RoundedCornerShape(4.dp))
+                )
+            } else {
+                Box(Modifier.fillMaxHeight().width(s.dw(0.6f)).background(Ark.Cold, RoundedCornerShape(4.dp)))
+            }
         }
         Spacer(Modifier.width(s.dw(1.4f)))
         Text(fi(q.snt, 3), color = priceColor(q.snt), fontFamily = HankenGrotesk, fontWeight = FontWeight.Bold, fontSize = s.sh(2.4f), maxLines = 1, modifier = Modifier.width(s.dw(7f)))

@@ -113,6 +113,10 @@ fun HomeScreen(
                 }
             }
         }
+        // Yön punasävy: lämmin suodatin koko ruudun päälle (ei nappaa kosketuksia).
+        if (ui.redTint) {
+            Box(Modifier.fillMaxSize().background(Color(0x4DFF2A00)))
+        }
     }
     renaming?.let { sensor -> RenameDialog(sensor, onRename) { renaming = null } }
 }
@@ -265,6 +269,10 @@ private fun ClockCol(ui: HomeUi, s: Scale, modifier: Modifier) {
         }
         Spacer(Modifier.height(s.dh(2.2f)))
         Text(clock.date, color = Ark.Ink, fontFamily = HankenGrotesk, fontWeight = FontWeight.SemiBold, fontSize = s.sh(4.4f), maxLines = 1)
+        if (ui.testOffline) {
+            Spacer(Modifier.height(s.dh(1.2f)))
+            Text("⚠ OFFLINE-TESTITILA — verkkohaut ohitetaan", color = Ark.Warm, fontFamily = HankenGrotesk, fontWeight = FontWeight.Bold, fontSize = s.sh(2.2f), maxLines = 1)
+        }
         if (ui.holiday != null) {
             Spacer(Modifier.height(s.dh(1.8f)))
             Row(verticalAlignment = Alignment.CenterVertically) {

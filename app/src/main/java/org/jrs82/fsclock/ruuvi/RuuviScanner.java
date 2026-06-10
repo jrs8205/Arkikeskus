@@ -8,7 +8,10 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
@@ -42,6 +45,26 @@ public class RuuviScanner {
     private final Runnable retryStart = () -> {
         if (requested && !running) start();
     };
+    private boolean btReceiverRegistered = false;
+
+    /** BT sammui kesken skannauksen → framework lopettaa skannauksen hiljaa eikä
+     *  kutsu onScanFailedia; ilman tätä running jäisi true eikä skannaus palaisi
+     *  kun BT kytketään takaisin päälle. */
+    private final BroadcastReceiver btStateReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (!BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction())) return;
+            int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+            synchronized (RuuviScanner.this) {
+                if (state == BluetoothAdapter.STATE_OFF || state == BluetoothAdapter.STATE_TURNING_OFF) {
+                    running = false;
+                    scanner = null;
+                } else if (state == BluetoothAdapter.STATE_ON && requested && !running) {
+                    Log.i(TAG, "BT palasi päälle — käynnistetään skannaus uudelleen");
+                    scheduleRetry();
+                }
+            }
+        }
+    };
 
     public RuuviScanner(Context ctx, Listener listener) {
         this.appCtx = ctx.getApplicationContext();
@@ -51,6 +74,7 @@ public class RuuviScanner {
     /** Käynnistää skannauksen. Palauttaa false jos BLE puuttuu tai lupia ei ole. */
     public synchronized boolean start() {
         requested = true;
+        registerBtReceiver();
         if (running) return true;
         if (!hasPermission()) {
             Log.w(TAG, "BLE-lupa puuttuu, ei käynnistetä");
@@ -113,6 +137,7 @@ public class RuuviScanner {
 
     public synchronized void stop() {
         requested = false;
+        unregisterBtReceiver();
         retryHandler.removeCallbacks(retryStart);
         if (!running || scanner == null) {
             running = false;
@@ -160,6 +185,12 @@ public class RuuviScanner {
         public void onScanFailed(int errorCode) {
             Log.w(TAG, "BLE-skannaus epäonnistui, errorCode=" + errorCode);
             synchronized (RuuviScanner.this) {
+                if (errorCode == SCAN_FAILED_ALREADY_STARTED) {
+                    // Skannaus on oikeasti yhä käynnissä tällä callbackilla —
+                    // restart-yritys vain toistaisi saman virheen 5 s välein.
+                    running = true;
+                    return;
+                }
                 running = false;
                 scanner = null;
                 scheduleRetry();
@@ -170,6 +201,22 @@ public class RuuviScanner {
     private void scheduleRetry() {
         retryHandler.removeCallbacks(retryStart);
         if (requested) retryHandler.postDelayed(retryStart, RETRY_DELAY_MS);
+    }
+
+    private void registerBtReceiver() {
+        if (btReceiverRegistered) return;
+        try {
+            appCtx.registerReceiver(btStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+            btReceiverRegistered = true;
+        } catch (Exception e) {
+            Log.w(TAG, "BT-receiverin rekisteröinti epäonnistui", e);
+        }
+    }
+
+    private void unregisterBtReceiver() {
+        if (!btReceiverRegistered) return;
+        try { appCtx.unregisterReceiver(btStateReceiver); } catch (Exception ignored) { }
+        btReceiverRegistered = false;
     }
 
     private void handle(ScanResult result) {
