@@ -69,10 +69,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Arkikeskuksen asetusnäkymä (Jetpack Compose + Material 3). Korvaa vanhan
- * [MobileSettingsFragment] + mobile_preferences.xml -parin. Kaikki asetukset luetaan ja
- * kirjoitetaan SAMOIHIN SharedPreferences-avaimiin, joita muu (yhä View-pohjainen) sovellus
- * lukee, joten käytös säilyy identtisenä — vain ulkoasu uudistuu.
+ * Arkikeskuksen asetusnäkymä (Jetpack Compose + Material 3). Korvasi vanhan
+ * MobileSettingsFragment + mobile_preferences.xml -parin (poistettu). Kaikki asetukset luetaan ja
+ * kirjoitetaan SAMOIHIN SharedPreferences-avaimiin kuin ennenkin, joten käytös säilyy identtisenä.
  *
  * Osiot vastaavat vanhaa preferences-XML:ää: Sää (auto-sijainti), Etusivu (widget-järjestys),
  * Uutislähteet (10 kytkintä), Omat uutissyötteet (lisää/muokkaa/poista), Ruuvi-anturit
