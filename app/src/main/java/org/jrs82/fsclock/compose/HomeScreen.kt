@@ -248,7 +248,8 @@ private fun ClockCol(ui: HomeUi, s: Scale, modifier: Modifier) {
     val clock = rememberClockText()
     Column(
         modifier.padding(horizontal = s.dw(3f)),
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(verticalAlignment = Alignment.Top) {
             Text(clock.time, color = Color(0xFFEAF3FF), fontFamily = BigShoulders, fontWeight = FontWeight.Bold, fontSize = s.sh(30f), maxLines = 1)
