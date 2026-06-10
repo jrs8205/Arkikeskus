@@ -2,7 +2,6 @@ package org.jrs82.fsclock.mobile
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -190,6 +189,9 @@ fun ComposeMainScreen() {
     // Valikko (hampurilainen): piirretään sisältöalueen päälle ILMAN liukuanimaatiota (ilmestyy
     // heti kun Valikkoa klikataan) ja JÄTTÄÄ alapalkin näkyviin (overlay vain sisällön päällä).
     var menuOpen by remember { mutableStateOf(false) }
+    // Asetukset samanlaisena overlayna kuin valikko (alapalkki jää näkyviin, ratas korostuu).
+    // rememberSaveable → teeman-/dynamic color -vaihdon recreate palauttaa asetukset auki.
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
     var refreshTick by remember { mutableStateOf(0) }
@@ -276,10 +278,13 @@ fun ComposeMainScreen() {
                     windowInsets = WindowInsets(0, 0, 0, 0),
                 ) {
                     NavigationBarItem(
-                        selected = section == HomeSection.HOME,
+                        // Korostus vain kun etusivu on AIDOSTI näkyvissä — ei valikon/asetusten alla
+                        // (muuten Koti + Valikko palaisivat yhtä aikaa).
+                        selected = section == HomeSection.HOME && !menuOpen && !settingsOpen,
                         onClick = {
                             section = HomeSection.HOME
                             menuOpen = false
+                            settingsOpen = false
                         },
                         icon = {
                             Icon(painterResource(R.drawable.ic_home_24), contentDescription = "Etusivu")
@@ -311,18 +316,22 @@ fun ComposeMainScreen() {
                     )
                     NavigationBarItem(
                         selected = menuOpen,
-                        onClick = { menuOpen = !menuOpen },
+                        onClick = {
+                            menuOpen = !menuOpen
+                            settingsOpen = false
+                        },
                         icon = {
                             Icon(painterResource(R.drawable.mobile_ic_menu_24), contentDescription = "Valikko")
                         },
                         label = { Text("Valikko") },
                     )
                     // Asetukset suoraan alapalkissa (käyttäjän toive: valikon perällä sitä ei löydä).
+                    // Avautuu overlayna kuten valikko; uusi painallus sulkee.
                     NavigationBarItem(
-                        selected = false,
+                        selected = settingsOpen,
                         onClick = {
+                            settingsOpen = !settingsOpen
                             menuOpen = false
-                            context.startActivity(Intent(context, MobileSettingsActivity::class.java))
                         },
                         icon = {
                             Icon(painterResource(R.drawable.mobile_ic_settings_24), contentDescription = "Asetukset")
@@ -390,6 +399,12 @@ fun ComposeMainScreen() {
                         },
                     )
                     BackHandler(enabled = true) { menuOpen = false }
+                }
+
+                // Asetukset-overlay (kuten valikko): sisältöalueen päällä, alapalkki näkyvissä.
+                if (settingsOpen) {
+                    SettingsScreen(onBack = { settingsOpen = false })
+                    BackHandler(enabled = true) { settingsOpen = false }
                 }
             }
         }
