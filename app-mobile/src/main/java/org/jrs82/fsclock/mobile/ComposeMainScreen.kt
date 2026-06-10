@@ -348,11 +348,8 @@ fun ComposeMainScreen() {
                     HomeSection.ELECTRICITY -> ElectricitySection()
                     HomeSection.NEWS -> NewsSection()
                     HomeSection.DEVICE_INFO -> DeviceInfoSection()
-                    // Compose-migraation turvaverkko: flagi false palauttaa vanhan Fragment-sillan.
-                    HomeSection.ROAD_CAMERAS ->
-                        if (USE_COMPOSE_CAMERAS) RoadCamerasScreen() else RoadCamerasHost()
-                    HomeSection.TRANSIT ->
-                        if (USE_COMPOSE_TRANSIT) TransitScreen() else TransitHost()
+                    HomeSection.ROAD_CAMERAS -> RoadCamerasScreen()
+                    HomeSection.TRANSIT -> TransitScreen()
                     // PÄÄTÖS 5.3-A (migraatioraportti): reittihaku pidetään tietoisesti View-
                     // toteutuksena Compose-kuoren sisällä. Sen kolmitilainen BottomSheet (peek/
                     // 52 %/täysi) + kartan padding-koreografia ei mäppäydy M3 1.2.1:n kaksitilaiseen

@@ -122,12 +122,12 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         int color = leg.isWalk()
                 ? ContextCompat.getColor(ctx, R.color.mobile_text_muted)
-                : TransitAdapter.modeColor(ctx, leg.mode);
+                : TransitStyle.modeColor(ctx, leg.mode);
 
         ImageView icon = new ImageView(ctx);
         int sz = dp(ctx, 20);
         icon.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
-        icon.setImageResource(TransitAdapter.modeIcon(leg.mode));
+        icon.setImageResource(TransitStyle.modeIcon(leg.mode));
         icon.setImageTintList(ColorStateList.valueOf(color));
         row.addView(icon);
 
@@ -178,7 +178,7 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             vh.badge.setVisibility(View.VISIBLE);
             vh.badge.setText(leg.routeShortName == null || leg.routeShortName.isEmpty()
                     ? "?" : leg.routeShortName);
-            vh.badge.setBackgroundTintList(ColorStateList.valueOf(TransitAdapter.modeColor(ctx, leg.mode)));
+            vh.badge.setBackgroundTintList(ColorStateList.valueOf(TransitStyle.modeColor(ctx, leg.mode)));
             String head = leg.headsign == null || leg.headsign.isEmpty() ? "" : " → " + leg.headsign;
             vh.primary.setText(modeWord(leg.mode) + head);
             String stop = stopInfo(leg);

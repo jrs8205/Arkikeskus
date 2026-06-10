@@ -25,10 +25,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
 /**
- * Jaetut Compose-palikat migroitaville näytöille (kelikamerat / lähilähdöt / reittihaku).
- * Korvaavat View-puolen EditText+×-kuviot ja moodibadget yhtenäisellä M3-ilmeellä.
- * Moodivärit/-ikonit luetaan [TransitAdapter]in olemassa olevista static-apureista,
- * jotta värit pysyvät identtisinä View-toteutuksen kanssa (HSL-brändivärit).
+ * Jaetut Compose-palikat (kelikamerat / lähilähdöt / reittihaku). Moodivärit/-ikonit
+ * luetaan [TransitStyle]-apureista, jotka jaetaan reittihaun View-toteutuksen kanssa
+ * (HSL-brändivärit pysyvät identtisinä kaikkialla).
  */
 
 /** Hakukenttä: yksi rivi, ×-tyhjennys näkyy vain kun tekstiä on, IME-haku sulkee näppäimistön. */
@@ -89,15 +88,15 @@ internal fun MapStatusChip(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** HSL-moodiväri Compose-värinä — sama lähde kuin View-puolella (TransitAdapter.modeColor). */
+/** HSL-moodiväri Compose-värinä — sama lähde kuin View-puolella (TransitStyle.modeColor). */
 @Composable
 internal fun transitModeColor(mode: String?): Color {
     val ctx = LocalContext.current
-    return Color(TransitAdapter.modeColor(ctx, mode ?: ""))
+    return Color(TransitStyle.modeColor(ctx, mode ?: ""))
 }
 
 /** Moodi-ikonin drawable-resurssi (vektori) — sama lähde kuin View-puolella. */
-internal fun transitModeIconRes(mode: String?): Int = TransitAdapter.modeIcon(mode ?: "")
+internal fun transitModeIconRes(mode: String?): Int = TransitStyle.modeIcon(mode ?: "")
 
 /** Linjabadge moodivärillä (esim. "550" HSL-sinisellä) — vastaa item-layouttien badge-tyyliä. */
 @Composable

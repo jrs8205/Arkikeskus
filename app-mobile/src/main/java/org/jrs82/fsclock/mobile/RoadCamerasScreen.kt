@@ -61,16 +61,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Kelikamerakartta natiivina Compose-näkymänä — korvaa [RoadCamerasFragment]in.
+ * Kelikamerakartta natiivina Compose-näkymänä (korvasi View-pohjaisen RoadCamerasFragmentin).
  * Logiikka replikoitu 1:1: MML-rasteritausta, kaikki ~800 kamera-ikonia kerralla
  * (SymbolLayer, ei klusterointia), ennakoiva nimihaku (max 8), markerin/ehdotuksen
  * napautus avaa täysikokoisen kamerakuvan. Data: [WeathercamRepository] (koskematta).
  * Kartta on MapView AndroidView'na ([rememberMapViewWithLifecycle]) — MapLibrella ei ole
  * Compose-API:a; elinkaari + vapautus hoidetaan apurissa.
  */
-
-/** Turvaverkko: false palauttaa vanhan Fragment-sillan ([RoadCamerasHost]) yhdellä rivillä. */
-internal const val USE_COMPOSE_CAMERAS = true
 
 private const val CAM_SRC = "cameras"
 private const val CAM_LAYER_POINTS = "cam-points"
