@@ -69,14 +69,8 @@
             </intent-filter>
         </activity-alias>
 
-        <activity
-            android:name="org.jrs82.fsclock.mobile.MobileSettingsActivity"
-            android:exported="false"
-            android:label="@string/mobile_settings_title"
-            android:parentActivityName="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
-            android:theme="@style/MobileComposeTheme" />
-
-        <!-- Uusi Compose-pohjainen päänäkymä = sovelluksen oletuskäynnistys (launcher). -->
+        <!-- Uusi Compose-pohjainen päänäkymä = sovelluksen oletuskäynnistys (launcher).
+             Asetukset on sen sisäinen overlay (ei enää omaa Activitya). -->
         <activity
             android:name="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
@@ -95,7 +89,7 @@
             android:name="org.jrs82.fsclock.mobile.MobileWidgetOrderActivity"
             android:exported="false"
             android:label="@string/mobile_pref_widget_order"
-            android:parentActivityName="org.jrs82.fsclock.mobile.MobileSettingsActivity"
+            android:parentActivityName="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
             android:theme="@style/MobileComposeTheme" />
 
         <activity
