@@ -88,7 +88,7 @@ internal val ItemBoxShape = RoundedCornerShape(20.dp)
 private val THEME_OPTIONS = listOf(
     MobileThemeController.VALUE_SYSTEM to "Järjestelmän mukaan",
     MobileThemeController.VALUE_LIGHT to "Vaalea",
-    MobileThemeController.VALUE_DARK to "Tumma AMOLED",
+    MobileThemeController.VALUE_DARK to "Tumma",
 )
 private val CHEAP_MODE_OPTIONS = listOf(
     MobileThemeController.CHEAP_MODE_CURRENT to "Nykyinen vartti",
@@ -105,7 +105,7 @@ private val INTERVAL_OPTIONS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val repo = remember { RuuviRepository.get(context) }
@@ -198,20 +198,13 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     // Hostataan overlayna ComposeMainScreenin sisältöalueella → ulompi Scaffold hoitaa
     // status-/navigaatiopalkin insetit; nollataan omat, ettei yläreunaan tule tuplapehmustetta.
+    // Ei takaisin-nuolta: overlay suljetaan takaisin-eleellä, ratas-napilla tai Koti-napilla.
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text("Asetukset") },
                 windowInsets = WindowInsets(0, 0, 0, 0),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = painterResource(R.drawable.mobile_ic_arrow_back),
-                            contentDescription = "Takaisin",
-                        )
-                    }
-                },
             )
         },
     ) { padding ->
@@ -260,6 +253,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                             autoLocation = false
                         }
                     }
+                    RowDivider()
+                    InfoRow(
+                        title = "Viimeisin sääpäivitys",
+                        value = lastUpdateText(),
+                        leadingIconRes = R.drawable.mobile_ic_clock_24,
+                    )
                 }
             }
 
@@ -367,16 +366,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
-            // ---------- Sovellus ----------
-            item { SectionHeader("Sovellus", R.drawable.mobile_ic_tune_24) }
+            // ---------- Teema ----------
+            item { SectionHeader("Teema", R.drawable.mobile_ic_palette_24) }
             item {
                 SettingsCard {
-                    ClickableRow(
-                        title = "Automaattinen päivitysväli",
-                        subtitle = labelFor(INTERVAL_OPTIONS, interval),
-                        leadingIconRes = R.drawable.mobile_ic_clock_24,
-                    ) { showIntervalDialog = true }
-                    RowDivider()
                     ClickableRow(
                         title = "Teema",
                         subtitle = labelFor(THEME_OPTIONS, themeMode),
@@ -384,16 +377,24 @@ fun SettingsScreen(onBack: () -> Unit) {
                     ) {
                         showThemeDialog = true
                     }
-                    RowDivider()
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        DynamicColorRow(prefs, context)
                         RowDivider()
+                        DynamicColorRow(prefs, context)
                     }
-                    InfoRow(
-                        title = "Viimeisin sääpäivitys",
-                        value = lastUpdateText(),
+                }
+            }
+
+            // ---------- Sovellus ----------
+            item { SectionHeader("Sovellus", R.drawable.mobile_ic_tune_24) }
+            item {
+                SettingsCard {
+                    // Koskee KAIKKIA automaattisesti haettavia tietoja (sää, sähkö, uutiset,
+                    // liikenne…) — kuinka usein näkyvä sivu virkistetään sovelluksen ollessa auki.
+                    ClickableRow(
+                        title = "Tietojen päivitysväli",
+                        subtitle = "Kaikki tiedot (sää, sähkö, uutiset…) · " + labelFor(INTERVAL_OPTIONS, interval),
                         leadingIconRes = R.drawable.mobile_ic_clock_24,
-                    )
+                    ) { showIntervalDialog = true }
                 }
             }
 
@@ -437,7 +438,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     }
     if (showIntervalDialog) {
         RadioDialog(
-            title = "Automaattinen päivitysväli",
+            title = "Tietojen päivitysväli",
             options = INTERVAL_OPTIONS,
             current = interval,
             onPick = { value ->
