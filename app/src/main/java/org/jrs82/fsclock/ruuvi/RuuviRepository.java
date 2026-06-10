@@ -61,7 +61,12 @@ public class RuuviRepository implements RuuviScanner.Listener {
 
     public synchronized boolean start() {
         scanClients++;
-        if (scanClients > 1) return scanner.isRunning();
+        if (scanClients > 1) {
+            // Skanneri on voinut jäädä käynnistymättä (esim. BLE-lupa puuttui
+            // ensimmäisellä yrityksellä) — yritä uudelleen vaikka clientteja on jo.
+            if (!scanner.isRunning()) return scanner.start();
+            return true;
+        }
         return scanner.start();
     }
 

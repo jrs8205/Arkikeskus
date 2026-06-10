@@ -85,8 +85,10 @@ fun HomeScreen(
     ui: HomeUi,
     page: Page,
     onPage: (Page) -> Unit = {},
-    onSettings: () -> Unit = {},
     onRename: (String, String) -> Unit = { _, _ -> },
+    onBrightnessChanged: () -> Unit = {},
+    ensureBleScan: () -> Boolean = { true },
+    onSensorsChanged: () -> Unit = {},
 ) {
     var renaming by remember { mutableStateOf<SensorUi?>(null) }
     Box(
@@ -102,13 +104,21 @@ fun HomeScreen(
             val textPx = minOf(heightPx, constraints.maxWidth / 150f)
             val s = Scale(heightPx, widthPx, textPx, LocalDensity.current)
             Column(Modifier.fillMaxSize()) {
-                TopBar(ui, s, page, onPage, onSettings)
+                TopBar(ui, s, page, onPage)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                     when (page) {
                         Page.HOME -> HomePage(ui, s) { renaming = it }
                         Page.INFO -> InfoPage(ui, s)
                         Page.FORECAST -> ForecastPage(ui, s)
                         Page.ELECTRICITY -> ElectricityPage(ui, s)
+                        Page.SETTINGS -> SettingsPage(
+                            s = s,
+                            onOpenHistory = { onPage(Page.HISTORY) },
+                            onBrightnessChanged = onBrightnessChanged,
+                            ensureBleScan = ensureBleScan,
+                            onSensorsChanged = onSensorsChanged,
+                        )
+                        Page.HISTORY -> HistoryPage(s)
                     }
                 }
             }
@@ -124,7 +134,7 @@ fun HomeScreen(
 /* ---------------- Yläpalkki ---------------- */
 
 @Composable
-private fun TopBar(ui: HomeUi, s: Scale, page: Page, onPage: (Page) -> Unit, onSettings: () -> Unit) {
+private fun TopBar(ui: HomeUi, s: Scale, page: Page, onPage: (Page) -> Unit) {
     Column(
         Modifier.fillMaxWidth().height(s.dh(11f)).background(
             Brush.horizontalGradient(listOf(Ark.TopBarStart, Ark.TopBarEnd))
@@ -162,8 +172,18 @@ private fun TopBar(ui: HomeUi, s: Scale, page: Page, onPage: (Page) -> Unit, onS
             NavButton("Tiedot", page == Page.INFO, s, Icons.Filled.Info) { onPage(Page.INFO) }
             NavButton("7 vrk", page == Page.FORECAST, s, null) { onPage(Page.FORECAST) }
             NavButton("Sähkö", page == Page.ELECTRICITY, s, null) { onPage(Page.ELECTRICITY) }
-            Spacer(Modifier.width(s.dw(0.8f)))
-            Icon(Icons.Filled.Settings, "Asetukset", tint = Ark.Faint, modifier = Modifier.size(s.dh(3.4f)).clickable { onSettings() })
+            Spacer(Modifier.width(s.dw(0.4f)))
+            // Iso tap-target (48dp-luokka) — pelkkä 3.4dh-ikoni oli liian pieni sormelle.
+            Box(
+                Modifier.size(s.dh(5.6f)).clickable { onPage(Page.SETTINGS) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Settings, "Asetukset",
+                    tint = if (page == Page.SETTINGS || page == Page.HISTORY) Ark.Accent else Ark.Faint,
+                    modifier = Modifier.size(s.dh(3.4f))
+                )
+            }
         }
         Box(Modifier.fillMaxWidth().height(s.dh(0.14f)).background(Ark.TopBarLine))
     }

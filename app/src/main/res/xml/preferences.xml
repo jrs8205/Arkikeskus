@@ -35,11 +35,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_weather">
-        <EditTextPreference
-            app:key="home_place"
-            app:title="@string/pref_home_place"
-            app:defaultValue="Vantaa"
-            app:useSimpleSummaryProvider="true" />
         <SwitchPreferenceCompat
             app:key="follow_gps_location"
             app:title="@string/pref_follow_gps"
@@ -92,11 +87,6 @@
             app:key="last_update"
             app:title="@string/pref_last_update"
             app:selectable="false" />
-        <Preference
-            app:key="time_check"
-            app:title="@string/pref_time_check"
-            app:summary="@string/pref_time_check_summary"
-            app:selectable="false" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_history">
@@ -122,30 +112,6 @@
             app:key="clear_db"
             app:title="@string/pref_clear_db"
             app:summary="@string/pref_clear_db_summary" />
-    </PreferenceCategory>
-
-    <PreferenceCategory app:title="@string/pref_cat_test">
-        <Preference
-            app:key="test_day_mode"
-            app:title="@string/pref_test_day"
-            app:summary="@string/pref_test_summary" />
-        <Preference
-            app:key="test_night_mode"
-            app:title="@string/pref_test_night"
-            app:summary="@string/pref_test_summary" />
-        <Preference
-            app:key="test_warning"
-            app:title="@string/pref_test_warning"
-            app:summary="@string/pref_test_summary" />
-        <Preference
-            app:key="test_offline"
-            app:title="@string/pref_test_offline"
-            app:summary="@string/pref_test_summary" />
-        <Preference
-            app:key="test_pixel_shift"
-            app:title="@string/pref_test_pixel_shift"
-            app:summary="@string/pref_test_pixel_shift_summary"
-            app:selectable="false" />
     </PreferenceCategory>
 
 </PreferenceScreen>

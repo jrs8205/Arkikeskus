@@ -500,6 +500,11 @@ class HomeDataController(activityCtx: Context) {
         renderSensors()
     }
 
+    /** Asetussivu kutsuu kun anturikytkennät/nimet ovat muuttuneet. */
+    fun refreshSensors() {
+        renderSensors()
+    }
+
     // ---------------- Varoitukset ----------------
 
     private val warningsTick = object : Runnable {
