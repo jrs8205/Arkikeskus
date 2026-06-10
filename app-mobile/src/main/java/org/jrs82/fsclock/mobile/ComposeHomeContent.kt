@@ -109,7 +109,7 @@ internal fun invalidateHomeWeatherCache() {
     if (sHomeWeatherKey == currentHomeWeatherKey()) return
     sHomeWeatherKey = null
     sHomeWeather = null
-    MobileMainActivity.sLastWeather = null
+    WeatherCache.last = null
 }
 
 private fun currentHomeWeatherKey(): String {
@@ -292,7 +292,7 @@ private fun HomeWeatherWidget(prefs: SharedPreferences) {
             }
         }
         if (fresh != null) {
-            MobileMainActivity.sLastWeather = fresh
+            WeatherCache.last = fresh
             sHomeWeatherKey = weatherKey
             sHomeWeather = fresh
             weather = fresh
@@ -1175,7 +1175,7 @@ internal fun ForecastSection() {
             }
         }
         if (w != null) {
-            MobileMainActivity.sLastWeather = w
+            WeatherCache.last = w
             sForecastWeatherKey = forecastKey
             sForecastWeather = w
             weather = w
