@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arkikeskus — etusivu, bold-demot</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#06070c;color:#eaf0f6;font-family:"Hanken Grotesk",sans-serif;padding:36px 26px 90px}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.3px}
+  .sub{color:#9aa6b6;margin-top:8px;font-size:15px;max-width:900px;line-height:1.55}
+  .fixes{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;max-width:900px}
+  .fixes span{font-size:12.5px;background:#11151c;border:1px solid #232a34;color:#bcc8d6;padding:5px 10px;border-radius:999px}
+  .bar{position:sticky;top:0;z-index:5;margin:26px 0 8px;padding:12px 0;background:#06070c;display:flex;align-items:center;gap:14px;border-bottom:1px solid #1a1f28}
+  .bar .lab{font-size:14px;color:#8b97a6}
+  .toggle{display:flex;background:#10141b;border:1px solid #262d38;border-radius:10px;overflow:hidden}
+  .toggle button{background:transparent;color:#aeb9c8;border:0;padding:9px 18px;font:600 14px "Hanken Grotesk",sans-serif;cursor:pointer}
+  .toggle button.on{background:#1f6feb;color:#fff}
+  .item{margin-top:30px}
+  .head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+  .head .k{font-size:13px;font-weight:800;color:#02141a;padding:3px 11px;border-radius:6px}
+  .k.a{background:linear-gradient(135deg,#67e8ff,#37f5b0)}
+  .k.b{background:linear-gradient(135deg,#3d7bff,#23d6ff)}
+  .k.c{background:#00e5ff}
+  .head h2{font-size:21px;font-weight:800}.head p{color:#8b97a6;font-size:14px}
+  .frame{width:100%;max-width:1120px;aspect-ratio:16/10;background:#000;border-radius:14px;overflow:hidden;
+    border:1px solid #20262f;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+  body.ar43 .frame{aspect-ratio:4/3}
+  iframe{width:100%;height:100%;border:0;display:block}
+  .open{display:inline-block;margin-top:10px;color:#67e8ff;font-size:14px;text-decoration:none;font-weight:700}
+  .note{margin-top:36px;color:#6b7686;font-size:13px;line-height:1.65;max-width:900px}
+</style>
+</head>
+<body>
+  <h1>Arkikeskus — etusivu · 3 bold-demoa</h1>
+  <p class="sub">Korjauspalautteesi pohjalta, rohkeat & värikkäät suunnat. Sama yläpalkki ja data kaikissa.
+    Vaihda esikatselun kuvasuhdetta laitteen mukaan: <b>Tab S2 = 4:3</b>, <b>Tab A9+ = 16:10</b>. Demot ovat responsiivisia
+    ja täyttävät koko ruudun. Paras kuva "Avaa koko näytöllä".</p>
+  <div class="fixes">
+    <span>✓ kirkkaampi sähköpilleri</span><span>✓ muoto 0,000</span><span>✓ oikea ratasikoni</span>
+    <span>✓ akku + lataus</span><span>✓ FMI ylös / OM alas</span><span>✓ kirkkaammat anturi-/aurinkotekstit</span>
+    <span>✓ lämpötilaväri −20…+35 (TempColor)</span><span>✓ skrollattavat varoitukset + lisätiedot</span>
+    <span>✓ pystytila täyteen</span>
+  </div>
+
+  <div class="bar">
+    <span class="lab">Kuvasuhde:</span>
+    <div class="toggle">
+      <button id="b1610" class="on" onclick="setAR(false)">16:10 · A9+</button>
+      <button id="b43" onclick="setAR(true)">4:3 · S2</button>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="head"><span class="k a">A</span><h2>Aurora</h2><p>Revontuli-gradientti, lasikortit (glass), gradienttikello.</p></div>
+    <div class="frame"><iframe src="demo1.html" loading="lazy"></iframe></div>
+    <a class="open" href="demo1.html" target="_blank">Avaa koko näytöllä →</a>
+  </div>
+  <div class="item">
+    <div class="head"><span class="k b">B</span><h2>Värikoodattu</h2><p>Syvä navy + kirkkaat värilohkot: kello sininen, sää teal, anturit amber, varoitukset pinkki.</p></div>
+    <div class="frame"><iframe src="demo2.html" loading="lazy"></iframe></div>
+    <a class="open" href="demo2.html" target="_blank">Avaa koko näytöllä →</a>
+  </div>
+  <div class="item">
+    <div class="head"><span class="k c">C</span><h2>Neon</h2><p>Lähes musta + hehkuvat neon-reunat (syaani/lime/amber/magenta), neonkello.</p></div>
+    <div class="frame"><iframe src="demo3.html" loading="lazy"></iframe></div>
+    <a class="open" href="demo3.html" target="_blank">Avaa koko näytöllä →</a>
+  </div>
+
+  <p class="note">Lämpötilavärit noudattavat natiivisovelluksen <b>TempColor</b>-asteikkoa (−20° syvänsininen → +5° turkoosi →
+    +15° vihreä → +25° keltainen → +35° punainen), hieman kirkastettuna. Rajapisteitä voi virittää. Sähkön hinta on
+    värikoodattu (matala vihreä → korkea punainen); demoissa esimerkkihinta 7,128 snt/kWh (alv 0 %). Numerot ovat esimerkkidataa.
+    Glass/neon-tehosteet toimivat WebView'ssä; tarkistetaan vielä luettavuus & suorituskyky laitteella. Valittu demo viedään
+    sitten live-pilottiin oikealla datalla (myös sähkön 3 desimaalia + akku kytketään).</p>
+  <script>
+    function setAR(is43){
+      document.body.classList.toggle('ar43', is43);
+      document.getElementById('b43').classList.toggle('on', is43);
+      document.getElementById('b1610').classList.toggle('on', !is43);
+    }
+  </script>
+</body>
+</html>

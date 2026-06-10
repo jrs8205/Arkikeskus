@@ -30,6 +30,7 @@ public final class SettingsManager {
     public static final String KEY_RUUVI_MAC_BEDROOM = "ruuvi_mac_bedroom";
     public static final String KEY_RUUVI_MAC_LIVINGROOM = "ruuvi_mac_livingroom";
     public static final String KEY_RUUVI_MAC_BALCONY = "ruuvi_mac_balcony";
+    public static final String KEY_WARN_AUTO_SCROLL = "warnings_auto_scroll";
 
     public static final String RUUVI_SLOT_BEDROOM = "bedroom";
     public static final String RUUVI_SLOT_LIVINGROOM = "livingroom";
@@ -282,6 +283,24 @@ public final class SettingsManager {
         if (k == null) return;
         if (mac == null || mac.trim().isEmpty()) sp().edit().remove(k).apply();
         else sp().edit().putString(k, mac.trim().toUpperCase(Locale.ROOT)).apply();
+    }
+    /** Säävaroitusten automaattinen vieritys Tietoja-sivulla. */
+    public boolean getWarningsAutoScroll() {
+        return sp().getBoolean(KEY_WARN_AUTO_SCROLL, true);
+    }
+
+    /** Anturin käyttäjän antama nimi per slot; jos ei asetettu, palautetaan defaultName. */
+    public String getRuuviName(String slot, String defaultName) {
+        String k = slotKey(slot);
+        if (k == null) return defaultName;
+        String n = sp().getString(k + "_name", null);
+        return (n == null || n.trim().isEmpty()) ? defaultName : n;
+    }
+    public void setRuuviName(String slot, String name) {
+        String k = slotKey(slot);
+        if (k == null) return;
+        if (name == null || name.trim().isEmpty()) sp().edit().remove(k + "_name").apply();
+        else sp().edit().putString(k + "_name", name.trim()).apply();
     }
     /** Palauttaa slotin nimen jolle MAC on määritetty, tai null jos vapaa. */
     public String slotForMac(String mac) {

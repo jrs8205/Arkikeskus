@@ -401,7 +401,30 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         setupSlotPreference("ruuvi_slot_bedroom", SettingsManager.RUUVI_SLOT_BEDROOM);
         setupSlotPreference("ruuvi_slot_livingroom", SettingsManager.RUUVI_SLOT_LIVINGROOM);
         setupSlotPreference("ruuvi_slot_balcony", SettingsManager.RUUVI_SLOT_BALCONY);
+        setupNamePreference("ruuvi_mac_bedroom_name", SettingsManager.RUUVI_SLOT_BEDROOM, R.string.sensor_label_bedroom);
+        setupNamePreference("ruuvi_mac_livingroom_name", SettingsManager.RUUVI_SLOT_LIVINGROOM, R.string.sensor_label_livingroom);
+        setupNamePreference("ruuvi_mac_balcony_name", SettingsManager.RUUVI_SLOT_BALCONY, R.string.sensor_label_balcony);
         refreshRuuviSlotSummaries();
+    }
+
+    /** Anturin näkyvän nimen muokkaus. EditTextPreference kirjoittaa suoraan
+     *  samaan SharedPreferences-avaimeen jota SettingsManager.getRuuviName lukee.
+     *  Summary näyttää nykyisen nimen, tai oletusnimen jos kenttä on tyhjä. */
+    private void setupNamePreference(String key, final String slot, final int defaultLabelRes) {
+        EditTextPreference p = findPreference(key);
+        if (p == null) return;
+        updateNameSummary(p, slot, defaultLabelRes);
+        p.setOnPreferenceChangeListener((pref, newValue) -> {
+            String n = newValue == null ? "" : newValue.toString().trim();
+            String shown = n.isEmpty() ? getString(defaultLabelRes) : n;
+            pref.setSummary(shown);
+            return true;
+        });
+    }
+
+    private void updateNameSummary(EditTextPreference p, String slot, int defaultLabelRes) {
+        String name = SettingsManager.get().getRuuviName(slot, getString(defaultLabelRes));
+        p.setSummary(name);
     }
 
     private void setupSlotPreference(String key, final String slot) {
@@ -443,6 +466,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         RuuviRepository repo = RuuviRepository.get(ctx);
         boolean started = repo.start();
         if (!started && !repo.isScanning()) {
+            repo.stop();
             Toast.makeText(ctx, R.string.ruuvi_perm_needed, Toast.LENGTH_LONG).show();
             return;
         }
@@ -472,6 +496,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 repo.removeListener(ruuviDialogListener);
                 ruuviDialogListener = null;
             }
+            repo.stop();
             ruuviScanDialog = null;
             ruuviPendingSlot = null;
         });

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arkikeskus — etusivun luonnokset</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0b0e;color:#e9edf2;font-family:"Hanken Grotesk",sans-serif;padding:40px 28px 80px}
+  h1{font-size:28px;font-weight:700}
+  .sub{color:#8b94a3;margin-top:6px;font-size:15px;max-width:760px;line-height:1.5}
+  .grid{margin-top:34px;display:grid;gap:34px}
+  .item{background:#101216;border:1px solid #20252e;border-radius:18px;overflow:hidden}
+  .head{display:flex;align-items:baseline;gap:12px;padding:18px 22px;border-bottom:1px solid #20252e}
+  .head .k{font-size:13px;font-weight:700;letter-spacing:.5px;color:#04140f;background:#36d9a8;padding:3px 10px;border-radius:6px}
+  .head h2{font-size:20px;font-weight:700}
+  .head p{color:#8b94a3;font-size:14px}
+  .frame{position:relative;width:100%;aspect-ratio:16/10;background:#000}
+  iframe{position:absolute;inset:0;width:160%;height:160%;border:0;transform:scale(.625);transform-origin:top left}
+  .open{display:inline-block;margin:14px 22px 20px;color:#5bc8ff;font-size:14px;text-decoration:none;font-weight:600}
+  .note{margin-top:30px;color:#626d7a;font-size:13px;line-height:1.6;max-width:760px}
+</style>
+</head>
+<body>
+  <h1>Arkikeskus — etusivun luonnokset (tabletti, landscape)</h1>
+  <p class="sub">Kolme suuntaa samalla yläpalkilla ja datalla. Yläpalkki: tarkka sijainti (Vantaa · Martinlaakso),
+     WiFi (palkit + nopeus + 2.4/5 GHz), sähkön hinta nyt värikoodattuna, navi Koti / 7&nbsp;vrk / Sähkö + asetukset.
+     Ei hakua, ei sivupisteitä. Nykysää: iso FMI + kompakti Open-Meteo. Klikkaa "Avaa koko näytöllä" parhaan kuvan saamiseksi.</p>
+
+  <div class="grid">
+    <div class="item">
+      <div class="head"><span class="k">A</span><h2>Asema</h2><p>Hero-kello vasemmalla, sää oikealla, anturit+aurinko+varoitus alapalkkina. Rauhallinen, editoriaalinen.</p></div>
+      <div class="frame"><iframe src="home_a.html" loading="lazy"></iframe></div>
+      <a class="open" href="home_a.html" target="_blank">Avaa koko näytöllä →</a>
+    </div>
+    <div class="item">
+      <div class="head"><span class="k">B</span><h2>Ruutu</h2><p>Material You -korttiruudukko (bento): jokainen moduuli oma pyöristetty kortti, dynaaminen aksenttiväri.</p></div>
+      <div class="frame"><iframe src="home_b.html" loading="lazy"></iframe></div>
+      <a class="open" href="home_b.html" target="_blank">Avaa koko näytöllä →</a>
+    </div>
+    <div class="item">
+      <div class="head"><span class="k">C</span><h2>Jako</h2><p>Jaettu näkymä: kello-paneeli vasemmalla (mono-numerot), tiivis info-kisko oikealla. Tekninen, tietotiheä.</p></div>
+      <div class="frame"><iframe src="home_c.html" loading="lazy"></iframe></div>
+      <a class="open" href="home_c.html" target="_blank">Avaa koko näytöllä →</a>
+    </div>
+  </div>
+
+  <p class="note">Huom: sähkön hinnan väri on dynaaminen tason mukaan (vihreä → keltainen → oranssi → punainen);
+     mockeissa näkyy keltainen esimerkkihinta 14,2 snt/kWh. WiFi-palkit värittyvät signaalin mukaan kuten sovelluksessa.
+     Numerot ovat esimerkkidataa. Nämä luonnokset toimivat sekä WebView-toteutuksen pohjana ETTÄ Compose-käännöksen visuaalisena speksinä.</p>
+</body>
+</html>

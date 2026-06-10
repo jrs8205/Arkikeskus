@@ -1,10 +1,12 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 def localProps = new Properties()
 def localPropsFile = rootProject.file('local.properties')
 if (localPropsFile.exists()) {
     localPropsFile.withInputStream { localProps.load(it) }
 }
+def mmlApiKey = localProps.getProperty('MML_API_KEY') ?: System.getenv('MML_API_KEY') ?: ""
 
 android {
     namespace 'org.jrs82.fsclock'
@@ -15,8 +17,10 @@ android {
         applicationId 'org.jrs82.fsclock'
         minSdk 30
         targetSdk 35
-        versionCode 210
-        versionName '2.1.0'
+        versionCode 220
+        versionName '2.2.0'
+
+        buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -35,6 +39,20 @@ android {
         coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    // Kotlin lukittu 1.9.24:ään (resolutionStrategy) → Compose-kääntäjä 1.5.14.
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.14'
     }
 
     signingConfigs {
@@ -67,9 +85,9 @@ android {
 
 configurations.all {
     resolutionStrategy {
-        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
     }
 }
 
@@ -83,4 +101,18 @@ dependencies {
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
+
+    // Jetpack Compose (etusivun natiivi-UI). BOM 2024.06.00 = Compose 1.6.8 / Material3 1.2.1,
+    // yhteensopiva Kotlin 1.9.24 + compiler 1.5.14:n kanssa (sama kuin mobiilissa).
+    def composeBom = platform('androidx.compose:compose-bom:2024.06.00')
+    implementation composeBom
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    implementation 'androidx.activity:activity-compose:1.9.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.3'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
 }

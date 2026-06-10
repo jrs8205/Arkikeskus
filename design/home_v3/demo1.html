@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo 1 · Aurora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#f4f8ff; --muted:#b9c6dc; --label:#d4def0; --faint:#8597b4;
+    --good:#37f5b0; --warm:#ffd166; --cold:#7cc4ff; --warn:#ff6b8a; --accent:#67e8ff;
+    --glass:rgba(255,255,255,.06); --glass-b:rgba(255,255,255,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#04060d;font-family:"Hanken Grotesk",sans-serif}
+  .stage{width:100vw;height:100vh;container-type:size;position:relative;overflow:hidden;color:var(--ink);
+    background:
+      radial-gradient(70% 95% at 6% -12%, rgba(20,225,160,.55), transparent 55%),
+      radial-gradient(75% 95% at 102% -8%, rgba(108,76,255,.55), transparent 52%),
+      radial-gradient(90% 120% at 70% 120%, rgba(255,70,150,.32), transparent 55%),
+      radial-gradient(60% 80% at 35% 60%, rgba(40,120,255,.18), transparent 60%),
+      #05070f;}
+  .stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,.35));}
+  /* TOP BAR */
+  .top{position:relative;z-index:2;height:8cqh;display:flex;align-items:center;gap:1.7cqw;padding:0 2.6cqw;
+    border-bottom:1px solid rgba(255,255,255,.10)}
+  .loc{display:flex;align-items:center;gap:.8cqw}
+  .loc svg{width:2.5cqh;height:2.5cqh;stroke:var(--accent);fill:none}
+  .loc b{font-size:2.8cqh;font-weight:700}.loc span{font-size:2.4cqh;color:var(--muted);font-weight:500}
+  .wifi{display:flex;align-items:center;gap:.7cqw;margin-left:.9cqw}
+  .bars{display:flex;align-items:flex-end;gap:.32cqw;height:2.6cqh}
+  .bars i{width:.5cqw;border-radius:1px;background:var(--good);box-shadow:0 0 .6cqh rgba(55,245,176,.5)}
+  .bars i:nth-child(1){height:34%}.bars i:nth-child(2){height:52%}.bars i:nth-child(3){height:70%}
+  .bars i:nth-child(4){height:86%}.bars i:nth-child(5){height:100%}
+  .wifi .meta{font-size:1.85cqh;color:var(--muted);font-weight:600;line-height:1.05}.wifi .meta b{color:var(--ink)}
+  .batt{display:flex;align-items:center;gap:.6cqw;margin-left:.7cqw}
+  .batt svg{width:4cqh;height:2cqh;color:var(--muted)}
+  .batt .pct{font-size:2cqh;color:var(--ink);font-weight:700}.batt .pct .b{color:var(--good)}
+  .price{margin-left:auto;display:flex;align-items:baseline;gap:.6cqw;padding:.9cqh 1.6cqw;border-radius:999px;
+    background:linear-gradient(135deg,rgba(255,209,102,.30),rgba(255,140,80,.22));
+    border:1.5px solid rgba(255,209,102,.75);box-shadow:0 0 1.4cqh rgba(255,180,80,.35)}
+  .price .lab{font-size:1.75cqh;color:#ffe7b0;font-weight:700}.price .v{font-size:2.9cqh;font-weight:800;color:#fff0c8}
+  .price .u{font-size:1.75cqh;color:#f0d9a8}
+  .nav{display:flex;align-items:center;gap:.5cqw;margin-left:1.3cqw}
+  .nav a{display:flex;align-items:center;gap:.55cqw;height:5.2cqh;padding:0 1.5cqw;border-radius:12px;
+    font-size:2.05cqh;font-weight:700;color:var(--muted);text-decoration:none}
+  .nav a svg{width:2.5cqh;height:2.5cqh;stroke:currentColor;fill:none}
+  .nav a.on{color:#03121a;background:linear-gradient(135deg,var(--accent),#37f5b0);box-shadow:0 0 1.4cqh rgba(103,232,255,.5)}
+  .nav .gear{margin-left:.5cqw;color:var(--faint);padding:0 .6cqw}
+
+  .body{position:relative;z-index:2;height:92cqh;display:grid;grid-template-rows:53cqh 1fr}
+  .upper{display:grid;grid-template-columns:1.25fr 1fr;gap:2.4cqw;padding:2.4cqh 2.6cqw 0}
+  .clockwrap{display:flex;flex-direction:column;justify-content:center}
+  .clock{font-family:"Big Shoulders Display",sans-serif;font-weight:700;font-size:32cqh;line-height:.8;
+    letter-spacing:-1px;font-variant-numeric:tabular-nums;
+    background:linear-gradient(115deg,#7afcff 0%,#8f8bff 50%,#ff8fdc 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 .4cqh 2cqh rgba(120,140,255,.45))}
+  .clock .sec{font-size:8cqh;-webkit-text-fill-color:var(--accent);color:var(--accent);vertical-align:top;margin-left:.5cqw;filter:none}
+  .date{font-size:4cqh;font-weight:700;margin-top:2.2cqh;text-transform:capitalize}
+  .holiday{display:inline-flex;align-items:center;gap:.8cqw;margin-top:1.6cqh;font-size:2.4cqh;color:var(--warm);font-weight:600}
+  .holiday::before{content:"";width:1cqw;height:1cqw;border-radius:50%;background:var(--warm);box-shadow:0 0 .8cqh var(--warm)}
+
+  .wx{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--glass-b);border-radius:24px;padding:2.4cqh 2.2cqw;
+    display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1.6cqh 4cqh rgba(0,0,0,.3)}
+  .wx-top{display:flex;align-items:center;gap:1.8cqw}
+  .wx-ico{width:12cqh;height:12cqh;flex:none;filter:drop-shadow(0 0 1.4cqh rgba(255,209,102,.4))}
+  .wx-temp{font-family:"Big Shoulders Display",sans-serif;font-size:13cqh;font-weight:700;line-height:.85}
+  .wx-cond{font-size:2.5cqh;color:var(--muted);font-weight:600}
+  .wx-rows{display:grid;grid-template-columns:1fr 1fr;gap:1cqh 1.8cqw}
+  .wx-rows div{display:flex;align-items:center;gap:.8cqw;font-size:2.15cqh;color:var(--muted)}
+  .wx-rows b{color:var(--ink);font-weight:700}.wx-rows svg{width:2.15cqh;height:2.15cqh;stroke:var(--accent);fill:none;flex:none;opacity:.85}
+  .om{padding-top:1.5cqh;border-top:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:1.2cqw;font-size:2.15cqh;color:var(--muted)}
+  .om .tag{font-size:1.55cqh;letter-spacing:.6px;text-transform:uppercase;color:#03121a;font-weight:700;
+    background:var(--cold);border-radius:6px;padding:.35cqh .7cqw}
+  .om .ot{font-weight:800;font-size:2.8cqh}
+
+  .lower{display:grid;grid-template-columns:1.5fr .9fr 1.3fr;gap:1.8cqw;padding:2cqh 2.6cqw 2.4cqh}
+  .sensors{display:flex;gap:1.4cqw}
+  .sensor{flex:1;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--glass-b);border-radius:18px;padding:1.6cqh 1cqw;text-align:center;
+    display:flex;flex-direction:column;justify-content:center}
+  .sensor .lab{font-size:1.85cqh;color:var(--label);letter-spacing:.4px;text-transform:uppercase;font-weight:700}
+  .sensor .t{font-size:4.4cqh;font-weight:800;margin-top:.6cqh;text-shadow:0 0 1.6cqh currentColor}
+  .sensor .h{font-size:2cqh;color:var(--muted);margin-top:.3cqh}
+  .sun{display:flex;flex-direction:column;justify-content:center;gap:1.2cqh;padding-left:1.4cqw}
+  .sun .r{display:flex;align-items:center;gap:1cqw;font-size:2.4cqh;color:var(--ink);font-weight:500}
+  .sun .r .ic{color:var(--warm);font-size:2.8cqh}.sun .r b{font-weight:800}
+  .sun .len{font-size:2.05cqh;color:var(--muted)}
+  .warns{display:flex;flex-direction:column;min-height:0;background:linear-gradient(160deg,rgba(255,107,138,.14),rgba(255,107,138,.03));
+    border:1px solid rgba(255,107,138,.32);border-radius:18px;padding:1.5cqh 1.4cqw}
+  .warns .hd{font-size:1.75cqh;letter-spacing:.6px;text-transform:uppercase;color:var(--warn);font-weight:800;margin-bottom:1cqh}
+  .warns .list{overflow-y:auto;display:flex;flex-direction:column;gap:1.1cqh;padding-right:.6cqw}
+  .warns .list::-webkit-scrollbar{width:.5cqw}.warns .list::-webkit-scrollbar-thumb{background:rgba(255,107,138,.5);border-radius:4px}
+  .w{display:flex;gap:.9cqw}
+  .w .dot{width:1cqw;height:1cqw;border-radius:50%;background:var(--warn);margin-top:.7cqh;flex:none;box-shadow:0 0 0 .35cqw rgba(255,107,138,.22),0 0 1cqh var(--warn)}
+  .w .main{font-size:2.2cqh;font-weight:700;color:#ffd2dc;line-height:1.15}
+  .w .sub{font-size:1.85cqh;color:var(--muted);margin-top:.2cqh}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header class="top">
+    <div class="loc"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 21s-7-5.2-7-11a7 7 0 1 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg><b>Vantaa</b><span>· Martinlaakso</span></div>
+    <div class="wifi"><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><div class="meta"><b>300 Mb</b><br>5 GHz</div></div>
+    <div class="batt"><svg viewBox="0 0 28 14"><rect x="1" y="2" width="22" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="24.3" y="5" width="2.6" height="4" rx="1" fill="currentColor"/><rect x="3" y="4" width="18" height="6" rx="1.2" fill="#37f5b0"/></svg><span class="pct"><span class="b">⚡</span> 100 %</span></div>
+    <div class="price"><span class="lab">Sähkö nyt</span><span class="v">7,128</span><span class="u">snt/kWh</span></div>
+    <nav class="nav">
+      <a class="on"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Koti</a>
+      <a>7&nbsp;vrk</a><a>Sähkö</a>
+      <a class="gear"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+    </nav>
+  </header>
+
+  <main class="body">
+    <div class="upper">
+      <section class="clockwrap">
+        <div class="clock">14:32<span class="sec">48</span></div>
+        <div class="date">maanantai 8.6.2026</div>
+        <div class="holiday">Juhannusaatto · pe 19.6.</div>
+      </section>
+      <section class="wx">
+        <div class="wx-top">
+          <svg class="wx-ico" viewBox="0 0 64 64" fill="none"><circle cx="24" cy="24" r="11" fill="#ffd166"/><path d="M20 44h28a9 9 0 0 0 0-18 12 12 0 0 0-23 .5A8 8 0 0 0 20 44Z" fill="#cdd8e8"/></svg>
+          <div><div class="wx-temp" data-temp="17">17°</div><div class="wx-cond">Puolipilvistä</div></div>
+        </div>
+        <div class="wx-rows">
+          <div><svg viewBox="0 0 24 24"><path d="M12 3v10"/><circle cx="12" cy="16.5" r="3.2"/></svg>Tuntuu <b>16°</b></div>
+          <div><svg viewBox="0 0 24 24"><path d="M3 9h13a3 3 0 1 0-3-3M3 14h16a3 3 0 1 1-3 3"/></svg>Tuuli <b>4 m/s</b></div>
+          <div><svg viewBox="0 0 24 24"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11Z"/></svg>Kosteus <b>62 %</b></div>
+          <div><svg viewBox="0 0 24 24"><path d="M7 13l-1.5 4M12 13l-1.5 4M17 13l-1.5 4M4 11a8 8 0 0 1 15.5-1"/></svg>Sade <b>0,0 mm</b></div>
+        </div>
+        <div class="om"><span class="tag">Open-Meteo</span><span class="ot" data-temp="18">18°</span><span>tuntuu 17° · tuuli 5 m/s · sade 0,1 mm</span></div>
+      </section>
+    </div>
+
+    <div class="lower">
+      <div class="sensors">
+        <div class="sensor"><div class="lab">Makuuhuone</div><div class="t" data-temp="21.4">21,4°</div><div class="h">38 %</div></div>
+        <div class="sensor"><div class="lab">Olohuone</div><div class="t" data-temp="22.1">22,1°</div><div class="h">41 %</div></div>
+        <div class="sensor"><div class="lab">Parveke</div><div class="t" data-temp="17.8">17,8°</div><div class="h">55 %</div></div>
+      </div>
+      <div class="sun">
+        <div class="r"><span class="ic">↑</span> Nousu <b>03:54</b></div>
+        <div class="r"><span class="ic">↓</span> Lasku <b>22:48</b></div>
+        <div class="len">Päivän pituus 18 h 54 min</div>
+      </div>
+      <div class="warns">
+        <div class="hd">⚠ Säävaroitukset</div>
+        <div class="list">
+          <div class="w"><span class="dot"></span><div><div class="main">Metsäpalovaroitus</div><div class="sub">Uusimaa, Kanta-Häme · voimassa 8.6. asti</div></div></div>
+          <div class="w"><span class="dot"></span><div><div class="main">Ruohikkopalovaroitus</div><div class="sub">Koko maa pois lukien Lappi</div></div></div>
+          <div class="w"><span class="dot"></span><div><div class="main">Hellevaroitus</div><div class="sub">Etelä- ja Keski-Suomi · 9.–11.6.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+  function rgbOf(c){return 'rgb('+c[0]+','+c[1]+','+c[2]+')';}
+  function lerpc(a,b,f){f=Math.max(0,Math.min(1,f));return 'rgb('+Math.round(a[0]+(b[0]-a[0])*f)+','+Math.round(a[1]+(b[1]-a[1])*f)+','+Math.round(a[2]+(b[2]-a[2])*f)+')';}
+  function tempColor(t){var S=[-20,-5,5,15,25,35],C=[[40,120,255],[58,160,240],[80,235,224],[123,230,120],[255,210,90],[255,95,110]];
+    if(isNaN(t))return 'rgb(170,170,170)';if(t<=S[0])return rgbOf(C[0]);if(t>=S[5])return rgbOf(C[5]);
+    for(var i=1;i<6;i++){if(t<=S[i])return lerpc(C[i-1],C[i],(t-S[i-1])/(S[i]-S[i-1]));}return rgbOf(C[5]);}
+  document.querySelectorAll('[data-temp]').forEach(function(el){el.style.color=tempColor(parseFloat(el.dataset.temp));});
+</script>
+</body>
+</html>

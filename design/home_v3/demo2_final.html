@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo B · Värikoodattu (viimeistelty)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#f3f7ff; --muted:#aebbd6; --label:#d6e0f5; --faint:#7f8fb5;
+    --blue:#3d7bff; --cyan:#23d6ff; --teal:#1fd6a6; --amber:#ffc23d; --pink:#ff4d8d; --lime:#9be84a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{font-size:.62vw}
+  html,body{width:100%;height:100%;overflow:hidden;background:#070b1c}
+  /* Yksi rem on sidottu näytön leveyteen. Rem ei kertaudu sisäkkäisissä elementeissä,
+     joten sama sommittelu mahtuu sekä S2:n 4:3- että A9+:n 16:10-näytölle. */
+  .stage{width:100vw;height:100vh;overflow:hidden;display:flex;flex-direction:column;
+    font-family:"Hanken Grotesk",sans-serif;color:var(--ink);
+    background:linear-gradient(135deg,#0a1640 0%,#0a1130 45%,#0c1024 100%);}
+
+  /* TOP BAR */
+  .top{flex:none;height:8rem;display:flex;align-items:center;gap:1.7rem;padding:0 2.8rem;border-bottom:1px solid rgba(120,150,255,.18)}
+  .loc{display:flex;align-items:center;gap:.8rem;min-width:0}
+  .loc svg{width:2.7rem;height:2.7rem;stroke:var(--cyan);fill:none;flex:none}
+  .loc b{font-size:2.9rem;font-weight:700;white-space:nowrap}.loc span{font-size:2.5rem;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wifi{display:flex;align-items:center;gap:.7rem;margin-left:1rem;flex:none}
+  .bars{display:flex;align-items:flex-end;gap:.34rem;height:2.7rem}
+  .bars i{width:.55rem;border-radius:1px;background:var(--teal)}
+  .bars i:nth-child(1){height:34%}.bars i:nth-child(2){height:52%}.bars i:nth-child(3){height:70%}
+  .bars i:nth-child(4){height:86%}.bars i:nth-child(5){height:100%}
+  .wifi .meta{font-size:1.9rem;color:var(--muted);font-weight:600;line-height:1.05}.wifi .meta b{color:var(--ink)}
+  .batt{display:flex;align-items:center;gap:.6rem;margin-left:.8rem;flex:none}
+  .batt svg{width:4.2rem;height:2.1rem;color:var(--muted)}
+  .batt .pct{font-size:2rem;color:var(--ink);font-weight:700;white-space:nowrap}.batt .pct .b{color:var(--teal)}
+  .price{margin-left:auto;display:flex;align-items:baseline;gap:.6rem;padding:.9rem 1.6rem;border-radius:12px;flex:none;
+    background:linear-gradient(135deg,var(--amber),#ff9c2e);box-shadow:0 .6rem 1.6rem rgba(255,160,40,.35)}
+  .price .lab{font-size:1.75rem;color:#3a2400;font-weight:800;white-space:nowrap}.price .v{font-size:2.9rem;font-weight:800;color:#1c1200}
+  .price .u{font-size:1.75rem;color:#4a3300;font-weight:700;white-space:nowrap}
+  .nav{display:flex;align-items:center;gap:.5rem;margin-left:1.4rem;flex:none}
+  .nav a{display:flex;align-items:center;gap:.55rem;height:5.4rem;padding:0 1.5rem;border-radius:12px;
+    font-size:2.1rem;font-weight:700;color:var(--muted);text-decoration:none;white-space:nowrap}
+  .nav a svg{width:2.6rem;height:2.6rem;stroke:currentColor;fill:none}
+  .nav a.on{color:#fff;background:linear-gradient(135deg,var(--blue),var(--cyan));box-shadow:0 .6rem 1.6rem rgba(61,123,255,.45)}
+  .nav .gear{margin-left:.4rem;color:var(--faint);padding:0 .6rem}
+
+  /* KOLME SARAKETTA */
+  .cols{flex:1;min-height:0;display:grid;grid-template-columns:1.15fr 1.2fr 1.2fr;gap:1.8rem;padding:2.2rem 2.4rem}
+  .col{border-radius:22px;padding:2.2rem 1.8rem;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;
+    border:1px solid rgba(255,255,255,.08)}
+
+  /* 1: kello (sininen) */
+  .c-clock{justify-content:center;background:linear-gradient(160deg,rgba(61,123,255,.28),rgba(35,214,255,.08));
+    border-color:rgba(61,123,255,.4);box-shadow:inset 0 0 4rem rgba(61,123,255,.12)}
+  .clock{font-family:"Big Shoulders Display",sans-serif;font-weight:800;font-size:21rem;line-height:.82;white-space:nowrap;
+    letter-spacing:-1px;font-variant-numeric:tabular-nums;color:#eaf3ff;text-shadow:0 0 2.4rem rgba(60,160,255,.45)}
+  .clock .sec{font-size:6rem;color:var(--cyan);vertical-align:top;margin-left:.3rem}
+  .date{font-size:3.3rem;font-weight:700;margin-top:1.8rem;text-transform:capitalize;white-space:nowrap}
+  .holiday{display:inline-flex;align-items:center;gap:.8rem;margin-top:1.2rem;font-size:2.2rem;color:var(--amber);font-weight:600;white-space:nowrap}
+  .holiday::before{content:"";width:.9rem;height:.9rem;border-radius:50%;background:var(--amber);box-shadow:0 0 .8rem var(--amber);flex:none}
+
+  /* 2: sää — KAKSI täyttä lohkoa (Ilmatieteen laitos + Open-Meteo) + aurinko */
+  .c-wx{justify-content:center;background:linear-gradient(160deg,rgba(31,214,166,.20),rgba(31,214,166,.04));
+    border-color:rgba(31,214,166,.38)}
+  .wblock+.wblock{margin-top:1.4rem;padding-top:1.4rem;border-top:1px solid rgba(31,214,166,.28)}
+  .wsrc{font-size:1.55rem;letter-spacing:.7px;text-transform:uppercase;font-weight:800;border-radius:6px;
+    padding:.35rem .8rem;display:inline-block;margin-bottom:.8rem;white-space:nowrap}
+  .wsrc.fmi{color:#04221a;background:var(--teal)}.wsrc.om{color:#04121f;background:var(--cyan)}
+  .wx-top{display:flex;align-items:center;gap:1.4rem}
+  .wx-ico{width:9rem;height:9rem;flex:none}
+  .wx-temp{font-family:"Big Shoulders Display",sans-serif;font-size:9.5rem;font-weight:800;line-height:.85}
+  .wx-cond{font-size:2.1rem;color:#bfeede;font-weight:600}
+  .wx-rows{display:grid;grid-template-columns:1fr 1fr;gap:.7rem 1.4rem;margin-top:.9rem}
+  .wx-rows div{display:flex;align-items:center;gap:.6rem;font-size:1.95rem;color:#a9c8c1;min-width:0;white-space:nowrap}
+  .wx-rows b{color:#eafff7;font-weight:700}.wx-rows svg{width:1.95rem;height:1.95rem;stroke:var(--teal);fill:none;flex:none}
+  .wblock.om .wx-rows svg{stroke:var(--cyan)}
+  .sun{margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(31,214,166,.3);display:flex;gap:1.6rem;flex-wrap:wrap;font-size:2.05rem;color:#eafff7}
+  .sun b{font-weight:800}.sun .ic{color:var(--amber)}.sun .len{color:#a9c8c1;width:100%;margin-top:.3rem}
+
+  /* 3: anturit (amber) + varoitukset (pinkki) */
+  .c-info{justify-content:center;background:linear-gradient(160deg,rgba(255,194,61,.12),rgba(255,77,141,.06));border-color:rgba(255,194,61,.28)}
+  .info-content{width:100%;max-height:100%;min-height:0;display:flex;flex-direction:column}
+  .sec-h{font-size:1.7rem;letter-spacing:.7px;text-transform:uppercase;font-weight:800;margin-bottom:1rem;color:var(--amber)}
+  .info-content>.sec-h,.sens-list{flex:none}
+  .sens-list{display:flex;flex-direction:column;gap:1.1rem}
+  .sens-row{display:flex;align-items:center;justify-content:space-between;background:rgba(255,194,61,.10);
+    border:1px solid rgba(255,194,61,.28);border-radius:14px;padding:1.3rem 1.4rem;min-width:0;gap:1rem}
+  .sens-row .n{font-size:2.1rem;color:var(--label);font-weight:700;white-space:nowrap}
+  .sens-row .rt{display:flex;align-items:baseline;gap:.8rem;white-space:nowrap}
+  .sens-row .t{font-size:3.2rem;font-weight:800;text-shadow:0 0 1.4rem currentColor}.sens-row .h{font-size:1.9rem;color:var(--muted)}
+  .warns{margin-top:1.8rem;display:flex;flex-direction:column;min-height:0;flex:0 1 auto}
+  .warns .sec-h{color:var(--pink);flex:none}
+  .warns .list{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;
+    display:flex;flex-direction:column;gap:1.1rem;padding-right:.6rem}
+  .warns .list::-webkit-scrollbar{width:.6rem}.warns .list::-webkit-scrollbar-thumb{background:rgba(255,77,141,.55);border-radius:4px}
+  .w{display:flex;gap:.9rem}
+  .w .dot{width:1rem;height:1rem;border-radius:50%;background:var(--pink);margin-top:.7rem;flex:none;box-shadow:0 0 1rem var(--pink)}
+  .w .main{font-size:2.1rem;font-weight:700;color:#ffd0e0;line-height:1.15}
+  .w .sub{font-size:1.8rem;color:var(--muted);margin-top:.2rem}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header class="top">
+    <div class="loc"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 21s-7-5.2-7-11a7 7 0 1 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg><b>Vantaa</b><span>· Martinlaakso</span></div>
+    <div class="wifi"><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><div class="meta"><b>300 Mb</b><br>5 GHz</div></div>
+    <div class="batt"><svg viewBox="0 0 28 14"><rect x="1" y="2" width="22" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="24.3" y="5" width="2.6" height="4" rx="1" fill="currentColor"/><rect x="3" y="4" width="18" height="6" rx="1.2" fill="#1fd6a6"/></svg><span class="pct"><span class="b">⚡</span> 100 %</span></div>
+    <div class="price"><span class="lab">Sähkö nyt</span><span class="v">7,128</span><span class="u">snt/kWh</span></div>
+    <nav class="nav">
+      <a class="on"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Koti</a>
+      <a>7&nbsp;vrk</a><a>Sähkö</a>
+      <a class="gear"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>
+    </nav>
+  </header>
+
+  <div class="cols">
+    <section class="col c-clock">
+      <div class="clock">14:32<span class="sec">48</span></div>
+      <div class="date">maanantai 8.6.2026</div>
+      <div class="holiday">Juhannusaatto · pe 19.6.</div>
+    </section>
+
+    <section class="col c-wx">
+      <div>
+        <div class="wblock fmi">
+          <span class="wsrc fmi">Ilmatieteen laitos</span>
+          <div class="wx-top">
+            <svg class="wx-ico" viewBox="0 0 64 64" fill="none"><circle cx="24" cy="24" r="11" fill="#ffc23d"/><path d="M20 44h28a9 9 0 0 0 0-18 12 12 0 0 0-23 .5A8 8 0 0 0 20 44Z" fill="#bfe7df"/></svg>
+            <div><div class="wx-temp" data-temp="17">17°</div><div class="wx-cond">Puolipilvistä</div></div>
+          </div>
+          <div class="wx-rows">
+            <div><svg viewBox="0 0 24 24"><path d="M12 3v10"/><circle cx="12" cy="16.5" r="3.2"/></svg>Tuntuu <b>16°</b></div>
+            <div><svg viewBox="0 0 24 24"><path d="M3 9h13a3 3 0 1 0-3-3M3 14h16a3 3 0 1 1-3 3"/></svg>Tuuli <b>4 m/s</b></div>
+            <div><svg viewBox="0 0 24 24"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11Z"/></svg>Kosteus <b>62 %</b></div>
+            <div><svg viewBox="0 0 24 24"><path d="M7 13l-1.5 4M12 13l-1.5 4M17 13l-1.5 4M4 11a8 8 0 0 1 15.5-1"/></svg>Sade <b>0,0 mm</b></div>
+          </div>
+        </div>
+        <div class="wblock om">
+          <span class="wsrc om">Open-Meteo</span>
+          <div class="wx-top">
+            <svg class="wx-ico" viewBox="0 0 64 64" fill="none"><circle cx="24" cy="24" r="11" fill="#ffc23d"/><path d="M20 44h28a9 9 0 0 0 0-18 12 12 0 0 0-23 .5A8 8 0 0 0 20 44Z" fill="#bfe7df"/></svg>
+            <div><div class="wx-temp" data-temp="18">18°</div><div class="wx-cond">Puolipilvistä</div></div>
+          </div>
+          <div class="wx-rows">
+            <div><svg viewBox="0 0 24 24"><path d="M12 3v10"/><circle cx="12" cy="16.5" r="3.2"/></svg>Tuntuu <b>17°</b></div>
+            <div><svg viewBox="0 0 24 24"><path d="M3 9h13a3 3 0 1 0-3-3M3 14h16a3 3 0 1 1-3 3"/></svg>Tuuli <b>5 m/s</b></div>
+            <div><svg viewBox="0 0 24 24"><path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11Z"/></svg>Kosteus <b>60 %</b></div>
+            <div><svg viewBox="0 0 24 24"><path d="M7 13l-1.5 4M12 13l-1.5 4M17 13l-1.5 4M4 11a8 8 0 0 1 15.5-1"/></svg>Sade <b>0,1 mm</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="sun"><span><span class="ic">↑</span> Nousu <b>03:54</b></span><span><span class="ic">↓</span> Lasku <b>22:48</b></span><span class="len">Päivän pituus 18 h 54 min</span></div>
+    </section>
+
+    <section class="col c-info">
+      <div class="info-content">
+        <div class="sec-h">Anturit</div>
+        <div class="sens-list">
+          <div class="sens-row"><span class="n">Makuuhuone</span><span class="rt"><span class="t" data-temp="21.42">21,42°</span><span class="h">38 %</span></span></div>
+          <div class="sens-row"><span class="n">Olohuone</span><span class="rt"><span class="t" data-temp="22.08">22,08°</span><span class="h">41 %</span></span></div>
+          <div class="sens-row"><span class="n">Parveke</span><span class="rt"><span class="t" data-temp="17.83">17,83°</span><span class="h">55 %</span></span></div>
+        </div>
+        <div class="warns">
+          <div class="sec-h">⚠ Säävaroitukset</div>
+          <div class="list">
+            <div class="w"><span class="dot"></span><div><div class="main">Metsäpalovaroitus</div><div class="sub">Uusimaa, Kanta-Häme · voimassa 8.6. asti</div></div></div>
+            <div class="w"><span class="dot"></span><div><div class="main">Ruohikkopalovaroitus</div><div class="sub">Koko maa pois lukien Lappi</div></div></div>
+            <div class="w"><span class="dot"></span><div><div class="main">Hellevaroitus</div><div class="sub">Etelä- ja Keski-Suomi · 9.–11.6.</div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+  function rgbOf(c){return 'rgb('+c[0]+','+c[1]+','+c[2]+')';}
+  function lerpc(a,b,f){f=Math.max(0,Math.min(1,f));return 'rgb('+Math.round(a[0]+(b[0]-a[0])*f)+','+Math.round(a[1]+(b[1]-a[1])*f)+','+Math.round(a[2]+(b[2]-a[2])*f)+')';}
+  function tempColor(t){var S=[-20,-5,5,15,25,35],C=[[40,120,255],[58,160,240],[80,235,224],[123,230,120],[255,210,90],[255,95,110]];
+    if(isNaN(t))return 'rgb(170,170,170)';if(t<=S[0])return rgbOf(C[0]);if(t>=S[5])return rgbOf(C[5]);
+    for(var i=1;i<6;i++){if(t<=S[i])return lerpc(C[i-1],C[i],(t-S[i-1])/(S[i]-S[i-1]));}return rgbOf(C[5]);}
+  document.querySelectorAll('[data-temp]').forEach(function(el){el.style.color=tempColor(parseFloat(el.dataset.temp));});
+</script>
+</body>
+</html>

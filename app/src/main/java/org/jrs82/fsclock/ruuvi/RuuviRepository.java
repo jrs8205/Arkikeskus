@@ -51,18 +51,24 @@ public class RuuviRepository implements RuuviScanner.Listener {
     private final Map<String, Long> lastPersistAt = new ConcurrentHashMap<>();
     /** Viimeisin persistoitu mittaussekvenssi per MAC — auttaa dedup-suodatuksessa. */
     private final Map<String, Integer> lastPersistSeq = new ConcurrentHashMap<>();
+    /** Montako näkyvää näkymää/dialogia tarvitsee skannausta juuri nyt. */
+    private int scanClients = 0;
 
     private RuuviRepository(Context ctx) {
         this.appCtx = ctx;
         this.scanner = new RuuviScanner(ctx, this);
     }
 
-    public boolean start() {
+    public synchronized boolean start() {
+        scanClients++;
+        if (scanClients > 1) return scanner.isRunning();
         return scanner.start();
     }
 
-    public void stop() {
-        scanner.stop();
+    public synchronized void stop() {
+        if (scanClients <= 0) return;
+        scanClients--;
+        if (scanClients == 0) scanner.stop();
     }
 
     public boolean isScanning() { return scanner.isRunning(); }

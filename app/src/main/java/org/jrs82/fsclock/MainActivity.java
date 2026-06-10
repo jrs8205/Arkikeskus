@@ -16,7 +16,10 @@ import org.jrs82.fsclock.system.SystemActivity;
 
 public class MainActivity extends Activity {
 
+    public static final String EXTRA_START_PAGE = "org.jrs82.fsclock.extra.START_PAGE";
+
     private ClockController controller;
+    private boolean initialPageApplied;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +41,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-        if (controller != null) controller.start();
+        if (controller != null) {
+            controller.start();
+            if (!initialPageApplied) {
+                initialPageApplied = true;
+                controller.goToNamedPage(getIntent().getStringExtra(EXTRA_START_PAGE));
+            }
+        }
     }
 
     @Override

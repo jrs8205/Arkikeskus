@@ -316,8 +316,16 @@ public class ClockController {
         updatePlaceControls();
     }
 
+    public void goToNamedPage(String page) {
+        if ("forecast".equals(page)) {
+            pageController.goTo(PAGE_IDX_FORECAST_START);
+        } else if ("electricity".equals(page)) {
+            pageController.goTo(PAGE_IDX_ELECTRICITY);
+        }
+    }
+
     public void start() {
-        active.set(true);
+        if (!active.compareAndSet(false, true)) return;
         lastRefreshDay = Calendar.getInstance(FI).get(Calendar.DAY_OF_YEAR);
         if (io == null) io = Executors.newSingleThreadExecutor();
         if (electricityPage != null) electricityPage.setExecutor(io);
@@ -344,7 +352,7 @@ public class ClockController {
     }
 
     public void stop() {
-        active.set(false);
+        if (!active.compareAndSet(true, false)) return;
         weatherFetchGeneration.incrementAndGet();
         try { SettingsManager.get().unregisterListener(prefsListener); } catch (Exception ignored) { }
         WarningsRepository.get().removeListener(warningsListener);
