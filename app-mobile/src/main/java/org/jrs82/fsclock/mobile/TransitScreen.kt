@@ -81,19 +81,16 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
- * Lähilähdöt natiivina Compose-näkymänä — korvaa [TransitFragment]in. Logiikka replikoitu 1:1:
- * GPS:n lähimmät HSL-lähdöt pysäkeittäin, suosikit (linjat + pysäkit), ennakoiva haku
- * (linjat + pysäkit/asemat), vuoron aikajana MQTT-live-sijainnilla ja linjanäkymä
- * suunnanvaihdolla. Datakerros ([TransitRepository], [DigitransitApi], [TransitFavorites],
- * [HslMqttClient], [RouteProjection]) on koskematta — vain esityskerros on uusi.
+ * Lähilähdöt natiivina Compose-näkymänä (korvasi View-pohjaisen TransitFragmentin).
+ * Logiikka replikoitu 1:1: GPS:n lähimmät HSL-lähdöt pysäkeittäin, suosikit (linjat +
+ * pysäkit), ennakoiva haku (linjat + pysäkit/asemat), vuoron aikajana MQTT-live-sijainnilla
+ * ja linjanäkymä suunnanvaihdolla. Datakerros ([TransitRepository], [DigitransitApi],
+ * [TransitFavorites], [HslMqttClient], [RouteProjection]) on koskematta.
  *
  * Erot View-versioon (tietoiset): SwipeRefresh korvattu alapalkin Päivitä-napilla
  * ([LocalRefreshTick]) + 25 s auto-virkistyksellä; listan DiffUtil korvautuu LazyColumnin
  * avaimilla (sama lopputulos: ei koko listan nytkähdystä).
  */
-
-/** Turvaverkko: false palauttaa vanhan Fragment-sillan ([TransitHost]) yhdellä rivillä. */
-internal const val USE_COMPOSE_TRANSIT = true
 
 private const val TRANSIT_AUTO_REFRESH_MS = 25_000L
 private const val TRANSIT_SEARCH_DEBOUNCE_MS = 280L

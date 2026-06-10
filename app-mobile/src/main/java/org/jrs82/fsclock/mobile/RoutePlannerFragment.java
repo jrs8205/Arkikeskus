@@ -833,7 +833,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 all.add(new LatLng(p[0], p[1]));
             }
             Feature f = Feature.fromGeometry(LineString.fromLngLats(line));
-            String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitAdapter.modeColor(ctx, leg.mode));
+            String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode));
             f.addStringProperty("color", leg.isWalk() ? "#9AA0A6" : hex);
             f.addBooleanProperty("walk", leg.isWalk());
             lines.add(f);
@@ -890,7 +890,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         }
         if (transit == null) return;
         final Leg leg = transit;
-        final String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitAdapter.modeColor(ctx, leg.mode));
+        final String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode));
         searchIo.execute(() -> {
             String vid;
             try { vid = DigitransitApi.vehicleForTrip(leg.patternCode, leg.tripGtfsId); }

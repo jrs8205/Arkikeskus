@@ -60,10 +60,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * OSA A: loput sektiot Compose-esikatseluun. Raskaat näkymät (kelikamerat/lähilähdöt/reittihaku)
- * HOSTATAAN olemassa olevina Fragmentteina [FragmentHostSection]-sillan kautta → täysi
- * datakattavuus ilman uudelleenkirjoitusta. Puhelimen tiedot lukee [DeviceInfoReaders]in valmiit
- * tekstit. Logiikkaa ei kosketa; tämä on vain Compose-esityskerros niiden ympärille.
+ * Lisäsektiot: Puhelimen tiedot, Liikennetiedot, GPS-nopeus (natiivi Compose) sekä
+ * [FragmentHostSection]-silta, jolla Reittihaku hostataan View-Fragmenttina (päätös 5.3-A —
+ * kelikamerat ja lähilähdöt migratoitiin natiiviksi Composeksi, ks. RoadCamerasScreen/TransitScreen).
  */
 
 // ===================== Fragment-silta (AndroidView + FragmentContainerView) =====================
@@ -105,25 +104,6 @@ private fun FragmentHostSection(
             }
         }
     }
-}
-
-@Composable
-internal fun RoadCamerasHost() {
-    FragmentHostSection(
-        tag = "compose_road_cameras",
-        create = { RoadCamerasFragment() },
-        onHidden = { (it as? RoadCamerasFragment)?.onSectionHidden() },
-    )
-}
-
-@Composable
-internal fun TransitHost() {
-    FragmentHostSection(
-        tag = "compose_transit",
-        create = { TransitFragment() },
-        onShown = { (it as? TransitFragment)?.onSectionShown() },
-        onHidden = { (it as? TransitFragment)?.onSectionHidden() },
-    )
 }
 
 @Composable
