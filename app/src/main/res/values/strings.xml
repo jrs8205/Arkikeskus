@@ -40,9 +40,16 @@
     <!-- Ruuvi -->
     <string name="pref_ruuvi_scan">Etsi antureita</string>
     <string name="pref_ruuvi_scan_summary">Avaa lista lähellä havaituista RuuviTag-antureista</string>
-    <string name="pref_ruuvi_slot_bedroom">Anturi 1</string>
-    <string name="pref_ruuvi_slot_livingroom">Anturi 2</string>
-    <string name="pref_ruuvi_slot_balcony">Anturi 3</string>
+    <string name="pref_ruuvi_slot_bedroom">Anturi 1 — kytkentä</string>
+    <string name="pref_ruuvi_slot_livingroom">Anturi 2 — kytkentä</string>
+    <string name="pref_ruuvi_slot_balcony">Anturi 3 — kytkentä</string>
+    <string name="pref_ruuvi_name_bedroom">Anturi 1 — näkyvä nimi</string>
+    <string name="pref_ruuvi_name_livingroom">Anturi 2 — näkyvä nimi</string>
+    <string name="pref_ruuvi_name_balcony">Anturi 3 — näkyvä nimi</string>
+    <string name="pref_ruuvi_name_dialog">Anna anturille näkyvä nimi</string>
+    <string name="pref_cat_warnings">Säävaroitukset</string>
+    <string name="pref_warnings_auto_scroll">Varoitusten automaattinen vieritys</string>
+    <string name="pref_warnings_auto_scroll_summary">Vierittää pitkät varoituslistat automaattisesti Tiedot-sivulla</string>
     <string name="ruuvi_slot_empty">Ei valittu</string>
     <string name="ruuvi_scan_dialog_title">Havaitut RuuviTagit</string>
     <string name="ruuvi_scan_dialog_empty">Etsitään antureita…</string>

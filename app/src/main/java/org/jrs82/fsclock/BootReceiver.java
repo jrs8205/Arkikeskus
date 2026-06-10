@@ -19,11 +19,11 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
         try {
-            Intent launch = new Intent(context, MainActivity.class);
+            Intent launch = new Intent(context, ComposeHomeActivity.class);
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             context.startActivity(launch);
-            Log.i(TAG, "Arkikeskus-autostart MainActivity launched after boot");
+            Log.i(TAG, "Arkikeskus-autostart ComposeHomeActivity launched after boot");
         } catch (Exception e) {
             Log.w(TAG, "Autostart epäonnistui — daily_reboot-moduuli jää varalle", e);
         }

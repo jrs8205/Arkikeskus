@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Etusivu — Luonnos C · Jako</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;600;700;800&family=Chivo+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070a0f; --rail:#0d1219; --line:#1b232e;
+    --ink:#eaf0f7; --muted:#8a96a6; --faint:#586474;
+    --accent:#5bc8ff; --warm:#ffd07a; --cold:#7fb6ff; --good:#5fd08a; --warn:#ff8458;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;display:grid;place-items:center;font-family:"Chivo",sans-serif}
+  .stage{width:min(100vw,calc(100vh*1.6));aspect-ratio:16/10;container-type:size;
+         position:relative;overflow:hidden;color:var(--ink);background:var(--bg);display:flex;flex-direction:column}
+  /* TOP BAR */
+  .top{height:9cqh;display:flex;align-items:center;gap:2cqw;padding:0 2.8cqw;border-bottom:1px solid var(--line)}
+  .loc{display:flex;align-items:center;gap:.8cqw}
+  .loc svg{width:2.5cqh;height:2.5cqh;stroke:var(--accent);fill:none}
+  .loc b{font-size:2.9cqh;font-weight:700}.loc span{font-size:2.4cqh;color:var(--muted);font-weight:500}
+  .wifi{display:flex;align-items:center;gap:.7cqw;margin-left:.8cqw}
+  .bars{display:flex;align-items:flex-end;gap:.34cqw;height:2.6cqh}
+  .bars i{width:.5cqw;border-radius:1px;background:var(--good)}
+  .bars i:nth-child(1){height:34%}.bars i:nth-child(2){height:52%}.bars i:nth-child(3){height:70%}
+  .bars i:nth-child(4){height:86%}.bars i:nth-child(5){height:100%}
+  .wifi .m{font-family:"Chivo Mono",monospace;font-size:1.9cqh;color:var(--muted)}.wifi .m b{color:var(--ink)}
+  .price{margin-left:auto;display:flex;align-items:baseline;gap:.6cqw;padding:.7cqh 1.4cqw;border-radius:8px;
+         background:rgba(255,208,122,.10);border:1px solid rgba(255,208,122,.30)}
+  .price .lab{font-size:1.65cqh;color:var(--faint)}
+  .price .v{font-family:"Chivo Mono",monospace;font-size:2.7cqh;font-weight:700;color:var(--warm)}
+  .price .u{font-size:1.8cqh;color:var(--muted)}
+  .nav{display:flex;align-items:center;gap:.5cqw;margin-left:1.2cqw}
+  .nav a{display:flex;align-items:center;gap:.5cqw;height:5.2cqh;padding:0 1.4cqw;border-radius:9px;
+         font-size:2.1cqh;font-weight:600;color:var(--muted);text-decoration:none}
+  .nav a svg{width:2.4cqh;height:2.4cqh;stroke:currentColor;fill:none}
+  .nav a.on{color:var(--ink);background:rgba(91,200,255,.14);box-shadow:inset 0 0 0 1px rgba(91,200,255,.32)}
+  .nav .gear{color:var(--faint);padding:0 .7cqw}
+
+  /* SPLIT */
+  .split{flex:1;display:grid;grid-template-columns:42% 58%}
+  .left{position:relative;padding:3cqh 3cqw;display:flex;flex-direction:column;
+        background:linear-gradient(160deg,#0c1828 0%,#0a0f17 60%);border-right:1px solid var(--line)}
+  .left::after{content:"";position:absolute;top:8%;bottom:8%;right:-1px;width:2px;
+               background:linear-gradient(180deg,transparent,rgba(91,200,255,.5),transparent)}
+  .left .clk{font-family:"Chivo Mono",monospace;font-size:23cqh;font-weight:600;line-height:.9;
+             letter-spacing:-2px;margin-top:auto}
+  .left .clk .s{font-size:7cqh;color:var(--accent)}
+  .left .d{font-size:3.4cqh;font-weight:600;margin-top:1.4cqh;text-transform:capitalize}
+  .left .h{margin-top:1cqh;font-size:2.3cqh;color:var(--warm);display:flex;align-items:center;gap:.7cqw}
+  .left .h::before{content:"●";font-size:1.3cqh}
+  .left .sun{margin-top:auto;padding-top:2.2cqh;display:flex;gap:2.4cqw;font-size:2.2cqh;color:var(--muted)}
+  .left .sun b{color:var(--ink);font-weight:600;font-family:"Chivo Mono",monospace}
+  .left .sun .i{color:var(--warm)}
+
+  .right{display:flex;flex-direction:column;padding:2.6cqh 3cqw}
+  .hero{display:flex;align-items:center;gap:2.4cqw;padding-bottom:2.2cqh;border-bottom:1px solid var(--line)}
+  .hero .ico{width:13cqh;height:13cqh;flex:none}
+  .hero .temp{font-family:"Chivo Mono",monospace;font-size:13cqh;font-weight:600;line-height:.85;color:var(--warm)}
+  .hero .cond{font-size:2.5cqh;color:var(--muted);margin-top:.3cqh}
+  .hero .rows{margin-left:auto;display:grid;grid-template-columns:1fr;gap:.7cqh;text-align:right}
+  .hero .rows div{font-size:2.2cqh;color:var(--muted)}.hero .rows b{color:var(--ink);font-weight:600;font-family:"Chivo Mono",monospace}
+  .om{padding:1.6cqh 0;border-bottom:1px solid var(--line);font-size:2.05cqh;color:var(--muted);display:flex;align-items:center;gap:1cqw}
+  .om .tg{font-size:1.6cqh;letter-spacing:.5px;text-transform:uppercase;color:var(--accent)}
+  .om b{color:var(--cold);font-weight:700;font-family:"Chivo Mono",monospace}
+  .srow{display:flex;gap:1.4cqw;padding:2cqh 0;border-bottom:1px solid var(--line)}
+  .sensor{flex:1;background:var(--rail);border:1px solid var(--line);border-radius:12px;padding:1.3cqh 1cqw;text-align:center}
+  .sensor .lab{font-size:1.6cqh;color:var(--faint);letter-spacing:.4px;text-transform:uppercase}
+  .sensor .t{font-family:"Chivo Mono",monospace;font-size:3.3cqh;font-weight:700;margin-top:.3cqh}
+  .sensor .h{font-size:1.8cqh;color:var(--muted)}
+  .warn{margin-top:auto;display:flex;align-items:center;gap:1.2cqw;padding-top:1.8cqh;font-size:2.3cqh;color:var(--warn);font-weight:600}
+  .warn .dot{width:1cqw;height:1cqw;border-radius:50%;background:var(--warn);box-shadow:0 0 0 .4cqw rgba(255,132,88,.18)}
+  .t-mid{color:#ffd9a0}.t-cool{color:var(--cold)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header class="top">
+    <div class="loc"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 21s-7-5.2-7-11a7 7 0 1 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg><b>Vantaa</b><span>· Martinlaakso</span></div>
+    <div class="wifi"><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><span class="m"><b>300 Mb</b> · 5 GHz</span></div>
+    <div class="price"><span class="lab">Sähkö nyt</span><span class="v">14,2</span><span class="u">snt/kWh</span></div>
+    <nav class="nav">
+      <a class="on" href="#"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Koti</a>
+      <a href="#">7&nbsp;vrk</a><a href="#">Sähkö</a>
+      <a class="gear" href="#"><svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg></a>
+    </nav>
+  </header>
+
+  <div class="split">
+    <section class="left">
+      <div class="clk">14:32<span class="s">:48</span></div>
+      <div class="d">maanantai 8.6.2026</div>
+      <div class="h">Juhannusaatto · pe 19.6.</div>
+      <div class="sun">
+        <span class="i">☀</span>
+        <span>Nousu <b>03:54</b></span>
+        <span>Lasku <b>22:48</b></span>
+        <span style="color:var(--faint)">18 h 54 min</span>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="hero">
+        <svg class="ico" viewBox="0 0 64 64"><circle cx="24" cy="24" r="11" fill="#ffd07a"/><path d="M20 44h28a9 9 0 0 0 0-18 12 12 0 0 0-23 .5A8 8 0 0 0 20 44Z" fill="#c3cdd9"/></svg>
+        <div><div class="temp">17°</div><div class="cond">Puolipilvistä</div></div>
+        <div class="rows">
+          <div>Tuntuu <b>16°</b></div>
+          <div>Tuuli <b>4 m/s</b></div>
+          <div>Kosteus <b>62 %</b></div>
+          <div>Sade <b>0,0 mm</b></div>
+        </div>
+      </div>
+      <div class="om"><span class="tg">Open-Meteo</span> <b>18°</b> · tuntuu 17° · tuuli 5 m/s · sade 0,1 mm</div>
+      <div class="srow">
+        <div class="sensor"><div class="lab">Makuuhuone</div><div class="t t-mid">21,4°</div><div class="h">38 %</div></div>
+        <div class="sensor"><div class="lab">Olohuone</div><div class="t t-mid">22,1°</div><div class="h">41 %</div></div>
+        <div class="sensor"><div class="lab">Parveke</div><div class="t t-cool">17,8°</div><div class="h">55 %</div></div>
+      </div>
+      <div class="warn"><span class="dot"></span>Metsäpalovaroitus voimassa — Uusimaa</div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

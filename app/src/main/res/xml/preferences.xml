@@ -50,12 +50,32 @@
         <Preference
             app:key="ruuvi_slot_bedroom"
             app:title="@string/pref_ruuvi_slot_bedroom" />
+        <EditTextPreference
+            app:key="ruuvi_mac_bedroom_name"
+            app:title="@string/pref_ruuvi_name_bedroom"
+            app:dialogTitle="@string/pref_ruuvi_name_dialog" />
         <Preference
             app:key="ruuvi_slot_livingroom"
             app:title="@string/pref_ruuvi_slot_livingroom" />
+        <EditTextPreference
+            app:key="ruuvi_mac_livingroom_name"
+            app:title="@string/pref_ruuvi_name_livingroom"
+            app:dialogTitle="@string/pref_ruuvi_name_dialog" />
         <Preference
             app:key="ruuvi_slot_balcony"
             app:title="@string/pref_ruuvi_slot_balcony" />
+        <EditTextPreference
+            app:key="ruuvi_mac_balcony_name"
+            app:title="@string/pref_ruuvi_name_balcony"
+            app:dialogTitle="@string/pref_ruuvi_name_dialog" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/pref_cat_warnings">
+        <SwitchPreferenceCompat
+            app:key="warnings_auto_scroll"
+            app:title="@string/pref_warnings_auto_scroll"
+            app:summary="@string/pref_warnings_auto_scroll_summary"
+            app:defaultValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_app">

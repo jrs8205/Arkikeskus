@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Etusivu — Luonnos B · Ruutu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0d10; --card:#15191f; --card2:#191e25; --line:#262c35;
+    --ink:#eef2f6; --muted:#94a0ad; --faint:#626d7a;
+    --accent:#36d9a8; --accent-d:#0f3b30;
+    --warm:#ffce6a; --cold:#74b4ff; --warn:#ff7a59;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;display:grid;place-items:center;font-family:"Bricolage Grotesque",sans-serif}
+  .stage{
+    width:min(100vw,calc(100vh*1.6));aspect-ratio:16/10;container-type:size;
+    position:relative;overflow:hidden;color:var(--ink);
+    background:radial-gradient(130% 100% at 100% 0%,#10231d 0%,rgba(16,35,29,0) 48%),var(--bg);
+  }
+  /* TOP BAR */
+  .top{height:9.2cqh;display:flex;align-items:center;gap:2cqw;padding:0 2.6cqw}
+  .loc{display:flex;align-items:center;gap:.8cqw}
+  .loc svg{width:2.6cqh;height:2.6cqh;stroke:var(--accent);fill:none}
+  .loc b{font-size:3cqh;font-weight:700}.loc span{font-size:2.5cqh;color:var(--muted);font-weight:500}
+  .wifi{display:flex;align-items:center;gap:.7cqw;margin-left:.8cqw;
+        background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.7cqh 1.2cqw}
+  .bars{display:flex;align-items:flex-end;gap:.35cqw;height:2.6cqh}
+  .bars i{width:.5cqw;border-radius:1px;background:var(--accent)}
+  .bars i:nth-child(1){height:34%}.bars i:nth-child(2){height:52%}.bars i:nth-child(3){height:70%}
+  .bars i:nth-child(4){height:86%}.bars i:nth-child(5){height:100%}
+  .wifi .m{font-size:1.95cqh;color:var(--muted);font-weight:600}.wifi .m b{color:var(--ink)}
+  .price{margin-left:auto;display:flex;align-items:baseline;gap:.6cqw;padding:.8cqh 1.5cqw;
+         border-radius:999px;background:rgba(255,206,106,.12);border:1px solid rgba(255,206,106,.30)}
+  .price .lab{font-size:1.7cqh;color:var(--faint)}.price .v{font-size:2.9cqh;font-weight:800;color:var(--warm)}
+  .price .u{font-size:1.9cqh;color:var(--muted)}
+  .nav{display:flex;align-items:center;gap:.5cqw;margin-left:1.4cqw}
+  .nav a{display:flex;align-items:center;gap:.55cqw;height:5.6cqh;padding:0 1.5cqw;border-radius:12px;
+         font-size:2.2cqh;font-weight:700;color:var(--muted);text-decoration:none}
+  .nav a svg{width:2.5cqh;height:2.5cqh;stroke:currentColor;fill:none}
+  .nav a.on{color:#04140f;background:var(--accent)}
+  .nav .gear{color:var(--faint);padding:0 .8cqw}
+
+  /* BENTO */
+  .grid{height:90.8cqh;padding:0 2.6cqh 2.6cqh;display:grid;gap:1.8cqh;
+        grid-template-columns:1.5fr 1fr 1fr;grid-template-rows:1.45fr 1fr}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:2.4cqh 2cqw;
+        box-shadow:0 2cqh 4cqh rgba(0,0,0,.35);position:relative;overflow:hidden}
+  .clockC{grid-row:1/2;display:flex;flex-direction:column;justify-content:center;
+          background:linear-gradient(135deg,#171c22,#13171c)}
+  .clockC .clk{font-size:24cqh;font-weight:700;line-height:.85;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+  .clockC .clk .s{font-size:7cqh;color:var(--accent);vertical-align:top}
+  .clockC .d{font-size:3.6cqh;font-weight:600;margin-top:1.6cqh;text-transform:capitalize}
+  .clockC .h{margin-top:1.2cqh;display:inline-flex;align-items:center;gap:.7cqw;font-size:2.3cqh;color:var(--warm)}
+  .clockC .h::before{content:"●";font-size:1.4cqh}
+
+  .wxC{grid-row:1/2;grid-column:2/4;display:flex;flex-direction:column;justify-content:center}
+  .wxC .top{height:auto;padding:0;display:flex;align-items:center;gap:2cqw}
+  .wxC .ico{width:12cqh;height:12cqh}
+  .wxC .temp{font-size:13cqh;font-weight:700;line-height:.85;color:var(--warm)}
+  .wxC .cond{font-size:2.5cqh;color:var(--muted)}
+  .wxC .rows{margin-top:1.6cqh;display:grid;grid-template-columns:1fr 1fr;gap:.8cqh 2cqw}
+  .wxC .rows div{font-size:2.2cqh;color:var(--muted)}.wxC .rows b{color:var(--ink);font-weight:700}
+  .wxC .om{margin-top:1.6cqh;padding-top:1.4cqh;border-top:1px solid var(--line);font-size:2.05cqh;color:var(--muted)}
+  .wxC .om .tg{font-size:1.6cqh;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);margin-right:.8cqw}
+  .wxC .om b{color:var(--cold);font-weight:700}
+
+  .sensC{grid-row:2/3;grid-column:1/2;display:flex;flex-direction:column;gap:1.2cqh}
+  .sensC .ttl{font-size:1.7cqh;letter-spacing:.6px;text-transform:uppercase;color:var(--faint)}
+  .sensC .row{display:flex;justify-content:space-between;align-items:center}
+  .sensC .row .n{font-size:2.3cqh;color:var(--muted)}
+  .sensC .row .v{font-size:3cqh;font-weight:700}
+  .sensC .row .v small{font-size:.55em;color:var(--muted);font-weight:600;margin-left:.4cqw}
+
+  .sunC{grid-row:2/3;grid-column:2/3;display:flex;flex-direction:column;justify-content:center;gap:1.1cqh}
+  .sunC .ttl{font-size:1.7cqh;letter-spacing:.6px;text-transform:uppercase;color:var(--faint)}
+  .sunC .r{display:flex;align-items:center;gap:1cqw;font-size:2.5cqh;color:var(--muted)}
+  .sunC .r b{color:var(--ink);font-weight:700}.sunC .r .i{color:var(--warm);font-size:2.8cqh}
+  .sunC .len{font-size:2.1cqh;color:var(--faint);margin-top:.4cqh}
+
+  .warnC{grid-row:2/3;grid-column:3/4;background:linear-gradient(160deg,#241510,#1a120e);
+         border-color:rgba(255,122,89,.35);display:flex;flex-direction:column;justify-content:center;gap:1cqh}
+  .warnC .ttl{font-size:1.7cqh;letter-spacing:.6px;text-transform:uppercase;color:var(--warn)}
+  .warnC .big{font-size:2.9cqh;font-weight:700;color:#ffd3c2;line-height:1.1}
+  .warnC .sub{font-size:2cqh;color:var(--muted)}
+  .t-mid{color:#ffd9a0}.t-cool{color:var(--cold)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header class="top">
+    <div class="loc"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 21s-7-5.2-7-11a7 7 0 1 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg><b>Vantaa</b><span>· Martinlaakso</span></div>
+    <div class="wifi"><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><span class="m"><b>300 Mb</b> · 5 GHz</span></div>
+    <div class="price"><span class="lab">Sähkö nyt</span><span class="v">14,2</span><span class="u">snt/kWh</span></div>
+    <nav class="nav">
+      <a class="on" href="#"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Koti</a>
+      <a href="#">7&nbsp;vrk</a><a href="#">Sähkö</a>
+      <a class="gear" href="#"><svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg></a>
+    </nav>
+  </header>
+
+  <main class="grid">
+    <section class="card clockC">
+      <div class="clk">14:32<span class="s">48</span></div>
+      <div class="d">maanantai 8.6.2026</div>
+      <div class="h">Juhannusaatto · pe 19.6.</div>
+    </section>
+
+    <section class="card wxC">
+      <div class="top">
+        <svg class="ico" viewBox="0 0 64 64"><circle cx="24" cy="24" r="11" fill="#ffce6a"/><path d="M20 44h28a9 9 0 0 0 0-18 12 12 0 0 0-23 .5A8 8 0 0 0 20 44Z" fill="#c3cdd9"/></svg>
+        <div><div class="temp">17°</div><div class="cond">Puolipilvistä</div></div>
+      </div>
+      <div class="rows">
+        <div>Tuntuu <b>16°</b></div><div>Tuuli <b>4 m/s</b></div>
+        <div>Kosteus <b>62 %</b></div><div>Sade <b>0,0 mm</b></div>
+      </div>
+      <div class="om"><span class="tg">Open-Meteo</span><b>18°</b> · tuntuu 17° · tuuli 5 m/s · sade 0,1 mm</div>
+    </section>
+
+    <section class="card sensC">
+      <div class="ttl">Anturit</div>
+      <div class="row"><span class="n">Makuuhuone</span><span class="v t-mid">21,4°<small>38 %</small></span></div>
+      <div class="row"><span class="n">Olohuone</span><span class="v t-mid">22,1°<small>41 %</small></span></div>
+      <div class="row"><span class="n">Parveke</span><span class="v t-cool">17,8°<small>55 %</small></span></div>
+    </section>
+
+    <section class="card sunC">
+      <div class="ttl">Aurinko</div>
+      <div class="r"><span class="i">↑</span> Nousu <b>03:54</b></div>
+      <div class="r"><span class="i">↓</span> Lasku <b>22:48</b></div>
+      <div class="len">Päivän pituus 18 h 54 min</div>
+    </section>
+
+    <section class="card warnC">
+      <div class="ttl">⚠ Säävaroitus</div>
+      <div class="big">Metsäpalovaroitus</div>
+      <div class="sub">Voimassa koko Uudenmaan alueella</div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
