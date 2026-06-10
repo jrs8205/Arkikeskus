@@ -356,6 +356,11 @@ fun ComposeMainScreen() {
                         if (USE_COMPOSE_CAMERAS) RoadCamerasScreen() else RoadCamerasHost()
                     HomeSection.TRANSIT ->
                         if (USE_COMPOSE_TRANSIT) TransitScreen() else TransitHost()
+                    // PÄÄTÖS 5.3-A (migraatioraportti): reittihaku pidetään tietoisesti View-
+                    // toteutuksena Compose-kuoren sisällä. Sen kolmitilainen BottomSheet (peek/
+                    // 52 %/täysi) + kartan padding-koreografia ei mäppäydy M3 1.2.1:n kaksitilaiseen
+                    // sheetiin ilman omaa elekoodia → uudelleenkirjoituksen regressioriski ylittäisi
+                    // hyödyn. Visuaalinen yhtenäisyys tulee jaetusta kuoresta (drawer/alapalkki/teema).
                     HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
                     HomeSection.SPEEDOMETER -> SpeedometerSection()
                     HomeSection.TRAFFIC_ACCIDENTS -> TrafficSection(TrafficNotice.Kind.ACCIDENT, section.title)

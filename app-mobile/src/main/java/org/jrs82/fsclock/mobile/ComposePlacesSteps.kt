@@ -370,7 +370,7 @@ internal fun chooseHomePlace(
     }
     editor.apply()
     // Nollaa etusivun sää-seed → HomeDashboard hakee uuden paikan sään tuoreena.
-    MobileMainActivity.sLastWeather = null
+    WeatherCache.last = null
 }
 
 internal fun lastKnownLocation(context: Context): Location? {
