@@ -20,10 +20,12 @@ val HankenGrotesk = FontFamily(
     Font(R.font.hanken_grotesk, FontWeight.Bold, variationSettings = vw(700)),
 )
 
+/** Big Shoulders Display, lihava leveä display-fontti (kello + lämpötilat).
+ *  STAATTINEN Bold-instanssi (wght=700 leivottu glyfeihin, fvar-akseli poistettu fonttoolsilla).
+ *  Variable-fontin painoakseli ei renderöitynyt luotettavasti kylmästartissa/bootin jälkeen
+ *  (jäi ohueksi) — staattisessa fontissa ei ole akselia joka voisi pettää. */
 val BigShoulders = FontFamily(
-    Font(R.font.big_shoulders_display, FontWeight.Medium, variationSettings = vw(500)),
-    Font(R.font.big_shoulders_display, FontWeight.SemiBold, variationSettings = vw(600)),
-    Font(R.font.big_shoulders_display, FontWeight.Bold, variationSettings = vw(700)),
+    Font(R.font.big_shoulders_bold, FontWeight.Bold),
 )
 
 /* ---- Värit (home_a-paletti) ---- */
