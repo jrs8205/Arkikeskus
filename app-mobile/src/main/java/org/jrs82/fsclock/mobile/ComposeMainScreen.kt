@@ -317,6 +317,18 @@ fun ComposeMainScreen() {
                         },
                         label = { Text("Valikko") },
                     )
+                    // Asetukset suoraan alapalkissa (käyttäjän toive: valikon perällä sitä ei löydä).
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = {
+                            menuOpen = false
+                            context.startActivity(Intent(context, MobileSettingsActivity::class.java))
+                        },
+                        icon = {
+                            Icon(painterResource(R.drawable.mobile_ic_settings_24), contentDescription = "Asetukset")
+                        },
+                        label = { Text("Asetukset") },
+                    )
                 }
                 // Puhelimen oman navigaatiopalkin (koti/takaisin/nuolet) alue: oma sävy + erotinviiva.
                 HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
@@ -376,10 +388,6 @@ fun ComposeMainScreen() {
                             section = s
                             menuOpen = false
                         },
-                        onSettings = {
-                            context.startActivity(Intent(context, MobileSettingsActivity::class.java))
-                            menuOpen = false
-                        },
                     )
                     BackHandler(enabled = true) { menuOpen = false }
                 }
@@ -392,7 +400,6 @@ private fun DrawerContent(
     modifier: Modifier = Modifier,
     current: HomeSection,
     onSelect: (HomeSection) -> Unit,
-    onSettings: () -> Unit,
 ) {
     Surface(
         // Sama taustaväri kuin asetussivulla → valikko ja asetukset näyttävät yhtenäisiltä.
@@ -438,21 +445,8 @@ private fun DrawerContent(
             DrawerItem(HomeSection.SPEEDOMETER, current, onSelect)
             DrawerItem(HomeSection.STEPS, current, onSelect)
             DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
+            // Asetukset siirretty alapalkkiin (ratas oikeassa reunassa) — löydettävyys.
 
-            Spacer(Modifier.height(8.dp))
-            Card(
-                onClick = onSettings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 3.dp),
-                shape = ItemBoxShape,
-            ) {
-                Text(
-                    "Asetukset",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
             Spacer(Modifier.height(16.dp))
         }
     }
