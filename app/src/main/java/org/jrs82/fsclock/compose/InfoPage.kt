@@ -22,14 +22,25 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -147,7 +158,9 @@ private fun MoonCard(ui: HomeUi, s: Scale, modifier: Modifier) {
     }
 }
 
-/** Kuun vaihe: kirkas kiekko + taustanvärinen siirretty kiekko terminaattoriksi. */
+/** Kuun vaihe: oikea terminaattori — valaistu puolikas + ellipsi keskellä.
+ *  Vaihe p: 0 = uusikuu, 0.25 = ens. neljännes (valo oikealla), 0.5 = täysikuu,
+ *  0.75 = viim. neljännes (valo vasemmalla), kuten pohjoisella pallonpuoliskolla. */
 @Composable
 private fun MoonGlyph(phase: Float, illum: Int, modifier: Modifier) {
     Canvas(modifier) {
@@ -155,14 +168,29 @@ private fun MoonGlyph(phase: Float, illum: Int, modifier: Modifier) {
         val center = Offset(size.width / 2f, size.height / 2f)
         val lit = Color(0xFFEBE8C8)
         val dark = Color(0xFF1B2330)
-        // pohja (himmeä kiekko reunalla, jotta tumma osa erottuu)
         drawCircle(dark, radius = r, center = center)
-        drawCircle(lit, radius = r, center = center)
-        val f = (illum.coerceIn(0, 100)) / 100f
-        val mag = 2f * r * f
-        val waning = phase > 0.5f
-        val dir = if (waning) 1f else -1f
-        drawCircle(dark, radius = r, center = Offset(center.x + dir * mag, center.y))
+        if (phase in 0f..1f) {
+            val p = phase
+            val waxing = p < 0.5f
+            val k = cos(2.0 * Math.PI * p).toFloat()   // 1=uusi, 0=neljännes, -1=täysi
+            val litFraction = (1f - k) / 2f
+            val ew = abs(k) * r                          // terminaattoriellipsin puolileveys
+            val circle = Path().apply { addOval(Rect(center.x - r, center.y - r, center.x + r, center.y + r)) }
+            clipPath(circle) {
+                // Valaistu puolikas: kasvava kuu valaisee oikean, vähenevä vasemman.
+                val halfLeft = if (waxing) center.x else center.x - r
+                drawRect(lit, topLeft = Offset(halfLeft, center.y - r), size = Size(r, 2f * r))
+                // Terminaattoriellipsi: gibbous-vaiheessa valaistu, sirpissä tumma.
+                drawOval(
+                    if (litFraction > 0.5f) lit else dark,
+                    topLeft = Offset(center.x - ew, center.y - r),
+                    size = Size(2f * ew, 2f * r)
+                )
+            }
+        } else if (illum >= 0) {
+            // Vaihetta ei tiedossa mutta valaistus on — näytä tasainen kiekko.
+            drawCircle(lit.copy(alpha = (illum / 100f).coerceIn(0.1f, 1f)), radius = r, center = center)
+        }
         // kehä
         drawCircle(Ark.Faint.copy(alpha = 0.5f), radius = r, center = center, style = Stroke(width = r * 0.05f))
     }
@@ -177,17 +205,35 @@ private fun WarningsCard(ui: HomeUi, s: Scale, modifier: Modifier) {
         Text("⚠ SÄÄVAROITUKSET", color = Ark.Warn, fontFamily = HankenGrotesk, fontWeight = FontWeight.Bold, fontSize = s.sh(2.4f), maxLines = 1)
         Spacer(Modifier.height(s.dh(1.4f)))
         val scroll = rememberScrollState()
-        // Automaattinen vieritys (asetus), jos sisältö ei mahdu.
-        LaunchedEffect(ui.warnAutoScroll, ui.warnings.size, scroll.maxValue) {
-            if (!ui.warnAutoScroll || scroll.maxValue <= 0) return@LaunchedEffect
+        var lastTouchMs by remember { mutableStateOf(0L) }
+        // Automaattinen vieritys (asetus), jos sisältö ei mahdu. Kosketus tauottaa
+        // pyörityksen 15 sekunniksi, ja kesto lasketaan Long-aritmetiikalla
+        // (maxValue voi olla Int.MAX_VALUE ennen ensimmäistä mittausta).
+        LaunchedEffect(ui.warnAutoScroll, ui.warnings.size) {
+            if (!ui.warnAutoScroll) return@LaunchedEffect
             while (true) {
                 kotlinx.coroutines.delay(2500)
-                scroll.animateScrollTo(scroll.maxValue, tween((scroll.maxValue * 14).coerceIn(1500, 9000)))
+                val max = scroll.maxValue
+                if (max <= 0 || max == Int.MAX_VALUE) continue
+                if (System.currentTimeMillis() - lastTouchMs < TOUCH_PAUSE_MS) continue
+                scroll.animateScrollTo(max, tween((max.toLong() * 14L).coerceIn(1500L, 9000L).toInt()))
                 kotlinx.coroutines.delay(2500)
+                if (System.currentTimeMillis() - lastTouchMs < TOUCH_PAUSE_MS) continue
                 scroll.animateScrollTo(0, tween(1200))
             }
         }
-        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(s.dh(1.4f))) {
+        Column(
+            Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            awaitPointerEvent(PointerEventPass.Initial)
+                            lastTouchMs = System.currentTimeMillis()
+                        }
+                    }
+                },
+            verticalArrangement = Arrangement.spacedBy(s.dh(1.4f))
+        ) {
             if (ui.warnings.isEmpty()) {
                 Text("Ei voimassa olevia varoituksia", color = Ark.Faint, fontFamily = HankenGrotesk, fontSize = s.sh(2.4f))
             }
@@ -221,6 +267,9 @@ private fun WarningRow(w: WarnUi, s: Scale) {
         }
     }
 }
+
+/** Kosketuksen jälkeinen tauko automaattipyöritykselle. */
+private const val TOUCH_PAUSE_MS = 15_000L
 
 private fun nowMinutes(): Int {
     val c = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Europe/Helsinki"))

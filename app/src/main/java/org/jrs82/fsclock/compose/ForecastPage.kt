@@ -101,7 +101,7 @@ private fun FmiHourRow(hour: Int, row: HourRowUi?, s: Scale) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         HourLabel(hour, s)
-        WxIcon(row?.condition, s)
+        WxIcon(row, s)
         Spacer(Modifier.width(s.dw(0.8f)))
         Text(fiUnit(row?.temp, 0, "°"), color = tempColor(row?.temp), fontFamily = BigShoulders, fontWeight = FontWeight.Bold, fontSize = s.sh(3.4f), maxLines = 1, modifier = Modifier.width(s.dw(6f)))
         Spacer(Modifier.weight(1f))
@@ -118,7 +118,7 @@ private fun OmHourRow(hour: Int, row: HourRowUi?, s: Scale) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         HourLabel(hour, s)
-        WxIcon(row?.condition, s)
+        WxIcon(row, s)
         Spacer(Modifier.width(s.dw(0.8f)))
         Text(fiUnit(row?.temp, 0, "°"), color = tempColor(row?.temp), fontFamily = BigShoulders, fontWeight = FontWeight.Bold, fontSize = s.sh(3.4f), maxLines = 1, modifier = Modifier.width(s.dw(6f)))
         Spacer(Modifier.weight(1f))
@@ -136,13 +136,18 @@ private fun HourLabel(hour: Int, s: Scale) {
 }
 
 @Composable
-private fun WxIcon(condition: org.jrs82.fsclock.WeatherCondition?, s: Scale) {
+private fun WxIcon(row: HourRowUi?, s: Scale) {
     Spacer(Modifier.width(s.dw(0.6f)))
-    AndroidView(
-        factory = { org.jrs82.fsclock.WeatherIconView(it) },
-        update = { v -> v.setCondition(condition) },
-        modifier = Modifier.size(s.dh(3.6f))
-    )
+    if (row == null) {
+        // Tunnilta ei dataa → ei ikonia (mapCondition(null) piirtäisi harhaanjohtavan pilven).
+        Spacer(Modifier.size(s.dh(3.6f)))
+    } else {
+        AndroidView(
+            factory = { org.jrs82.fsclock.WeatherIconView(it) },
+            update = { v -> v.setCondition(row.condition) },
+            modifier = Modifier.size(s.dh(3.6f))
+        )
+    }
 }
 
 private fun windText(w: Float?): String = if (w == null || w.isNaN()) "" else "💨 " + fi(w, 0) + " m/s"

@@ -40,6 +40,9 @@ public class OpenMeteoClient {
                 + "shortwave_radiation,weather_code,is_day"
                 + "&wind_speed_unit=ms"
                 + "&timezone=Europe%2FHelsinki"
+                // unixtime = yksiselitteinen UTC-epoch; iso8601-paikallisajat olisivat
+                // kaksitulkintaisia kellojen siirtyessä talviaikaan (03:00 esiintyy 2×).
+                + "&timeformat=unixtime"
                 + "&forecast_hours=168";
 
         Log.d(TAG, "GET " + url);
@@ -100,11 +103,16 @@ public class OpenMeteoClient {
         int n = time.length();
         for (int i = 0; i < n; i++) {
             OpenMeteoData.Hour row = new OpenMeteoData.Hour();
-            String t = time.getString(i);
-            Date d = iso.parse(t);
-            if (d == null) continue;
-            row.timestamp = d.getTime();
-            cal.setTime(d);
+            // timeformat=unixtime → epoch-sekunnit; siedetään myös vanha iso8601-muoto.
+            Object rawTime = time.get(i);
+            if (rawTime instanceof Number) {
+                row.timestamp = ((Number) rawTime).longValue() * 1000L;
+            } else {
+                Date d = iso.parse(String.valueOf(rawTime));
+                if (d == null) continue;
+                row.timestamp = d.getTime();
+            }
+            cal.setTimeInMillis(row.timestamp);
             row.hour = cal.get(Calendar.HOUR_OF_DAY);
             row.dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
             row.month = cal.get(Calendar.MONTH) + 1;

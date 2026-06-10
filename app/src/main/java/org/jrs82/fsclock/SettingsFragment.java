@@ -29,6 +29,7 @@ import androidx.preference.EditTextPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.SeekBarPreference;
+import androidx.preference.SwitchPreferenceCompat;
 
 import org.jrs82.fsclock.db.CsvExporter;
 import org.jrs82.fsclock.db.HistoryRepository;
@@ -209,6 +210,11 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         // ja triggeröi FsClockApp:n kanavavaihdon. Ei tarvita erillistä
                         // SettingsManager.setHomePlace-kutsua.
                         SettingsManager.get().clearHomeCoordinates();
+                        // Käsin asetettu kotipaikka: GPS-seuranta pois, ettei se
+                        // ylikirjoita valintaa heti seuraavassa käynnistyksessä.
+                        SettingsManager.get().setFollowGpsLocation(false);
+                        SwitchPreferenceCompat follow = findPreference(SettingsManager.KEY_FOLLOW_GPS);
+                        if (follow != null) follow.setChecked(false);
                         pref.setText(newPlace);
                     } finally {
                         settingHomePlaceProgrammatically = false;

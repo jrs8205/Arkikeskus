@@ -74,7 +74,9 @@
     <string name="pref_day_morning">Päivän alkamisaika</string>
     <string name="pref_night_evening">Yön alkamisaika</string>
     <string name="pref_night_red_tint">Yön punainen sävy</string>
-    <string name="pref_night_red_tint_summary">Käytössä vaiheen 4 jälkeen</string>
+    <string name="pref_night_red_tint_summary">Punertaa näytön yökirkkauden aikana (vähemmän sinistä valoa)</string>
+    <string name="pref_follow_gps">Kotipaikka seuraa GPS-sijaintia</string>
+    <string name="pref_follow_gps_summary">Päällä: sää ja paikannimi päivittyvät laitteen sijainnista. Kytkeytyy pois kun kotipaikka asetetaan käsin.</string>
 
     <!-- Sää ja sijainti -->
     <string name="pref_home_place">Kotipaikkakunta</string>

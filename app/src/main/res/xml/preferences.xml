@@ -40,6 +40,11 @@
             app:title="@string/pref_home_place"
             app:defaultValue="Vantaa"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat
+            app:key="follow_gps_location"
+            app:title="@string/pref_follow_gps"
+            app:summary="@string/pref_follow_gps_summary"
+            app:defaultValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/pref_cat_ruuvi">

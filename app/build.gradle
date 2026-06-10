@@ -17,8 +17,8 @@ android {
         applicationId 'org.jrs82.fsclock'
         minSdk 30
         targetSdk 35
-        versionCode 222
-        versionName '2.2.2'
+        versionCode 230
+        versionName '2.3.0'
 
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
 

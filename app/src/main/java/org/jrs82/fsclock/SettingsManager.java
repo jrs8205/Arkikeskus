@@ -31,6 +31,7 @@ public final class SettingsManager {
     public static final String KEY_RUUVI_MAC_LIVINGROOM = "ruuvi_mac_livingroom";
     public static final String KEY_RUUVI_MAC_BALCONY = "ruuvi_mac_balcony";
     public static final String KEY_WARN_AUTO_SCROLL = "warnings_auto_scroll";
+    public static final String KEY_FOLLOW_GPS = "follow_gps_location";
 
     public static final String RUUVI_SLOT_BEDROOM = "bedroom";
     public static final String RUUVI_SLOT_LIVINGROOM = "livingroom";
@@ -287,6 +288,16 @@ public final class SettingsManager {
     /** Säävaroitusten automaattinen vieritys Tietoja-sivulla. */
     public boolean getWarningsAutoScroll() {
         return sp().getBoolean(KEY_WARN_AUTO_SCROLL, true);
+    }
+
+    /** Seuraako kotipaikka GPS-sijaintia. Kytketään pois kun käyttäjä asettaa
+     *  kotipaikan käsin asetuksista (muuten GPS ylikirjoittaisi sen heti). */
+    public boolean isFollowGpsLocation() {
+        return sp().getBoolean(KEY_FOLLOW_GPS, true);
+    }
+
+    public void setFollowGpsLocation(boolean follow) {
+        sp().edit().putBoolean(KEY_FOLLOW_GPS, follow).apply();
     }
 
     /** Anturin käyttäjän antama nimi per slot; jos ei asetettu, palautetaan defaultName. */

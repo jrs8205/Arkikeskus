@@ -29,39 +29,44 @@ public final class Astronomy {
         return new SunTimes(rise, set);
     }
 
+    /** NOAA:n auringonlaskentayhtälöt (General Solar Position Calculations,
+     *  NOAA Global Monitoring Division). Tarkkuus tyypillisesti ±1 min — korvasi
+     *  aiemman Williams-algoritmin, jonka virhe kasvoi korkeilla leveysasteilla. */
     private static int calculateSunEventMinutes(int dayOfYear, double lat, double lon,
                                                 TimeZone zone, boolean sunrise, Date date) {
-        double lngHour = lon / 15.0;
-        double t = dayOfYear + ((sunrise ? 6.0 : 18.0) - lngHour) / 24.0;
-        double meanAnomaly = (0.9856 * t) - 3.289;
-        double trueLong = meanAnomaly
-                + (1.916 * Math.sin(rad(meanAnomaly)))
-                + (0.020 * Math.sin(rad(2.0 * meanAnomaly)))
-                + 282.634;
-        trueLong = normalizeDegrees(trueLong);
+        // Vuoden kulma (fractional year) keskipäivän kohdalta.
+        double gamma = 2.0 * Math.PI / 365.0 * (dayOfYear - 1 + 0.5);
 
-        double rightAscension = deg(Math.atan(0.91764 * Math.tan(rad(trueLong))));
-        rightAscension = normalizeDegrees(rightAscension);
-        double lQuadrant = Math.floor(trueLong / 90.0) * 90.0;
-        double raQuadrant = Math.floor(rightAscension / 90.0) * 90.0;
-        rightAscension = (rightAscension + lQuadrant - raQuadrant) / 15.0;
+        // Ajantasauskaava (equation of time), minuutteina.
+        double eqTime = 229.18 * (0.000075
+                + 0.001868 * Math.cos(gamma)
+                - 0.032077 * Math.sin(gamma)
+                - 0.014615 * Math.cos(2.0 * gamma)
+                - 0.040849 * Math.sin(2.0 * gamma));
 
-        double sinDec = 0.39782 * Math.sin(rad(trueLong));
-        double cosDec = Math.cos(Math.asin(sinDec));
-        double cosH = (Math.cos(rad(ZENITH)) - (sinDec * Math.sin(rad(lat))))
-                / (cosDec * Math.cos(rad(lat)));
-        if (cosH > 1.0) return SunTimes.NEVER_RISES;
-        if (cosH < -1.0) return SunTimes.NEVER_SETS;
+        // Auringon deklinaatio, radiaaneina.
+        double decl = 0.006918
+                - 0.399912 * Math.cos(gamma)
+                + 0.070257 * Math.sin(gamma)
+                - 0.006758 * Math.cos(2.0 * gamma)
+                + 0.000907 * Math.sin(2.0 * gamma)
+                - 0.002697 * Math.cos(3.0 * gamma)
+                + 0.00148 * Math.sin(3.0 * gamma);
 
-        double hourAngle = sunrise
-                ? 360.0 - deg(Math.acos(cosH))
-                : deg(Math.acos(cosH));
-        hourAngle /= 15.0;
+        double latRad = rad(lat);
+        double cosHa = (Math.cos(rad(ZENITH)) / (Math.cos(latRad) * Math.cos(decl)))
+                - Math.tan(latRad) * Math.tan(decl);
+        if (cosHa > 1.0) return SunTimes.NEVER_RISES;   // aurinko ei nouse (kaamos)
+        if (cosHa < -1.0) return SunTimes.NEVER_SETS;   // aurinko ei laske (yötön yö)
 
-        double localMeanTime = hourAngle + rightAscension - (0.06571 * t) - 6.622;
-        double utcHours = normalizeHours(localMeanTime - lngHour);
+        double haDeg = deg(Math.acos(cosHa));
+        // UTC-minuutit: 720 − 4·(lon ± ha) − eqTime, lon positiivinen itään.
+        double utcMinutes = sunrise
+                ? 720.0 - 4.0 * (lon + haDeg) - eqTime
+                : 720.0 - 4.0 * (lon - haDeg) - eqTime;
+
         int offsetMinutes = zone.getOffset(date.getTime()) / 60_000;
-        int localMinutes = (int) Math.round(utcHours * 60.0) + offsetMinutes;
+        int localMinutes = (int) Math.round(utcMinutes) + offsetMinutes;
         localMinutes %= 1440;
         if (localMinutes < 0) localMinutes += 1440;
         return localMinutes;
@@ -136,17 +141,6 @@ public final class Astronomy {
         return rad * 180.0 / Math.PI;
     }
 
-    private static double normalizeDegrees(double d) {
-        d %= 360.0;
-        if (d < 0) d += 360.0;
-        return d;
-    }
-
-    private static double normalizeHours(double h) {
-        h %= 24.0;
-        if (h < 0) h += 24.0;
-        return h;
-    }
 
     public static final class SunMoon {
         public final SunTimes sun;

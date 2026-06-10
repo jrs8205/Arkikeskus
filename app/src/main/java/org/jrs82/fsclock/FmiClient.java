@@ -148,8 +148,9 @@ public class FmiClient {
             v = latest.get("ws_10min"); if (v != null && !v.isNaN()) data.current.windSpeed = v;
             v = latest.get("wg_10min"); if (v != null && !v.isNaN()) data.current.windGust = v;
             v = latest.get("wd_10min"); if (v != null && !v.isNaN()) data.current.windDirection = v;
-            v = latest.get("n_man"); if (v != null && !v.isNaN()) {
-                // FMI:n n_man on oktanteissa 0-8, tallennetaan 0-100 %:na
+            v = latest.get("n_man"); if (v != null && !v.isNaN() && v >= 0.0 && v <= 8.0) {
+                // FMI:n n_man on oktina 0-8, tallennetaan 0-100 %:na.
+                // 9/8 = "pilvisyyttä ei voida määrittää" (sakea sumu/lumisade) → puuttuva.
                 data.current.cloudCover = (v / 8.0) * 100.0;
             }
             v = latest.get("wawa"); if (v != null && !v.isNaN()) {

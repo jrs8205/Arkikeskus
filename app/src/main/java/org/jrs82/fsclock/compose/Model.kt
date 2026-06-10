@@ -77,6 +77,10 @@ data class HomeUi(
     val moonPhase: Float = -1f,
     val warnings: List<WarnUi> = emptyList(),
     val warnAutoScroll: Boolean = true,
+    /** Yön punasävy-overlay aktiivinen (asetus + yöaika/testiyö). */
+    val redTint: Boolean = false,
+    /** Offline-testitila aktiivinen (asetusten testinappi) — verkkohaut ohitetaan. */
+    val testOffline: Boolean = false,
     val forecast: List<DayForecastUi> = emptyList(),
     val elToday: DayPricesUi? = null,
     val elTomorrow: DayPricesUi? = null,
