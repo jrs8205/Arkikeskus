@@ -403,7 +403,7 @@ fun ComposeMainScreen() {
 
                 // Asetukset-overlay (kuten valikko): sisältöalueen päällä, alapalkki näkyvissä.
                 if (settingsOpen) {
-                    SettingsScreen(onBack = { settingsOpen = false })
+                    SettingsScreen()
                     BackHandler(enabled = true) { settingsOpen = false }
                 }
             }
