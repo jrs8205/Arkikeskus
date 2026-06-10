@@ -16,13 +16,12 @@ import org.jrs82.fsclock.SettingsManager
 private const val SPLASH_MIN_MS = 900L
 
 /**
- * Compose-pääruudun ESIKATSELU-Activity (Vaihe 2/3 migraatiossa). Erillinen nykyisestä
- * [MobileMainActivity]sta, avataan valikon "Uusi ulkoasu (esikatselu)" -kohdasta, jotta
- * navigaatiorunkoa + uutta ulkoasua voi testata rikkomatta toimivaa sovellusta.
+ * Sovelluksen pääruutu (launcher) — koko UI on Compose ([ComposeMainScreen]). Korvasi
+ * View-pohjaisen MobileMainActivityn (poistettu Compose-migraation valmistuttua).
  *
- * AppCompatActivity + sama night mode -pakotus kuin [MobileMainActivity]ssa, jotta sovelluksen
- * teema-asetus (light/dark/system) toimii ja Composen isSystemInDarkTheme() lukee sen oikein.
- * Teema manifestissa = MobileComposeTheme (NoActionBar, edge-to-edge).
+ * AppCompatActivity + night mode -pakotus, jotta sovelluksen teema-asetus (light/dark/system)
+ * toimii ja Composen isSystemInDarkTheme() lukee sen oikein. Teema manifestissa =
+ * Theme.Arkikeskus.Splash → MobileComposeTheme (NoActionBar, edge-to-edge).
  */
 class MobileComposeMainActivity : AppCompatActivity() {
 
