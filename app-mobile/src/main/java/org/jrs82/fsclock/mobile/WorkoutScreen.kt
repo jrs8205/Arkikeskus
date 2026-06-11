@@ -227,13 +227,11 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
 
     val gpsOk = state.lastFixMs > 0 && System.currentTimeMillis() - state.lastFixMs < 5_000
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+        ) {
             Text(
                 if (state.type == WorkoutEntity.TYPE_BIKE) "Pyörälenkki" else "Kävelylenkki",
                 style = MaterialTheme.typography.headlineSmall,
@@ -250,49 +248,77 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
                 )
             }
         }
-        Spacer(Modifier.height(20.dp))
 
-        // Nopeus isolla, 0,0-tarkkuudella
-        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                String.format(FI_WO, "%.1f", state.speedKmh),
-                fontSize = 72.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text("km/h", style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.height(20.dp))
+        // Kartta: reitti + oma sijainti + km-merkit; seurantazoom lähellä (kävely 17 / pyörä 16).
+        WorkoutMap(
+            state = state,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp),
+        )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                StatRow("Matka", String.format(FI_WO, "%.2f km", state.distanceM / 1000.0))
-                StatRow("Kesto", formatDurationLong(displayedMs))
-                StatRow("Keskinopeus", avgSpeedText(state.distanceM, displayedMs))
-                if (state.type == WorkoutEntity.TYPE_WALK) {
-                    StatRow("Tahti", paceText(state.distanceM, displayedMs))
-                    if (state.steps > 0) StatRow("Askeleet", state.steps.toString())
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        String.format(FI_WO, "%.1f", state.speedKmh),
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text("km/h", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                StatRow("Maksiminopeus", String.format(FI_WO, "%.1f km/h", state.maxSpeedKmh))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        String.format(FI_WO, "%.2f km", state.distanceM / 1000.0),
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(formatDurationLong(displayedMs), style = MaterialTheme.typography.titleMedium)
+                }
             }
-        }
-
-        if (state.splits.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Kilometrivälit", style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(6.dp))
-                    state.splits.forEach { s ->
-                        StatRow("${s.index}. km", formatDurationLong(s.durationMs))
+                    StatRow("Keskinopeus", avgSpeedText(state.distanceM, displayedMs))
+                    if (state.type == WorkoutEntity.TYPE_WALK) {
+                        StatRow("Tahti", paceText(state.distanceM, displayedMs))
+                        if (state.steps > 0) StatRow("Askeleet", state.steps.toString())
+                    }
+                    StatRow("Maksiminopeus", String.format(FI_WO, "%.1f km/h", state.maxSpeedKmh))
+                }
+            }
+
+            if (state.splits.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Kilometrivälit", style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        state.splits.forEach { s ->
+                            StatRow("${s.index}. km", formatDurationLong(s.durationMs))
+                        }
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(20.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             if (state.phase == WorkoutTracker.Phase.PAUSED) {
                 Button(
                     onClick = { WorkoutTrackingService.command(context, WorkoutTrackingService.ACTION_RESUME) },
@@ -384,6 +410,199 @@ private fun SimpleSummaryView(workoutId: Long, autoStopped: Boolean, onClose: ()
             Text("Valmis")
         }
     }
+}
+
+// ===================== Kartta =====================
+
+private const val WO_SRC_ROUTE = "workout-route"
+private const val WO_LAYER_ROUTE = "workout-route-line"
+private const val WO_SRC_SPLITS = "workout-splits"
+private const val WO_LAYER_SPLITS = "workout-splits-icons"
+private const val WO_SRC_POS = "workout-pos"
+private const val WO_LAYER_POS = "workout-pos-dot"
+
+/** Lenkkikartta: MML-pohja + reittiviiva segmenteittäin + km-merkit (bitmap-numerot, koska
+ *  rasterityylissä ei ole glyphs-fontteja) + oma sijainti. Kamera seuraa sijaintia läheltä
+ *  (kävely zoom 17 / pyöräily 16); käyttäjän ele irrottaa seurannan, Kohdista palauttaa. */
+@Composable
+private fun WorkoutMap(state: WorkoutTracker.UiState, modifier: Modifier = Modifier) {
+    val mapView = rememberMapViewWithLifecycle()
+    var mapRef by remember { mutableStateOf<org.maplibre.android.maps.MapLibreMap?>(null) }
+    var routeSource by remember { mutableStateOf<org.maplibre.android.style.sources.GeoJsonSource?>(null) }
+    var posSource by remember { mutableStateOf<org.maplibre.android.style.sources.GeoJsonSource?>(null) }
+    var splitSource by remember { mutableStateOf<org.maplibre.android.style.sources.GeoJsonSource?>(null) }
+    var following by remember { mutableStateOf(true) }
+    var zoomInitialized by remember { mutableStateOf(false) }
+    val followZoom = if (state.type == WorkoutEntity.TYPE_BIKE) 16.0 else 17.0
+
+    androidx.compose.foundation.layout.Box(modifier = modifier) {
+        androidx.compose.ui.viewinterop.AndroidView(
+            factory = { mapView },
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (!following) {
+            FilledTonalButton(
+                onClick = {
+                    zoomInitialized = false
+                    following = true
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(10.dp),
+            ) { Text("Kohdista") }
+        }
+    }
+
+    LaunchedEffect(mapView) {
+        mapView.getMapAsync { m ->
+            m.uiSettings.isRotateGesturesEnabled = false
+            m.uiSettings.isTiltGesturesEnabled = false
+            m.addOnCameraMoveStartedListener { reason ->
+                if (reason == org.maplibre.android.maps.MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                    following = false
+                }
+            }
+            m.setStyle(org.maplibre.android.maps.Style.Builder().fromJson(buildMmlStyleJson())) { style ->
+                val route = org.maplibre.android.style.sources.GeoJsonSource(
+                    WO_SRC_ROUTE, org.maplibre.geojson.FeatureCollection.fromFeatures(ArrayList()),
+                )
+                style.addSource(route)
+                val line = org.maplibre.android.style.layers.LineLayer(WO_LAYER_ROUTE, WO_SRC_ROUTE)
+                line.setProperties(
+                    org.maplibre.android.style.layers.PropertyFactory.lineColor("#1A73E8"),
+                    org.maplibre.android.style.layers.PropertyFactory.lineWidth(5f),
+                    org.maplibre.android.style.layers.PropertyFactory.lineCap(
+                        org.maplibre.android.style.layers.Property.LINE_CAP_ROUND),
+                    org.maplibre.android.style.layers.PropertyFactory.lineJoin(
+                        org.maplibre.android.style.layers.Property.LINE_JOIN_ROUND),
+                )
+                style.addLayer(line)
+
+                val splits = org.maplibre.android.style.sources.GeoJsonSource(
+                    WO_SRC_SPLITS, org.maplibre.geojson.FeatureCollection.fromFeatures(ArrayList()),
+                )
+                style.addSource(splits)
+                val splitIcons = org.maplibre.android.style.layers.SymbolLayer(WO_LAYER_SPLITS, WO_SRC_SPLITS)
+                splitIcons.setProperties(
+                    org.maplibre.android.style.layers.PropertyFactory.iconImage(
+                        org.maplibre.android.style.expressions.Expression.get("icon")),
+                    org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap(true),
+                    org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement(true),
+                )
+                style.addLayer(splitIcons)
+
+                val pos = org.maplibre.android.style.sources.GeoJsonSource(
+                    WO_SRC_POS, org.maplibre.geojson.FeatureCollection.fromFeatures(ArrayList()),
+                )
+                style.addSource(pos)
+                val posDot = org.maplibre.android.style.layers.CircleLayer(WO_LAYER_POS, WO_SRC_POS)
+                posDot.setProperties(
+                    org.maplibre.android.style.layers.PropertyFactory.circleColor("#1A73E8"),
+                    org.maplibre.android.style.layers.PropertyFactory.circleRadius(8f),
+                    org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor("#FFFFFF"),
+                    org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth(3f),
+                )
+                style.addLayer(posDot)
+
+                mapRef = m
+                routeSource = route
+                splitSource = splits
+                posSource = pos
+            }
+        }
+    }
+
+    // Kaikki karttapäivitykset YHDESSÄ efektissä suoraan StateFlow'sta — riippumaton
+    // recomposition-ajoituksesta (live-päivitys ei saa jäädä parametriketjun varaan).
+    LaunchedEffect(routeSource, splitSource, posSource, mapRef) {
+        val route = routeSource ?: return@LaunchedEffect
+        val splitsSrc = splitSource ?: return@LaunchedEffect
+        val pos = posSource ?: return@LaunchedEffect
+        val m = mapRef ?: return@LaunchedEffect
+        var drawnPoints = -1
+        var drawnSplits = -1
+        WorkoutTracker.state.collect { st ->
+            // Oma sijainti + seurantakamera
+            if (!st.currentLat.isNaN() && !st.currentLon.isNaN()) {
+                pos.setGeoJson(org.maplibre.geojson.Feature.fromGeometry(
+                    org.maplibre.geojson.Point.fromLngLat(st.currentLon, st.currentLat)))
+                if (following) {
+                    val target = org.maplibre.android.geometry.LatLng(st.currentLat, st.currentLon)
+                    if (!zoomInitialized) {
+                        m.easeCamera(org.maplibre.android.camera.CameraUpdateFactory
+                            .newLatLngZoom(target, followZoom), 600)
+                        zoomInitialized = true
+                    } else {
+                        m.easeCamera(org.maplibre.android.camera.CameraUpdateFactory
+                            .newLatLng(target), 800)
+                    }
+                }
+            }
+            // Reittiviiva segmenteittäin (pause/GPS-katko katkaisee viivan)
+            if (st.points.size != drawnPoints) {
+                drawnPoints = st.points.size
+                val features = ArrayList<org.maplibre.geojson.Feature>()
+                var seg = Int.MIN_VALUE
+                var coords = ArrayList<org.maplibre.geojson.Point>()
+                for (p in st.points) {
+                    if (p.segment != seg) {
+                        if (coords.size >= 2) {
+                            features.add(org.maplibre.geojson.Feature.fromGeometry(
+                                org.maplibre.geojson.LineString.fromLngLats(coords)))
+                        }
+                        coords = ArrayList()
+                        seg = p.segment
+                    }
+                    coords.add(org.maplibre.geojson.Point.fromLngLat(p.lon, p.lat))
+                }
+                if (coords.size >= 2) {
+                    features.add(org.maplibre.geojson.Feature.fromGeometry(
+                        org.maplibre.geojson.LineString.fromLngLats(coords)))
+                }
+                route.setGeoJson(org.maplibre.geojson.FeatureCollection.fromFeatures(features))
+            }
+            // Km-merkit (numeroidut bitmap-ikonit rekisteröidään tarvittaessa)
+            if (st.splits.size != drawnSplits) {
+                drawnSplits = st.splits.size
+                m.getStyle { style ->
+                    val features = ArrayList<org.maplibre.geojson.Feature>()
+                    for (s in st.splits) {
+                        val name = "wo-km-" + s.index
+                        if (style.getImage(name) == null) {
+                            style.addImage(name, kmMarkerBitmap(mapView.context, s.index))
+                        }
+                        val f = org.maplibre.geojson.Feature.fromGeometry(
+                            org.maplibre.geojson.Point.fromLngLat(s.endLon, s.endLat))
+                        f.addStringProperty("icon", name)
+                        features.add(f)
+                    }
+                    splitsSrc.setGeoJson(org.maplibre.geojson.FeatureCollection.fromFeatures(features))
+                }
+            }
+        }
+    }
+}
+
+/** Valkoinen ympyrä sinisellä reunalla ja numerolla — km-merkki kartalle (ei vaadi fontteja). */
+private fun kmMarkerBitmap(context: android.content.Context, km: Int): android.graphics.Bitmap {
+    val density = context.resources.displayMetrics.density
+    val size = (26 * density).toInt()
+    val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    val c = android.graphics.Canvas(bmp)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    paint.color = android.graphics.Color.WHITE
+    c.drawCircle(size / 2f, size / 2f, size / 2f - density, paint)
+    paint.style = android.graphics.Paint.Style.STROKE
+    paint.strokeWidth = 2 * density
+    paint.color = 0xFF1A73E8.toInt()
+    c.drawCircle(size / 2f, size / 2f, size / 2f - 1.5f * density, paint)
+    paint.style = android.graphics.Paint.Style.FILL
+    paint.textAlign = android.graphics.Paint.Align.CENTER
+    paint.textSize = 12 * density
+    paint.isFakeBoldText = true
+    val baseline = size / 2f - (paint.descent() + paint.ascent()) / 2f
+    c.drawText(km.toString(), size / 2f, baseline, paint)
+    return bmp
 }
 
 // ===================== Apurit =====================
