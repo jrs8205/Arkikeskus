@@ -8,6 +8,9 @@ if (localPropsFile.exists()) {
 }
 def mmlApiKey = localProps.getProperty('MML_API_KEY') ?: System.getenv('MML_API_KEY') ?: ""
 def digitransitKey = localProps.getProperty('digitransit_subscription_key') ?: System.getenv('DIGITRANSIT_KEY') ?: ""
+// Yle Teksti-TV-API (developer.yle.fi): avaimet local.propertiesista, EI versionhallintaan.
+def yleAppId = localProps.getProperty('YLE_APP_ID') ?: System.getenv('YLE_APP_ID') ?: ""
+def yleAppKey = localProps.getProperty('YLE_APP_KEY') ?: System.getenv('YLE_APP_KEY') ?: ""
 
 android {
     namespace 'org.jrs82.fsclock'
@@ -32,6 +35,8 @@ android {
         versionName '2.3.1-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
+        buildConfigField "String", "YLE_APP_ID", "\"${yleAppId}\""
+        buildConfigField "String", "YLE_APP_KEY", "\"${yleAppKey}\""
 
         // MapLibren natiivikirjastot vain ARM-laitteille (ei x86-emulaattoreita) —
         // muuten APK paisuu ~53 MB:iin. arm64-v8a + armeabi-v7a kattaa oikeat laitteet.

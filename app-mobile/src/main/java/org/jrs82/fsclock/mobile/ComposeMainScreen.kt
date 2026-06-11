@@ -213,6 +213,8 @@ enum class HomeSection(val title: String) {
     STEPS("Askeleet"),
     NEWS("Uutiset"),
     ELECTRICITY("Pörssisähkö"),
+    TELETEXT("Teksti-TV"),
+    TV_GUIDE("TV-ohjelmat"),
     DEVICE_INFO("Puhelimen tiedot"),
 }
 
@@ -468,6 +470,10 @@ fun ComposeMainScreen() {
                     HomeSection.SENSORS -> SensorsSection()
                     HomeSection.ELECTRICITY -> ElectricitySection()
                     HomeSection.NEWS -> NewsSection()
+                    // TV-ohjelmat = Teksti-TV:n ohjelmaopassivut 300– (kattaa myös MTV3/Nelosen;
+                    // Ylen julkinen API ei tarjoa erillistä EPG:tä, ja tämä on lisenssin mukainen).
+                    HomeSection.TELETEXT -> TeletextScreen(100, section.title)
+                    HomeSection.TV_GUIDE -> TeletextScreen(300, section.title)
                     HomeSection.DEVICE_INFO -> DeviceInfoSection()
                     HomeSection.ROAD_CAMERAS -> RoadCamerasScreen()
                     HomeSection.TRANSIT -> TransitScreen()
@@ -553,6 +559,10 @@ private fun DrawerContent(
             DrawerHeader("Joukkoliikenne (HSL)", R.drawable.mobile_ic_bus_24)
             DrawerItem(HomeSection.TRANSIT, current, onSelect)
             DrawerItem(HomeSection.ROUTE_PLANNER, current, onSelect)
+
+            DrawerHeader("TV", R.drawable.mobile_ic_apps_24)
+            DrawerItem(HomeSection.TELETEXT, current, onSelect)
+            DrawerItem(HomeSection.TV_GUIDE, current, onSelect)
 
             DrawerHeader("Muut", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
