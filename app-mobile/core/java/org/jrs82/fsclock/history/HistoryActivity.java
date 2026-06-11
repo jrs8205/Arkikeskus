@@ -111,9 +111,7 @@ public class HistoryActivity extends AppCompatActivity {
         Set<String> macs = new LinkedHashSet<>();
         if (ruuviInDb != null) macs.addAll(ruuviInDb);
         SettingsManager sm = SettingsManager.get();
-        addIfNotNull(macs, sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BEDROOM));
-        addIfNotNull(macs, sm.getRuuviMac(SettingsManager.RUUVI_SLOT_LIVINGROOM));
-        addIfNotNull(macs, sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BALCONY));
+        for (String mac : sm.sensorNamesByMac().keySet()) addIfNotNull(macs, mac);
         for (String mac : macs) {
             channels.add("ruuvi:" + mac);
             channelLabels.add(getString(R.string.history_ruuvi_label, ruuviDisplayName(sm, mac), mac));
@@ -146,10 +144,9 @@ public class HistoryActivity extends AppCompatActivity {
     }
 
     private String ruuviDisplayName(SettingsManager sm, String mac) {
-        String slot = sm.slotForMac(mac);
-        if (SettingsManager.RUUVI_SLOT_BEDROOM.equals(slot)) return getString(R.string.sensor_label_bedroom);
-        if (SettingsManager.RUUVI_SLOT_LIVINGROOM.equals(slot)) return getString(R.string.sensor_label_livingroom);
-        if (SettingsManager.RUUVI_SLOT_BALCONY.equals(slot)) return getString(R.string.sensor_label_balcony);
+        // Rajaton nimeäminen: nimi MAC-kartasta; nimettömille vanha "ei liitetty" -teksti.
+        String name = sm.sensorNameFor(mac);
+        if (!name.isEmpty()) return name;
         return getString(R.string.history_ruuvi_unassigned);
     }
 

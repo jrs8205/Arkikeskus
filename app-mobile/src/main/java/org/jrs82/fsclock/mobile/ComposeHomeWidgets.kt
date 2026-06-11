@@ -138,6 +138,7 @@ internal fun isHomeDataPrefKey(key: String?): Boolean {
         key == SettingsManager.KEY_RUUVI_MAC_BEDROOM ||
         key == SettingsManager.KEY_RUUVI_MAC_LIVINGROOM ||
         key == SettingsManager.KEY_RUUVI_MAC_BALCONY ||
+        key == SettingsManager.KEY_RUUVI_SENSOR_NAMES ||
         key.startsWith("mobile_sensor_name_")
 }
 

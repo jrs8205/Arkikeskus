@@ -115,21 +115,15 @@ fun SettingsScreen() {
     var refreshTick by remember { mutableStateOf(0) }
 
     // --- Ruuvi-skannaus: dialogin näyttötila + lupavirta ---
-    var scanTargetSlot by remember { mutableStateOf<String?>(null) }
     var showScanDialog by remember { mutableStateOf(false) }
-    var pendingScanSlot by remember { mutableStateOf<String?>(null) }
 
-    val showScanFor: (String?) -> Unit = { slot ->
-        scanTargetSlot = slot
-        showScanDialog = true
-    }
     val scanPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) {
             if (isBluetoothOn(context)) {
                 repo.start()
-                showScanFor(pendingScanSlot)
+                showScanDialog = true
             } else {
                 toast(context, "Bluetooth on pois päältä. Kytke se päälle ja yritä uudelleen.")
             }
@@ -137,17 +131,16 @@ fun SettingsScreen() {
             toast(context, "Bluetooth-skannauslupa tarvitaan antureiden etsimiseen.")
         }
     }
-    val requestScan: (String?) -> Unit = { slot ->
+    val requestScan: () -> Unit = {
         val perm = bluetoothScanPermission()
         if (hasPermission(context, perm)) {
             if (isBluetoothOn(context)) {
                 repo.start()
-                showScanFor(slot)
+                showScanDialog = true
             } else {
                 toast(context, "Bluetooth on pois päältä. Kytke se päälle ja yritä uudelleen.")
             }
         } else {
-            pendingScanSlot = slot
             scanPermLauncher.launch(perm)
         }
     }
@@ -180,7 +173,7 @@ fun SettingsScreen() {
     var showModeDialog by remember { mutableStateOf(false) }
     var showIntervalDialog by remember { mutableStateOf(false) }
     var showThresholdDialog by remember { mutableStateOf(false) }
-    var editSensorSlot by remember { mutableStateOf<String?>(null) }
+    var editSensorMac by remember { mutableStateOf<String?>(null) }
     var addFeed by remember { mutableStateOf(false) }
     var editFeed by remember { mutableStateOf<NewsFeed?>(null) }
 
@@ -315,26 +308,33 @@ fun SettingsScreen() {
                 SettingsCard {
                     ClickableRow(
                         title = "Etsi antureita (Bluetooth)",
-                        subtitle = "Skannaa lähellä olevat RuuviTagit ja liitä huoneeseen",
+                        subtitle = "Skannaa lähellä olevat RuuviTagit ja nimeä napauttamalla",
                         leadingIconRes = R.drawable.mobile_ic_bluetooth_24,
-                    ) { requestScan(null) }
+                    ) { requestScan() }
                 }
             }
-            items3Sensors().forEach { slot ->
-                item {
-                    val name = remember(refreshTick) { sensorName(prefs, slot) }
-                    val mac = remember(refreshTick) { SettingsManager.get().getRuuviMac(slot) }
-                    val macSummary = remember(refreshTick) { slotSummary(repo, mac) }
-                    SettingsCard {
+            item {
+                // Rajaton nimeäminen: kaikki nimetyt anturit (MAC → nimi) dynaamisena listana.
+                val named = remember(refreshTick) {
+                    SettingsManager.get().sensorNamesByMac().entries.toList()
+                }
+                SettingsCard {
+                    if (named.isEmpty()) {
                         ClickableRow(
-                            title = "Anturin nimi", subtitle = name,
+                            title = "Ei nimettyjä antureita",
+                            subtitle = "Etsi antureita ja napauta löytynyttä antaaksesi sille nimen. " +
+                                "Antureita voi nimetä rajattomasti.",
                             leadingIconRes = R.drawable.mobile_ic_thermometer_24,
-                        ) { editSensorSlot = slot }
-                        RowDivider()
-                        ClickableRow(
-                            title = "Liitetty Ruuvi", subtitle = macSummary,
-                            leadingIconRes = R.drawable.mobile_ic_bluetooth_24,
-                        ) { requestScan(slot) }
+                        ) { requestScan() }
+                    } else {
+                        named.forEachIndexed { i, e ->
+                            if (i > 0) RowDivider()
+                            ClickableRow(
+                                title = e.value,
+                                subtitle = macSummary(repo, e.key),
+                                leadingIconRes = R.drawable.mobile_ic_thermometer_24,
+                            ) { editSensorMac = e.key }
+                        }
                     }
                 }
             }
@@ -468,19 +468,18 @@ fun SettingsScreen() {
             onDismiss = { showThresholdDialog = false },
         )
     }
-    editSensorSlot?.let { slot ->
+    editSensorMac?.let { mac ->
         TextFieldDialog(
-            title = "Anturin nimi",
-            initial = sensorName(prefs, slot),
-            label = "Nimi",
+            title = "Anturin nimi ($mac)",
+            initial = SettingsManager.get().sensorNameFor(mac),
+            label = "Nimi (tyhjä poistaa nimeämisen)",
             keyboardType = KeyboardType.Text,
             onSave = { value ->
-                editSensorSlot = null
-                val name = value.trim().ifEmpty { defaultSensorName(slot) }
-                prefs.edit().putString(sensorNameKey(slot), name).apply()
+                editSensorMac = null
+                SettingsManager.get().setSensorName(mac, value)
                 refreshTick++
             },
-            onDismiss = { editSensorSlot = null },
+            onDismiss = { editSensorMac = null },
         )
     }
     if (addFeed) {
@@ -523,9 +522,10 @@ fun SettingsScreen() {
     }
     if (showScanDialog) {
         RuuviScanDialog(
-            targetSlot = scanTargetSlot,
-            prefs = prefs,
-            onChanged = { refreshTick++ },
+            onPickMac = { mac ->
+                showScanDialog = false
+                editSensorMac = mac
+            },
             onClose = { showScanDialog = false },
         )
     }
@@ -535,16 +535,13 @@ fun SettingsScreen() {
 
 @Composable
 private fun RuuviScanDialog(
-    targetSlot: String?,
-    prefs: android.content.SharedPreferences,
-    onChanged: () -> Unit,
+    onPickMac: (String) -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
     val repo = remember { RuuviRepository.get(context) }
     val sm = remember { SettingsManager.get() }
     var samples by remember { mutableStateOf(sortedSnapshot(repo)) }
-    var assignMac by remember { mutableStateOf<String?>(null) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -577,40 +574,23 @@ private fun RuuviScanDialog(
         title = { Text("Etsi antureita") },
         text = {
             Column {
-                if (targetSlot != null) {
-                    Text(
-                        "Napauta anturia liittääksesi sen kohtaan \"${sensorName(prefs, targetSlot)}\".",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                } else {
-                    Text(
-                        "Napauta anturia liittääksesi sen huoneeseen.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
+                Text(
+                    "Napauta anturia antaaksesi sille nimen. Nimettyjä antureita voi olla rajattomasti.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
                 if (samples.isEmpty()) {
                     Text("Etsitään RuuviTageja…", style = MaterialTheme.typography.bodyLarge)
                 } else {
                     samples.forEach { (mac, s) ->
                         val temp = s.temperatureC()?.let { String.format(FI, "%.1f °C", it) } ?: "– °C"
-                        val slot = sm.slotForMac(mac)
-                        val suffix = slot?.let { "  [${sensorName(prefs, it)}]" } ?: ""
+                        val existing = sm.sensorNameFor(mac)
+                        val suffix = if (existing.isEmpty()) "" else "  [$existing]"
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    if (targetSlot != null) {
-                                        assignMacToSlot(sm, mac, targetSlot)
-                                        onChanged()
-                                        onClose()
-                                    } else {
-                                        assignMac = mac
-                                    }
-                                }
+                                .clickable { onPickMac(mac) }
                                 .padding(vertical = 12.dp),
                         ) {
                             Text(
@@ -619,61 +599,6 @@ private fun RuuviScanDialog(
                             )
                         }
                     }
-                }
-            }
-        },
-    )
-
-    assignMac?.let { mac ->
-        AssignSlotDialog(
-            mac = mac,
-            prefs = prefs,
-            onPick = { slot ->
-                if (slot == null) clearMacAssignment(sm, mac) else assignMacToSlot(sm, mac, slot)
-                assignMac = null
-                onChanged()
-                onClose()
-            },
-            onDismiss = { assignMac = null },
-        )
-    }
-}
-
-@Composable
-private fun AssignSlotDialog(
-    mac: String,
-    prefs: android.content.SharedPreferences,
-    onPick: (String?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Peruuta") } },
-        title = { Text("Liitä anturi $mac") },
-        text = {
-            Column {
-                items3Sensors().forEach { slot ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPick(slot) }
-                            .padding(vertical = 12.dp),
-                    ) {
-                        Text(sensorName(prefs, slot), style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onPick(null) }
-                        .padding(vertical = 12.dp),
-                ) {
-                    Text(
-                        "Poista liitos",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
-                    )
                 }
             }
         },
@@ -1056,29 +981,8 @@ private fun openUrl(context: Context, url: String) {
 
 // ===================== Apufunktiot =====================
 
-private fun items3Sensors(): List<String> = listOf(
-    SettingsManager.RUUVI_SLOT_BEDROOM,
-    SettingsManager.RUUVI_SLOT_LIVINGROOM,
-    SettingsManager.RUUVI_SLOT_BALCONY,
-)
-
-private fun sensorNameKey(slot: String): String = when (slot) {
-    SettingsManager.RUUVI_SLOT_BEDROOM -> MobileThemeController.KEY_SENSOR_NAME_BEDROOM
-    SettingsManager.RUUVI_SLOT_LIVINGROOM -> MobileThemeController.KEY_SENSOR_NAME_LIVINGROOM
-    else -> MobileThemeController.KEY_SENSOR_NAME_BALCONY
-}
-
-private fun defaultSensorName(slot: String): String = when (slot) {
-    SettingsManager.RUUVI_SLOT_BEDROOM -> "Anturi 1"
-    SettingsManager.RUUVI_SLOT_LIVINGROOM -> "Anturi 2"
-    else -> "Anturi 3"
-}
-
-private fun sensorName(prefs: android.content.SharedPreferences, slot: String): String =
-    prefs.getString(sensorNameKey(slot), defaultSensorName(slot)) ?: defaultSensorName(slot)
-
-private fun slotSummary(repo: RuuviRepository, mac: String?): String {
-    if (mac.isNullOrEmpty()) return "Ei liitettyä anturia — napauta etsiäksesi"
+private fun macSummary(repo: RuuviRepository, mac: String?): String {
+    if (mac.isNullOrEmpty()) return "Ei anturia"
     val s = repo.getLatest(mac)
     val temp = s?.temperatureC()
     return if (temp != null) "$mac · ${String.format(FI, "%.1f °C", temp)}" else mac
@@ -1086,17 +990,6 @@ private fun slotSummary(repo: RuuviRepository, mac: String?): String {
 
 private fun sortedSnapshot(repo: RuuviRepository): List<Pair<String, RuuviSample>> =
     repo.snapshot().entries.sortedBy { it.key }.map { it.key to it.value }
-
-private fun assignMacToSlot(sm: SettingsManager, mac: String, slot: String) {
-    val existing = sm.slotForMac(mac)
-    if (existing != null && existing != slot) sm.setRuuviMac(existing, null)
-    sm.setRuuviMac(slot, mac)
-}
-
-private fun clearMacAssignment(sm: SettingsManager, mac: String) {
-    val slot = sm.slotForMac(mac) ?: return
-    sm.setRuuviMac(slot, null)
-}
 
 private fun labelFor(options: List<Pair<String, String>>, value: String): String =
     options.firstOrNull { it.first == value }?.second ?: value
