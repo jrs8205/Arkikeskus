@@ -1621,54 +1621,23 @@ private fun scopeText(mode: String): String = when (mode) {
     else -> "koko päivän"
 }
 
+/** Anturit: ensin kaikki nimetyt (MAC→nimi-kartta, rajaton määrä), sitten muut löydetyt
+ *  juoksevalla "Anturi N" -nimellä. Nimeäminen: asetukset → Ruuvi-anturit. */
 private fun buildSensors(prefs: SharedPreferences, repo: RuuviRepository): List<Pair<String, RuuviSample?>> {
-    val sm = SettingsManager.get()
+    val named = SettingsManager.get().sensorNamesByMac()
     val out = ArrayList<Pair<String, RuuviSample?>>()
-    val assigned = ArrayList<String>()
-    val bMac = sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BEDROOM)
-    val lMac = sm.getRuuviMac(SettingsManager.RUUVI_SLOT_LIVINGROOM)
-    val baMac = sm.getRuuviMac(SettingsManager.RUUVI_SLOT_BALCONY)
-    addAssigned(assigned, bMac)
-    addAssigned(assigned, lMac)
-    addAssigned(assigned, baMac)
-    addSensor(out, homeSensorName(prefs, SettingsManager.RUUVI_SLOT_BEDROOM), bMac, repo)
-    addSensor(out, homeSensorName(prefs, SettingsManager.RUUVI_SLOT_LIVINGROOM), lMac, repo)
-    addSensor(out, homeSensorName(prefs, SettingsManager.RUUVI_SLOT_BALCONY), baMac, repo)
-    var next = 1
-    if (hasMac(bMac)) next = 2
-    if (hasMac(lMac)) next = 3
-    if (hasMac(baMac)) next = 4
+    val used = HashSet<String>()
+    for ((mac, name) in named) {
+        out.add(name to repo.getLatest(mac))
+        used.add(mac.uppercase(Locale.ROOT))
+    }
+    var next = named.size + 1
     for ((mac, sample) in repo.snapshot().entries.sortedBy { it.key }) {
-        if (assigned.contains(mac.uppercase(Locale.ROOT))) continue
+        if (used.contains(mac.uppercase(Locale.ROOT))) continue
         out.add("Anturi $next" to sample)
         next++
     }
     return out
-}
-
-private fun addSensor(out: MutableList<Pair<String, RuuviSample?>>, label: String, mac: String?, repo: RuuviRepository) {
-    if (!hasMac(mac)) return
-    out.add(label to repo.getLatest(mac))
-}
-
-private fun addAssigned(assigned: MutableList<String>, mac: String?) {
-    if (hasMac(mac)) assigned.add(mac!!.trim().uppercase(Locale.ROOT))
-}
-
-private fun hasMac(mac: String?): Boolean = mac != null && mac.trim().isNotEmpty()
-
-private fun homeSensorName(prefs: SharedPreferences, slot: String): String {
-    val key = when (slot) {
-        SettingsManager.RUUVI_SLOT_BEDROOM -> MobileThemeController.KEY_SENSOR_NAME_BEDROOM
-        SettingsManager.RUUVI_SLOT_LIVINGROOM -> MobileThemeController.KEY_SENSOR_NAME_LIVINGROOM
-        else -> MobileThemeController.KEY_SENSOR_NAME_BALCONY
-    }
-    val default = when (slot) {
-        SettingsManager.RUUVI_SLOT_BEDROOM -> "Anturi 1"
-        SettingsManager.RUUVI_SLOT_LIVINGROOM -> "Anturi 2"
-        else -> "Anturi 3"
-    }
-    return prefs.getString(key, default) ?: default
 }
 
 private fun formatTemp(v: Double): String {

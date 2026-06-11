@@ -293,6 +293,76 @@ public final class SettingsManager {
         return null;
     }
 
+    // ---- Anturien rajaton nimeäminen (MAC → nimi; korvaa 3 kiinteää slottia) ----
+    // Vanhat slot-getterit yllä jätetty paikoilleen legacy-koodia varten; uusi koodi
+    // käyttää vain tätä karttaa. Tallennus JSON-objektina yhdessä prefs-avaimessa.
+    public static final String KEY_RUUVI_SENSOR_NAMES = "ruuvi_sensor_names";
+
+    /** MAC (isoin kirjaimin) → käyttäjän antama nimi, lisäysjärjestyksessä. Migratoi
+     *  vanhat slotit (bedroom/livingroom/balcony + mobile_sensor_name_*) ensimmäisellä
+     *  kutsulla, jos uutta karttaa ei vielä ole. */
+    public synchronized java.util.LinkedHashMap<String, String> sensorNamesByMac() {
+        java.util.LinkedHashMap<String, String> out = new java.util.LinkedHashMap<>();
+        String json = sp().getString(KEY_RUUVI_SENSOR_NAMES, null);
+        if (json == null) {
+            out = migrateSlotNames();
+            if (!out.isEmpty()) saveSensorNames(out);
+            return out;
+        }
+        try {
+            org.json.JSONObject o = new org.json.JSONObject(json);
+            java.util.Iterator<String> it = o.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                String v = o.optString(k, "");
+                if (!v.isEmpty()) out.put(k.toUpperCase(Locale.ROOT), v);
+            }
+        } catch (Exception ignored) { }
+        return out;
+    }
+
+    /** Nimi MAC:lle tai tyhjä jos ei nimetty. */
+    public String sensorNameFor(String mac) {
+        if (mac == null) return "";
+        String n = sensorNamesByMac().get(mac.trim().toUpperCase(Locale.ROOT));
+        return n == null ? "" : n;
+    }
+
+    /** Aseta/poista nimi: tyhjä nimi poistaa nimeämisen. */
+    public synchronized void setSensorName(String mac, String name) {
+        if (mac == null || mac.trim().isEmpty()) return;
+        java.util.LinkedHashMap<String, String> map = sensorNamesByMac();
+        String key = mac.trim().toUpperCase(Locale.ROOT);
+        if (name == null || name.trim().isEmpty()) map.remove(key);
+        else map.put(key, name.trim());
+        saveSensorNames(map);
+    }
+
+    private void saveSensorNames(java.util.Map<String, String> map) {
+        org.json.JSONObject o = new org.json.JSONObject();
+        try {
+            for (java.util.Map.Entry<String, String> e : map.entrySet()) o.put(e.getKey(), e.getValue());
+        } catch (Exception ignored) { }
+        sp().edit().putString(KEY_RUUVI_SENSOR_NAMES, o.toString()).apply();
+    }
+
+    private java.util.LinkedHashMap<String, String> migrateSlotNames() {
+        java.util.LinkedHashMap<String, String> out = new java.util.LinkedHashMap<>();
+        String[][] slots = {
+                {KEY_RUUVI_MAC_BEDROOM, "mobile_sensor_name_bedroom", "Anturi 1"},
+                {KEY_RUUVI_MAC_LIVINGROOM, "mobile_sensor_name_livingroom", "Anturi 2"},
+                {KEY_RUUVI_MAC_BALCONY, "mobile_sensor_name_balcony", "Anturi 3"},
+        };
+        for (String[] s : slots) {
+            String mac = sp().getString(s[0], null);
+            if (mac == null || mac.trim().isEmpty()) continue;
+            String name = sp().getString(s[1], s[2]);
+            if (name == null || name.trim().isEmpty()) name = s[2];
+            out.put(mac.trim().toUpperCase(Locale.ROOT), name.trim());
+        }
+        return out;
+    }
+
     // ---- Listenerit ----
     public void registerListener(SharedPreferences.OnSharedPreferenceChangeListener l) {
         sp().registerOnSharedPreferenceChangeListener(l);
