@@ -396,6 +396,15 @@ internal fun lastKnownLocation(context: Context): Location? {
 private fun hasGranted(context: Context, perm: String): Boolean =
     ContextCompat.checkSelfPermission(context, perm) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
+/** Lähde-erittelyn nimi: sovelluksen nimi PackageManagerista jos asennettu, muuten paketinimi.
+ *  Yleismaallinen — toimii mille tahansa HC:hen kirjoittavalle sovellukselle/laitemerkille. */
+private fun appLabel(context: Context, pkg: String): String = try {
+    val pm = context.packageManager
+    pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+} catch (e: Exception) {
+    pkg
+}
+
 private const val LOCATION_MAX_AGE_MS = 10L * 60_000L
 private const val CURRENT_LOCATION_TIMEOUT_MS = 8_000L
 private const val MAX_AUTO_LOCATION_ACCURACY_M = 1500f
@@ -487,6 +496,8 @@ internal fun StepsSection() {
 
     var tab by remember { mutableStateOf(0) }
     var todaySteps by remember { mutableStateOf(0L) }
+    var sourcePkgs by remember { mutableStateOf(arrayOf<String>()) }
+    var sourceSteps by remember { mutableStateOf(LongArray(0)) }
     var lastRefreshMs by remember { mutableStateOf(0L) }
     var refreshTrigger by remember { mutableStateOf(0) }
     var profileTick by remember { mutableStateOf(0) }
@@ -538,6 +549,20 @@ internal fun StepsSection() {
             }
         } else if (rawAvailable) {
             todaySteps = stepCounter.currentTodaySteps().toLong()
+        }
+    }
+
+    // Tänään: per-lähde-erittely (vain HC-lähteellä). Yleismaallinen — listaa kaikki HC:hen
+    // kirjoittaneet sovellukset dataOriginin mukaan, laitemerkistä riippumatta.
+    LaunchedEffect(enabled, useHc, refreshTrigger) {
+        if (enabled && useHc) {
+            HealthConnectStepsBridge.todayStepsBySource(context) { pkgs, steps ->
+                sourcePkgs = pkgs
+                sourceSteps = steps
+            }
+        } else {
+            sourcePkgs = arrayOf()
+            sourceSteps = LongArray(0)
         }
     }
 
@@ -671,6 +696,58 @@ internal fun StepsSection() {
                         }
                     },
                 )
+                if (useHc) {
+                    Spacer(Modifier.height(14.dp))
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "Lähteet (Health Connect)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            if (sourcePkgs.isEmpty()) {
+                                Text(
+                                    "Yksikään sovellus ei ole kirjannut askeleita Health Connectiin tänään. " +
+                                        "Askeleet näkyvät tässä vasta kun lähdesovellus (esim. kellon, " +
+                                        "sormuksen tai puhelimen terveyssovellus) synkkaa datansa Health " +
+                                        "Connectiin — tarkista sovelluksen HC-kirjoitusluvat ja avaa se " +
+                                        "kerran, niin synkka käynnistyy.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                sourcePkgs.forEachIndexed { i, pkg ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp),
+                                    ) {
+                                        Text(
+                                            appLabel(context, pkg),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text(
+                                            sourceSteps.getOrElse(i) { 0L }.toString() + " askelta",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "Askelluku yllä on Health Connectin yhdistämä summa, josta päällekkäiset " +
+                                        "lähteet on poistettu. Tässä kunkin sovelluksen itse kirjaamat askeleet — " +
+                                        "luvut voivat mitata samoja askelia. Lähteiden tärkeysjärjestystä voi " +
+                                        "muuttaa Health Connectin asetuksista.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
             } else {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Text(

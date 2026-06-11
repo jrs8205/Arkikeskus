@@ -22,6 +22,15 @@ object AppUpdater {
     private const val API = "https://api.github.com/repos/jrs8205/Arkikeskus/releases/latest"
     const val REPO_URL = "https://github.com/jrs8205/Arkikeskus"
 
+    // Automaattinen tarkistus käynnistyksessä: verkkokutsu max 6 h välein, mutta löydetty
+    // versio talletetaan prefseihin → banneri näkyy heti myös välikäynnistyksillä.
+    const val PREF_LAST_AUTO_CHECK = "appupdate_last_check_ms"
+    const val PREF_AVAILABLE_VERSION = "appupdate_available_version"
+    const val PREF_AVAILABLE_URL = "appupdate_available_url"
+    const val PREF_AVAILABLE_HTML = "appupdate_available_html"
+    const val PREF_DISMISSED_VERSION = "appupdate_dismissed_version"
+    const val AUTO_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000
+
     private val main = Handler(Looper.getMainLooper())
 
     data class ReleaseInfo(val tag: String, val versionName: String, val apkUrl: String?, val htmlUrl: String)

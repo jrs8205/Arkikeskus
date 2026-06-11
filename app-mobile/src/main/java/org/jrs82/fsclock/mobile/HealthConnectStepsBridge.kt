@@ -10,6 +10,7 @@ import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +44,7 @@ object HealthConnectStepsBridge {
 
     fun interface BoolCallback { fun onResult(value: Boolean) }
     fun interface StepsCallback { fun onResult(steps: Long) }
+    fun interface SourcesCallback { fun onResult(packages: Array<String>, steps: LongArray) }
     fun interface HistoryCallback { fun onResult(labels: Array<String>, values: LongArray) }
     fun interface CaloriesCallback { fun onResult(activeKcal: Double, totalKcal: Double, has: Boolean) }
     fun interface CalorieHistoryCallback {
@@ -119,6 +121,46 @@ object HealthConnectStepsBridge {
                 -1L
             }
             cb.onResult(steps)
+        }
+    }
+
+    /** Tämän päivän askeleet LÄHTEITTÄIN (readRecords ryhmiteltynä dataOrigin-paketin mukaan).
+     *  Yleismaallinen: listaa kaikki HC:hen kirjoittaneet sovellukset mitä laitteita käyttäjällä
+     *  onkaan — ei kovakoodattuja merkkejä. Per-lähde-summat ovat raakasummia, jotka voivat olla
+     *  päällekkäisiä keskenään; ne EIVÄT summaudu HC:n dedupoituun kokonaislukuun (todaySteps). */
+    @JvmStatic
+    fun todayStepsBySource(context: Context, cb: SourcesCallback) {
+        if (!isAvailable(context)) { cb.onResult(emptyArray(), LongArray(0)); return }
+        scope.launch {
+            val sums = LinkedHashMap<String, Long>()
+            try {
+                val client = HealthConnectClient.getOrCreate(context)
+                var pageToken: String? = null
+                do {
+                    val resp = client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = StepsRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(
+                                LocalDate.now().atStartOfDay(), LocalDateTime.now()
+                            ),
+                            pageSize = 1000,
+                            pageToken = pageToken
+                        )
+                    )
+                    for (r in resp.records) {
+                        val pkg = r.metadata.dataOrigin.packageName
+                        sums[pkg] = (sums[pkg] ?: 0L) + r.count
+                    }
+                    pageToken = resp.pageToken
+                } while (pageToken != null)
+            } catch (e: Exception) {
+                // virhe → palautetaan siihen asti kerätty (tai tyhjä)
+            }
+            val sorted = sums.entries.sortedByDescending { it.value }
+            cb.onResult(
+                sorted.map { it.key }.toTypedArray(),
+                LongArray(sorted.size) { i -> sorted[i].value }
+            )
         }
     }
 
