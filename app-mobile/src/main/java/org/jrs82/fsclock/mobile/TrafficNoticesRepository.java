@@ -58,7 +58,11 @@ final class TrafficNoticesRepository {
             if (kind != null && kind != TrafficNotice.Kind.ALL && notice.kind != kind) continue;
             if (notice.endTimeMs > 0L && notice.endTimeMs < now) continue;
             if (isShortLivedKind(notice.kind)) {
-                if (notice.startTimeMs > 0L && now - notice.startTimeMs > INCIDENT_MAX_AGE_MS) continue;
+                // 12 h -ikäraja koskee vain tiedotteita ILMAN voimassa olevaa kestoa: jos
+                // päättymisaika on tulevaisuudessa ("Tilanne jatkuu"), tiedote on yhä aktiivinen.
+                boolean ongoing = notice.endTimeMs > now;
+                if (!ongoing && notice.startTimeMs > 0L
+                        && now - notice.startTimeMs > INCIDENT_MAX_AGE_MS) continue;
             } else {
                 if (notice.startTimeMs > 0L && notice.startTimeMs - now > MAX_UPCOMING_MS) continue;
             }

@@ -254,7 +254,15 @@ internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
             notices = emptyList()
         } else {
             notices = result
-            status = "Lähialue: noin 50 km säde"
+            // Kerro käyttäjälle täsmälleen mitä näytetään (säde, aikaikkuna, lähde).
+            status = when (kind) {
+                TrafficNotice.Kind.ROAD_WORK ->
+                    "Käynnissä olevat ja 30 vrk sisällä alkavat tietyöt noin 50 km säteellä sijainnistasi (Fintraffic)"
+                TrafficNotice.Kind.WEIGHT_RESTRICTION ->
+                    "Voimassa olevat painorajoitukset noin 50 km säteellä sijainnistasi (Fintraffic)"
+                else ->
+                    "Aktiiviset tiedotteet noin 50 km säteellä sijainnistasi — viimeiset 12 h tai voimassa oleva kesto (Fintraffic)"
+            }
         }
     }
     Column(
