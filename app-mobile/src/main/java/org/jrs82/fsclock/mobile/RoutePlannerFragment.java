@@ -243,14 +243,19 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         sheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override public void onStateChanged(@NonNull View bottomSheet, int newState) {
                 updateMapPadding();
+                adjustSheetContentPadding(bottomSheet);
                 if (newState == BottomSheetBehavior.STATE_COLLAPSED) fitPendingRouteIfReady();
             }
 
             @Override public void onSlide(@NonNull View bottomSheet, float slideOffset) {
                 updateMapPadding();
+                adjustSheetContentPadding(bottomSheet);
             }
         });
-        sheetView.post(this::updateMapPadding);
+        sheetView.post(() -> {
+            updateMapPadding();
+            if (sheetView != null) adjustSheetContentPadding(sheetView);
+        });
 
         backCallback = new OnBackPressedCallback(false) {
             @Override public void handleOnBackPressed() { closeDetail(); }
@@ -613,7 +618,12 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                     if (directOnly && !r.isEmpty()) msg = "Ei suoria reittejä tällä haulla — salli vaihdot tai vaihda kulkuvälinettä.";
                     else if (!mode.isEmpty()) msg = "Ei reittejä valitulla kulkuvälineellä.";
                     showStatus(msg);
-                } else hideStatus();
+                } else {
+                    hideStatus();
+                    // HSL-malli: reittiehdotukset koko korkeudella (puoliasennossa alin kortti
+                    // leikkautuisi alapalkkiin); karttaan pääsee vetämällä alas / valitsemalla reitin.
+                    if (sheetBehavior != null) sheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                }
             });
         });
     }
@@ -649,6 +659,22 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             fitPendingRouteIfReady();
         } else if (sheetView != null) {
             sheetView.postDelayed(this::fitPendingRouteIfReady, 260L);
+        }
+    }
+
+    /** Sheet on koko kontin korkuinen → puoliasennossa sen alaosa jatkuu alapalkin alle.
+     *  Pidetään listasisältö näkyvällä alueella säätämällä alapehmuste sheetin yläreunan
+     *  (= piiloon jäävän osan korkeuden) mukaan. clipToPadding=false on jo layoutissa. */
+    private void adjustSheetContentPadding(View bottomSheet) {
+        int off = Math.max(0, bottomSheet.getTop());
+        int base = dpPx(20);
+        if (list != null) {
+            list.setPadding(list.getPaddingLeft(), list.getPaddingTop(),
+                    list.getPaddingRight(), base + off);
+        }
+        if (detailList != null) {
+            detailList.setPadding(detailList.getPaddingLeft(), detailList.getPaddingTop(),
+                    detailList.getPaddingRight(), base + off);
         }
     }
 
