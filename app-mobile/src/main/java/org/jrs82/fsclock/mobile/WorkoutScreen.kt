@@ -748,6 +748,23 @@ private fun WorkoutMap(state: WorkoutTracker.UiState, modifier: Modifier = Modif
                 routeSource = route
                 splitSource = splits
                 posSource = pos
+
+                // Alkukamera HETI: ilman tätä kartta jää maailmanzoomille kunnes ensimmäinen
+                // GPS-fix tulee (sisätiloissa voi kestää) — "Suomi kuusta katsottuna" -bugi.
+                val st = WorkoutTracker.state.value
+                val start = if (!st.currentLat.isNaN() && !st.currentLon.isNaN()) {
+                    org.maplibre.android.geometry.LatLng(st.currentLat, st.currentLon)
+                } else {
+                    lastKnownLatLng(mapView.context)
+                }
+                if (start != null) {
+                    m.moveCamera(org.maplibre.android.camera.CameraUpdateFactory
+                        .newLatLngZoom(start, followZoom))
+                    // zoomInitialized jätetään falseksi → ensimmäinen oikea fix kohdistaa vielä.
+                } else {
+                    m.moveCamera(org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(
+                        org.maplibre.android.geometry.LatLng(64.5, 26.0), 4.5))
+                }
             }
         }
     }
@@ -820,6 +837,21 @@ private fun WorkoutMap(state: WorkoutTracker.UiState, modifier: Modifier = Modif
                 }
             }
         }
+    }
+}
+
+/** Viimeksi tunnettu sijainti karttakameran alkuasemointiin (GPS ensisijaisesti, sitten verkko). */
+private fun lastKnownLatLng(context: android.content.Context): org.maplibre.android.geometry.LatLng? {
+    return try {
+        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE)
+            as android.location.LocationManager
+        val loc = lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+            ?: lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+        loc?.let { org.maplibre.android.geometry.LatLng(it.latitude, it.longitude) }
+    } catch (e: SecurityException) {
+        null
+    } catch (e: Exception) {
+        null
     }
 }
 
