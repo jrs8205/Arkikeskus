@@ -10,6 +10,9 @@
 ## (Unsafe, valinnaiset codecit) eikä tuo omia consumer-sääntöjä.
 -keep class com.hivemq.** { *; }
 -keep class io.netty.** { *; }
+# JCTools (HiveMQ:n jonototeutus) hakee consumerIndex/producerIndex-kentät reflektiolla
+# → ilman keepiä ExceptionInInitializerError MQTT-connectissa (todettu laitteella 11.6.2026)
+-keep class org.jctools.** { *; }
 -dontwarn com.hivemq.**
 -dontwarn io.netty.**
 -dontwarn org.jctools.**
