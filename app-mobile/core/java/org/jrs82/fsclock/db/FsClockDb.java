@@ -11,8 +11,9 @@ import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
 @Database(
-    entities = {WeatherSample.class, DailyStat.class, RuuviSampleEntity.class, DailyStepsEntity.class},
-    version = 4,
+    entities = {WeatherSample.class, DailyStat.class, RuuviSampleEntity.class, DailyStepsEntity.class,
+                WorkoutEntity.class, WorkoutPointEntity.class, WorkoutSplitEntity.class},
+    version = 5,
     autoMigrations = {
         @AutoMigration(from = 2, to = 3)
     },
@@ -24,6 +25,7 @@ public abstract class FsClockDb extends RoomDatabase {
     public abstract DailyStatDao dailyStatDao();
     public abstract RuuviSamplesDao ruuviSamplesDao();
     public abstract DailyStepsDao dailyStepsDao();
+    public abstract WorkoutDao workoutDao();
 
     static final Migration MIGRATION_1_2 = new Migration(1, 2) {
         @Override
@@ -40,6 +42,40 @@ public abstract class FsClockDb extends RoomDatabase {
         }
     };
 
+    // Lenkkiseuranta: workouts + workout_points + workout_splits. Sarakkeet täsmälleen
+    // entiteettien mukaan (Room validoi skeeman avattaessa).
+    static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS workouts ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+                    + "type INTEGER NOT NULL, status INTEGER NOT NULL, "
+                    + "startedAtMs INTEGER NOT NULL, endedAtMs INTEGER, "
+                    + "movingTimeMs INTEGER NOT NULL, distanceM REAL NOT NULL, "
+                    + "maxSpeedMps REAL NOT NULL, steps INTEGER NOT NULL, "
+                    + "stepBaselineCum REAL NOT NULL, stepCommitted INTEGER NOT NULL, "
+                    + "lastCumSeen REAL NOT NULL, stepsExcluded INTEGER NOT NULL, "
+                    + "elevGainM REAL NOT NULL, elevLossM REAL NOT NULL, "
+                    + "kcal INTEGER NOT NULL, autoStopped INTEGER NOT NULL, "
+                    + "pauseStartedMs INTEGER, updatedAtMs INTEGER NOT NULL)");
+            db.execSQL("CREATE TABLE IF NOT EXISTS workout_points ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+                    + "workoutId INTEGER NOT NULL, tMs INTEGER NOT NULL, "
+                    + "lat REAL NOT NULL, lon REAL NOT NULL, altM REAL, "
+                    + "speedMps REAL NOT NULL, accuracyM REAL NOT NULL, "
+                    + "segment INTEGER NOT NULL)");
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_points_workoutId "
+                    + "ON workout_points(workoutId)");
+            db.execSQL("CREATE TABLE IF NOT EXISTS workout_splits ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+                    + "workoutId INTEGER NOT NULL, splitIndex INTEGER NOT NULL, "
+                    + "durationMs INTEGER NOT NULL, "
+                    + "endLat REAL NOT NULL, endLon REAL NOT NULL)");
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_splits_workoutId "
+                    + "ON workout_splits(workoutId)");
+        }
+    };
+
     private static volatile FsClockDb instance;
 
     public static FsClockDb get(Context context) {
@@ -50,7 +86,7 @@ public abstract class FsClockDb extends RoomDatabase {
                         context.getApplicationContext(),
                         FsClockDb.class,
                         "fsclock.db"
-                    ).addMigrations(MIGRATION_1_2, MIGRATION_3_4).build();
+                    ).addMigrations(MIGRATION_1_2, MIGRATION_3_4, MIGRATION_4_5).build();
                 }
             }
         }

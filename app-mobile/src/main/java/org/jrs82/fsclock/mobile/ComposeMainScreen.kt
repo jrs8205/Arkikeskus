@@ -211,6 +211,7 @@ enum class HomeSection(val title: String) {
     ROUTE_PLANNER("Reittihaku"),
     SPEEDOMETER("GPS-nopeus"),
     STEPS("Askeleet"),
+    WORKOUT("Lenkki"),
     NEWS("Uutiset"),
     ELECTRICITY("Pörssisähkö"),
     TELETEXT("Teksti-TV"),
@@ -473,6 +474,7 @@ fun ComposeMainScreen() {
                     HomeSection.FORECAST -> ForecastSection()
                     HomeSection.PLACES -> PlacesSection(onPlaceChosen = { section = HomeSection.HOME })
                     HomeSection.STEPS -> StepsSection()
+                    HomeSection.WORKOUT -> WorkoutScreen()
                     HomeSection.SENSORS -> SensorsSection()
                     HomeSection.ELECTRICITY -> ElectricitySection()
                     HomeSection.NEWS -> NewsSection()
@@ -570,11 +572,14 @@ private fun DrawerContent(
             DrawerItem(HomeSection.TELETEXT, current, onSelect)
             DrawerItem(HomeSection.TV_GUIDE, current, onSelect)
 
+            DrawerHeader("Liikunta", R.drawable.mobile_ic_apps_24)
+            DrawerItem(HomeSection.WORKOUT, current, onSelect)
+            DrawerItem(HomeSection.STEPS, current, onSelect)
+            DrawerItem(HomeSection.SPEEDOMETER, current, onSelect)
+
             DrawerHeader("Muut", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
             DrawerItem(HomeSection.NEWS, current, onSelect)
-            DrawerItem(HomeSection.SPEEDOMETER, current, onSelect)
-            DrawerItem(HomeSection.STEPS, current, onSelect)
             DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
             // Asetukset siirretty alapalkkiin (ratas oikeassa reunassa) — löydettävyys.
 
