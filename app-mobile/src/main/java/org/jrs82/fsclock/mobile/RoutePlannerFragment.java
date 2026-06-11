@@ -192,6 +192,12 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         toClear.setOnClickListener(v -> clearField(2));
 
         searchBox = view.findViewById(R.id.route_search_box);
+        filterRow = view.findViewById(R.id.route_filter_row);
+        android.content.SharedPreferences fp =
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext());
+        planTransitMode = fp.getString(KEY_ROUTE_MODE_FILTER, "");
+        planDirectOnly = fp.getBoolean(KEY_ROUTE_DIRECT_ONLY, false);
+        buildFilterChips();
         detailTitle = view.findViewById(R.id.route_detail_title);
         detailSummary = view.findViewById(R.id.route_detail_summary);
         detailList = view.findViewById(R.id.route_detail_list);
@@ -456,6 +462,74 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         }
     }
 
+    // --- Suodattimet: kulkuväline + vain suorat ---
+
+    private static final String KEY_ROUTE_MODE_FILTER = "route_mode_filter";
+    private static final String KEY_ROUTE_DIRECT_ONLY = "route_direct_only";
+    private android.widget.LinearLayout filterRow;
+    private String planTransitMode = "";   // "" = kaikki; BUS/RAIL/TRAM/SUBWAY/FERRY
+    private boolean planDirectOnly = false;
+
+    private void buildFilterChips() {
+        if (filterRow == null || !isAdded()) return;
+        filterRow.removeAllViews();
+        String[][] modes = {
+                {"", "Kaikki"}, {"BUS", "Bussi"}, {"RAIL", "Juna"},
+                {"TRAM", "Ratikka"}, {"SUBWAY", "Metro"}, {"FERRY", "Lautta"}};
+        for (String[] m : modes) {
+            final String mode = m[0];
+            filterRow.addView(makeFilterChip(m[1], mode.equals(planTransitMode), v -> {
+                planTransitMode = mode;
+                persistRouteFilters();
+                buildFilterChips();
+                if (bothEndsReady()) doSearch();
+            }));
+        }
+        filterRow.addView(makeFilterChip("Vain suorat", planDirectOnly, v -> {
+            planDirectOnly = !planDirectOnly;
+            persistRouteFilters();
+            buildFilterChips();
+            if (bothEndsReady()) doSearch();
+        }));
+    }
+
+    private android.view.View makeFilterChip(String label, boolean selected,
+                                             android.view.View.OnClickListener onClick) {
+        android.widget.TextView t = new android.widget.TextView(requireContext());
+        float dp = getResources().getDisplayMetrics().density;
+        t.setText(label);
+        t.setTextSize(13f);
+        t.setTypeface(null, selected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        t.setPadding((int) (12 * dp), (int) (7 * dp), (int) (12 * dp), (int) (7 * dp));
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(18 * dp);
+        if (selected) {
+            bg.setColor(0xFF1A73E8);
+            t.setTextColor(0xFFFFFFFF);
+        } else {
+            bg.setColor(0x00000000);
+            bg.setStroke((int) (1 * dp), androidx.core.content.ContextCompat.getColor(
+                    requireContext(), R.color.mobile_text_muted));
+            t.setTextColor(androidx.core.content.ContextCompat.getColor(
+                    requireContext(), R.color.mobile_text_primary));
+        }
+        t.setBackground(bg);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMarginEnd((int) (8 * dp));
+        t.setLayoutParams(lp);
+        t.setOnClickListener(onClick);
+        return t;
+    }
+
+    private void persistRouteFilters() {
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(requireContext()).edit()
+                .putString(KEY_ROUTE_MODE_FILTER, planTransitMode)
+                .putBoolean(KEY_ROUTE_DIRECT_ONLY, planDirectOnly)
+                .apply();
+    }
+
     // --- Reittihaku ---
 
     private void doSearch() {
@@ -511,18 +585,33 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         adapter.submit(new ArrayList<>());
         final String iso = isoFor(timeEpochMs);
         final boolean arr = arriveBy;
+        final String mode = planTransitMode;
+        final boolean directOnly = planDirectOnly;
         searchIo.execute(() -> {
             List<Itinerary> res;
-            try { res = DigitransitApi.planRoutes(fromLat, fromLon, toLat, toLon, iso, arr, 5); }
+            try {
+                // Vain suorat -tilassa haetaan isompi joukko, jotta suodatuksen jälkeenkin jää ehdotuksia.
+                res = DigitransitApi.planRoutes(fromLat, fromLon, toLat, toLon, iso, arr,
+                        directOnly ? 10 : 5, mode.isEmpty() ? null : mode);
+            }
             catch (Exception e) { res = null; }
             final List<Itinerary> r = res;
             ui.post(() -> {
                 if (!hasLiveView() || !sectionVisible || request != planGeneration || adapter == null) return;
                 if (r == null) { showStatus("Reittihaku epäonnistui. Yritä uudelleen."); return; }
-                itineraries = r;
-                adapter.submit(r);
-                if (r.isEmpty()) showStatus("Ei reittejä tälle välille tai ajalle.");
-                else hideStatus();
+                List<Itinerary> shown = r;
+                if (directOnly) {
+                    shown = new ArrayList<>();
+                    for (Itinerary it : r) if (it.transfers == 0) shown.add(it);
+                }
+                itineraries = shown;
+                adapter.submit(shown);
+                if (shown.isEmpty()) {
+                    String msg = "Ei reittejä tälle välille tai ajalle.";
+                    if (directOnly && !r.isEmpty()) msg = "Ei suoria reittejä tällä haulla — salli vaihdot tai vaihda kulkuvälinettä.";
+                    else if (!mode.isEmpty()) msg = "Ei reittejä valitulla kulkuvälineellä.";
+                    showStatus(msg);
+                } else hideStatus();
             });
         });
     }
