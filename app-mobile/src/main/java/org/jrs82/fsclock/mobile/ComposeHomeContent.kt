@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -194,7 +195,7 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                             HomeWidget.CLOCK.id -> HomeClockWidget()
                             HomeWidget.HOLIDAY.id -> HomeHolidayWidget()
                             HomeWidget.WEATHER.id -> HomeWeatherWidget(prefs)
-                            HomeWidget.ELECTRICITY.id -> HomeElectricityWidget(prefs)
+                            HomeWidget.ELECTRICITY.id -> HomeElectricityWidget(prefs, onOpenElectricity = { onOpenSection(HomeSection.ELECTRICITY) })
                             HomeWidget.WARNINGS.id -> HomeWarningsCard()
                             HomeWidget.SENSORS.id -> HomeSensorsWidget(prefs)
                             HomeWidget.TRAFFIC.id -> HomeTrafficCard(onOpenTraffic = { onOpenSection(HomeSection.TRAFFIC_INCIDENTS) })
@@ -304,7 +305,7 @@ private fun HomeWeatherWidget(prefs: SharedPreferences) {
 }
 
 @Composable
-private fun HomeElectricityWidget(prefs: SharedPreferences) {
+private fun HomeElectricityWidget(prefs: SharedPreferences, onOpenElectricity: () -> Unit) {
     val context = LocalContext.current
     val refresh = LocalRefreshTick.current
     val elecRepo = remember { ElectricityRepository.get(context) }
@@ -319,7 +320,7 @@ private fun HomeElectricityWidget(prefs: SharedPreferences) {
         }
         elecTick++
     }
-    ElectricityCard(prefs, elecRepo, elecTick)
+    ElectricityCard(prefs, elecRepo, elecTick, onOpenElectricity)
 }
 
 @Composable
@@ -637,7 +638,7 @@ private fun ChipIconRow(iconRes: Int, text: String) {
 }
 
 @Composable
-private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepository, tick: Int) {
+private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepository, tick: Int, onOpenElectricity: (() -> Unit)? = null) {
     val settingsRevision = LocalHomeDataRevision.current
     val q = remember(tick) { repo.currentQuarter() }
     val notice = remember(tick, settingsRevision) { cheapNotice(prefs, repo) }
@@ -645,7 +646,12 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val arki = ArkiTheme.colors
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Pörssisähkö", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Pörssisähkö", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (onOpenElectricity != null) {
+                    TextButton(onClick = onOpenElectricity) { Text("Kaikki") }
+                }
+            }
             Spacer(Modifier.height(8.dp))
             if (q == null) {
                 Text("Nykyistä varttihintaa ei ole vielä saatavilla", style = MaterialTheme.typography.bodyLarge)
@@ -1232,7 +1238,11 @@ internal fun ForecastSection() {
                 }
             }
             Spacer(Modifier.height(12.dp))
-            val rows = w.hours.filter { dayKey(it.timestamp) == selectedDay }
+            // dayKey(ts − 1 ms) poimii mukaan myös seuraavan vuorokauden 00:00-rivin,
+            // jotta valitun päivän lista päättyy keskiyöhön eikä 23:00:aan.
+            val rows = w.hours.filter {
+                dayKey(it.timestamp) == selectedDay || dayKey(it.timestamp - 1L) == selectedDay
+            }
             if (rows.isEmpty()) {
                 Text("Tälle päivälle ei löytynyt tuntirivejä.", style = MaterialTheme.typography.bodyMedium)
             } else {
@@ -1548,7 +1558,8 @@ private fun remainingHours(weather: WeatherData?): List<WeatherData.Hour> {
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
-    return hours.filter { it.timestamp >= now - 30L * 60_000L && it.timestamp < end }
+    // <= end: myös vuorokauden vaihteen 00:00-tunti mukaan (muuten lista loppuu 23:00:aan)
+    return hours.filter { it.timestamp >= now - 30L * 60_000L && it.timestamp <= end }
 }
 
 private fun weatherDetailLines(c: WeatherData.Current): List<String> {
