@@ -29,6 +29,10 @@ class MobileComposeMainActivity : AppCompatActivity() {
      *  asetuksissa, [onResume] recreatee Activityn → uusi väriteema otetaan käyttöön. */
     private var appliedDynamicColor = false
 
+    /** Ulkoinen navigointipyyntö (lenkkinotifikaation napautus / lenkin palautus avauksessa).
+     *  ComposeMainScreen kuluttaa arvon ja nollaa sen. */
+    private val externalSection = androidx.compose.runtime.mutableStateOf<String?>(null)
+
     /** Sijaintiluvan kysyntä ensikäynnistyksessä. Tulos käsitellään automaattisesti
      *  seuraavalla resume/päivityksellä ([maybeRefreshDeviceLocation]); ei tarvita callbackia. */
     private val locationPermissionLauncher =
@@ -51,11 +55,42 @@ class MobileComposeMainActivity : AppCompatActivity() {
         SettingsManager.get().init(applicationContext)
         appliedDynamicColor = MobileThemeController.dynamicColor(this)
         maybeAskInitialLocationPermission()
+        externalSection.value = intent?.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
+        maybeRecoverWorkout()
         setContent {
             ArkikeskusTheme(dynamicColor = appliedDynamicColor) {
-                ComposeMainScreen()
+                ComposeMainScreen(externalSection = externalSection)
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)?.let {
+            externalSection.value = it
+        }
+    }
+
+    /** Sovelluksen avaus kun kannassa on keskeneräinen lenkki mutta seuranta ei ole muistissa
+     *  (prosessi ehti kuolla eikä järjestelmä restartannut palvelua): käynnistetään palvelu
+     *  RECOVER-tilassa (sallittua — ollaan etualalla). recover() finalisoi vanhentuneet jäänteet
+     *  itse; vain tuore lenkki avaa Lenkki-sivun automaattisesti. */
+    private fun maybeRecoverWorkout() {
+        if (WorkoutTracker.state.value.phase != WorkoutTracker.Phase.IDLE) return
+        Thread {
+            try {
+                val active = org.jrs82.fsclock.db.FsClockDb.get(applicationContext)
+                    .workoutDao().activeWorkout()
+                if (active != null) {
+                    val fresh = System.currentTimeMillis() - active.updatedAtMs < 10L * 60_000L
+                    runOnUiThread {
+                        WorkoutTrackingService.command(this, WorkoutTrackingService.ACTION_RECOVER)
+                        if (fresh) externalSection.value = "WORKOUT"
+                    }
+                }
+            } catch (e: Exception) { }
+        }.start()
     }
 
     /**

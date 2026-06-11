@@ -227,7 +227,9 @@ private val HomeSectionSaver = Saver<HomeSection, String>(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ComposeMainScreen() {
+fun ComposeMainScreen(
+    externalSection: androidx.compose.runtime.MutableState<String?>? = null,
+) {
     val context = LocalContext.current
     // rememberSaveable → valittu sektio säilyy Activityn uudelleenluonnissa (esim. dynamic-color-/teemanvaihto),
     // jolloin hostatut fragmentit (kelikamerat/lähilähdöt/reittihaku) eivät jää orvoiksi näkymättömään konttiin.
@@ -351,6 +353,17 @@ fun ComposeMainScreen() {
         }
         prefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
+    // Ulkoinen navigointipyyntö (lenkkinotifikaation napautus / lenkin palautus avauksessa).
+    LaunchedEffect(externalSection?.value) {
+        val name = externalSection?.value ?: return@LaunchedEffect
+        runCatching { HomeSection.valueOf(name) }.getOrNull()?.let {
+            section = it
+            menuOpen = false
+            settingsOpen = false
+        }
+        externalSection.value = null
     }
 
     // Takaisin-ele/nappi: sektiosta palataan ensin etusivulle, ja vasta etusivulta takaisin

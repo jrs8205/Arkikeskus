@@ -6,7 +6,15 @@ import android.os.Build
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +22,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,6 +38,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -35,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -105,6 +118,17 @@ private fun StartWorkoutView(
             PackageManager.PERMISSION_GRANTED
 
     var pendingStart by remember { mutableStateOf(false) }
+    // GPS-lähtölaskuri (käyttäjän toive): lupien jälkeen 10 s sykkivä ympyrä, jonka aikana
+    // GPS hakee signaalin; fix tai 0 → "Aloita!" ja seuranta käynnistyy.
+    var countdown by remember { mutableStateOf(-1) }
+    var gotFix by remember { mutableStateOf(false) }
+    var ready by remember { mutableStateOf(false) }
+
+    fun beginCountdown() {
+        gotFix = false
+        ready = false
+        countdown = 10
+    }
 
     val activityLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -112,7 +136,7 @@ private fun StartWorkoutView(
         // Askellupa on valinnainen — käynnistetään joka tapauksessa.
         if (pendingStart) {
             pendingStart = false
-            WorkoutTrackingService.start(context, type)
+            beginCountdown()
         }
     }
     val notifLauncher = rememberLauncherForActivityResult(
@@ -125,7 +149,7 @@ private fun StartWorkoutView(
                 activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
             } else {
                 pendingStart = false
-                WorkoutTrackingService.start(context, type)
+                beginCountdown()
             }
         }
     }
@@ -148,7 +172,7 @@ private fun StartWorkoutView(
             activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         } else {
             pendingStart = false
-            WorkoutTrackingService.start(context, type)
+            beginCountdown()
         }
     }
 
@@ -171,8 +195,49 @@ private fun StartWorkoutView(
             pendingStart = true
             activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         } else {
-            WorkoutTrackingService.start(context, type)
+            beginCountdown()
         }
+    }
+
+    if (countdown >= 0) {
+        // GPS-lämmittely: kuunnellaan fixiä laskurin ajan (palvelu ottaa GPS:n haltuunsa startissa).
+        DisposableEffect(Unit) {
+            val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE)
+                as android.location.LocationManager
+            val listener = object : android.location.LocationListener {
+                override fun onLocationChanged(l: android.location.Location) { gotFix = true }
+                @Deprecated("Deprecated in Java")
+                override fun onStatusChanged(p: String?, s: Int, e: android.os.Bundle?) { }
+                override fun onProviderEnabled(p: String) { }
+                override fun onProviderDisabled(p: String) { }
+            }
+            try {
+                lm.requestLocationUpdates(
+                    android.location.LocationManager.GPS_PROVIDER, 1000L, 0f,
+                    listener, android.os.Looper.getMainLooper(),
+                )
+            } catch (e: SecurityException) { }
+            onDispose { try { lm.removeUpdates(listener) } catch (e: Exception) { } }
+        }
+        // Laskuri käy AINA loppuun asti (käyttäjän toive) — GPS-löytö päivittää vain tekstin.
+        LaunchedEffect(countdown) {
+            if (countdown > 0) {
+                delay(1000L)
+                countdown--
+            } else if (countdown == 0) {
+                ready = true
+                delay(800L)
+                countdown = -1
+                WorkoutTrackingService.start(context, type)
+            }
+        }
+        CountdownOverlay(
+            seconds = countdown,
+            ready = ready,
+            gotFix = gotFix,
+            onCancel = { countdown = -1 },
+        )
+        return
     }
 
     Column(
@@ -266,6 +331,55 @@ private fun StartWorkoutView(
                 }
             }
         }
+    }
+}
+
+/** Sykkivä lähtölaskuriympyrä: sekunnit isolla, GPS-tila alla, "Aloita!" kun valmis. */
+@Composable
+private fun CountdownOverlay(seconds: Int, ready: Boolean, gotFix: Boolean, onCancel: () -> Unit) {
+    val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
+        initialValue = 1f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(tween(650), RepeatMode.Reverse),
+        label = "scale",
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(190.dp)
+                .graphicsLayer {
+                    scaleX = pulse
+                    scaleY = pulse
+                }
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (ready) "Aloita!" else seconds.toString(),
+                fontSize = if (ready) 40.sp else 76.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+        Spacer(Modifier.height(28.dp))
+        Text(
+            when {
+                ready && gotFix -> "GPS löytyi — lenkki alkaa!"
+                ready -> "Lenkki alkaa — GPS tarkentuu matkalla"
+                gotFix -> "GPS löytyi!"
+                else -> "Haetaan GPS-signaalia…"
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(28.dp))
+        OutlinedButton(onClick = onCancel) { Text("Peruuta") }
     }
 }
 
@@ -434,6 +548,28 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
         }
     }
     val w = workout
+
+    // Koko ruudun kartta (käyttäjän toive: pitkää reittiä pitää voida tutkia kunnolla).
+    var mapFullscreen by remember { mutableStateOf(false) }
+    if (mapFullscreen && points.size >= 2) {
+        androidx.activity.compose.BackHandler { mapFullscreen = false }
+        Box(modifier = Modifier.fillMaxSize()) {
+            SummaryRouteMap(
+                points = points,
+                splits = splits,
+                modifier = Modifier.fillMaxSize(),
+                interactive = true,
+            )
+            FilledTonalButton(
+                onClick = { mapFullscreen = false },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp),
+            ) { Text("Sulje") }
+        }
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -451,13 +587,36 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
         Spacer(Modifier.height(12.dp))
 
         if (points.size >= 2) {
-            SummaryRouteMap(
-                points = points,
-                splits = splits,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(260.dp),
-            )
+            ) {
+                SummaryRouteMap(
+                    points = points,
+                    splits = splits,
+                    modifier = Modifier.fillMaxSize(),
+                    interactive = false,
+                )
+                // Läpinäkyvä napautusalue kartan päällä (MapView nielee kosketukset muuten).
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { mapFullscreen = true },
+                )
+                Text(
+                    "Suurenna napauttamalla",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            RoundedCornerShape(8.dp),
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
             Spacer(Modifier.height(12.dp))
         }
 
@@ -545,14 +704,19 @@ private fun SummaryRouteMap(
     points: List<org.jrs82.fsclock.db.WorkoutPointEntity>,
     splits: List<org.jrs82.fsclock.db.WorkoutSplitEntity>,
     modifier: Modifier = Modifier,
+    interactive: Boolean = false,
 ) {
     val mapView = rememberMapViewWithLifecycle()
     androidx.compose.ui.viewinterop.AndroidView(factory = { mapView }, modifier = modifier)
     LaunchedEffect(mapView, points.size) {
         if (points.size < 2) return@LaunchedEffect
         mapView.getMapAsync { m ->
-            m.uiSettings.isRotateGesturesEnabled = false
-            m.uiSettings.isTiltGesturesEnabled = false
+            if (interactive) {
+                m.uiSettings.isRotateGesturesEnabled = false
+                m.uiSettings.isTiltGesturesEnabled = false
+            } else {
+                m.uiSettings.setAllGesturesEnabled(false)
+            }
             m.setStyle(org.maplibre.android.maps.Style.Builder().fromJson(buildMmlStyleJson())) { style ->
                 // Reittiviiva segmenteittäin
                 val features = ArrayList<org.maplibre.geojson.Feature>()
