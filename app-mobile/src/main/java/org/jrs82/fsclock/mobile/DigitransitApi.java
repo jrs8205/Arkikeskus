@@ -322,11 +322,21 @@ final class DigitransitApi {
      *  "perillä viimeistään", false → "lähde aikaisintaan". Palauttaa reittiehdotukset. */
     static List<Itinerary> planRoutes(double fromLat, double fromLon, double toLat, double toLon,
                                       String dateTimeIso, boolean arriveBy, int first) throws Exception {
+        return planRoutes(fromLat, fromLon, toLat, toLon, dateTimeIso, arriveBy, first, null);
+    }
+
+    /** transitMode = null/tyhjä → kaikki kulkuvälineet; muuten esim. BUS/RAIL/TRAM/SUBWAY/FERRY
+     *  (planConnectionin modes-argumentti rajaa joukkoliikenneosuudet tähän moodiin). */
+    static List<Itinerary> planRoutes(double fromLat, double fromLon, double toLat, double toLon,
+                                      String dateTimeIso, boolean arriveBy, int first,
+                                      String transitMode) throws Exception {
         String dtField = arriveBy ? "latestArrival" : "earliestDeparture";
+        String modes = (transitMode == null || transitMode.isEmpty())
+                ? "" : "modes:{transit:{transit:[{mode:" + transitMode + "}]}},";
         String q = "query{planConnection("
                 + "origin:{location:{coordinate:{latitude:" + fromLat + ",longitude:" + fromLon + "}}},"
                 + "destination:{location:{coordinate:{latitude:" + toLat + ",longitude:" + toLon + "}}},"
-                + "dateTime:{" + dtField + ":\"" + dateTimeIso + "\"},first:" + first + "){"
+                + "dateTime:{" + dtField + ":\"" + dateTimeIso + "\"}," + modes + "first:" + first + "){"
                 + "edges{node{duration numberOfTransfers start end walkDistance "
                 + "legs{mode duration distance start{scheduledTime estimated{time}} "
                 + "end{scheduledTime estimated{time}} from{name stop{code platformCode}} to{name} route{shortName} "
