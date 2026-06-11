@@ -91,7 +91,11 @@ android {
             applicationIdSuffix '.debug'
         }
         release {
-            minifyEnabled false
+            // R8: koodin minifiointi + resurssikarsinta. Keep-säännöt proguard-rules.pro:ssa
+            // (HiveMQ/Netty, Room, MapLibre, Health Connect, fragmentit, custom-View't).
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
     }
