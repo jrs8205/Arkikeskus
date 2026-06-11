@@ -15,6 +15,8 @@
     <color name="mobile_text_secondary">#4B5563</color>
     <color name="mobile_text_muted">#55606E</color>
     <color name="mobile_accent">#1D4ED8</color>
+    <!-- Reittikortin "Lähtee klo X" -korostus (HSL-tyylinen vihreä). -->
+    <color name="mobile_route_depart">#0B7A3B</color>
     <color name="mobile_warning_yellow">#8A6200</color>
     <color name="mobile_warning_orange">#A14E10</color>
     <color name="mobile_warning_red">#C12018</color>

@@ -13,6 +13,8 @@
     <color name="mobile_text_secondary">#B3BCC9</color>
     <color name="mobile_text_muted">#9BA6B6</color>
     <color name="mobile_accent">#76A9FF</color>
+    <!-- Reittikortin "Lähtee klo X" -korostus (HSL-tyylinen vihreä, tumma tausta). -->
+    <color name="mobile_route_depart">#3DD375</color>
     <color name="mobile_warning_yellow">#FFE066</color>
     <color name="mobile_warning_orange">#FFB060</color>
     <color name="mobile_warning_red">#FF6E66</color>
