@@ -31,15 +31,31 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:textColor="@color/mobile_text_muted"
-            android:textSize="12sp" />
+            android:textColor="@color/mobile_text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/route_itin_legs"
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/route_itin_legs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <!-- "Lähtee klo 13:42 pysäkiltä X" — aika korostettuna (täytetään koodista). -->
+    <TextView
+        android:id="@+id/itin_departure"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal" />
+        android:textColor="@color/mobile_text_muted"
+        android:textSize="13sp" />
 </LinearLayout>

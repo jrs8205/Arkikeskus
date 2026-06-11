@@ -83,9 +83,15 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             Itinerary it = (Itinerary) item;
             ItineraryVH vh = (ItineraryVH) holder;
             vh.time.setText(clock(it.startEpochMs) + " – " + clock(it.endEpochMs));
-            vh.meta.setText(minutes(it.durationSec) + " · " + transfersText(it.transfers));
-            buildLegChips(vh.legs, it);
+            vh.meta.setText(minutes(it.durationSec));
+            buildLegBar(vh.legs, it);
+            bindDepartureLine(vh.departure, it);
             vh.itemView.setOnClickListener(v -> { if (listener != null) listener.onItineraryClick(it); });
+            // Skrollattava osarivi nielee napautukset → laatikoiden napautus avaa saman reitin.
+            for (int c = 0; c < vh.legs.getChildCount(); c++) {
+                vh.legs.getChildAt(c).setOnClickListener(
+                        v -> { if (listener != null) listener.onItineraryClick(it); });
+            }
         } else {
             bindLeg((LegVH) holder, (Leg) item, ctx);
         }
@@ -94,73 +100,105 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     @Override
     public int getItemCount() { return items.size(); }
 
-    // --- Reittikortin osatiivistelmä (vain joukkoliikenne-legit badgeina) ---
+    // --- Reittikortin osapalkki (HSL-tyyli) ---
 
-    private static void buildLegChips(LinearLayout box, Itinerary it) {
+    /** Osat sisällön kokoisina laatikkoina vaakaskrollattavalla rivillä (käyttäjän valinta —
+     *  kaikki välineet näkyvät kunnolla). Kävely = himmeä laatikko (ikoni + minuutit),
+     *  joukkoliikenne = moodivärinen laatikko (ikoni + linja + kesto valkoisella). */
+    private static void buildLegBar(LinearLayout box, Itinerary it) {
         Context ctx = box.getContext();
         box.removeAllViews();
-        boolean any = false;
-        for (Leg leg : it.legs) {
-            // Näytä kaikki osat moodi-ikonein (myös kävely), myös kun reitillä on vain yksi kulkuneuvo.
-            if (any) box.addView(sep(ctx));
-            box.addView(legChip(ctx, leg));
-            any = true;
-        }
-        if (!any) {
+        if (it.legs.isEmpty()) {
             TextView t = new TextView(ctx);
             t.setText("Kävely koko matka");
             t.setTextSize(13);
             t.setTextColor(ContextCompat.getColor(ctx, R.color.mobile_text_muted));
             box.addView(t);
+            return;
+        }
+        boolean first = true;
+        for (Leg leg : it.legs) {
+            View chip = legBox(ctx, leg);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, dp(ctx, 28));
+            if (!first) lp.setMarginStart(dp(ctx, 7));
+            chip.setLayoutParams(lp);
+            box.addView(chip);
+            first = false;
         }
     }
 
-    /** Reittikortin osachip: moodi-ikoni + (joukkoliikenteellä) linjanumero, moodivärillä. */
-    private static View legChip(Context ctx, Leg leg) {
+    private static View legBox(Context ctx, Leg leg) {
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        int color = leg.isWalk()
-                ? ContextCompat.getColor(ctx, R.color.mobile_text_muted)
-                : TransitStyle.modeColor(ctx, leg.mode);
+        row.setGravity(android.view.Gravity.CENTER);
+        row.setPadding(dp(ctx, 10), 0, dp(ctx, 10), 0);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(dp(ctx, 7));
+        int content;
+        if (leg.isWalk()) {
+            bg.setColor(ContextCompat.getColor(ctx, R.color.mobile_card_stroke));
+            content = ContextCompat.getColor(ctx, R.color.mobile_text_secondary);
+        } else {
+            bg.setColor(TransitStyle.modeColor(ctx, leg.mode));
+            content = 0xFFFFFFFF;
+        }
+        row.setBackground(bg);
 
         ImageView icon = new ImageView(ctx);
-        int sz = dp(ctx, 20);
+        int sz = dp(ctx, 15);
         icon.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
         icon.setImageResource(TransitStyle.modeIcon(leg.mode));
-        icon.setImageTintList(ColorStateList.valueOf(color));
+        icon.setImageTintList(ColorStateList.valueOf(content));
         row.addView(icon);
 
-        if (!leg.isWalk() && leg.routeShortName != null && !leg.routeShortName.isEmpty()) {
+        String label;
+        if (leg.isWalk()) {
+            label = minutes(leg.durationSec);
+        } else {
+            String name = leg.routeShortName == null || leg.routeShortName.isEmpty()
+                    ? modeWord(leg.mode) : leg.routeShortName;
+            label = name + " · " + minutes(leg.durationSec);
+        }
+        if (!label.isEmpty()) {
             TextView num = new TextView(ctx);
-            num.setText(leg.routeShortName);
-            num.setTextColor(color);
-            num.setTextSize(13);
-            num.setTypeface(num.getTypeface(), android.graphics.Typeface.BOLD);
+            num.setText(label);
+            num.setTextColor(content);
+            num.setTextSize(12);
+            num.setSingleLine(true);
+            if (!leg.isWalk()) num.setTypeface(num.getTypeface(), android.graphics.Typeface.BOLD);
             LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             nlp.setMarginStart(dp(ctx, 3));
             num.setLayoutParams(nlp);
             row.addView(num);
         }
-
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rlp.setMarginEnd(dp(ctx, 4));
-        row.setLayoutParams(rlp);
         return row;
     }
 
-    private static TextView sep(Context ctx) {
-        TextView t = new TextView(ctx);
-        t.setText("›");
-        t.setTextSize(15);
-        t.setTextColor(ContextCompat.getColor(ctx, R.color.mobile_text_muted));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.setMarginEnd(dp(ctx, 4));
-        t.setLayoutParams(lp);
-        return t;
+    /** "Lähtee klo 13:42 pysäkiltä X" — ensimmäisen joukkoliikenneosuuden lähtö, aika korostettuna. */
+    private static void bindDepartureLine(TextView t, Itinerary it) {
+        Leg firstTransit = null;
+        for (Leg leg : it.legs) {
+            if (!leg.isWalk()) { firstTransit = leg; break; }
+        }
+        if (firstTransit == null || firstTransit.startEpochMs <= 0) {
+            t.setVisibility(View.GONE);
+            return;
+        }
+        Context ctx = t.getContext();
+        String timeTxt = "klo " + clock(firstTransit.startEpochMs);
+        String from = firstTransit.fromName == null || firstTransit.fromName.isEmpty()
+                ? "" : " pysäkiltä " + firstTransit.fromName;
+        android.text.SpannableString s = new android.text.SpannableString("Lähtee " + timeTxt + from);
+        int st = "Lähtee ".length();
+        s.setSpan(new android.text.style.ForegroundColorSpan(
+                        ContextCompat.getColor(ctx, R.color.mobile_route_depart)),
+                st, st + timeTxt.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        s.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                st, st + timeTxt.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        t.setText(s);
+        t.setVisibility(View.VISIBLE);
     }
 
     // --- Reitin osa (leg) detail-listassa ---
@@ -240,12 +278,13 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     }
 
     static final class ItineraryVH extends RecyclerView.ViewHolder {
-        final TextView time, meta;
+        final TextView time, meta, departure;
         final LinearLayout legs;
         ItineraryVH(@NonNull View v) {
             super(v);
             time = v.findViewById(R.id.itin_time);
             meta = v.findViewById(R.id.itin_meta);
+            departure = v.findViewById(R.id.itin_departure);
             legs = v.findViewById(R.id.route_itin_legs);
         }
     }

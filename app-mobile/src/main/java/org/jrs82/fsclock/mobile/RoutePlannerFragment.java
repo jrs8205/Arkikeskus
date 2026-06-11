@@ -85,6 +85,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private static final long DEBOUNCE_MS = 280L;
     private static final Locale FI = new Locale("fi", "FI");
     private static final SimpleDateFormat TIME_LABEL = new SimpleDateFormat("EEE d.M. 'klo' HH:mm", FI);
+    private static final SimpleDateFormat TIME_NOW = new SimpleDateFormat("HH:mm", FI);
     private static final String MY_LOCATION = "Oma sijainti";
     /** Erikoisehdotus, jonka valinta tarkoittaa "käytä GPS-sijaintia" (lat/lon NaN). */
     private static final GeoPlace MY_LOC =
@@ -92,7 +93,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private static final LatLng HELSINKI = new LatLng(60.1699, 24.9384);
 
     private EditText fromField, toField;
-    private TextView swapBtn, timeBtn, searchBtn, status;
+    private TextView swapBtn, timeBtn, status;
     private TextView fromClear, toClear;
     private View titleView, subtitleView;
     private RecyclerView list;
@@ -178,7 +179,6 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         toField = view.findViewById(R.id.route_to);
         swapBtn = view.findViewById(R.id.route_swap);
         timeBtn = view.findViewById(R.id.route_time);
-        searchBtn = view.findViewById(R.id.route_search);
         status = view.findViewById(R.id.route_status);
         titleView = view.findViewById(R.id.route_title);
         subtitleView = view.findViewById(R.id.route_subtitle);
@@ -275,11 +275,10 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
         swapBtn.setOnClickListener(v -> swap());
         timeBtn.setOnClickListener(v -> showTimeDialog());
-        searchBtn.setOnClickListener(v -> doSearch());
 
         updateTimeButton();
         updateClearButtons();
-        showStatus("Anna määränpää ja hae reitit.\nLähtö on oletuksena oma sijaintisi.");
+        showStatus("Anna määränpää — reitit haetaan heti.\nLähtö on oletuksena oma sijaintisi.");
     }
 
     /** Avattaessa sivu valikosta: hae sijainti hakuehdotusten kohdistusta varten (best-effort). */
@@ -313,7 +312,6 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (titleView != null) titleView.setVisibility(chrome);
         if (subtitleView != null) subtitleView.setVisibility(chrome);
         if (timeBtn != null) timeBtn.setVisibility(chrome);
-        if (searchBtn != null) searchBtn.setVisibility(chrome);
         // Fokusoituna paneeli laajenee → ehdotuksille koko tila; muuten takaisin puoliväliin.
         if (sheetBehavior != null) {
             sheetBehavior.setState(active ? BottomSheetBehavior.STATE_EXPANDED
@@ -427,6 +425,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                         timeEpochMs = 0L;
                         arriveBy = false;
                         updateTimeButton();
+                        if (bothEndsReady()) doSearch(); // HSL-tyyli: ei erillistä hakunappia
                     } else {
                         pickDateTime(w == 2);
                     }
@@ -450,13 +449,15 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 timeEpochMs = c.getTimeInMillis();
                 arriveBy = arrive;
                 updateTimeButton();
+                if (bothEndsReady()) doSearch(); // HSL-tyyli: ei erillistä hakunappia
             }, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), true).show();
         }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private void updateTimeButton() {
         if (timeEpochMs <= 0) {
-            timeBtn.setText("Lähtö nyt");
+            // HSL-tyyli: "Lähtö nyt" + sen hetkinen kellonaika.
+            timeBtn.setText("Lähtö nyt · " + TIME_NOW.format(new Date()));
         } else {
             timeBtn.setText((arriveBy ? "Perillä " : "Lähtö ") + TIME_LABEL.format(new Date(timeEpochMs)));
         }
@@ -534,6 +535,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     private void doSearch() {
         if (!isAdded() || fromField == null || toField == null) return;
+        if (timeEpochMs <= 0) updateTimeButton(); // "Lähtö nyt · HH:mm" pysyy ajassa
         final long request = ++planGeneration;
         hideKeyboard();
         fromField.clearFocus();
@@ -1235,7 +1237,6 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         toClear = null;
         swapBtn = null;
         timeBtn = null;
-        searchBtn = null;
         status = null;
         list = null;
         adapter = null;
