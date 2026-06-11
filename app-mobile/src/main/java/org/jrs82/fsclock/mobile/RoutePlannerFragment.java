@@ -59,6 +59,7 @@ import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.LineLayer;
 import org.maplibre.android.style.layers.Property;
 import org.maplibre.android.style.layers.PropertyFactory;
+import org.maplibre.android.style.layers.SymbolLayer;
 import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
 import org.maplibre.geojson.FeatureCollection;
@@ -922,10 +923,66 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         CircleLayer bus = new CircleLayer("route-bus-dot", "route-bus");
         bus.setProperties(
                 PropertyFactory.circleColor(Expression.toColor(Expression.get("color"))),
-                PropertyFactory.circleRadius(9f),
+                PropertyFactory.circleRadius(11f),
                 PropertyFactory.circleStrokeColor("#FFFFFF"),
                 PropertyFactory.circleStrokeWidth(3f));
         style.addLayer(bus);
+
+        // Kulkuvälineikoni ympyrän keskelle (valkoinen, ei kierretä — pysyy luettavana) +
+        // suuntanuoli kehälle, joka kääntyy HFP:n hdg-suunnan mukaan kartan suhteen.
+        String[] vehModes = {"BUS", "RAIL", "TRAM", "SUBWAY", "FERRY"};
+        for (String m : vehModes) {
+            style.addImage("veh-icon-" + m, vectorBitmap(TransitStyle.modeIcon(m), 14, 0xFFFFFFFF));
+        }
+        style.addImage("veh-arrow", arrowBitmap(38));
+        SymbolLayer busIcon = new SymbolLayer("route-bus-icon", "route-bus");
+        busIcon.setProperties(
+                PropertyFactory.iconImage(Expression.get("icon")),
+                PropertyFactory.iconAllowOverlap(true),
+                PropertyFactory.iconIgnorePlacement(true));
+        style.addLayer(busIcon);
+        SymbolLayer busArrow = new SymbolLayer("route-bus-arrow", "route-bus");
+        busArrow.setProperties(
+                PropertyFactory.iconImage("veh-arrow"),
+                PropertyFactory.iconRotate(Expression.toNumber(Expression.get("hdg"))),
+                PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+                PropertyFactory.iconAllowOverlap(true),
+                PropertyFactory.iconIgnorePlacement(true));
+        busArrow.setFilter(Expression.eq(Expression.get("hasHdg"), true));
+        style.addLayer(busArrow);
+    }
+
+    /** Vektori-drawable bitmapiksi kartan symbolikerrosta varten. */
+    private android.graphics.Bitmap vectorBitmap(int resId, int sizeDp, int tint) {
+        android.graphics.drawable.Drawable d =
+                androidx.core.content.ContextCompat.getDrawable(requireContext(), resId).mutate();
+        d.setTint(tint);
+        int s = dpPx(sizeDp);
+        android.graphics.Bitmap b =
+                android.graphics.Bitmap.createBitmap(s, s, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas c = new android.graphics.Canvas(b);
+        d.setBounds(0, 0, s, s);
+        d.draw(c);
+        return b;
+    }
+
+    /** Valkoinen suuntanuoli (kolmio kankaan yläreunassa) — iconRotate kiertää sen kehälle. */
+    private android.graphics.Bitmap arrowBitmap(int sizeDp) {
+        int s = dpPx(sizeDp);
+        android.graphics.Bitmap b =
+                android.graphics.Bitmap.createBitmap(s, s, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas c = new android.graphics.Canvas(b);
+        android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        p.setColor(0xFFFFFFFF);
+        p.setShadowLayer(dpPx(1), 0, 0, 0x66000000);
+        android.graphics.Path path = new android.graphics.Path();
+        float cx = s / 2f;
+        path.moveTo(cx, 0f);
+        path.lineTo(cx - dpPx(5), dpPx(7));
+        path.lineTo(cx + dpPx(5), dpPx(7));
+        path.close();
+        c.drawPath(path, p);
+        return b;
     }
 
     private void drawItinerary(Itinerary it) {
@@ -1018,20 +1075,26 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 if (!hasLiveView() || !sectionVisible || !isResumed() || busSource == null
                         || request != liveBusGeneration || pendingItinerary != it) return;
                 if (mqtt == null) mqtt = new HslMqttClient();
+                final String iconName = "veh-icon-" + (leg.mode == null ? "BUS" : leg.mode);
                 mqtt.subscribeVehicle(vehicleId,
                         (lat, lon, spd, dl, loc, hdg, tsi) ->
-                                ui.post(() -> updateBus(lat, lon, hex, tsi, request)));
+                                ui.post(() -> updateBus(lat, lon, hex, iconName, hdg, tsi, request)));
             });
         });
     }
 
-    private void updateBus(double lat, double lon, String hex, long tsi, long request) {
+    private void updateBus(double lat, double lon, String hex, String iconName, double hdg,
+                           long tsi, long request) {
         if (!hasLiveView() || !sectionVisible || busSource == null || request != liveBusGeneration
                 || !validCoordinate(lat, lon)) return;
         long nowSec = System.currentTimeMillis() / 1000L;
         if (tsi > 0 && (tsi < nowSec - 60 || tsi > nowSec + 30)) return;
         Feature f = Feature.fromGeometry(Point.fromLngLat(lon, lat));
         f.addStringProperty("color", hex);
+        f.addStringProperty("icon", iconName);
+        boolean hasHdg = !Double.isNaN(hdg);
+        f.addBooleanProperty("hasHdg", hasHdg);
+        f.addNumberProperty("hdg", hasHdg ? hdg : 0.0);
         busSource.setGeoJson(FeatureCollection.fromFeatures(java.util.Collections.singletonList(f)));
     }
 
