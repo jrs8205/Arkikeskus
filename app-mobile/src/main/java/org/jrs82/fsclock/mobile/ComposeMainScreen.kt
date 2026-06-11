@@ -2,8 +2,10 @@ package org.jrs82.fsclock.mobile
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -35,6 +37,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -69,6 +72,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jrs82.fsclock.BuildConfig
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import java.text.SimpleDateFormat
@@ -152,6 +156,45 @@ private fun hasLocationPermission(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+/** Etusivun yläreunan ilmoitus uudesta versiosta: Päivitä lataa + asentaa APK:n, Hylkää piilottaa version. */
+@Composable
+private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var status by remember { mutableStateOf<String?>(null) }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 2.dp)) {
+            Text(
+                "Uusi versio " + info.versionName + " on saatavilla",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) { Text("Hylkää") }
+                TextButton(onClick = {
+                    val url = info.apkUrl
+                    if (url != null) {
+                        status = "Ladataan päivitystä…"
+                        AppUpdater.downloadAndInstall(context, url) { status = it }
+                    } else {
+                        // Releasella ei APK-liitettä → avaa julkaisusivu selaimeen.
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(info.htmlUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
+                }) { Text("Päivitä") }
+            }
+        }
+    }
+}
+
 /** Päänäkymän sektiot (vastaavat nykyisen valikon kohtia). */
 enum class HomeSection(val title: String) {
     HOME("Arkikeskus"),
@@ -200,6 +243,50 @@ fun ComposeMainScreen() {
     val haptic = LocalHapticFeedback.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val refreshRotation = remember { Animatable(0f) }
+
+    // Päivitysilmoitus: löydetty uusi versio talletetaan prefseihin (banneri näkyy heti myös
+    // välikäynnistyksillä), verkkotarkistus max 6 h välein. Hylkäys piilottaa kyseisen version.
+    var updateInfo by remember { mutableStateOf<AppUpdater.ReleaseInfo?>(null) }
+    LaunchedEffect(Unit) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val dismissed = prefs.getString(AppUpdater.PREF_DISMISSED_VERSION, null)
+        val savedVer = prefs.getString(AppUpdater.PREF_AVAILABLE_VERSION, null)
+        if (savedVer != null && savedVer != dismissed &&
+            AppUpdater.isNewer(BuildConfig.VERSION_NAME, savedVer)
+        ) {
+            updateInfo = AppUpdater.ReleaseInfo(
+                "v$savedVer",
+                savedVer,
+                prefs.getString(AppUpdater.PREF_AVAILABLE_URL, null),
+                prefs.getString(AppUpdater.PREF_AVAILABLE_HTML, null) ?: AppUpdater.REPO_URL,
+            )
+        }
+        val now = System.currentTimeMillis()
+        if (now - prefs.getLong(AppUpdater.PREF_LAST_AUTO_CHECK, 0L) < AppUpdater.AUTO_CHECK_INTERVAL_MS) {
+            return@LaunchedEffect
+        }
+        AppUpdater.checkLatest(BuildConfig.VERSION_NAME) { rel, newer ->
+            if (rel == null) return@checkLatest // verkkovirhe → uusi yritys seuraavalla käynnistyksellä
+            prefs.edit().putLong(AppUpdater.PREF_LAST_AUTO_CHECK, System.currentTimeMillis()).apply()
+            if (newer) {
+                prefs.edit()
+                    .putString(AppUpdater.PREF_AVAILABLE_VERSION, rel.versionName)
+                    .putString(AppUpdater.PREF_AVAILABLE_URL, rel.apkUrl)
+                    .putString(AppUpdater.PREF_AVAILABLE_HTML, rel.htmlUrl)
+                    .apply()
+                if (rel.versionName != prefs.getString(AppUpdater.PREF_DISMISSED_VERSION, null)) {
+                    updateInfo = rel
+                }
+            } else {
+                // Ajan tasalla → siivoa talletus, ettei vanhentunut banneri palaa.
+                prefs.edit()
+                    .remove(AppUpdater.PREF_AVAILABLE_VERSION)
+                    .remove(AppUpdater.PREF_AVAILABLE_URL)
+                    .remove(AppUpdater.PREF_AVAILABLE_HTML)
+                    .apply()
+            }
+        }
+    }
 
     // Etusivun sää käyttää laitteen sijaintia: päivitä se kun sovellus tulee etualalle
     // (automaattinen sijainti päällä + lupa annettu). Kaupungin valinta Paikkakunnilla on
@@ -361,7 +448,20 @@ fun ComposeMainScreen() {
                     LocalHomeNewsRevision provides homeNewsRevision,
                 ) {
                 when (section) {
-                    HomeSection.HOME -> HomeDashboard(onOpenSection = { section = it })
+                    HomeSection.HOME -> Column(modifier = Modifier.fillMaxSize()) {
+                        updateInfo?.let { info ->
+                            UpdateBanner(
+                                info = info,
+                                onDismiss = {
+                                    PreferenceManager.getDefaultSharedPreferences(context).edit()
+                                        .putString(AppUpdater.PREF_DISMISSED_VERSION, info.versionName)
+                                        .apply()
+                                    updateInfo = null
+                                },
+                            )
+                        }
+                        HomeDashboard(onOpenSection = { section = it })
+                    }
                     HomeSection.FORECAST -> ForecastSection()
                     HomeSection.PLACES -> PlacesSection(onPlaceChosen = { section = HomeSection.HOME })
                     HomeSection.STEPS -> StepsSection()
