@@ -181,6 +181,11 @@ object WorkoutTracker {
         val w = entity ?: return
         if (mutableState.value.phase == Phase.IDLE) return
         if (mutableState.value.phase == Phase.ACTIVE) accrueMovingTime(w)
+        if (auto) {
+            // Automaattipysäytys: älä laske paikallaanolohäntää (lastMovement→nyt) kestoon.
+            val idleTail = System.currentTimeMillis() - endAtMs
+            if (idleTail > 0) w.movingTimeMs = (w.movingTimeMs - idleTail).coerceAtLeast(0)
+        }
         flush(context, force = true)
         finalizeEntity(context, w, auto, endAtMs)
         entity = null
