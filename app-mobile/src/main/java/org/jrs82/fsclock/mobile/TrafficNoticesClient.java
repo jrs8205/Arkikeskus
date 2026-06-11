@@ -59,9 +59,15 @@ final class TrafficNoticesClient {
         if (features == null) return out;
         for (int i = 0; i < features.length(); i++) {
             JSONObject feature = features.optJSONObject(i);
+            // Päättyneet/perutut tilanteet ("Tilanne ohi") pois — tyyppi on PROPS-tasolla,
+            // ei announcements-rivissä (varmistettu live-API:sta 11.6.2026).
+            JSONObject featureProps = feature == null ? null : feature.optJSONObject("properties");
+            String annType = featureProps == null
+                    ? "" : featureProps.optString("trafficAnnouncementType", "").toLowerCase(Locale.ROOT);
+            if (annType.contains("ended") || annType.contains("retracted")) continue;
             TrafficNotice notice = parseFeature(TrafficNotice.Kind.INCIDENT, feature, refLat, refLon);
             if (notice == null) continue;
-            TrafficNotice.Kind resolved = resolveAnnouncementKind(notice, feature);
+            TrafficNotice.Kind resolved = resolveAnnouncementKind(notice, feature, annType);
             if (resolved != TrafficNotice.Kind.INCIDENT) {
                 notice = new TrafficNotice(resolved, notice.id,
                         notice.title, notice.location, notice.details, notice.severity,
@@ -133,7 +139,13 @@ final class TrafficNoticesClient {
     }
 
     private static TrafficNotice.Kind resolveAnnouncementKind(TrafficNotice notice,
-                                                              JSONObject feature) {
+                                                              JSONObject feature,
+                                                              String propsAnnouncementType) {
+        // Ensisijainen lähde: properties.trafficAnnouncementType (esim. "accident report",
+        // "preliminary accident report"); announcements-rivin kenttä on käytännössä tyhjä.
+        if (propsAnnouncementType != null && propsAnnouncementType.contains("accident")) {
+            return TrafficNotice.Kind.ACCIDENT;
+        }
         JSONObject props = feature == null ? null : feature.optJSONObject("properties");
         if (props != null) {
             JSONArray announcements = props.optJSONArray("announcements");

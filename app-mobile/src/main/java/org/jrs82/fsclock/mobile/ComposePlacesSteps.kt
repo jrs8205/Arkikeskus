@@ -708,11 +708,12 @@ internal fun StepsSection() {
                             Spacer(Modifier.height(6.dp))
                             if (sourcePkgs.isEmpty()) {
                                 Text(
-                                    "Yksikään sovellus ei ole kirjannut askeleita Health Connectiin tänään. " +
-                                        "Askeleet näkyvät tässä vasta kun lähdesovellus (esim. kellon, " +
-                                        "sormuksen tai puhelimen terveyssovellus) synkkaa datansa Health " +
-                                        "Connectiin — tarkista sovelluksen HC-kirjoitusluvat ja avaa se " +
-                                        "kerran, niin synkka käynnistyy.",
+                                    "Yksikään sovellus ei ole kirjannut askeleita tämän puhelimen Health " +
+                                        "Connectiin tänään. Health Connect on puhelinkohtainen tietovarasto: " +
+                                        "se ei synkkaudu Google-tilin kautta toisesta puhelimesta. Askeleet " +
+                                        "ilmestyvät tähän, kun jokin sovellus (esim. kellon, sormuksen tai " +
+                                        "puhelimen terveyssovellus) kirjoittaa ne tämän laitteen Health " +
+                                        "Connectiin — tarkista sovelluksen kirjoitusluvat ja avaa se kerran.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -945,7 +946,8 @@ private fun hasProfile(prefs: SharedPreferences): Boolean =
 private fun stepsNote(available: Boolean, enabled: Boolean, useHc: Boolean, hcAvailable: Boolean): String = when {
     !available -> "Tässä laitteessa ei ole askelanturia eikä Health Connectia, joten askelmittaria ei voi ottaa käyttöön."
     !enabled -> "Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet."
-    useHc -> "Lähde: Health Connect. Päivitä-nappi lukee uusimman datan; jos Samsung Health tai Oura ei ole vielä synkannut, avaa se ensin."
+    useHc -> "Lähde: Health Connect (tämän puhelimen paikallinen tietovarasto). Päivitä-nappi lukee " +
+        "uusimman datan; jos kellon tai sormuksen sovellus ei ole vielä synkannut tähän laitteeseen, avaa se ensin."
     hcAvailable -> "Health Connect on saatavilla — myönnä lupa, niin askeleet luetaan sieltä. Kunnes lupa annetaan, käytetään puhelimen anturia."
     else -> "Lähde: Puhelimen askelanturi. Historia päivittyy vain kun sovellus on ollut käytössä; taustakatkot voivat puuttua."
 }
