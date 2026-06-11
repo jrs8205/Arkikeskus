@@ -264,7 +264,9 @@ object WorkoutTracker {
             }
             val beforeM = w.distanceM
             w.distanceM += addedM
-            val spd = if (loc.hasSpeed()) loc.speed else 0f
+            // Maksiminopeus: GPS:n oma nopeus, tai johdettu (EMA) kun speed-kenttää ei ole —
+            // muuten maksimi jäisi nollaan esim. emulaattorissa tai heikolla signaalilla.
+            val spd = if (loc.hasSpeed()) loc.speed else derivedSpeedKmh / 3.6f
             if (spd > w.maxSpeedMps) w.maxSpeedMps = spd
 
             // Liikeankkuri automaattipysäytykselle

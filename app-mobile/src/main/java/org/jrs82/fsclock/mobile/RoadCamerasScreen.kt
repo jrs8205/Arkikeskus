@@ -346,17 +346,7 @@ private fun camTitle(name: String, presetName: String?): String =
     if (presetName.isNullOrEmpty()) name else "$name · $presetName"
 
 /** MML-taustakartan tyyli-JSON (sama kuin RoadCamerasFragment.buildMmlStyleJson). */
-private fun buildMmlStyleJson(): String {
-    val tiles = "https://avoin-karttakuva.maanmittauslaitos.fi/avoin/wmts/1.0.0/" +
-        "taustakartta/default/WGS84_Pseudo-Mercator/{z}/{y}/{x}.png?api-key=" +
-        BuildConfig.MML_API_KEY
-    return "{" +
-        "\"version\":8," +
-        "\"sources\":{\"mml\":{\"type\":\"raster\",\"tiles\":[\"" + tiles +
-        "\"],\"tileSize\":256,\"attribution\":\"\\u00a9 Maanmittauslaitos\"}}," +
-        "\"layers\":[{\"id\":\"mml\",\"type\":\"raster\",\"source\":\"mml\"}]" +
-        "}"
-}
+// buildMmlStyleJson siirretty MapLibreCompose.kt:hen (jaettu lenkkikartan kanssa).
 
 /** Renderöi vektoridrawablen bitmapiksi MapLibren SymbolLayer-ikoniksi. */
 private fun drawableToBitmap(context: Context, resId: Int): Bitmap {

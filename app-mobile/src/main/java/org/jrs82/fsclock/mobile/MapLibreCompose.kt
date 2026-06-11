@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import org.jrs82.fsclock.BuildConfig
 import org.maplibre.android.MapLibre
 import org.maplibre.android.maps.MapView
 
@@ -50,4 +51,19 @@ internal fun rememberMapViewWithLifecycle(): MapView {
         }
     }
     return mapView
+}
+
+/** MML-taustakartan rasterityyli (jaettu: kelikamerat + lenkkikartta). HUOM: ei glyphs-
+ *  fonttilähdettä → SymbolLayer-tekstit eivät renderöidy; käytä numeroiduille merkeille
+ *  bitmap-ikoneita. */
+internal fun buildMmlStyleJson(): String {
+    val tiles = "https://avoin-karttakuva.maanmittauslaitos.fi/avoin/wmts/1.0.0/" +
+        "taustakartta/default/WGS84_Pseudo-Mercator/{z}/{y}/{x}.png?api-key=" +
+        BuildConfig.MML_API_KEY
+    return "{" +
+        "\"version\":8," +
+        "\"sources\":{\"mml\":{\"type\":\"raster\",\"tiles\":[\"" + tiles +
+        "\"],\"tileSize\":256,\"attribution\":\"\\u00a9 Maanmittauslaitos\"}}," +
+        "\"layers\":[{\"id\":\"mml\",\"type\":\"raster\",\"source\":\"mml\"}]" +
+        "}"
 }
