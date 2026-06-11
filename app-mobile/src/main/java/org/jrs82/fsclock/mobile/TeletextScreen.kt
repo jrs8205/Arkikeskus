@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -208,10 +209,15 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var pageInput by rememberSaveable(initialPage) { mutableStateOf("") }
+    // Sivuhistoria takaisin-napille: linkin/numeron kautta siirtyminen työntää nykyisen sivun
+    // pinoon, ja takaisin palaa siihen (esim. 100 → 133 → takaisin → 100). Kun pino on tyhjä,
+    // takaisin valuu pääruudun käsittelijälle (→ etusivu).
+    var history by rememberSaveable(initialPage) { mutableStateOf(intArrayOf()) }
 
     fun open(target: String) {
         val num = target.toIntOrNull()
         if (num != null && num in 100..899) {
+            if (num != pageNum) history += pageNum
             subIndex = 0
             pageNum = num
         } else if (target.startsWith("http")) {
@@ -223,6 +229,13 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
                 // selainta ei löytynyt — ei kaadeta
             }
         }
+    }
+
+    BackHandler(enabled = history.isNotEmpty()) {
+        val prev = history.last()
+        history = history.copyOf(history.size - 1)
+        subIndex = 0
+        pageNum = prev
     }
 
     LaunchedEffect(pageNum, refresh) {

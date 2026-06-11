@@ -352,6 +352,12 @@ fun ComposeMainScreen() {
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
+    // Takaisin-ele/nappi: sektiosta palataan ensin etusivulle, ja vasta etusivulta takaisin
+    // siirtää sovelluksen taustalle (Android-oletus). Sisemmät käsittelijät (valikko-/asetus-
+    // overlay, Teksti-TV:n sivuhistoria, fragmenttien omat) rekisteröityvät myöhemmin → ne
+    // voittavat tämän kun ovat aktiivisia.
+    BackHandler(enabled = section != HomeSection.HOME) { section = HomeSection.HOME }
+
     Scaffold(
             bottomBar = {
                 // Kiinteä alapalkki (HSL Reittiopas -tyyli): kolme ikonia tekstilappuineen.
