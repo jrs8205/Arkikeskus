@@ -15,7 +15,10 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -94,6 +97,7 @@ import java.util.concurrent.Executors
 
 private const val TRANSIT_AUTO_REFRESH_MS = 25_000L
 private const val TRANSIT_SEARCH_DEBOUNCE_MS = 280L
+private const val KEY_TRANSIT_MODE_FILTER = "transit_mode_filter"
 private const val LOC_FALLBACK_MAX_AGE_MS = 2L * 60_000L
 private const val LOC_FALLBACK_MAX_ACCURACY_M = 250f
 private const val MAX_PER_STOP = 5
@@ -150,6 +154,20 @@ private class TransitState(private val appContext: Context) {
     var favVersion by mutableIntStateOf(0)
     var detail by mutableStateOf<TransitDetail?>(null)
     var favDialogFor by mutableStateOf<Departure?>(null)
+
+    // Kulkuvälinesuodatin (null = kaikki; muuten BUS/TRAM/RAIL/SUBWAY/FERRY). Valinta
+    // talletetaan prefseihin, jotta se säilyy käyntien välillä.
+    var modeFilter by mutableStateOf<String?>(
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext)
+            .getString(KEY_TRANSIT_MODE_FILTER, "")?.takeIf { it.isNotEmpty() }
+    )
+        private set
+
+    fun updateModeFilter(mode: String?) {
+        modeFilter = mode
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext).edit()
+            .putString(KEY_TRANSIT_MODE_FILTER, mode ?: "").apply()
+    }
 
     var lastLat = Double.NaN
     var lastLon = Double.NaN
@@ -360,6 +378,10 @@ private class TransitState(private val appContext: Context) {
     /** Listan rakennus — replikoi TransitFragment.buildItems() 1:1. */
     fun buildItems(ctx: Context): List<TransitRow> {
         val items = ArrayList<TransitRow>()
+        // Kulkuvälinesuodatin koskee suosikki- ja lähipysäkkien lähtöjä; valittu pysäkki
+        // ja hakutulokset näytetään aina suodattamatta.
+        val mf = modeFilter
+        fun depMatches(d: Departure) = mf == null || (d.mode ?: "BUS").equals(mf, ignoreCase = true)
 
         val sel = selectedStop
         if (sel != null) {
@@ -385,7 +407,7 @@ private class TransitState(private val appContext: Context) {
         }
 
         for (fs in favStops) {
-            val deps = fs.departures.sortedBy { it.departureEpochSec }
+            val deps = fs.departures.filter { depMatches(it) }.sortedBy { it.departureEpochSec }
             val n = minOf(deps.size, MAX_PER_FAV_STOP)
             if (n == 0) continue
             val sectionKey = "favorite-stop|${fs.gtfsId}"
@@ -401,9 +423,9 @@ private class TransitState(private val appContext: Context) {
 
         var stopsShown = 0
         for (stop in lastStops) {
-            if (stop.departures.isEmpty()) continue
+            val deps = stop.departures.filter { depMatches(it) }.sortedBy { it.departureEpochSec }
+            if (deps.isEmpty()) continue
             if (stopsShown >= MAX_NEARBY_STOPS) break
-            val deps = stop.departures.sortedBy { it.departureEpochSec }
             val sectionKey = "nearby-stop|${stop.gtfsId}"
             items.add(TransitRow.HeaderRow(stopHeaderText(stop), headerModeOf(stop), sectionKey, zoneLabelOf(stop)))
             addDepRows(items, deps, minOf(deps.size, MAX_PER_STOP), sectionKey)
@@ -568,7 +590,7 @@ internal fun TransitScreen() {
     val favTick = state.favVersion
     val items = remember(
         state.lastStops, state.favStops, state.searchRoutes, state.searchPlaces,
-        state.selectedStop, state.query, favTick,
+        state.selectedStop, state.query, favTick, state.modeFilter,
     ) { state.buildItems(context) }
 
     val trimmedQuery = state.query.trim()
@@ -579,6 +601,8 @@ internal fun TransitScreen() {
             state.searchRoutes == null && state.searchPlaces == null -> "Haetaan \"$trimmedQuery\"…"
             else -> "Ei osumia haulla \"$trimmedQuery\".\nKokeile pysäkin, aseman tai linjan nimeä/numeroa."
         }
+        state.modeFilter != null && (state.lastStops.isNotEmpty() || state.favStops.isNotEmpty()) ->
+            "Ei valitun kulkuvälineen lähtöjä lähistöllä."
         else -> null
     }
     val statusText = state.transientStatus ?: emptyStatus
@@ -609,6 +633,31 @@ internal fun TransitScreen() {
                     if (state.query.trim().length >= 2) state.runLiveSearch(state.query)
                 },
             )
+            // Kulkuvälinesuodatin — näkyy vain lähilistassa (ei haussa eikä valitulla pysäkillä).
+            if (state.selectedStop == null && trimmedQuery.isEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .padding(start = 14.dp, end = 14.dp, top = 6.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = state.modeFilter == null,
+                        onClick = { state.updateModeFilter(null) },
+                        label = { Text("Kaikki") },
+                    )
+                    listOf(
+                        "BUS" to "Bussit", "TRAM" to "Ratikat", "RAIL" to "Junat",
+                        "SUBWAY" to "Metro", "FERRY" to "Lautat",
+                    ).forEach { (mode, label) ->
+                        FilterChip(
+                            selected = state.modeFilter == mode,
+                            onClick = { state.updateModeFilter(if (state.modeFilter == mode) null else mode) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+            }
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
