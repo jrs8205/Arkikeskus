@@ -157,6 +157,8 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 
     testImplementation 'junit:junit:4.13.2'
+    // JVM-yksikkötestien XmlPullParser-toteutus (android.util.Xml on testeissä tynkä)
+    testImplementation 'net.sf.kxml:kxml2:2.3.0'
 
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"

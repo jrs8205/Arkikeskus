@@ -77,12 +77,12 @@ internal object WorkoutShareImage {
         }.start()
     }
 
-    // ---------- Web Mercator ----------
+    // ---------- Web Mercator (internal: yksikkötestattu) ----------
 
-    private fun worldX(lon: Double, z: Int): Double =
+    internal fun worldX(lon: Double, z: Int): Double =
         (lon + 180.0) / 360.0 * TILE * (1 shl z)
 
-    private fun worldY(lat: Double, z: Int): Double {
+    internal fun worldY(lat: Double, z: Int): Double {
         val clamped = lat.coerceIn(-85.05112878, 85.05112878)
         val rad = Math.toRadians(clamped)
         return (1.0 - ln(tan(rad) + 1.0 / cos(rad)) / PI) / 2.0 * TILE * (1 shl z)

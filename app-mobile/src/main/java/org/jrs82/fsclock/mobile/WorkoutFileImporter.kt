@@ -29,10 +29,11 @@ internal object WorkoutFileImporter {
 
     data class ImportedWorkout(val workoutId: Long, val name: String, val alreadyExists: Boolean)
 
-    private class ParsedPoint(
+    // Internal (ei private): yksikkötestit pääsevät parsereihin käsiksi ilman Android-laitetta.
+    internal class ParsedPoint(
         val tMs: Long, val lat: Double, val lon: Double, val altM: Double?, val segment: Int)
 
-    private class Parsed {
+    internal class Parsed {
         var name: String? = null
         var type = WorkoutEntity.TYPE_WALK
         var kcal = 0
@@ -65,9 +66,13 @@ internal object WorkoutFileImporter {
 
     // ---------- GPX ----------
 
-    private fun parseGpx(text: String): Parsed {
+    /** Parser injektoitavissa: tuotannossa android.util.Xml, JVM-testeissä kxml2 (android.util.Xml
+     *  on testien mockable-jarissa pelkkä tynkä). */
+    internal fun parseGpx(
+        text: String,
+        p: XmlPullParser = android.util.Xml.newPullParser(),
+    ): Parsed {
         val out = Parsed()
-        val p = android.util.Xml.newPullParser()
         p.setInput(StringReader(text))
         var segment = 0
         var inTrkpt = false
@@ -110,9 +115,11 @@ internal object WorkoutFileImporter {
 
     // ---------- TCX ----------
 
-    private fun parseTcx(text: String): Parsed {
+    internal fun parseTcx(
+        text: String,
+        p: XmlPullParser = android.util.Xml.newPullParser(),
+    ): Parsed {
         val out = Parsed()
-        val p = android.util.Xml.newPullParser()
         p.setInput(StringReader(text))
         var segment = 0
         var inTrackpoint = false
