@@ -38,6 +38,14 @@ public interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE status = 2 ORDER BY startedAtMs DESC LIMIT :limit")
     List<WorkoutEntity> recentWorkouts(int limit);
 
+    /** Kohdistettu nimen päivitys — ei kilpaile trackerin koko-entiteetti-updaten kanssa. */
+    @Query("UPDATE workouts SET name = :name WHERE id = :id")
+    void renameWorkout(long id, String name);
+
+    /** Kaikki valmiit lenkit varmuuskopiota varten, vanhin ensin. */
+    @Query("SELECT * FROM workouts WHERE status = 2 ORDER BY startedAtMs")
+    List<WorkoutEntity> allFinishedWorkouts();
+
     @Query("DELETE FROM workouts WHERE id = :id")
     void deleteWorkout(long id);
 

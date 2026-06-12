@@ -39,4 +39,6 @@ public class WorkoutEntity {
     public boolean autoStopped;
     public Long pauseStartedMs;
     public long updatedAtMs;
+    /** Käyttäjän antama nimi ("Koiralenkki"); null/tyhjä → UI näyttää oletusnimen. */
+    public String name;
 }

@@ -145,6 +145,59 @@ fun SettingsScreen() {
         }
     }
 
+    // --- Varmuuskopiointi: vienti/palautus SAF:lla (käyttäjä voi valita esim. Driven) ---
+    var restoreDone by remember { mutableStateOf<BackupManager.RestoreResult?>(null) }
+    val backupExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            Thread {
+                try {
+                    val res = context.contentResolver.openOutputStream(uri)?.use { os ->
+                        BackupManager.export(context, os)
+                    }
+                    Handler(Looper.getMainLooper()).post {
+                        toast(
+                            context,
+                            if (res != null)
+                                "Varmuuskopio tallennettu: ${res.workouts} lenkkiä, ${res.prefs} asetusta."
+                            else "Tallennus epäonnistui.",
+                        )
+                    }
+                } catch (e: Exception) {
+                    Handler(Looper.getMainLooper()).post {
+                        toast(context, "Varmuuskopiointi epäonnistui: ${e.message}")
+                    }
+                }
+            }.start()
+        }
+    }
+    val backupRestoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            if (WorkoutTracker.state.value.phase != WorkoutTracker.Phase.IDLE) {
+                toast(context, "Lopeta käynnissä oleva lenkki ennen palautusta.")
+            } else {
+                Thread {
+                    try {
+                        val res = context.contentResolver.openInputStream(uri)?.use { ins ->
+                            BackupManager.restore(context, ins)
+                        }
+                        Handler(Looper.getMainLooper()).post {
+                            if (res != null) restoreDone = res
+                            else toast(context, "Palautus epäonnistui.")
+                        }
+                    } catch (e: Exception) {
+                        Handler(Looper.getMainLooper()).post {
+                            toast(context, "Palautus epäonnistui: ${e.message}")
+                        }
+                    }
+                }.start()
+            }
+        }
+    }
+
     // --- Sää: automaattinen sijainti + lupavirta ---
     var autoLocation by remember {
         mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true))
@@ -398,12 +451,57 @@ fun SettingsScreen() {
                 }
             }
 
+            // ---------- Varmuuskopiointi ----------
+            item { SectionHeader("Varmuuskopiointi", R.drawable.mobile_ic_backup_24) }
+            item {
+                SettingsCard {
+                    ClickableRow(
+                        title = "Vie varmuuskopio",
+                        subtitle = "Asetukset ja lenkit yhteen tiedostoon (esim. Driveen)",
+                        leadingIconRes = R.drawable.mobile_ic_backup_24,
+                    ) {
+                        backupExportLauncher.launch(
+                            "Arkikeskus-varmuuskopio-" +
+                                SimpleDateFormat("yyyy-MM-dd", FI).format(Date()) + ".json")
+                    }
+                    RowDivider()
+                    ClickableRow(
+                        title = "Palauta varmuuskopio",
+                        subtitle = "Tuo aiemmin viety varmuuskopiotiedosto",
+                        leadingIconRes = R.drawable.mobile_ic_restore_24,
+                    ) {
+                        backupRestoreLauncher.launch(
+                            arrayOf("application/json", "application/octet-stream"))
+                    }
+                }
+            }
+
             // ---------- Tietoja sovelluksesta (versio + päivitys + GitHub) ----------
             item { AppInfoSection(context) }
         }
     }
 
     // ---------- Dialogit ----------
+    restoreDone?.let { res ->
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Varmuuskopio palautettu") },
+            text = {
+                Text(
+                    "Palautettu ${res.workouts} lenkkiä ja ${res.prefs} asetusta." +
+                        (if (res.skipped > 0) " ${res.skipped} lenkkiä oli jo laitteella." else "") +
+                        "\n\nSovellus käynnistetään uudelleen, jotta teema ja asetukset tulevat " +
+                        "voimaan. Anturien nimet näkyvät seuraavasta skannauksesta.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    restoreDone = null
+                    (context as? android.app.Activity)?.recreate()
+                }) { Text("OK") }
+            },
+        )
+    }
     if (showThemeDialog) {
         RadioDialog(
             title = "Teema",

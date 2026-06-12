@@ -43,9 +43,14 @@
         <package android:name="com.google.android.apps.healthdata" />
     </queries>
 
+    <!-- Auto Backup: asetukset varmuuskopioituvat Google Driveen ja palautuvat
+         uudelleenasennuksessa (myös sideload, sama allekirjoitusavain). Pilvibackup
+         = vain SharedPreferences; DB:n kattaa manuaalinen varmuuskopio (BackupManager). -->
     <application
         android:name="org.jrs82.fsclock.FsClockApp"
-        android:allowBackup="false"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_mobile_name"

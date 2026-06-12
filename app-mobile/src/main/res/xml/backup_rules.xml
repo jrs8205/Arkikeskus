@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup -säännöt (API 30): pilveen VAIN SharedPreferences-asetukset.
+     Tietokanta (fsclock.db) jätetään pois: sisältää rajattoman anturi-/säähistorian
+     (25 Mt kiintiöriski) ja Room on WAL-tilassa (kesken-checkpointin kopio voi
+     korruptoitua). Lenkit turvataan manuaalisella varmuuskopiolla (BackupManager). -->
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+</full-backup-content>
