@@ -58,6 +58,13 @@ class MobileComposeMainActivity : AppCompatActivity() {
         externalSection.value = intent?.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
         maybeRecoverWorkout()
         maybeImportWorkoutFile(intent)
+        // Palautuksen jälkeinen vahvistus: prosessi käynnistettiin uudelleen → kerro käyttäjälle.
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (prefs.getBoolean("restore_done_pending", false)) {
+            prefs.edit().remove("restore_done_pending").apply()
+            android.widget.Toast.makeText(
+                this, "Varmuuskopio palautettu.", android.widget.Toast.LENGTH_LONG).show()
+        }
         setContent {
             ArkikeskusTheme(dynamicColor = appliedDynamicColor) {
                 ComposeMainScreen(externalSection = externalSection)
@@ -90,12 +97,15 @@ class MobileComposeMainActivity : AppCompatActivity() {
                 }
             else -> null
         } ?: return
+        android.util.Log.i("WorkoutImport",
+            "intent action=${intent?.action} type=${intent?.type} uri=$uri")
         Thread {
             val res = try {
                 contentResolver.openInputStream(uri)?.use {
                     WorkoutFileImporter.importStream(this, it)
                 }
             } catch (e: Exception) {
+                android.util.Log.w("WorkoutImport", "Tuonti epäonnistui", e)
                 null
             }
             runOnUiThread {

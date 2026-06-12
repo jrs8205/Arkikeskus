@@ -23,6 +23,10 @@ import kotlin.math.sqrt
  */
 internal object WorkoutFileImporter {
 
+    /** Kasvaa onnistuneen tuonnin jälkeen → avoinna oleva historialista lataa itsensä
+     *  uudelleen (ilman tätä tuotu lenkki ei näy jos Lenkki-sivu oli jo auki). */
+    val changeTick = kotlinx.coroutines.flow.MutableStateFlow(0L)
+
     data class ImportedWorkout(val workoutId: Long, val name: String, val alreadyExists: Boolean)
 
     private class ParsedPoint(
@@ -41,10 +45,22 @@ internal object WorkoutFileImporter {
         val parsed = when {
             text.contains("<gpx") -> parseGpx(text)
             text.contains("<TrainingCenterDatabase") -> parseTcx(text)
-            else -> return null
+            else -> {
+                android.util.Log.w("WorkoutImport",
+                    "Ei GPX/TCX-tunnistetta (pituus ${text.length}, alku: " +
+                        text.take(80).replace('\n', ' ') + ")")
+                return null
+            }
         }
-        if (parsed.points.size < 2) return null
-        return insert(context, parsed)
+        if (parsed.points.size < 2) {
+            android.util.Log.w("WorkoutImport", "Liian vähän pisteitä: ${parsed.points.size}")
+            return null
+        }
+        val result = insert(context, parsed)
+        if (!result.alreadyExists) changeTick.value = System.currentTimeMillis()
+        android.util.Log.i("WorkoutImport",
+            "Tuotu id=${result.workoutId} nimi=${result.name} dup=${result.alreadyExists}")
+        return result
     }
 
     // ---------- GPX ----------

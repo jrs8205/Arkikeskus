@@ -200,6 +200,19 @@ fun SettingsScreen() {
 
     // --- Automaattinen varmuuskopiointi: kohdetiedosto valitaan kerran, WorkManager ajaa ---
     var autoBackupOn by remember { mutableStateOf(AutoBackup.isEnabled(context)) }
+    // Tilarivi päivittyy heti kun taustatyö kirjoittaa aikaleiman/virheen prefseihin
+    // (ilman kuuntelijaa "ensimmäinen kopio tekeillä…" jäisi näkyviin kunnes sivu avataan uudelleen).
+    var autoBackupTick by remember { mutableStateOf(0) }
+    DisposableEffect(Unit) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key != null && key.startsWith("auto_backup_")) autoBackupTick++
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val autoBackupStatus = remember(autoBackupOn, autoBackupTick) {
+        autoBackupSubtitle(prefs, autoBackupOn)
+    }
     val autoBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -490,12 +503,13 @@ fun SettingsScreen() {
                     RowDivider()
                     SwitchRow(
                         title = "Automaattinen varmuuskopiointi",
-                        subtitle = autoBackupSubtitle(prefs, autoBackupOn),
+                        subtitle = autoBackupStatus,
                         leadingIconRes = R.drawable.mobile_ic_backup_24,
                         checked = autoBackupOn,
                     ) { on ->
                         if (on) {
                             // Kohdetiedosto valitaan kerran (esim. Drive) → pysyvä kirjoituslupa.
+                            toast(context, "Drive löytyy valitsimen ☰-valikosta vasemmasta yläkulmasta.")
                             autoBackupLauncher.launch("Arkikeskus-autovarmuuskopio.json")
                         } else {
                             AutoBackup.disable(context)
@@ -527,13 +541,9 @@ fun SettingsScreen() {
             confirmButton = {
                 TextButton(onClick = {
                     restoreDone = null
-                    // Aito prosessin uudelleenkäynnistys (käyttäjän toive: "tuntuu että
-                    // oikeasti tapahtui jotain"): uusi launcher-task + prosessin lopetus →
-                    // sovellus nousee splashin kautta kokonaan puhtaalta pöydältä.
-                    val restart = Intent.makeRestartActivityTask(
-                        android.content.ComponentName(context, MobileComposeMainActivity::class.java))
-                    context.startActivity(restart)
-                    Runtime.getRuntime().exit(0)
+                    // Aito uudelleenkäynnistys erillisen prosessin kautta → splash näkyy
+                    // (suoraan itsensä käynnistävältä kuolevalta prosessilta Android ohittaa sen).
+                    RestartActivity.restartApp(context)
                 }) { Text("OK") }
             },
         )
@@ -848,7 +858,7 @@ private fun CustomFeedDialog(
 
 /** Automaattibackupin tilateksti: viimeisin onnistunut ajo tai virheohje. */
 private fun autoBackupSubtitle(prefs: android.content.SharedPreferences, on: Boolean): String {
-    if (!on) return "Päivittäin valitsemaasi tiedostoon (esim. Drive)"
+    if (!on) return "Päivittäin valitsemaasi tiedostoon (Drive: valitsimen ☰-valikko)"
     if (prefs.getString(AutoBackup.KEY_ERROR, null) != null) {
         return "Edellinen ajo epäonnistui — valitse kohde uudelleen (pois ja päälle)"
     }

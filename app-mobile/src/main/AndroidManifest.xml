@@ -134,6 +134,15 @@
             android:parentActivityName="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
             android:theme="@style/MobileComposeTheme" />
 
+        <!-- Aito uudelleenkäynnistys (varmuuskopion palautus): erillinen prosessi käynnistää
+             pääactivityn kylmänä → splash näkyy. Ks. RestartActivity. -->
+        <activity
+            android:name="org.jrs82.fsclock.mobile.RestartActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:process=":restart"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <activity
             android:name="org.jrs82.fsclock.history.HistoryActivity"
             android:exported="false"

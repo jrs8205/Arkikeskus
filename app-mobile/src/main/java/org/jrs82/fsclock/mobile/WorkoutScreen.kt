@@ -295,7 +295,9 @@ private fun StartWorkoutView(
         // yhteenvedon reittikarttoineen.
         var history by remember { mutableStateOf<List<WorkoutEntity>>(emptyList()) }
         var historyTick by remember { mutableLongStateOf(0L) }
-        LaunchedEffect(historyTick) {
+        // Ulkopuolinen tuonti (WhatsApp/Files-avaus) päivittää listan vaikka sivu olisi jo auki.
+        val importTick by WorkoutFileImporter.changeTick.collectAsStateWithLifecycle()
+        LaunchedEffect(historyTick, importTick) {
             history = withContext(Dispatchers.IO) {
                 try {
                     FsClockDb.get(context).workoutDao().recentWorkouts(30)
