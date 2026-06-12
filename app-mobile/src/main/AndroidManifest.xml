@@ -25,6 +25,9 @@
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
+    <!-- Valinnainen: ilman tätä HC rajaa luvun 30 pv:ään ennen ensimmäistä lupahetkeä →
+         pitkät historiat (8 vk / 6 kk / HTML-vienti) voisivat jäädä tyhjiksi. -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
@@ -41,6 +44,15 @@
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- Package visibility: HC:hen kirjoittavien sovellusten (Oura, Pebble ym.) nimet
+             lähde-erittelyyn — terveyssovellukset julkaisevat nämä intent-filterit. -->
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+            <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+        </intent>
     </queries>
 
     <!-- Auto Backup: asetukset varmuuskopioituvat Google Driveen ja palautuvat
