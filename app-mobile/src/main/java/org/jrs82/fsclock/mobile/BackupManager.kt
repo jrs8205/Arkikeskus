@@ -190,6 +190,8 @@ internal object BackupManager {
             }
             imported++
         }
+        // Uudelleenkäynnistyksen jälkeinen vahvistus-toast (MobileComposeMainActivity lukee).
+        prefs.edit().putBoolean("restore_done_pending", true).apply()
         return RestoreResult(imported, prefCount, skipped)
     }
 }

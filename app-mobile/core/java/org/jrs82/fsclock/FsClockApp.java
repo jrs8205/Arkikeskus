@@ -21,6 +21,13 @@ public class FsClockApp extends Application {
     public void onCreate() {
         super.onCreate();
 
+        // Sivuprosessit (esim. :restart-uudelleenkäynnistäjä) eivät saa avata tietokantaa
+        // eivätkä käynnistää taustakeräystä — ne eläisivät rinnan pääprosessin kanssa.
+        String proc = getProcessName();
+        if (proc != null && !proc.equals(getPackageName())) {
+            return;
+        }
+
         SettingsManager.get().init(this);
 
         // Akun keräys ja päivätilastot pyörivät koko prosessin elinkaaren.
