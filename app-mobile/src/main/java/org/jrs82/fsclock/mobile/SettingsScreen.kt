@@ -202,7 +202,11 @@ fun SettingsScreen() {
         if (uri != null) runRestoreFrom(uri)
     }
 
-    // --- Automaattinen varmuuskopiointi: kohdetiedosto valitaan kerran, WorkManager ajaa ---
+    // --- Automaattinen varmuuskopiointi: kohdetiedosto valitaan kerran, WorkManager ajaa.
+    // Tila on AutoBackupin OMASSA prefs-tiedostossa (ei Androidin Auto Backupin piirissä). ---
+    val abPrefs = remember { AutoBackup.prefs(context) }
+    // isEnabled validoi persistoidun luvan ja siivoaa vanhentuneen tilan (esim. toiselta
+    // laitteelta palautunut URI) — kytkin ei näytä päällä-tilaa joka ei oikeasti kirjoita.
     var autoBackupOn by remember { mutableStateOf(AutoBackup.isEnabled(context)) }
     // Tilarivi päivittyy heti kun taustatyö kirjoittaa aikaleiman/virheen prefseihin
     // (ilman kuuntelijaa "ensimmäinen kopio tekeillä…" jäisi näkyviin kunnes sivu avataan uudelleen).
@@ -211,19 +215,26 @@ fun SettingsScreen() {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key != null && key.startsWith("auto_backup_")) autoBackupTick++
         }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+        abPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { abPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
     val autoBackupStatus = remember(autoBackupOn, autoBackupTick) {
-        autoBackupSubtitle(prefs, autoBackupOn)
+        autoBackupSubtitle(abPrefs, autoBackupOn)
     }
     val autoBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         if (uri != null) {
-            AutoBackup.enable(context, uri)
-            autoBackupOn = true
-            toast(context, "Automaattinen varmuuskopiointi käytössä — ensimmäinen kopio tehdään nyt.")
+            // Päälle vasta kun persistoitu lupa + ajastus ovat varmasti kunnossa — eräät
+            // tarjoajat eivät myönnä pysyvää lupaa (SecurityException enablen sisällä).
+            if (AutoBackup.enable(context, uri)) {
+                autoBackupOn = true
+                toast(context, "Automaattinen varmuuskopiointi käytössä — ensimmäinen kopio tehdään nyt.")
+            } else {
+                autoBackupOn = false
+                toast(context, "Sijainti ei kelpaa automaattiseen varmuuskopiointiin — " +
+                    "valitse toinen sijainti (esim. Drive tai puhelimen muisti).")
+            }
         } else {
             autoBackupOn = false
         }
@@ -540,8 +551,8 @@ fun SettingsScreen() {
 
     // ---------- Dialogit ----------
     if (showRestoreChoice) {
-        val lastMs = prefs.getLong(AutoBackup.KEY_LAST_MS, 0L)
-        val lastBytes = prefs.getInt(AutoBackup.KEY_LAST_BYTES, 0)
+        val lastMs = abPrefs.getLong(AutoBackup.KEY_LAST_MS, 0L)
+        val lastBytes = abPrefs.getInt(AutoBackup.KEY_LAST_BYTES, 0)
         AlertDialog(
             onDismissRequest = { showRestoreChoice = false },
             title = { Text("Palauta varmuuskopio") },
@@ -559,7 +570,7 @@ fun SettingsScreen() {
             confirmButton = {
                 TextButton(onClick = {
                     showRestoreChoice = false
-                    val uriStr = prefs.getString(AutoBackup.KEY_URI, null)
+                    val uriStr = abPrefs.getString(AutoBackup.KEY_URI, null)
                     if (uriStr != null) runRestoreFrom(android.net.Uri.parse(uriStr))
                     else toast(context, "Automaattista varmuuskopiota ei löytynyt.")
                 }) { Text("Automaattisesta") }

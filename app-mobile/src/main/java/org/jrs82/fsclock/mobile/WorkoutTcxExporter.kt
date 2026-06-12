@@ -56,10 +56,13 @@ internal object WorkoutTcxExporter {
             .append("\">\n")
         sb.append("      <Id>").append(WorkoutGpxExporter.iso(workout.startedAtMs)).append("</Id>\n")
 
+        var prevStartMs = workout.startedAtMs
         for (lap in 0 until lapCount) {
             val idx = lapPoints[lap]
-            val startMs = if (idx.isNotEmpty()) points[idx.first()].tMs
-                else if (lap == 0) workout.startedAtMs else workout.startedAtMs + lap
+            // Pisteetön lap (iso GPS-hyppy yli km-rajojen): käytä edellisen lapin alkua —
+            // millisekunti-offset olisi epärealistinen aikaleima.
+            val startMs = if (idx.isNotEmpty()) points[idx.first()].tMs else prevStartMs
+            prevStartMs = startMs
             val isPartial = hasPartial && lap == lapCount - 1
             val timeSec: Double
             val distM: Double
@@ -83,23 +86,27 @@ internal object WorkoutTcxExporter {
             sb.append("        <TriggerMethod>")
                 .append(if (isPartial || fullLaps == 0) "Manual" else "Distance")
                 .append("</TriggerMethod>\n")
-            sb.append("        <Track>\n")
-            for (i in idx) {
-                val p = points[i]
-                sb.append("          <Trackpoint>")
-                sb.append("<Time>").append(WorkoutGpxExporter.iso(p.tMs)).append("</Time>")
-                sb.append("<Position><LatitudeDegrees>").append(WorkoutGpxExporter.coord(p.lat))
-                    .append("</LatitudeDegrees><LongitudeDegrees>").append(WorkoutGpxExporter.coord(p.lon))
-                    .append("</LongitudeDegrees></Position>")
-                val alt = p.altM
-                if (alt != null) {
-                    sb.append("<AltitudeMeters>").append(String.format(Locale.US, "%.1f", alt))
-                        .append("</AltitudeMeters>")
+            // Track vain jos lapilla on pisteitä — TCX-skeema sallii lapin ilman Trackia
+            // (Track*), ja tyhjä Track sekoittaa eräitä parsereita.
+            if (idx.isNotEmpty()) {
+                sb.append("        <Track>\n")
+                for (i in idx) {
+                    val p = points[i]
+                    sb.append("          <Trackpoint>")
+                    sb.append("<Time>").append(WorkoutGpxExporter.iso(p.tMs)).append("</Time>")
+                    sb.append("<Position><LatitudeDegrees>").append(WorkoutGpxExporter.coord(p.lat))
+                        .append("</LatitudeDegrees><LongitudeDegrees>").append(WorkoutGpxExporter.coord(p.lon))
+                        .append("</LongitudeDegrees></Position>")
+                    val alt = p.altM
+                    if (alt != null) {
+                        sb.append("<AltitudeMeters>").append(String.format(Locale.US, "%.1f", alt))
+                            .append("</AltitudeMeters>")
+                    }
+                    sb.append("<DistanceMeters>").append(num(cum[i])).append("</DistanceMeters>")
+                    sb.append("</Trackpoint>\n")
                 }
-                sb.append("<DistanceMeters>").append(num(cum[i])).append("</DistanceMeters>")
-                sb.append("</Trackpoint>\n")
+                sb.append("        </Track>\n")
             }
-            sb.append("        </Track>\n")
             sb.append("      </Lap>\n")
         }
 

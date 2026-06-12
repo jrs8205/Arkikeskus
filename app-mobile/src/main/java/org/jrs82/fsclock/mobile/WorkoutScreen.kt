@@ -330,17 +330,23 @@ private fun StartWorkoutView(
         ) { uri ->
             if (uri != null) {
                 Thread {
+                    var tooLarge: String? = null
                     val res = try {
                         context.contentResolver.openInputStream(uri)?.use {
                             WorkoutFileImporter.importStream(context, it)
                         }
+                    } catch (e: FileTooLargeException) {
+                        tooLarge = e.message
+                        null
                     } catch (e: Exception) {
+                        android.util.Log.w("WorkoutImport", "Käsituonti epäonnistui", e)
                         null
                     }
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         android.widget.Toast.makeText(
                             context,
                             when {
+                                tooLarge != null -> tooLarge
                                 res == null -> "Tiedostosta ei löytynyt lenkkiä (GPX/TCX)."
                                 res.alreadyExists -> "Lenkki on jo laitteella: ${res.name}"
                                 else -> "Jaettu lenkki tuotu: ${res.name}"
@@ -853,8 +859,13 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                     }
                     ShareFiles.launchShare(context, uri, mime, "Jaa lenkki")
                     shareDialog = false
-                } catch (e: Exception) { }
-                shareBusy = false
+                } catch (e: Exception) {
+                    android.util.Log.w("WorkoutShare", "Jako epäonnistui ($ext)", e)
+                    android.widget.Toast.makeText(
+                        context, "Jako epäonnistui.", android.widget.Toast.LENGTH_LONG).show()
+                } finally {
+                    shareBusy = false
+                }
             }
         }
         AlertDialog(
@@ -883,8 +894,14 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                                         }
                                         ShareFiles.launchShare(context, uri, "image/png", "Jaa lenkki")
                                         shareDialog = false
-                                    } catch (e: Exception) { }
-                                    shareBusy = false
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("WorkoutShare", "PNG-jako epäonnistui", e)
+                                        android.widget.Toast.makeText(
+                                            context, "Jako epäonnistui.",
+                                            android.widget.Toast.LENGTH_LONG).show()
+                                    } finally {
+                                        shareBusy = false
+                                    }
                                 }
                             }
                         }
@@ -1297,8 +1314,9 @@ internal fun avgSpeedText(distanceM: Double, movingMs: Long): String {
     return String.format(FI_WO, "%.1f km/h", kmh)
 }
 
-private fun paceText(distanceM: Double, movingMs: Long): String {
-    if (distanceM < 50) return "–"
+internal fun paceText(distanceM: Double, movingMs: Long): String {
+    // movingMs voi olla 0 esim. tuodussa GPX:ssä ilman aikaleimoja → "0:00 min/km" olisi väärin.
+    if (movingMs <= 0 || distanceM < 50) return "–"
     val minPerKm = (movingMs / 60_000.0) / (distanceM / 1000.0)
     val min = minPerKm.toInt()
     val sec = ((minPerKm - min) * 60).toInt()

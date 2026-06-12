@@ -99,11 +99,19 @@ class MobileComposeMainActivity : AppCompatActivity() {
         } ?: return
         android.util.Log.i("WorkoutImport",
             "intent action=${intent?.action} type=${intent?.type} uri=$uri")
+        // Kuluta intent heti: Activityn recreate (teemanvaihto, prosessikuolema) toimittaa
+        // alkuperäisen intentin uudelleen → sama tiedosto käsiteltäisiin ja toast/navigointi
+        // toistuisi. URI on jo poimittu talteen.
+        setIntent(android.content.Intent())
         Thread {
+            var tooLarge: String? = null
             val res = try {
                 contentResolver.openInputStream(uri)?.use {
                     WorkoutFileImporter.importStream(this, it)
                 }
+            } catch (e: FileTooLargeException) {
+                tooLarge = e.message
+                null
             } catch (e: Exception) {
                 android.util.Log.w("WorkoutImport", "Tuonti epäonnistui", e)
                 null
@@ -111,7 +119,7 @@ class MobileComposeMainActivity : AppCompatActivity() {
             runOnUiThread {
                 if (res == null) {
                     android.widget.Toast.makeText(
-                        this, "Tiedostosta ei löytynyt lenkkiä (GPX/TCX).",
+                        this, tooLarge ?: "Tiedostosta ei löytynyt lenkkiä (GPX/TCX).",
                         android.widget.Toast.LENGTH_LONG).show()
                 } else {
                     android.widget.Toast.makeText(

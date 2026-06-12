@@ -213,7 +213,9 @@ private class TransitState(private val appContext: Context) {
             if (fast != null) fetch(fast.latitude, fast.longitude)
             val request = CurrentLocationRequest.Builder()
                 .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-                .setGranularity(Granularity.GRANULARITY_FINE)
+                // PERMISSION_LEVEL: hyväksymme myös pelkän coarse-luvan (likimääräinen sijainti
+                // Android 12+) — GRANULARITY_FINE heittäisi SecurityExceptionin ilman fine-lupaa.
+                .setGranularity(Granularity.GRANULARITY_PERMISSION_LEVEL)
                 .setMaxUpdateAgeMillis(if (usedFast) 3_000L else 10_000L)
                 .setDurationMillis(if (usedFast) 5_000L else 8_000L)
                 .build()
@@ -231,6 +233,9 @@ private class TransitState(private val appContext: Context) {
                 .addOnFailureListener {
                     if (!usedFast) fetchFallbackLocation(client)
                 }
+        } catch (e: SecurityException) {
+            // Lupa ehti kadota tarkistuksen (refresh → hasLocationPermission) jälkeen.
+            onFetchFail("Sijaintilupa puuttuu.")
         } catch (e: Exception) {
             onFetchFail("Sijaintia ei voitu lukea.")
         }
@@ -251,6 +256,8 @@ private class TransitState(private val appContext: Context) {
                     val best = lastKnownFromLocationManager()
                     if (best != null) fetch(best.latitude, best.longitude) else onFetchFail(errorMessage)
                 }
+        } catch (e: SecurityException) {
+            onFetchFail("Sijaintilupa puuttuu.")
         } catch (e: Exception) {
             val best = lastKnownFromLocationManager()
             if (best != null) fetch(best.latitude, best.longitude) else onFetchFail(errorMessage)

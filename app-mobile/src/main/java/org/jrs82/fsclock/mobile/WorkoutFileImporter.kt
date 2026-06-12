@@ -40,9 +40,14 @@ internal object WorkoutFileImporter {
         val points = ArrayList<ParsedPoint>()
     }
 
-    /** Kutsu IO-säikeestä. Palauttaa null jos tiedosto ei ole GPX/TCX tai siinä ei ole reittiä. */
+    /** Suurin sallittu tuontitiedosto — octet-stream-intent hyväksyy minkä tahansa tiedoston,
+     *  eikä rajaton luku muistiin saa kaataa sovellusta. */
+    private const val MAX_IMPORT_BYTES = 20 * 1024 * 1024
+
+    /** Kutsu IO-säikeestä. Palauttaa null jos tiedosto ei ole GPX/TCX tai siinä ei ole reittiä;
+     *  heittää [FileTooLargeException] jos tiedosto ylittää kokorajan. */
     fun importStream(context: Context, input: InputStream): ImportedWorkout? {
-        val text = input.readBytes().toString(Charsets.UTF_8)
+        val text = readAllLimited(input, MAX_IMPORT_BYTES).toString(Charsets.UTF_8)
         val parsed = when {
             text.contains("<gpx") -> parseGpx(text)
             text.contains("<TrainingCenterDatabase") -> parseTcx(text)
@@ -76,7 +81,9 @@ internal object WorkoutFileImporter {
         p.setInput(StringReader(text))
         var segment = 0
         var inTrkpt = false
-        var lat = 0.0; var lon = 0.0; var alt: Double? = null; var tMs = 0L
+        // Nullable, EI 0.0-sentinel: lat/lon 0.0 ovat laillisia koordinaatteja (päiväntasaaja/
+        // Greenwich) — piste hyväksytään kun attribuutit ovat aidosti olemassa ja parsittavissa.
+        var lat: Double? = null; var lon: Double? = null; var alt: Double? = null; var tMs = 0L
         var inTrk = false
         var event = p.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
@@ -86,8 +93,8 @@ internal object WorkoutFileImporter {
                     "trkseg" -> segment++
                     "trkpt" -> {
                         inTrkpt = true
-                        lat = p.getAttributeValue(null, "lat")?.toDoubleOrNull() ?: 0.0
-                        lon = p.getAttributeValue(null, "lon")?.toDoubleOrNull() ?: 0.0
+                        lat = p.getAttributeValue(null, "lat")?.toDoubleOrNull()
+                        lon = p.getAttributeValue(null, "lon")?.toDoubleOrNull()
                         alt = null; tMs = 0L
                     }
                     "ele" -> if (inTrkpt) alt = p.nextText().toDoubleOrNull()
@@ -100,8 +107,10 @@ internal object WorkoutFileImporter {
                 }
                 XmlPullParser.END_TAG -> when (p.name) {
                     "trkpt" -> {
-                        if (inTrkpt && lat != 0.0 && lon != 0.0) {
-                            out.points.add(ParsedPoint(tMs, lat, lon, alt, segment))
+                        val la = lat
+                        val lo = lon
+                        if (inTrkpt && la != null && lo != null) {
+                            out.points.add(ParsedPoint(tMs, la, lo, alt, segment))
                         }
                         inTrkpt = false
                     }
@@ -123,7 +132,8 @@ internal object WorkoutFileImporter {
         p.setInput(StringReader(text))
         var segment = 0
         var inTrackpoint = false
-        var lat = 0.0; var lon = 0.0; var alt: Double? = null; var tMs = 0L
+        // Nullable, EI 0.0-sentinel (ks. parseGpx-kommentti).
+        var lat: Double? = null; var lon: Double? = null; var alt: Double? = null; var tMs = 0L
         var event = p.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
@@ -133,17 +143,19 @@ internal object WorkoutFileImporter {
                         if (sport.equals("Biking", true)) out.type = WorkoutEntity.TYPE_BIKE
                     }
                     "Track" -> segment++
-                    "Trackpoint" -> { inTrackpoint = true; lat = 0.0; lon = 0.0; alt = null; tMs = 0L }
+                    "Trackpoint" -> { inTrackpoint = true; lat = null; lon = null; alt = null; tMs = 0L }
                     "Time" -> if (inTrackpoint) tMs = parseIsoMs(p.nextText())
-                    "LatitudeDegrees" -> if (inTrackpoint) lat = p.nextText().toDoubleOrNull() ?: 0.0
-                    "LongitudeDegrees" -> if (inTrackpoint) lon = p.nextText().toDoubleOrNull() ?: 0.0
+                    "LatitudeDegrees" -> if (inTrackpoint) lat = p.nextText().toDoubleOrNull()
+                    "LongitudeDegrees" -> if (inTrackpoint) lon = p.nextText().toDoubleOrNull()
                     "AltitudeMeters" -> if (inTrackpoint) alt = p.nextText().toDoubleOrNull()
                     "Calories" -> out.kcal += p.nextText().toDoubleOrNull()?.toInt() ?: 0
                     "Notes" -> if (out.name == null) out.name = p.nextText().trim().ifEmpty { null }
                 }
                 XmlPullParser.END_TAG -> if (p.name == "Trackpoint") {
-                    if (inTrackpoint && lat != 0.0 && lon != 0.0) {
-                        out.points.add(ParsedPoint(tMs, lat, lon, alt, segment))
+                    val la = lat
+                    val lo = lon
+                    if (inTrackpoint && la != null && lo != null) {
+                        out.points.add(ParsedPoint(tMs, la, lo, alt, segment))
                     }
                     inTrackpoint = false
                 }

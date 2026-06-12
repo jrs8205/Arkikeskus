@@ -102,16 +102,33 @@ internal object BackupManager {
         return ExportResult(all.size, prefCount, data.size)
     }
 
-    /** Palauttaa varmuuskopion. Asetukset kirjoitetaan olemassa olevien päälle (EI clear() —
-     *  laitekohtainen tila kuten lupaliput säilyy); lenkit dedupataan (startedAtMs, type) -parilla,
-     *  joten saman tiedoston voi tuoda useasti ilman duplikaatteja. Kutsu IO-säikeestä; kutsujan
-     *  vastuulla on varmistaa ettei lenkki ole käynnissä (WorkoutTracker IDLE). */
-    fun restore(context: Context, input: InputStream): RestoreResult {
-        val root = JSONObject(input.readBytes().toString(Charsets.UTF_8))
-        require(root.optString("format") == FORMAT) { "Tuntematon tiedostomuoto" }
+    /** Suurin sallittu varmuuskopiotiedoston koko (100 lenkkiä ≈ 5–8 Mt → reilu marginaali). */
+    private const val MAX_RESTORE_BYTES = 100 * 1024 * 1024
 
+    private class PendingWorkout(
+        val w: WorkoutEntity,
+        val points: List<WorkoutPointEntity>,
+        val splits: List<WorkoutSplitEntity>,
+    )
+
+    /** Palauttaa varmuuskopion KAKSIVAIHEISESTI: ensin koko sisältö validoidaan ja rakennetaan
+     *  muistiin, vasta sitten kirjoitetaan — virheellinen tiedosto ei jätä osittaista palautusta.
+     *  Asetukset kirjoitetaan commit()-kutsulla (EI apply()), koska palautusta seuraa välitön
+     *  prosessin tappo (RestartActivity + exit(0)) — asynkroninen kirjoitus voisi hukkua.
+     *  Asetukset kirjoitetaan olemassa olevien päälle (EI clear()); lenkit dedupataan
+     *  (startedAtMs, type) -parilla. Kutsu IO-säikeestä; kutsujan vastuulla on varmistaa
+     *  ettei lenkki ole käynnissä (WorkoutTracker IDLE). */
+    fun restore(context: Context, input: InputStream): RestoreResult {
+        val root = JSONObject(readAllLimited(input, MAX_RESTORE_BYTES).toString(Charsets.UTF_8))
+        require(root.optString("format") == FORMAT) { "Tuntematon tiedostomuoto" }
+        val version = root.optInt("version", 0)
+        require(version in 1..VERSION) {
+            "Varmuuskopio on uudemmasta sovellusversiosta (v$version) — päivitä sovellus ensin"
+        }
+
+        // ---- VAIHE 1: validoi ja rakenna kaikki muistiin, EI vielä kirjoituksia ----
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        val editor = prefs.edit()
+        val editor = prefs.edit() // editor on vain puskuri — mitään ei kirjoitu ennen commit()ia
         val prefsJson = root.optJSONObject("prefs") ?: JSONObject()
         var prefCount = 0
         for (key in prefsJson.keys()) {
@@ -133,13 +150,12 @@ internal object BackupManager {
             }
             prefCount++
         }
-        editor.apply()
 
         val dao = FsClockDb.get(context).workoutDao()
         val existing = HashSet<String>()
         for (w in dao.allFinishedWorkouts()) existing.add(w.startedAtMs.toString() + ":" + w.type)
         val arr = root.optJSONArray("workouts") ?: JSONArray()
-        var imported = 0
+        val pending = ArrayList<PendingWorkout>()
         var skipped = 0
         for (i in 0 until arr.length()) {
             val wj = arr.optJSONObject(i) ?: continue
@@ -161,13 +177,11 @@ internal object BackupManager {
             w.name = if (wj.isNull("name")) null else wj.optString("name")
             w.shared = wj.optBoolean("shared")
             w.updatedAtMs = System.currentTimeMillis()
-            val id = dao.insertWorkout(w)
             val pts = wj.optJSONArray("points") ?: JSONArray()
             val pointList = ArrayList<WorkoutPointEntity>(pts.length())
             for (j in 0 until pts.length()) {
                 val row = pts.optJSONArray(j) ?: continue
                 val p = WorkoutPointEntity()
-                p.workoutId = id
                 p.tMs = row.optLong(0)
                 p.lat = row.optDouble(1)
                 p.lon = row.optDouble(2)
@@ -177,22 +191,36 @@ internal object BackupManager {
                 p.segment = row.optInt(6)
                 pointList.add(p)
             }
-            if (pointList.isNotEmpty()) dao.insertPoints(pointList)
+            val splitList = ArrayList<WorkoutSplitEntity>()
             val sps = wj.optJSONArray("splits") ?: JSONArray()
             for (j in 0 until sps.length()) {
                 val row = sps.optJSONArray(j) ?: continue
                 val s = WorkoutSplitEntity()
-                s.workoutId = id
                 s.splitIndex = row.optInt(0)
                 s.durationMs = row.optLong(1)
                 s.endLat = row.optDouble(2)
                 s.endLon = row.optDouble(3)
+                splitList.add(s)
+            }
+            pending.add(PendingWorkout(w, pointList, splitList))
+        }
+
+        // ---- VAIHE 2: kirjoitukset — synkronisesti, koska prosessi tapetaan kohta ----
+        check(editor.commit()) { "Asetusten kirjoitus levylle epäonnistui" }
+        var imported = 0
+        for (pw in pending) {
+            val id = dao.insertWorkout(pw.w)
+            pw.points.forEach { it.workoutId = id }
+            if (pw.points.isNotEmpty()) dao.insertPoints(pw.points)
+            for (s in pw.splits) {
+                s.workoutId = id
                 dao.insertSplit(s)
             }
             imported++
         }
         // Uudelleenkäynnistyksen jälkeinen vahvistus-toast (MobileComposeMainActivity lukee).
-        prefs.edit().putBoolean("restore_done_pending", true).apply()
+        // commit(): restart tappaa prosessin heti — apply() voisi hukata lipun JA palautetut arvot.
+        prefs.edit().putBoolean("restore_done_pending", true).commit()
         return RestoreResult(imported, prefCount, skipped)
     }
 }

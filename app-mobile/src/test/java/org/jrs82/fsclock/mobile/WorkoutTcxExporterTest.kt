@@ -74,6 +74,30 @@ class WorkoutTcxExporterTest {
     }
 
     @Test
+    fun `iso gps-hyppy ei tuota tyhjia track-osuuksia`() {
+        // 2 pistettä 3 km päässä toisistaan → lap 1 jää pisteettömäksi (km 1–2 välillä ei pisteitä)
+        val dLon3km = 3000.0 / (111_320.0 * cos(Math.toRadians(60.0)))
+        val pts = listOf(
+            WorkoutPointEntity().also {
+                it.tMs = 1781258400000L; it.lat = 60.0; it.lon = 24.0; it.segment = 1
+            },
+            WorkoutPointEntity().also {
+                it.tMs = 1781258400000L + 600_000L; it.lat = 60.0; it.lon = 24.0 + dLon3km; it.segment = 1
+            },
+        )
+        val w = workout(WorkoutEntity.TYPE_WALK).also { it.distanceM = 3000.0 }
+        val tcx = WorkoutTcxExporter.buildTcx(w, pts, splits())
+        assertEquals(3, Regex("<Lap StartTime=").findAll(tcx).count())
+        // Vain 2 lapilla on pisteitä → tasan 2 Track-lohkoa, ei yhtään tyhjää
+        assertEquals(2, Regex("<Track>").findAll(tcx).count())
+        // Pisteetön lap 1 perii edellisen lapin StartTimen → sama aikaleima kahdesti;
+        // lap 2 alkaa jälkimmäisen pisteen ajasta
+        val t0 = WorkoutGpxExporter.iso(1781258400000L)
+        assertEquals(2, Regex("<Lap StartTime=\"$t0\">").findAll(tcx).count())
+        assertTrue(tcx.contains("<Lap StartTime=\"${WorkoutGpxExporter.iso(1781258400000L + 600_000L)}\">"))
+    }
+
+    @Test
     fun `roundtrip tuontiparserilla`() {
         val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_WALK), line(), splits())
         val parsed = WorkoutFileImporter.parseTcx(tcx, KXmlParser())
