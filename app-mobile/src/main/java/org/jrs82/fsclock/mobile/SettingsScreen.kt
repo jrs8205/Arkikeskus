@@ -198,6 +198,20 @@ fun SettingsScreen() {
         }
     }
 
+    // --- Automaattinen varmuuskopiointi: kohdetiedosto valitaan kerran, WorkManager ajaa ---
+    var autoBackupOn by remember { mutableStateOf(AutoBackup.isEnabled(context)) }
+    val autoBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            AutoBackup.enable(context, uri)
+            autoBackupOn = true
+            toast(context, "Automaattinen varmuuskopiointi käytössä — ensimmäinen kopio tehdään nyt.")
+        } else {
+            autoBackupOn = false
+        }
+    }
+
     // --- Sää: automaattinen sijainti + lupavirta ---
     var autoLocation by remember {
         mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true))
@@ -473,6 +487,22 @@ fun SettingsScreen() {
                         backupRestoreLauncher.launch(
                             arrayOf("application/json", "application/octet-stream"))
                     }
+                    RowDivider()
+                    SwitchRow(
+                        title = "Automaattinen varmuuskopiointi",
+                        subtitle = autoBackupSubtitle(prefs, autoBackupOn),
+                        leadingIconRes = R.drawable.mobile_ic_backup_24,
+                        checked = autoBackupOn,
+                    ) { on ->
+                        if (on) {
+                            // Kohdetiedosto valitaan kerran (esim. Drive) → pysyvä kirjoituslupa.
+                            autoBackupLauncher.launch("Arkikeskus-autovarmuuskopio.json")
+                        } else {
+                            AutoBackup.disable(context)
+                            autoBackupOn = false
+                            toast(context, "Automaattinen varmuuskopiointi pois käytöstä.")
+                        }
+                    }
                 }
             }
 
@@ -497,7 +527,13 @@ fun SettingsScreen() {
             confirmButton = {
                 TextButton(onClick = {
                     restoreDone = null
-                    (context as? android.app.Activity)?.recreate()
+                    // Aito prosessin uudelleenkäynnistys (käyttäjän toive: "tuntuu että
+                    // oikeasti tapahtui jotain"): uusi launcher-task + prosessin lopetus →
+                    // sovellus nousee splashin kautta kokonaan puhtaalta pöydältä.
+                    val restart = Intent.makeRestartActivityTask(
+                        android.content.ComponentName(context, MobileComposeMainActivity::class.java))
+                    context.startActivity(restart)
+                    Runtime.getRuntime().exit(0)
                 }) { Text("OK") }
             },
         )
@@ -809,6 +845,20 @@ private fun CustomFeedDialog(
 }
 
 // ===================== Rivikomponentit =====================
+
+/** Automaattibackupin tilateksti: viimeisin onnistunut ajo tai virheohje. */
+private fun autoBackupSubtitle(prefs: android.content.SharedPreferences, on: Boolean): String {
+    if (!on) return "Päivittäin valitsemaasi tiedostoon (esim. Drive)"
+    if (prefs.getString(AutoBackup.KEY_ERROR, null) != null) {
+        return "Edellinen ajo epäonnistui — valitse kohde uudelleen (pois ja päälle)"
+    }
+    val last = prefs.getLong(AutoBackup.KEY_LAST_MS, 0L)
+    return if (last > 0) {
+        "Päivittäin · viimeisin " + SimpleDateFormat("d.M. HH:mm", FI).format(Date(last))
+    } else {
+        "Päivittäin · ensimmäinen kopio tekeillä…"
+    }
+}
 
 @Composable
 private fun SectionHeader(text: String, iconRes: Int? = null) {

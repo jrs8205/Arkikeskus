@@ -35,6 +35,8 @@ internal object BackupManager {
         val prefsJson = JSONObject()
         var prefCount = 0
         for ((key, value) in prefs.all) {
+            // Automaattibackupin oma tila (kohde-URI ym.) on laitekohtainen — ei mukaan.
+            if (key.startsWith("auto_backup_")) continue
             val entry = JSONObject()
             when (value) {
                 is String -> { entry.put("t", "string"); entry.put("v", value) }
@@ -66,6 +68,7 @@ internal object BackupManager {
             wj.put("kcal", w.kcal)
             wj.put("autoStopped", w.autoStopped)
             wj.put("name", w.name ?: JSONObject.NULL)
+            wj.put("shared", w.shared)
             // Pisteet kompakteina taulukkoriveinä [tMs, lat, lon, altM|null, speed, acc, segment].
             val pts = JSONArray()
             for (p in dao.pointsFor(w.id)) {
@@ -111,6 +114,7 @@ internal object BackupManager {
         val prefsJson = root.optJSONObject("prefs") ?: JSONObject()
         var prefCount = 0
         for (key in prefsJson.keys()) {
+            if (key.startsWith("auto_backup_")) continue
             val entry = prefsJson.optJSONObject(key) ?: continue
             when (entry.optString("t")) {
                 "string" -> editor.putString(key, entry.optString("v"))
@@ -154,6 +158,7 @@ internal object BackupManager {
             w.kcal = wj.optInt("kcal")
             w.autoStopped = wj.optBoolean("autoStopped")
             w.name = if (wj.isNull("name")) null else wj.optString("name")
+            w.shared = wj.optBoolean("shared")
             w.updatedAtMs = System.currentTimeMillis()
             val id = dao.insertWorkout(w)
             val pts = wj.optJSONArray("points") ?: JSONArray()

@@ -291,9 +291,11 @@ private fun StartWorkoutView(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        // Lenkkihistoria: napautus avaa yhteenvedon reittikarttoineen.
+        // Lenkkihistoria: omat ja jaetut (tuodut) lenkit omissa osioissaan, napautus avaa
+        // yhteenvedon reittikarttoineen.
         var history by remember { mutableStateOf<List<WorkoutEntity>>(emptyList()) }
-        LaunchedEffect(Unit) {
+        var historyTick by remember { mutableLongStateOf(0L) }
+        LaunchedEffect(historyTick) {
             history = withContext(Dispatchers.IO) {
                 try {
                     FsClockDb.get(context).workoutDao().recentWorkouts(30)
@@ -302,45 +304,107 @@ private fun StartWorkoutView(
                 }
             }
         }
-        if (history.isNotEmpty()) {
+        val ownWorkouts = history.filter { !it.shared }
+        val sharedWorkouts = history.filter { it.shared }
+        if (ownWorkouts.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
             Text("Aiemmat lenkit", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            history.forEach { w ->
-                Card(
-                    onClick = { onOpenWorkout(w.id) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            val laji = if (w.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"
-                            val named = !w.name.isNullOrBlank()
-                            Text(
-                                if (named) w.name!!.trim()
-                                else timeText(w.startedAtMs) + " · " + laji,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                (if (named) timeText(w.startedAtMs) + " · " + laji + " · " else "") +
-                                    String.format(FI_WO, "%.2f km", w.distanceM / 1000.0) +
-                                    " · " + formatDurationLong(w.movingTimeMs) +
-                                    " · " + avgSpeedText(w.distanceM, w.movingTimeMs),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+            ownWorkouts.forEach { w -> WorkoutHistoryRow(w, onOpenWorkout) }
+        }
+        if (sharedWorkouts.isNotEmpty()) {
+            Spacer(Modifier.height(20.dp))
+            Text("Jaetut lenkit", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            sharedWorkouts.forEach { w -> WorkoutHistoryRow(w, onOpenWorkout) }
+        }
+
+        // Jaetun GPX/TCX-tiedoston tuonti käsin (sama polku kuin tiedoston avaus muualta).
+        Spacer(Modifier.height(8.dp))
+        val importLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocument(),
+        ) { uri ->
+            if (uri != null) {
+                Thread {
+                    val res = try {
+                        context.contentResolver.openInputStream(uri)?.use {
+                            WorkoutFileImporter.importStream(context, it)
                         }
-                        Text("›", style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } catch (e: Exception) {
+                        null
                     }
-                }
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        android.widget.Toast.makeText(
+                            context,
+                            when {
+                                res == null -> "Tiedostosta ei löytynyt lenkkiä (GPX/TCX)."
+                                res.alreadyExists -> "Lenkki on jo laitteella: ${res.name}"
+                                else -> "Jaettu lenkki tuotu: ${res.name}"
+                            },
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                        historyTick++
+                    }
+                }.start()
             }
+        }
+        TextButton(onClick = {
+            importLauncher.launch(arrayOf(
+                "application/gpx+xml", "application/vnd.garmin.tcx+xml",
+                "application/xml", "text/xml", "application/octet-stream"))
+        }) { Text("Tuo lenkki tiedostosta (GPX/TCX)") }
+    }
+}
+
+/** Historiarivi: nimi (tai aika · laji) + tunnusluvut; jaetuissa lenkeissä Jaettu-merkki. */
+@Composable
+private fun WorkoutHistoryRow(w: WorkoutEntity, onOpenWorkout: (Long) -> Unit) {
+    Card(
+        onClick = { onOpenWorkout(w.id) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                val laji = if (w.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"
+                val named = !w.name.isNullOrBlank()
+                Text(
+                    if (named) w.name!!.trim()
+                    else timeText(w.startedAtMs) + " · " + laji,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    (if (named) timeText(w.startedAtMs) + " · " + laji + " · " else "") +
+                        String.format(FI_WO, "%.2f km", w.distanceM / 1000.0) +
+                        " · " + formatDurationLong(w.movingTimeMs) +
+                        " · " + avgSpeedText(w.distanceM, w.movingTimeMs),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (w.shared) {
+                Text(
+                    "Jaettu",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(8.dp),
+                        )
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -609,6 +673,12 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+        if (w != null && w.shared) {
+            Spacer(Modifier.height(4.dp))
+            Text("Jaettu lenkki (tuotu tiedostosta)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary)
         }
         if (autoStopped || (w != null && w.autoStopped)) {
             Spacer(Modifier.height(4.dp))

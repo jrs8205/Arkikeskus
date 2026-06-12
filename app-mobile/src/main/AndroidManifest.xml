@@ -94,10 +94,35 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_mobile_name"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Arkikeskus.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Jaetun lenkkitiedoston (GPX/TCX) avaus: tiedostonhallinta/sähköposti (VIEW)
+                 ja jakovalikko (SEND). singleTask → olemassa oleva instanssi saa onNewIntentin.
+                 octet-stream mukana, koska Android EI tunne .gpx/.tcx-päätteitä (tiedosto-
+                 hallinnat ja WhatsApp tarjoavat ne tuntemattomana binäärinä) — tuonti
+                 tunnistaa sisällön ja ilmoittaa siististi jos tiedosto ei ole lenkki. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/vnd.garmin.tcx+xml" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/vnd.garmin.tcx+xml" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
 
