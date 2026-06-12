@@ -1143,7 +1143,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                     LocationServices.getFusedLocationProviderClient(requireContext());
             CurrentLocationRequest req = new CurrentLocationRequest.Builder()
                     .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-                    .setGranularity(Granularity.GRANULARITY_FINE)
+                    // PERMISSION_LEVEL: pelkkä coarse-lupa riittää (likimääräinen sijainti) —
+                    // GRANULARITY_FINE heittäisi SecurityExceptionin ilman fine-lupaa.
+                    .setGranularity(Granularity.GRANULARITY_PERMISSION_LEVEL)
                     .setMaxUpdateAgeMillis(60_000L)
                     .setDurationMillis(8_000L)
                     .build();
