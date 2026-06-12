@@ -28,13 +28,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.db.WorkoutEntity
@@ -311,14 +319,17 @@ private fun StartWorkoutView(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            val laji = if (w.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"
+                            val named = !w.name.isNullOrBlank()
                             Text(
-                                timeText(w.startedAtMs) + " · " +
-                                    (if (w.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"),
+                                if (named) w.name!!.trim()
+                                else timeText(w.startedAtMs) + " · " + laji,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                String.format(FI_WO, "%.2f km", w.distanceM / 1000.0) +
+                                (if (named) timeText(w.startedAtMs) + " · " + laji + " · " else "") +
+                                    String.format(FI_WO, "%.2f km", w.distanceM / 1000.0) +
                                     " · " + formatDurationLong(w.movingTimeMs) +
                                     " · " + avgSpeedText(w.distanceM, w.movingTimeMs),
                                 style = MaterialTheme.typography.bodySmall,
@@ -535,6 +546,12 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
         mutableStateOf<List<org.jrs82.fsclock.db.WorkoutSplitEntity>>(emptyList())
     }
     var confirmDelete by remember { mutableStateOf(false) }
+    var renameDialog by remember { mutableStateOf(false) }
+    var shareDialog by remember { mutableStateOf(false) }
+    var shareBusy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    // Nimi omana tilanaan: entiteetin kentän mutatointi ei laukaisisi recompositiota.
+    var workoutName by remember(workoutId) { mutableStateOf<String?>(null) }
     LaunchedEffect(workoutId) {
         withContext(Dispatchers.IO) {
             try {
@@ -542,6 +559,7 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                 workout = dao.workoutById(workoutId)
                 points = dao.pointsFor(workoutId)
                 splits = dao.splitsFor(workoutId)
+                workoutName = workout?.name
             } catch (e: Exception) {
                 workout = null
             }
@@ -576,8 +594,22 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Lenkin yhteenveto", style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (w == null) "Lenkin yhteenveto"
+                else workoutName?.trim().takeUnless { it.isNullOrEmpty() }
+                    ?: workoutDefaultName(w.type, w.startedAtMs),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            if (w != null) {
+                IconButton(onClick = { renameDialog = true }) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Nimeä lenkki",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         if (autoStopped || (w != null && w.autoStopped)) {
             Spacer(Modifier.height(4.dp))
             Text("Päättyi automaattisesti (ei liikettä 10 min)",
@@ -660,6 +692,13 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
             }
         }
         Spacer(Modifier.height(16.dp))
+        if (w != null && points.size >= 2) {
+            OutlinedButton(
+                onClick = { shareDialog = true },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) { Text("Jaa lenkki…") }
+            Spacer(Modifier.height(12.dp))
+        }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(
                 onClick = { confirmDelete = true },
@@ -692,6 +731,107 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }) { Text("Peruuta") }
+            },
+        )
+    }
+
+    if (renameDialog && w != null) {
+        var nameInput by remember { mutableStateOf(workoutName ?: "") }
+        AlertDialog(
+            onDismissRequest = { renameDialog = false },
+            title = { Text("Nimeä lenkki") },
+            text = {
+                OutlinedTextField(
+                    value = nameInput,
+                    onValueChange = { nameInput = it },
+                    placeholder = { Text("esim. Koiralenkki") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    renameDialog = false
+                    val newName = nameInput.trim().ifEmpty { null }
+                    workoutName = newName
+                    w.name = newName
+                    Thread {
+                        try {
+                            FsClockDb.get(context).workoutDao().renameWorkout(workoutId, newName)
+                        } catch (e: Exception) { }
+                    }.start()
+                }) { Text("Tallenna") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameDialog = false }) { Text("Peruuta") }
+            },
+        )
+    }
+
+    if (shareDialog && w != null) {
+        // Jakotiedoston nimi: lenkin nimi + päivämäärä, kielletyt merkit siivottuna.
+        val fileBase = ShareFiles.sanitizeFileName(workoutDisplayName(w)) + " " +
+            SimpleDateFormat("yyyy-MM-dd", FI_WO).format(Date(w.startedAtMs))
+        fun shareData(ext: String, mime: String, build: () -> ByteArray) {
+            scope.launch {
+                shareBusy = true
+                try {
+                    val uri = withContext(Dispatchers.IO) {
+                        ShareFiles.writeShareFile(context, fileBase + ext, build())
+                    }
+                    ShareFiles.launchShare(context, uri, mime, "Jaa lenkki")
+                    shareDialog = false
+                } catch (e: Exception) { }
+                shareBusy = false
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { if (!shareBusy) shareDialog = false },
+            title = { Text("Jaa lenkki") },
+            text = {
+                if (shareBusy) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Luodaan jakotiedostoa…")
+                    }
+                } else {
+                    Column {
+                        ShareOption("Kuva kartalla (PNG)", "Someen ja viesteihin") {
+                            shareBusy = true
+                            WorkoutShareImage.render(context, w, points, splits) { bmp ->
+                                scope.launch {
+                                    try {
+                                        val uri = withContext(Dispatchers.IO) {
+                                            val bos = java.io.ByteArrayOutputStream()
+                                            bmp.compress(
+                                                android.graphics.Bitmap.CompressFormat.PNG, 100, bos)
+                                            ShareFiles.writeShareFile(
+                                                context, "$fileBase.png", bos.toByteArray())
+                                        }
+                                        ShareFiles.launchShare(context, uri, "image/png", "Jaa lenkki")
+                                        shareDialog = false
+                                    } catch (e: Exception) { }
+                                    shareBusy = false
+                                }
+                            }
+                        }
+                        ShareOption("GPX-reittitiedosto", "Strava, Komoot, Garmin…") {
+                            shareData(".gpx", "application/gpx+xml") {
+                                WorkoutGpxExporter.buildGpx(w, points).toByteArray(Charsets.UTF_8)
+                            }
+                        }
+                        ShareOption("TCX-harjoitustiedosto", "Väliajat ja kalorit mukana") {
+                            shareData(".tcx", "application/vnd.garmin.tcx+xml") {
+                                WorkoutTcxExporter.buildTcx(w, points, splits).toByteArray(Charsets.UTF_8)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(enabled = !shareBusy, onClick = { shareDialog = false }) { Text("Peruuta") }
             },
         )
     }
@@ -1019,8 +1159,9 @@ private fun lastKnownLatLng(context: android.content.Context): org.maplibre.andr
     }
 }
 
-/** Valkoinen ympyrä sinisellä reunalla ja numerolla — km-merkki kartalle (ei vaadi fontteja). */
-private fun kmMarkerBitmap(context: android.content.Context, km: Int): android.graphics.Bitmap {
+/** Valkoinen ympyrä sinisellä reunalla ja numerolla — km-merkki kartalle (ei vaadi fontteja).
+ *  Internal: myös jakokuva (WorkoutShareImage) käyttää samaa merkkiä. */
+internal fun kmMarkerBitmap(context: android.content.Context, km: Int): android.graphics.Bitmap {
     val density = context.resources.displayMetrics.density
     val size = (26 * density).toInt()
     val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
@@ -1043,6 +1184,21 @@ private fun kmMarkerBitmap(context: android.content.Context, km: Int): android.g
 
 // ===================== Apurit =====================
 
+/** Jakodialogin valintarivi: otsikko + selite, koko rivi napautettava. */
+@Composable
+private fun ShareOption(title: String, subtitle: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 @Composable
 private fun StatRow(label: String, value: String) {
     Row(modifier = Modifier
@@ -1054,7 +1210,7 @@ private fun StatRow(label: String, value: String) {
     }
 }
 
-private fun formatDurationLong(ms: Long): String {
+internal fun formatDurationLong(ms: Long): String {
     val totalSec = ms / 1000
     val h = totalSec / 3600
     val m = (totalSec % 3600) / 60
@@ -1063,7 +1219,7 @@ private fun formatDurationLong(ms: Long): String {
     else String.format(FI_WO, "%02d:%02d", m, s)
 }
 
-private fun avgSpeedText(distanceM: Double, movingMs: Long): String {
+internal fun avgSpeedText(distanceM: Double, movingMs: Long): String {
     if (movingMs <= 0 || distanceM <= 0) return "–"
     val kmh = distanceM / 1000.0 / (movingMs / 3_600_000.0)
     return String.format(FI_WO, "%.1f km/h", kmh)
@@ -1079,3 +1235,15 @@ private fun paceText(distanceM: Double, movingMs: Long): String {
 
 private fun timeText(ms: Long): String =
     SimpleDateFormat("d.M. HH:mm", FI_WO).format(Date(ms))
+
+/** Oletusnimi nimettömälle lenkille: "Kävely 12.6." */
+internal fun workoutDefaultName(type: Int, startedAtMs: Long): String {
+    val laji = if (type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"
+    return laji + " " + SimpleDateFormat("d.M.", FI_WO).format(Date(startedAtMs))
+}
+
+/** Käyttäjän antama nimi tai oletus — käytetään otsikossa ja jakotiedostoissa. */
+internal fun workoutDisplayName(w: WorkoutEntity): String {
+    val n = w.name
+    return if (n.isNullOrBlank()) workoutDefaultName(w.type, w.startedAtMs) else n.trim()
+}

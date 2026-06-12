@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FileProvider-polut: ladatut päivitys-APK:t välimuistissa (updates/). -->
+<!-- FileProvider-polut: ladatut päivitys-APK:t (updates/) + lenkin jakotiedostot (share/). -->
 <paths>
     <cache-path name="updates" path="updates/" />
+    <cache-path name="share" path="share/" />
 </paths>
