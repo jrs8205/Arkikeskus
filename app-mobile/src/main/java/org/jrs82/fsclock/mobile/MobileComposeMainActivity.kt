@@ -57,6 +57,7 @@ class MobileComposeMainActivity : AppCompatActivity() {
         maybeAskInitialLocationPermission()
         externalSection.value = intent?.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
         maybeRecoverWorkout()
+        maybeImportWorkoutFile(intent)
         setContent {
             ArkikeskusTheme(dynamicColor = appliedDynamicColor) {
                 ComposeMainScreen(externalSection = externalSection)
@@ -70,6 +71,48 @@ class MobileComposeMainActivity : AppCompatActivity() {
         intent.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)?.let {
             externalSection.value = it
         }
+        maybeImportWorkoutFile(intent)
+    }
+
+    /** Jaetun lenkkitiedoston (GPX/TCX) avaus toisesta sovelluksesta: ACTION_VIEW (esim.
+     *  Tiedostot/Gmail) tai ACTION_SEND (jakovalikko) → tuonti "Jaettu lenkki" -merkinnällä
+     *  ja Lenkki-sivun avaus. */
+    private fun maybeImportWorkoutFile(intent: android.content.Intent?) {
+        val uri: android.net.Uri = when (intent?.action) {
+            android.content.Intent.ACTION_VIEW -> intent.data
+            android.content.Intent.ACTION_SEND ->
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    intent.getParcelableExtra(
+                        android.content.Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
+                }
+            else -> null
+        } ?: return
+        Thread {
+            val res = try {
+                contentResolver.openInputStream(uri)?.use {
+                    WorkoutFileImporter.importStream(this, it)
+                }
+            } catch (e: Exception) {
+                null
+            }
+            runOnUiThread {
+                if (res == null) {
+                    android.widget.Toast.makeText(
+                        this, "Tiedostosta ei löytynyt lenkkiä (GPX/TCX).",
+                        android.widget.Toast.LENGTH_LONG).show()
+                } else {
+                    android.widget.Toast.makeText(
+                        this,
+                        if (res.alreadyExists) "Lenkki on jo laitteella: ${res.name}"
+                        else "Jaettu lenkki tuotu: ${res.name}",
+                        android.widget.Toast.LENGTH_LONG).show()
+                    externalSection.value = "WORKOUT"
+                }
+            }
+        }.start()
     }
 
     /** Sovelluksen avaus kun kannassa on keskeneräinen lenkki mutta seuranta ei ole muistissa

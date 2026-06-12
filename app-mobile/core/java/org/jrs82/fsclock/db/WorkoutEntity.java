@@ -41,4 +41,7 @@ public class WorkoutEntity {
     public long updatedAtMs;
     /** Käyttäjän antama nimi ("Koiralenkki"); null/tyhjä → UI näyttää oletusnimen. */
     public String name;
+    /** True = tuotu jaetusta GPX/TCX-tiedostosta (toisen käyttäjän lenkki) — näytetään
+     *  historiassa omana "Jaetut lenkit" -osionaan, jotta eivät sekoitu omiin. */
+    public boolean shared;
 }
