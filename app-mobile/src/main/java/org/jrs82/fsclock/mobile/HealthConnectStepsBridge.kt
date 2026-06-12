@@ -35,11 +35,15 @@ object HealthConnectStepsBridge {
     // erillään: hasPermission vaatii vain askeleet, jottei vanha käyttäjä (vain Steps-luvalla)
     // menetä HC-askeldataa kun kaloriluvat lisätään pyyntöön.
     private val READ_STEPS = setOf(HealthPermission.getReadPermission(StepsRecord::class))
-    private val READ_ALL = setOf(
-        HealthPermission.getReadPermission(StepsRecord::class),
+    private val READ_CALS = setOf(
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
     )
+    // Historialupa (VALINNAINEN): ilman tätä HC sallii luvun vain 30 pv ennen ensimmäistä
+    // lupahetkeä kirjatusta datasta — pidemmät kyselyt (8 vk / 6 kk / vienti) voivat epäonnistua.
+    // Mukana lupaPYYNNÖISSÄ, mutta EI lupatarkistuksissa (hasPermission/hasCaloriePermission);
+    // historiafunktioissa on lisäksi 30 pv:n clamp-fallback jos laaja kysely hylätään.
+    private const val READ_HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY"
     private val scope = CoroutineScope(Dispatchers.Main)
 
     fun interface BoolCallback { fun onResult(value: Boolean) }
@@ -57,15 +61,15 @@ object HealthConnectStepsBridge {
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
 
     @JvmStatic
-    fun permissions(): Array<String> = READ_ALL.toTypedArray()
+    fun permissions(): Array<String> = (READ_STEPS + READ_CALS + READ_HISTORY).toTypedArray()
 
-    /** Vain askelluvat (pakollinen HC-lähteelle). */
+    /** Vain askelluvat (pakollinen HC-lähteelle) + valinnainen historialupa. */
     @JvmStatic
-    fun stepPermissions(): Array<String> = READ_STEPS.toTypedArray()
+    fun stepPermissions(): Array<String> = (READ_STEPS + READ_HISTORY).toTypedArray()
 
-    /** Vain kaloriluvat (valinnaiset, aktiivinen + kokonais). */
+    /** Vain kaloriluvat (valinnaiset, aktiivinen + kokonais) + valinnainen historialupa. */
     @JvmStatic
-    fun caloriePermissions(): Array<String> = (READ_ALL - READ_STEPS).toTypedArray()
+    fun caloriePermissions(): Array<String> = (READ_CALS + READ_HISTORY).toTypedArray()
 
     /** Health Connectin oma lupanäkymä-contract Javan registerForActivityResultille. */
     @JvmStatic
@@ -93,7 +97,7 @@ object HealthConnectStepsBridge {
         scope.launch {
             val granted = try {
                 HealthConnectClient.getOrCreate(context)
-                    .permissionController.getGrantedPermissions().containsAll(READ_ALL - READ_STEPS)
+                    .permissionController.getGrantedPermissions().containsAll(READ_CALS)
             } catch (e: Exception) {
                 false
             }
@@ -124,10 +128,11 @@ object HealthConnectStepsBridge {
         }
     }
 
-    /** Tämän päivän askeleet LÄHTEITTÄIN (readRecords ryhmiteltynä dataOrigin-paketin mukaan).
-     *  Yleismaallinen: listaa kaikki HC:hen kirjoittaneet sovellukset mitä laitteita käyttäjällä
-     *  onkaan — ei kovakoodattuja merkkejä. Per-lähde-summat ovat raakasummia, jotka voivat olla
-     *  päällekkäisiä keskenään; ne EIVÄT summaudu HC:n dedupoituun kokonaislukuun (todaySteps). */
+    /** Tämän päivän askeleet LÄHTEITTÄIN. Lähteet TUNNISTETAAN readRecords-raakakirjauksista
+     *  (yleismaallinen — listaa kaikki HC:hen kirjoittaneet sovellukset), mutta per-lähde-LUVUT
+     *  haetaan aggregatella dataOriginFilter-rajauksella: Androidin ohje varoittaa summaamasta
+     *  raakakirjauksia itse (päällekkäiset jaksot tuplaantuisivat). Eri lähteiden luvut voivat
+     *  silti mitata samoja askelia keskenään — kokonaisluku on HC:n dedupoima (todaySteps). */
     @JvmStatic
     fun todayStepsBySource(context: Context, cb: SourcesCallback) {
         if (!isAvailable(context)) { cb.onResult(emptyArray(), LongArray(0)); return }
@@ -135,24 +140,34 @@ object HealthConnectStepsBridge {
             val sums = LinkedHashMap<String, Long>()
             try {
                 val client = HealthConnectClient.getOrCreate(context)
+                val range = TimeRangeFilter.between(LocalDate.now().atStartOfDay(), LocalDateTime.now())
+                // 1) Tunnista kirjoittaneet sovellukset raakakirjauksista
+                val origins = LinkedHashSet<String>()
                 var pageToken: String? = null
                 do {
                     val resp = client.readRecords(
                         ReadRecordsRequest(
                             recordType = StepsRecord::class,
-                            timeRangeFilter = TimeRangeFilter.between(
-                                LocalDate.now().atStartOfDay(), LocalDateTime.now()
-                            ),
+                            timeRangeFilter = range,
                             pageSize = 1000,
                             pageToken = pageToken
                         )
                     )
-                    for (r in resp.records) {
-                        val pkg = r.metadata.dataOrigin.packageName
-                        sums[pkg] = (sums[pkg] ?: 0L) + r.count
-                    }
+                    for (r in resp.records) origins.add(r.metadata.dataOrigin.packageName)
                     pageToken = resp.pageToken
                 } while (pageToken != null)
+                // 2) Per-lähde-luku HC:n omalla aggregaatilla (dedup lähteen sisällä)
+                for (pkg in origins) {
+                    val res = client.aggregate(
+                        AggregateRequest(
+                            metrics = setOf(StepsRecord.COUNT_TOTAL),
+                            timeRangeFilter = range,
+                            dataOriginFilter = setOf(
+                                androidx.health.connect.client.records.metadata.DataOrigin(pkg))
+                        )
+                    )
+                    sums[pkg] = res[StepsRecord.COUNT_TOTAL] ?: 0L
+                }
             } catch (e: Exception) {
                 // virhe → palautetaan siihen asti kerätty (tai tyhjä)
             }
@@ -212,15 +227,31 @@ object HealthConnectStepsBridge {
                     PERIOD_MONTHS -> today.withDayOfMonth(1).minusMonths((count - 1).toLong())
                     else -> today.minusDays((count - 1).toLong())
                 }
-                val buckets = client.aggregateGroupByPeriod(
-                    AggregateGroupByPeriodRequest(
-                        metrics = setOf(StepsRecord.COUNT_TOTAL),
-                        timeRangeFilter = TimeRangeFilter.between(
-                            startDate.atStartOfDay(), LocalDateTime.now()
-                        ),
-                        timeRangeSlicer = slicer
+                // Ilman READ_HEALTH_DATA_HISTORY-lupaa HC voi hylätä kyselyn, joka ulottuu yli
+                // 30 pv ennen ensimmäistä lupahetkeä → fallback: kokeile uudelleen 30 päivään
+                // rajattuna, jotta käyttäjä näkee edes tuoreen historian (ei tyhjää).
+                val buckets = try {
+                    client.aggregateGroupByPeriod(
+                        AggregateGroupByPeriodRequest(
+                            metrics = setOf(StepsRecord.COUNT_TOTAL),
+                            timeRangeFilter = TimeRangeFilter.between(
+                                startDate.atStartOfDay(), LocalDateTime.now()
+                            ),
+                            timeRangeSlicer = slicer
+                        )
                     )
-                )
+                } catch (e: Exception) {
+                    android.util.Log.w("HcSteps", "Laaja historiakysely hylättiin, rajataan 30 pv:ään", e)
+                    client.aggregateGroupByPeriod(
+                        AggregateGroupByPeriodRequest(
+                            metrics = setOf(StepsRecord.COUNT_TOTAL),
+                            timeRangeFilter = TimeRangeFilter.between(
+                                maxOf(startDate, today.minusDays(29)).atStartOfDay(), LocalDateTime.now()
+                            ),
+                            timeRangeSlicer = slicer
+                        )
+                    )
+                }
                 val labels = ArrayList<String>(buckets.size)
                 val values = ArrayList<Long>(buckets.size)
                 for (b in buckets) {
@@ -264,15 +295,29 @@ object HealthConnectStepsBridge {
                     ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
                     TotalCaloriesBurnedRecord.ENERGY_TOTAL
                 ) else setOf(StepsRecord.COUNT_TOTAL)
-                val buckets = client.aggregateGroupByPeriod(
-                    AggregateGroupByPeriodRequest(
-                        metrics = metrics,
-                        timeRangeFilter = TimeRangeFilter.between(
-                            startDate.atStartOfDay(), LocalDateTime.now()
-                        ),
-                        timeRangeSlicer = slicer
+                // Sama 30 pv -fallback kuin history()-funktiossa (historialupa voi puuttua).
+                val buckets = try {
+                    client.aggregateGroupByPeriod(
+                        AggregateGroupByPeriodRequest(
+                            metrics = metrics,
+                            timeRangeFilter = TimeRangeFilter.between(
+                                startDate.atStartOfDay(), LocalDateTime.now()
+                            ),
+                            timeRangeSlicer = slicer
+                        )
                     )
-                )
+                } catch (e: Exception) {
+                    android.util.Log.w("HcSteps", "Laaja historiakysely hylättiin, rajataan 30 pv:ään", e)
+                    client.aggregateGroupByPeriod(
+                        AggregateGroupByPeriodRequest(
+                            metrics = metrics,
+                            timeRangeFilter = TimeRangeFilter.between(
+                                maxOf(startDate, today.minusDays(29)).atStartOfDay(), LocalDateTime.now()
+                            ),
+                            timeRangeSlicer = slicer
+                        )
+                    )
+                }
                 val labels = ArrayList<String>(buckets.size)
                 val steps = ArrayList<Long>(buckets.size)
                 val active = ArrayList<Double>(buckets.size)

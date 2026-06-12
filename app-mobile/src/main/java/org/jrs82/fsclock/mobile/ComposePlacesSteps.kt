@@ -397,12 +397,23 @@ private fun hasGranted(context: Context, perm: String): Boolean =
     ContextCompat.checkSelfPermission(context, perm) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
 /** Lähde-erittelyn nimi: sovelluksen nimi PackageManagerista jos asennettu, muuten paketinimi.
- *  Yleismaallinen — toimii mille tahansa HC:hen kirjoittavalle sovellukselle/laitemerkille. */
-private fun appLabel(context: Context, pkg: String): String = try {
-    val pm = context.packageManager
-    pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-} catch (e: Exception) {
-    pkg
+ *  Yleismaallinen — toimii mille tahansa HC:hen kirjoittavalle sovellukselle/laitemerkille.
+ *  Erikoistapaus: puhelimen oman askellaskurin attribuutio on "android" (ja kesäkuusta 2026
+ *  alkaen mahdollisesti laitekohtainen tunniste, joka ei ole pakettinimi) → selkokielinen nimi. */
+private fun appLabel(context: Context, pkg: String): String {
+    // Puhelimen oman askellaskurin attribuutiot: "android" (vanha) sekä kesäkuusta 2026
+    // "com.android.healthconnect.phone.<laitehash>" (todettu Pixel 8a:lla livenä).
+    if (pkg == "android" || pkg.isBlank() || pkg.startsWith("com.android.healthconnect")) {
+        return "Puhelimen askellaskuri"
+    }
+    return try {
+        val pm = context.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+    } catch (e: Exception) {
+        // Ei asennettu paketti: jos arvo ei edes näytä paketilta (ei pistettä), kyse on
+        // laitetason tunnisteesta → näytä ymmärrettävänä.
+        if ('.' !in pkg) "Puhelimen askellaskuri ($pkg)" else pkg
+    }
 }
 
 private const val LOCATION_MAX_AGE_MS = 10L * 60_000L
@@ -658,6 +669,19 @@ internal fun StepsSection() {
                         Text(if (!hcGranted) "Yhdistä Health Connect" else "Lue myös kalorit Health Connectista")
                     }
                 }
+                // HC saatavilla mutta lupa puuttuu → "käytetään puhelimen anturia" toteutuu vain
+                // jos liikunta-aktiivisuuslupa on myönnetty. Ilman sitä mittari jäisi 0 askeleen
+                // tilaan — tarjoa lupa tässä, jotta fallback oikeasti käynnistyy.
+                if (enabled && hcAvailable && !hcGranted && rawAvailable &&
+                    !hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)
+                ) {
+                    Spacer(Modifier.height(6.dp))
+                    FilledTonalButton(onClick = {
+                        arLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                    }) {
+                        Text("Käytä puhelimen anturia (salli liikunta-aktiivisuus)")
+                    }
+                }
             }
         }
 
@@ -739,13 +763,25 @@ internal fun StepsSection() {
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     "Askelluku yllä on Health Connectin yhdistämä summa, josta päällekkäiset " +
-                                        "lähteet on poistettu. Tässä kunkin sovelluksen itse kirjaamat askeleet — " +
-                                        "luvut voivat mitata samoja askelia. Lähteiden tärkeysjärjestystä voi " +
-                                        "muuttaa Health Connectin asetuksista.",
+                                        "lähteet on poistettu. Tässä kunkin sovelluksen oma luku (Health " +
+                                        "Connectin laskemana) — eri rivit voivat mitata samoja askelia, joten " +
+                                        "niitä ei kuulu laskea yhteen. Kellon tai sormuksen data näkyy vasta, " +
+                                        "kun sen oma sovellus on synkannut tähän puhelimeen. Lähteiden " +
+                                        "tärkeysjärjestystä voi muuttaa Health Connectin asetuksista.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            Spacer(Modifier.height(4.dp))
+                            TextButton(onClick = {
+                                try {
+                                    context.startActivity(
+                                        Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS"))
+                                } catch (e: Exception) {
+                                    Toast.makeText(context,
+                                        "Health Connect -asetuksia ei voitu avata", Toast.LENGTH_SHORT).show()
+                                }
+                            }) { Text("Avaa Health Connect") }
                         }
                     }
                 }
@@ -948,7 +984,8 @@ private fun stepsNote(available: Boolean, enabled: Boolean, useHc: Boolean, hcAv
     !enabled -> "Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet."
     useHc -> "Lähde: Health Connect (tämän puhelimen paikallinen tietovarasto). Päivitä-nappi lukee " +
         "uusimman datan; jos kellon tai sormuksen sovellus ei ole vielä synkannut tähän laitteeseen, avaa se ensin."
-    hcAvailable -> "Health Connect on saatavilla — myönnä lupa, niin askeleet luetaan sieltä. Kunnes lupa annetaan, käytetään puhelimen anturia."
+    hcAvailable -> "Health Connect on saatavilla — myönnä lupa, niin askeleet luetaan sieltä. " +
+        "Siihen asti käytetään puhelimen anturia (vaatii liikunta-aktiivisuusluvan — nappi alla jos se puuttuu)."
     else -> "Lähde: Puhelimen askelanturi. Historia päivittyy vain kun sovellus on ollut käytössä; taustakatkot voivat puuttua."
 }
 
