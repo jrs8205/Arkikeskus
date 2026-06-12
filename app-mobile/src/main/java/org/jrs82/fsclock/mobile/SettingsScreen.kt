@@ -160,7 +160,8 @@ fun SettingsScreen() {
                         toast(
                             context,
                             if (res != null)
-                                "Varmuuskopio tallennettu: ${res.workouts} lenkkiä, ${res.prefs} asetusta."
+                                "Varmuuskopio tallennettu: ${res.workouts} lenkkiä, " +
+                                    "${res.prefs} asetusta (${formatBackupBytes(res.bytes)})."
                             else "Tallennus epäonnistui.",
                         )
                     }
@@ -172,30 +173,33 @@ fun SettingsScreen() {
             }.start()
         }
     }
+    // Jaettu palautuspolku: SAF-valitsimesta TAI suoraan automaattibackupin persistoidusta URIsta.
+    val runRestoreFrom: (android.net.Uri) -> Unit = { uri ->
+        if (WorkoutTracker.state.value.phase != WorkoutTracker.Phase.IDLE) {
+            toast(context, "Lopeta käynnissä oleva lenkki ennen palautusta.")
+        } else {
+            Thread {
+                try {
+                    val res = context.contentResolver.openInputStream(uri)?.use { ins ->
+                        BackupManager.restore(context, ins)
+                    }
+                    Handler(Looper.getMainLooper()).post {
+                        if (res != null) restoreDone = res
+                        else toast(context, "Palautus epäonnistui.")
+                    }
+                } catch (e: Exception) {
+                    Handler(Looper.getMainLooper()).post {
+                        toast(context, "Palautus epäonnistui: ${e.message}")
+                    }
+                }
+            }.start()
+        }
+    }
+    var showRestoreChoice by remember { mutableStateOf(false) }
     val backupRestoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri != null) {
-            if (WorkoutTracker.state.value.phase != WorkoutTracker.Phase.IDLE) {
-                toast(context, "Lopeta käynnissä oleva lenkki ennen palautusta.")
-            } else {
-                Thread {
-                    try {
-                        val res = context.contentResolver.openInputStream(uri)?.use { ins ->
-                            BackupManager.restore(context, ins)
-                        }
-                        Handler(Looper.getMainLooper()).post {
-                            if (res != null) restoreDone = res
-                            else toast(context, "Palautus epäonnistui.")
-                        }
-                    } catch (e: Exception) {
-                        Handler(Looper.getMainLooper()).post {
-                            toast(context, "Palautus epäonnistui: ${e.message}")
-                        }
-                    }
-                }.start()
-            }
-        }
+        if (uri != null) runRestoreFrom(uri)
     }
 
     // --- Automaattinen varmuuskopiointi: kohdetiedosto valitaan kerran, WorkManager ajaa ---
@@ -494,11 +498,20 @@ fun SettingsScreen() {
                     RowDivider()
                     ClickableRow(
                         title = "Palauta varmuuskopio",
-                        subtitle = "Tuo aiemmin viety varmuuskopiotiedosto",
+                        subtitle = if (autoBackupOn)
+                            "Automaattisesta varmuuskopiosta tai tiedostosta"
+                        else "Tuo aiemmin viety varmuuskopiotiedosto",
                         leadingIconRes = R.drawable.mobile_ic_restore_24,
                     ) {
-                        backupRestoreLauncher.launch(
-                            arrayOf("application/json", "application/octet-stream"))
+                        // Kun automaattibackup on käytössä, palautus onnistuu suoraan ilman
+                        // tiedostovalitsinta (käyttäjän palaute: valitsimen back-nappi
+                        // kulkee Drive-kansiopuuta, ei takaisin sovellukseen).
+                        if (autoBackupOn) {
+                            showRestoreChoice = true
+                        } else {
+                            backupRestoreLauncher.launch(
+                                arrayOf("application/json", "application/octet-stream"))
+                        }
                     }
                     RowDivider()
                     SwitchRow(
@@ -526,6 +539,40 @@ fun SettingsScreen() {
     }
 
     // ---------- Dialogit ----------
+    if (showRestoreChoice) {
+        val lastMs = prefs.getLong(AutoBackup.KEY_LAST_MS, 0L)
+        val lastBytes = prefs.getInt(AutoBackup.KEY_LAST_BYTES, 0)
+        AlertDialog(
+            onDismissRequest = { showRestoreChoice = false },
+            title = { Text("Palauta varmuuskopio") },
+            text = {
+                Text(
+                    "Palautetaanko suoraan automaattisesta varmuuskopiosta?" +
+                        (if (lastMs > 0)
+                            "\n\nViimeisin kopio: " +
+                                SimpleDateFormat("d.M. HH:mm", FI).format(Date(lastMs)) +
+                                (if (lastBytes > 0) " (${formatBackupBytes(lastBytes)})" else "")
+                        else "") +
+                        "\n\nVoit myös valita varmuuskopiotiedoston itse.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRestoreChoice = false
+                    val uriStr = prefs.getString(AutoBackup.KEY_URI, null)
+                    if (uriStr != null) runRestoreFrom(android.net.Uri.parse(uriStr))
+                    else toast(context, "Automaattista varmuuskopiota ei löytynyt.")
+                }) { Text("Automaattisesta") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showRestoreChoice = false
+                    backupRestoreLauncher.launch(
+                        arrayOf("application/json", "application/octet-stream"))
+                }) { Text("Valitse tiedosto…") }
+            },
+        )
+    }
     restoreDone?.let { res ->
         AlertDialog(
             onDismissRequest = { },
@@ -864,11 +911,18 @@ private fun autoBackupSubtitle(prefs: android.content.SharedPreferences, on: Boo
     }
     val last = prefs.getLong(AutoBackup.KEY_LAST_MS, 0L)
     return if (last > 0) {
-        "Päivittäin · viimeisin " + SimpleDateFormat("d.M. HH:mm", FI).format(Date(last))
+        val bytes = prefs.getInt(AutoBackup.KEY_LAST_BYTES, 0)
+        "Päivittäin · viimeisin " + SimpleDateFormat("d.M. HH:mm", FI).format(Date(last)) +
+            (if (bytes > 0) " · " + formatBackupBytes(bytes) else "")
     } else {
         "Päivittäin · ensimmäinen kopio tekeillä…"
     }
 }
+
+/** Varmuuskopion koko luettavana: "11,6 kt" / "1,2 Mt" — kasvava luku kertoo että dataa kertyy. */
+private fun formatBackupBytes(bytes: Int): String =
+    if (bytes < 1024 * 1024) String.format(FI, "%.1f kt", bytes / 1024.0)
+    else String.format(FI, "%.1f Mt", bytes / (1024.0 * 1024.0))
 
 @Composable
 private fun SectionHeader(text: String, iconRes: Int? = null) {

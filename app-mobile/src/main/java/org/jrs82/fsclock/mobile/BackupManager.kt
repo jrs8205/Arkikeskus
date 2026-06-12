@@ -27,7 +27,7 @@ internal object BackupManager {
     private const val FORMAT = "arkikeskus-backup"
     private const val VERSION = 1
 
-    data class ExportResult(val workouts: Int, val prefs: Int)
+    data class ExportResult(val workouts: Int, val prefs: Int, val bytes: Int)
     data class RestoreResult(val workouts: Int, val prefs: Int, val skipped: Int)
 
     fun export(context: Context, out: OutputStream): ExportResult {
@@ -96,9 +96,10 @@ internal object BackupManager {
         root.put("appVersion", BuildConfig.VERSION_NAME)
         root.put("prefs", prefsJson)
         root.put("workouts", workouts)
-        out.write(root.toString().toByteArray(Charsets.UTF_8))
+        val data = root.toString().toByteArray(Charsets.UTF_8)
+        out.write(data)
         out.flush()
-        return ExportResult(all.size, prefCount)
+        return ExportResult(all.size, prefCount, data.size)
     }
 
     /** Palauttaa varmuuskopion. Asetukset kirjoitetaan olemassa olevien päälle (EI clear() —

@@ -25,6 +25,7 @@ internal object AutoBackup {
 
     const val KEY_URI = "auto_backup_uri"
     const val KEY_LAST_MS = "auto_backup_last_ms"
+    const val KEY_LAST_BYTES = "auto_backup_last_bytes"
     const val KEY_ERROR = "auto_backup_error"
     private const val WORK_NAME = "auto_backup"
 
@@ -67,11 +68,12 @@ internal object AutoBackup {
             val uri = Uri.parse(uriStr)
             // "wt" = truncate: vanha sisältö korvataan kokonaan (ilman tätä lyhyempi
             // kirjoitus jättäisi vanhaa JSONia hännille → rikkinäinen tiedosto).
-            context.contentResolver.openOutputStream(uri, "wt")?.use { os ->
+            val res = context.contentResolver.openOutputStream(uri, "wt")?.use { os ->
                 BackupManager.export(context, os)
             } ?: throw FileNotFoundException("openOutputStream null")
             prefs.edit()
                 .putLong(KEY_LAST_MS, System.currentTimeMillis())
+                .putInt(KEY_LAST_BYTES, res.bytes)
                 .remove(KEY_ERROR)
                 .apply()
             true
