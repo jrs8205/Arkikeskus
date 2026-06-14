@@ -94,7 +94,8 @@ enum class HomeWidget(val id: String, val title: String, val defaultVisible: Boo
     WARNINGS("warnings", "Säävaroitukset", true),
     SENSORS("sensors", "Anturit", true),
     TRAFFIC("traffic", "Liikennetiedot", true),
-    NEWS("news", "Uutiset", true),
+    NEWS("news", "Kotimaan uutiset", true),
+    NEWS_FOREIGN("news_foreign", "Ulkomaan uutiset", true),
     TRANSIT("transit", "Lähilähdöt", true),
 }
 
@@ -239,7 +240,7 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Uutiset", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Kotimaan uutiset", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 if (items.isNotEmpty()) {
                     TextButton(onClick = onOpenNews) { Text("Kaikki") }
                 }
@@ -300,6 +301,103 @@ private fun CompactNewsRow(item: NewsItem) {
                 if (item.pubTimeMs > 0) {
                     Text(
                         " · " + relAge(item.pubTimeMs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ===================== Ulkomaan uutiset -widget (Uutiskeskus, etusivulle) =====================
+
+/** Etusivun kortti Ulkomaat-uutisille (Uutiskeskus-API, suomennetut otsikot). Näyttää 5 tuoreinta,
+ *  "Kaikki" avaa Ulkomaat-osion, napautus avaa jutun selaimeen. */
+@Composable
+internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
+    val refresh = LocalRefreshTick.current
+    var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var handledRefresh by remember { mutableIntStateOf(refresh) }
+    LaunchedEffect(refresh) {
+        val forced = refresh != handledRefresh
+        handledRefresh = refresh
+        if (items.isEmpty()) loading = true
+        val fresh = withContext(Dispatchers.IO) {
+            try {
+                ForeignNewsClient.fetch(null, 8, forced)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+        if (fresh.isNotEmpty()) items = fresh
+        loading = false
+    }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Ulkomaan uutiset", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (items.isNotEmpty()) {
+                    TextButton(onClick = onOpenForeign) { Text("Kaikki") }
+                }
+            }
+            when {
+                loading -> Text(
+                    "Haetaan uutisia…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                items.isEmpty() -> Text(
+                    "Ei uutisia juuri nyt.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> items.take(5).forEach { CompactForeignNewsRow(it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactForeignNewsRow(a: ForeignArticle) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clickable { openUrl(context, a.url) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                ImageView(ctx).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setImageResource(R.drawable.mobile_ic_news_placeholder)
+                }
+            },
+            update = { ImageLoader.get().load(a.imageUrl, it, R.drawable.mobile_ic_news_placeholder) },
+            modifier = Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                a.titleFi,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(modifier = Modifier.padding(top = 2.dp)) {
+                Text(
+                    a.source,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ArkiTheme.colors.newsAccent,
+                )
+                if (a.publishedAtMs > 0) {
+                    Text(
+                        " · " + relAge(a.publishedAtMs),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
