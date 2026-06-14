@@ -198,7 +198,7 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
 /** Päänäkymän sektiot (vastaavat nykyisen valikon kohtia). */
 enum class HomeSection(val title: String) {
     HOME("Arkikeskus"),
-    FORECAST("Sää-ennuste"),
+    FORECAST("Sää-ennuste 7vrk"),
     PLACES("Paikkakunnat"),
     SENSORS("Anturit"),
     TRAFFIC_ACCIDENTS("Onnettomuudet"),
@@ -212,7 +212,8 @@ enum class HomeSection(val title: String) {
     SPEEDOMETER("GPS-nopeus"),
     STEPS("Askeleet"),
     WORKOUT("Lenkki"),
-    NEWS("Uutiset"),
+    NEWS("Kotimaiset"),
+    NEWS_FOREIGN("Ulkomaat"),
     ELECTRICITY("Pörssisähkö"),
     TELETEXT("Teksti-TV"),
     TV_GUIDE("TV-ohjelmat"),
@@ -491,6 +492,7 @@ fun ComposeMainScreen(
                     HomeSection.SENSORS -> SensorsSection()
                     HomeSection.ELECTRICITY -> ElectricitySection()
                     HomeSection.NEWS -> NewsSection()
+                    HomeSection.NEWS_FOREIGN -> ForeignNewsSection()
                     // TV-ohjelmat = Teksti-TV:n ohjelmaopassivut 300– (kattaa myös MTV3/Nelosen;
                     // Ylen julkinen API ei tarjoa erillistä EPG:tä, ja tämä on lisenssin mukainen).
                     HomeSection.TELETEXT -> TeletextScreen(100, section.title)
@@ -585,6 +587,10 @@ private fun DrawerContent(
             DrawerItem(HomeSection.TELETEXT, current, onSelect)
             DrawerItem(HomeSection.TV_GUIDE, current, onSelect)
 
+            DrawerHeader("Uutiset", R.drawable.mobile_ic_news_24)
+            DrawerItem(HomeSection.NEWS, current, onSelect)
+            DrawerItem(HomeSection.NEWS_FOREIGN, current, onSelect)
+
             DrawerHeader("Liikunta", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.WORKOUT, current, onSelect)
             DrawerItem(HomeSection.STEPS, current, onSelect)
@@ -592,7 +598,6 @@ private fun DrawerContent(
 
             DrawerHeader("Muut", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
-            DrawerItem(HomeSection.NEWS, current, onSelect)
             DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
             // Asetukset siirretty alapalkkiin (ratas oikeassa reunassa) — löydettävyys.
 

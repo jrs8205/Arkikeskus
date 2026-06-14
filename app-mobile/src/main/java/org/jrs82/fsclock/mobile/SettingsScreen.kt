@@ -397,6 +397,20 @@ fun SettingsScreen() {
                 }
             }
 
+            // ---------- Ulkomaiden uutiskategoriat (Ulkomaat-sirujen näkyvyys) ----------
+            item { SectionHeader("Ulkomaiden uutiskategoriat", R.drawable.mobile_ic_news_24) }
+            item {
+                SettingsCard {
+                    FOREIGN_CATEGORY_TAGS.forEachIndexed { index, pair ->
+                        PrefSwitchRow(
+                            prefs, NewsProfile.catVisibleKey(pair.first), pair.second,
+                            leadingIconRes = R.drawable.mobile_ic_news_24, default = true,
+                        )
+                        if (index < FOREIGN_CATEGORY_TAGS.lastIndex) RowDivider()
+                    }
+                }
+            }
+
             // ---------- Ruuvi-anturit ----------
             item { SectionHeader("Ruuvi-anturit", R.drawable.mobile_ic_thermometer_24) }
             item {

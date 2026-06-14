@@ -200,6 +200,7 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                             HomeWidget.SENSORS.id -> HomeSensorsWidget(prefs)
                             HomeWidget.TRAFFIC.id -> HomeTrafficCard(onOpenTraffic = { onOpenSection(HomeSection.TRAFFIC_INCIDENTS) })
                             HomeWidget.NEWS.id -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })
+                            HomeWidget.NEWS_FOREIGN.id -> HomeForeignNewsCard(onOpenForeign = { onOpenSection(HomeSection.NEWS_FOREIGN) })
                             HomeWidget.TRANSIT.id -> HomeTransitCard(onOpenTransit = { onOpenSection(HomeSection.TRANSIT) })
                             else -> if (id.startsWith(HOME_NEWS_FEED_PREFIX)) {
                                 HomeNewsSourceCard(id.substring(HOME_NEWS_FEED_PREFIX.length))
@@ -1347,27 +1348,53 @@ internal fun NewsSection() {
     var items by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var handledRefresh by remember { mutableIntStateOf(refresh) }
+    var showOnboarding by remember { mutableStateOf(!NewsProfile.isOnboarded(prefs)) }
+
+    // Lukuajan mittaus: kun palataan selaimesta, kirjaa avatun jutun lukuaika profiiliin.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) NewsProfile.recordPendingRead(prefs)
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
     LaunchedEffect(refresh, newsRevision) {
         val forceNetwork = refresh != handledRefresh
         handledRefresh = refresh
         loading = true
-        val fresh = withContext(Dispatchers.IO) {
-            try {
+        items = withContext(Dispatchers.IO) {
+            val fresh = try {
                 RssRepository.get().fetchEnabled(prefs, forceNetwork)
             } catch (e: Exception) {
                 null
+            } ?: emptyList()
+            // Personointi: kotimaisilla ei ole kategorioita → painota suosittuja lähteitä.
+            if (fresh.isNotEmpty()) {
+                val snap = NewsProfile.snapshot(prefs)
+                NewsProfile.rerank(fresh, { NewsProfile.scoreWith(snap, "", it.feedName) }, { it.pubTimeMs })
+            } else {
+                fresh
             }
         }
-        items = fresh ?: emptyList()
         loading = false
     }
+
+    if (showOnboarding) {
+        NewsOnboardingDialog(
+            onDone = { picked -> NewsProfile.seedTopics(prefs, picked); showOnboarding = false },
+            onSkip = { NewsProfile.setOnboarded(prefs); showOnboarding = false },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Uutiset", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Kotimaiset", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         when {
             loading -> Text("Haetaan uutisia…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1380,21 +1407,27 @@ internal fun NewsSection() {
                 val shown = items.take(50)
                 val note = if (shown.size < items.size) "Näytetään ${shown.size} uusinta uutista" else "${items.size} uutista"
                 Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                shown.forEach { NewsRow(context, it) }
+                shown.forEach { item ->
+                    NewsRow(item) {
+                        NewsProfile.recordClick(prefs, "", item.feedName)
+                        NewsProfile.markOpened("", item.feedName)
+                        openUrl(context, item.link)
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun NewsRow(context: Context, item: NewsItem) {
+private fun NewsRow(item: NewsItem, onOpen: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable { openUrl(context, item.link) }
+            .clickable { onOpen() }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
