@@ -31,8 +31,8 @@ android {
         applicationId 'org.jrs82.arkikeskus'
         minSdk 30
         targetSdk 35
-        versionCode 61
-        versionName '2.8.1-mobile'
+        versionCode 62
+        versionName '2.8.2-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
         buildConfigField "String", "YLE_APP_ID", "\"${yleAppId}\""
@@ -159,6 +159,8 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     // JVM-yksikkötestien XmlPullParser-toteutus (android.util.Xml on testeissä tynkä)
     testImplementation 'net.sf.kxml:kxml2:2.3.0'
+    // JVM-yksikkötestien org.json-toteutus (Androidin org.json on testeissä tynkä → "Stub!")
+    testImplementation 'org.json:json:20240303'
 
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
