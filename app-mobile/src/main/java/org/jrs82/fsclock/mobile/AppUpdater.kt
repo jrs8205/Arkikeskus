@@ -28,12 +28,19 @@ object AppUpdater {
     const val PREF_AVAILABLE_VERSION = "appupdate_available_version"
     const val PREF_AVAILABLE_URL = "appupdate_available_url"
     const val PREF_AVAILABLE_HTML = "appupdate_available_html"
+    const val PREF_AVAILABLE_NOTES = "appupdate_available_notes"
     const val PREF_DISMISSED_VERSION = "appupdate_dismissed_version"
     const val AUTO_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000
 
     private val main = Handler(Looper.getMainLooper())
 
-    data class ReleaseInfo(val tag: String, val versionName: String, val apkUrl: String?, val htmlUrl: String)
+    data class ReleaseInfo(
+        val tag: String,
+        val versionName: String,
+        val apkUrl: String?,
+        val htmlUrl: String,
+        val notes: String = "",
+    )
 
     /** Hakee uusimman julkaisun taustasäikeessä; callback pääsäikeessä (release, onUudempi). */
     fun checkLatest(current: String, cb: (ReleaseInfo?, Boolean) -> Unit) {
@@ -63,6 +70,8 @@ object AppUpdater {
             val tag = json.optString("tag_name", "")
             if (tag.isEmpty()) return null
             val html = json.optString("html_url", REPO_URL)
+            // Julkaisukuvaus (markdown) → "Mitä uutta" -dialogi. JSON-null suojattu erikseen.
+            val notes = if (json.isNull("body")) "" else json.optString("body", "").trim()
             var apk: String? = null
             val assets = json.optJSONArray("assets")
             if (assets != null) {
@@ -74,7 +83,7 @@ object AppUpdater {
                     }
                 }
             }
-            return ReleaseInfo(tag, tag.trimStart('v', 'V'), apk, html)
+            return ReleaseInfo(tag, tag.trimStart('v', 'V'), apk, html, notes)
         } finally {
             conn.disconnect()
         }
