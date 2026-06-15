@@ -316,6 +316,8 @@ private fun CompactNewsRow(item: NewsItem) {
  *  "Kaikki" avaa Ulkomaat-osion, napautus avaa jutun selaimeen. */
 @Composable
 internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
     var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -325,11 +327,15 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
         handledRefresh = refresh
         if (items.isEmpty()) loading = true
         val fresh = withContext(Dispatchers.IO) {
-            try {
-                ForeignNewsClient.fetch(null, 8, forced)
+            val fetched = try {
+                // Haetaan 12 (näytetään 5) → luettujen suodatuksen jälkeen jää yleensä ≥5.
+                ForeignNewsClient.fetch(null, 12, forced)
             } catch (e: Exception) {
                 emptyList()
             }
+            // Piilota jo luetut myös etusivun kortista (johdonmukaisuus Ulkomaat-osion kanssa, B2).
+            val read = NewsProfile.readUrls(prefs)
+            if (read.isEmpty()) fetched else fetched.filterNot { it.url in read }
         }
         if (fresh.isNotEmpty()) items = fresh
         loading = false

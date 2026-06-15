@@ -87,6 +87,8 @@ internal fun ForeignNewsSection() {
     var showOriginal by remember { mutableStateOf(false) }
     var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    // Kategorianäkymä, jossa kaikki haetut on jo luettu → erota "kaikki luettu" tyhjästä hausta (B3).
+    var allFilteredRead by remember { mutableStateOf(false) }
     var handledRefresh by remember { mutableIntStateOf(refresh) }
     var showOnboarding by remember { mutableStateOf(!NewsProfile.isOnboarded(prefs)) }
     val visibleCats = NewsProfile.visibleCats(prefs, FOREIGN_CATEGORY_TAGS.map { it.first })
@@ -106,6 +108,7 @@ internal fun ForeignNewsSection() {
         handledRefresh = refresh
         loading = true
         val topic = selectedTopic
+        var filteredAllRead = false
         items = withContext(Dispatchers.IO) {
             // "Luetut"-välilehti: tallennetut luetut jutut (uusin-luettu ensin) — ei verkkoa, ei suodatusta.
             if (topic == READ_TAG) {
@@ -119,6 +122,8 @@ internal fun ForeignNewsSection() {
             // Piilota jo luetut jutut KAIKISTA näkymistä (myös "Kaikki") → eivät tule uudestaan vastaan.
             val read = NewsProfile.readUrls(prefs)
             val unread = if (read.isEmpty()) fetched else fetched.filter { it.url !in read }
+            // Kategoriassa (ei "Kaikki", ei "Luetut") kaikki tuoreet luettu → oma tyhjäteksti (B3).
+            filteredAllRead = topic != null && fetched.isNotEmpty() && unread.isEmpty()
             // Personointi vain "Kaikki"-näkymässä; kategorianäkymät pysyvät tuoreusjärjestyksessä.
             if (topic == null && unread.isNotEmpty()) {
                 val snap = NewsProfile.snapshot(prefs)
@@ -127,6 +132,7 @@ internal fun ForeignNewsSection() {
                 unread
             }
         }
+        allFilteredRead = filteredAllRead
         loading = false
     }
 
@@ -208,8 +214,11 @@ internal fun ForeignNewsSection() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             items.isEmpty() -> Text(
-                if (selectedTopic == READ_TAG) "Et ole vielä lukenut uutisia."
-                else "Ei uutisia juuri nyt. Päivitä alapalkin painikkeesta.",
+                when {
+                    selectedTopic == READ_TAG -> "Et ole vielä lukenut uutisia."
+                    allFilteredRead -> "Olet lukenut tämän kategorian tuoreet uutiset."
+                    else -> "Ei uutisia juuri nyt. Päivitä alapalkin painikkeesta."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -219,6 +228,11 @@ internal fun ForeignNewsSection() {
                         NewsProfile.recordClick(prefs, a.topics, a.source)
                         NewsProfile.markOpened(a.topics, a.source)
                         NewsProfile.markRead(prefs, a)
+                        // Poista luettu juttu heti listalta (paitsi "Luetut"-välilehdellä). #1 estää
+                        // refetchin paluulla, joten ilman tätä juttu jäisi näkyviin kunnes Päivitä (B1).
+                        if (selectedTopic != READ_TAG) {
+                            items = items.filterNot { it.url == a.url }
+                        }
                         openUrl(context, a.url)
                     }
                 }
