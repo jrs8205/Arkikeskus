@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -100,6 +101,14 @@ private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
  */
 val LocalRefreshTick = compositionLocalOf { 0 }
 
+/**
+ * Uutisten oma päivityssignaali: kasvaa VAIN Päivitä-napista ja automaattivälistä — EI sovelluksen
+ * palatessa etualalle (toisin kuin [LocalRefreshTick]). Näin selaimesta/taustalta paluu ei hae
+ * uutisia uudelleen eikä nollaa listan vieritystä; uutiset päivittyvät vain kylmästartissa
+ * (ensikoostumus), Päivitä-napista tai asetusten päivitysvälistä.
+ */
+val LocalNewsRefreshTick = compositionLocalOf { 0 }
+
 /** Paikallinen asetus-/datarevision signaali. Ei pakota verkkohakuja kuten [LocalRefreshTick]. */
 val LocalHomeDataRevision = compositionLocalOf { 0 }
 
@@ -161,6 +170,19 @@ private fun hasLocationPermission(context: Context): Boolean =
 private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var status by remember { mutableStateOf<String?>(null) }
+    var showNotes by remember { mutableStateOf(false) }
+    if (showNotes) {
+        AlertDialog(
+            onDismissRequest = { showNotes = false },
+            title = { Text("Mitä uutta – " + info.versionName) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(info.notes, style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showNotes = false }) { Text("Sulje") } },
+        )
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -175,6 +197,17 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
             )
             status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = {
+                    if (info.notes.isNotBlank()) {
+                        showNotes = true
+                    } else {
+                        // Ei muutoslokia → avaa julkaisusivu selaimeen.
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(info.htmlUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
+                }) { Text("Mitä uutta") }
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onDismiss) { Text("Hylkää") }
                 TextButton(onClick = {
@@ -244,6 +277,9 @@ fun ComposeMainScreen(
     val scope = rememberCoroutineScope()
     // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
     var refreshTick by remember { mutableStateOf(0) }
+    // Uutisten oma tick: kasvaa vain Päivitä-napista + automaattivälistä, EI ON_RESUME:ssa → uutislistat
+    // eivät hae/nollaudu selaimesta tai taustalta palatessa (ks. [LocalNewsRefreshTick]).
+    var newsRefreshTick by remember { mutableStateOf(0) }
     var homeDataRevision by remember { mutableIntStateOf(0) }
     var homeNewsRevision by remember { mutableIntStateOf(0) }
     val haptic = LocalHapticFeedback.current
@@ -265,6 +301,7 @@ fun ComposeMainScreen(
                 savedVer,
                 prefs.getString(AppUpdater.PREF_AVAILABLE_URL, null),
                 prefs.getString(AppUpdater.PREF_AVAILABLE_HTML, null) ?: AppUpdater.REPO_URL,
+                prefs.getString(AppUpdater.PREF_AVAILABLE_NOTES, null) ?: "",
             )
         }
         val now = System.currentTimeMillis()
@@ -279,6 +316,7 @@ fun ComposeMainScreen(
                     .putString(AppUpdater.PREF_AVAILABLE_VERSION, rel.versionName)
                     .putString(AppUpdater.PREF_AVAILABLE_URL, rel.apkUrl)
                     .putString(AppUpdater.PREF_AVAILABLE_HTML, rel.htmlUrl)
+                    .putString(AppUpdater.PREF_AVAILABLE_NOTES, rel.notes)
                     .apply()
                 if (rel.versionName != prefs.getString(AppUpdater.PREF_DISMISSED_VERSION, null)) {
                     updateInfo = rel
@@ -289,6 +327,7 @@ fun ComposeMainScreen(
                     .remove(AppUpdater.PREF_AVAILABLE_VERSION)
                     .remove(AppUpdater.PREF_AVAILABLE_URL)
                     .remove(AppUpdater.PREF_AVAILABLE_HTML)
+                    .remove(AppUpdater.PREF_AVAILABLE_NOTES)
                     .apply()
             }
         }
@@ -331,6 +370,7 @@ fun ComposeMainScreen(
                     ).coerceAtLeast(1)
                 delay(minutes * 60_000L)
                 refreshTick++
+                newsRefreshTick++
             }
         }
     }
@@ -413,6 +453,7 @@ fun ComposeMainScreen(
                                 // Pakota laitteen sijainnin päivitys (jos auto päällä) + datan haku.
                                 maybeRefreshDeviceLocation(context, force = true)
                                 refreshTick++
+                                newsRefreshTick++
                             }
                         },
                         icon = {
@@ -467,6 +508,7 @@ fun ComposeMainScreen(
             ) {
                 CompositionLocalProvider(
                     LocalRefreshTick provides refreshTick,
+                    LocalNewsRefreshTick provides newsRefreshTick,
                     LocalHomeDataRevision provides homeDataRevision,
                     LocalHomeNewsRevision provides homeNewsRevision,
                 ) {

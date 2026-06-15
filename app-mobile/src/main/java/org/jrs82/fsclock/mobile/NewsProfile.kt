@@ -1,6 +1,7 @@
 package org.jrs82.fsclock.mobile
 
 import android.content.SharedPreferences
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -135,6 +136,80 @@ object NewsProfile {
 
     fun visibleCats(prefs: SharedPreferences, all: List<String>): Set<String> =
         all.filter { prefs.getBoolean(catVisibleKey(it), true) }.toSet()
+
+    // ---- luetut-historia (Ulkomaat): piilota luetut syötteistä + "Luetut"-välilehti ----
+    // JSON-lista uusin-luettu-ensin, katto 100 (vanhin tippuu). Koko jutun metadata talletetaan,
+    // jotta luettu näkyy "Luetut"-listassa vaikka olisi kiertynyt pois API-syötteestä. Avain ei
+    // ala "auto_backup_" → mukana varmuuskopiossa (BackupManager).
+    private const val KEY_READ = "news_read_v1"
+    private const val READ_CAP = 100
+
+    private fun readArray(prefs: SharedPreferences): JSONArray =
+        try { JSONArray(prefs.getString(KEY_READ, "[]")) } catch (e: Exception) { JSONArray() }
+
+    /** Merkitsee jutun luetuksi: kärkeen (uusin), poistaa vanhan duplikaatin, katkaisee 100:aan. */
+    fun markRead(prefs: SharedPreferences, a: ForeignArticle) {
+        if (a.url.isBlank()) return
+        val arr = readArray(prefs)
+        val out = JSONArray()
+        out.put(
+            JSONObject()
+                .put("u", a.url)
+                .put("t", a.titleFi)
+                .put("o", a.titleOrig)
+                .put("i", a.imageUrl ?: "")
+                .put("s", a.source)
+                .put("p", a.topics)
+                .put("l", a.lang)
+                .put("m", a.publishedAtMs)
+                .put("r", a.relatedCount),
+        )
+        var count = 1
+        for (i in 0 until arr.length()) {
+            if (count >= READ_CAP) break
+            val o = arr.optJSONObject(i) ?: continue
+            if (o.optString("u") == a.url) continue // vanha duplikaatti pois (siirtyi kärkeen)
+            out.put(o)
+            count++
+        }
+        prefs.edit().putString(KEY_READ, out.toString()).apply()
+    }
+
+    /** Luettujen URL:t — syötteen suodatusta varten (piilota luetut kaikista näkymistä). */
+    fun readUrls(prefs: SharedPreferences): Set<String> {
+        val arr = readArray(prefs)
+        val set = HashSet<String>(arr.length())
+        for (i in 0 until arr.length()) {
+            val u = arr.optJSONObject(i)?.optString("u") ?: ""
+            if (u.isNotEmpty()) set.add(u)
+        }
+        return set
+    }
+
+    /** Luetut jutut "Luetut"-välilehdelle, uusin-luettu ensin. */
+    fun readArticles(prefs: SharedPreferences): List<ForeignArticle> {
+        val arr = readArray(prefs)
+        val out = ArrayList<ForeignArticle>(arr.length())
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val url = o.optString("u")
+            if (url.isEmpty()) continue
+            out.add(
+                ForeignArticle(
+                    titleFi = o.optString("t"),
+                    titleOrig = o.optString("o").ifEmpty { o.optString("t") },
+                    url = url,
+                    imageUrl = o.optString("i").ifEmpty { null },
+                    source = o.optString("s"),
+                    topics = o.optString("p"),
+                    lang = o.optString("l").ifEmpty { "en" },
+                    publishedAtMs = o.optLong("m", 0L),
+                    relatedCount = o.optInt("r", 0),
+                ),
+            )
+        }
+        return out
+    }
 
     /**
      * Maltillinen uudelleenjärjestys: AIKAPOHJAINEN tuoreus dominoi, personointi vain pieni nudge.

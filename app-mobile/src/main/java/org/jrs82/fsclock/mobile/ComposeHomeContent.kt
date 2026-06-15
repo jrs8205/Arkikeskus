@@ -1343,7 +1343,8 @@ private fun StatChip(stat: ForecastStat) {
 internal fun NewsSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
-    val refresh = LocalRefreshTick.current
+    // Uutisten oma tick: ei hae paluulla selaimesta/taustalta, vain kylmästart/Päivitä/väli.
+    val refresh = LocalNewsRefreshTick.current
     val newsRevision = LocalHomeNewsRevision.current
     var items by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }

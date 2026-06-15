@@ -69,6 +69,9 @@ internal val FOREIGN_CATEGORY_TAGS: List<Pair<String, String>> =
 
 private const val FOREIGN_LIMIT = 100
 
+/** "Luetut"-välilehden tunniste (erotettava nullista = "Kaikki" ja oikeista kategoriatageista). */
+private const val READ_TAG = "__read__"
+
 /**
  * "Ulkomaat" = Uutiskeskus-uutispalvelu: kategoriasirut + otsikoiden kielivalinta + kortit.
  * "Kaikki"-näkymä järjestetään maltillisesti profiilin mukaan ([NewsProfile]); kategorianäkymät
@@ -78,7 +81,8 @@ private const val FOREIGN_LIMIT = 100
 internal fun ForeignNewsSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
-    val refresh = LocalRefreshTick.current
+    // Uutisten oma tick: ei hae paluulla selaimesta/taustalta, vain kylmästart/Päivitä/väli.
+    val refresh = LocalNewsRefreshTick.current
     var selectedTopic by remember { mutableStateOf<String?>(null) }
     var showOriginal by remember { mutableStateOf(false) }
     var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
@@ -103,32 +107,44 @@ internal fun ForeignNewsSection() {
         loading = true
         val topic = selectedTopic
         items = withContext(Dispatchers.IO) {
+            // "Luetut"-välilehti: tallennetut luetut jutut (uusin-luettu ensin) — ei verkkoa, ei suodatusta.
+            if (topic == READ_TAG) {
+                return@withContext NewsProfile.readArticles(prefs)
+            }
             val fetched = try {
                 ForeignNewsClient.fetch(topic, FOREIGN_LIMIT, forced)
             } catch (e: Exception) {
                 emptyList()
             }
+            // Piilota jo luetut jutut KAIKISTA näkymistä (myös "Kaikki") → eivät tule uudestaan vastaan.
+            val read = NewsProfile.readUrls(prefs)
+            val unread = if (read.isEmpty()) fetched else fetched.filter { it.url !in read }
             // Personointi vain "Kaikki"-näkymässä; kategorianäkymät pysyvät tuoreusjärjestyksessä.
-            if (topic == null && fetched.isNotEmpty()) {
+            if (topic == null && unread.isNotEmpty()) {
                 val snap = NewsProfile.snapshot(prefs)
-                NewsProfile.rerank(fetched, { NewsProfile.scoreWith(snap, it.topics, it.source) }, { it.publishedAtMs })
+                NewsProfile.rerank(unread, { NewsProfile.scoreWith(snap, it.topics, it.source) }, { it.publishedAtMs })
             } else {
-                fetched
+                unread
             }
         }
         loading = false
     }
 
     // Merkitse "suositeltu" jutut: ne jotka näkyvät tuoreempien YLÄPUOLELLA (personointi nosti).
-    val boostedUrls = remember(items) {
-        val set = HashSet<String>()
-        var newestBelow = Long.MIN_VALUE
-        for (i in items.indices.reversed()) {
-            val ms = items[i].publishedAtMs
-            if (ms in 1 until newestBelow) set.add(items[i].url)
-            if (ms > newestBelow) newestBelow = ms
+    // Vain "Kaikki"-näkymässä (muut ovat puhdasta aika-/lukujärjestystä → ei suosittelumerkkiä).
+    val boostedUrls = remember(items, selectedTopic) {
+        if (selectedTopic != null) {
+            emptySet()
+        } else {
+            val set = HashSet<String>()
+            var newestBelow = Long.MIN_VALUE
+            for (i in items.indices.reversed()) {
+                val ms = items[i].publishedAtMs
+                if (ms in 1 until newestBelow) set.add(items[i].url)
+                if (ms > newestBelow) newestBelow = ms
+            }
+            set
         }
-        set
     }
 
     if (showOnboarding) {
@@ -163,6 +179,9 @@ internal fun ForeignNewsSection() {
                     Spacer(Modifier.width(8.dp))
                 }
             }
+            // "Luetut" aina viimeisenä siruna — jo luetut jutut, ei kategorianäkyvyyden alainen.
+            Pill(text = "Luetut", selected = selectedTopic == READ_TAG) { selectedTopic = READ_TAG }
+            Spacer(Modifier.width(8.dp))
         }
         Spacer(Modifier.height(10.dp))
         // "Kaikki"-näkymä on personoitu (tuoreus + sinua kiinnostavat) → selitä järjestys.
@@ -170,6 +189,13 @@ internal fun ForeignNewsSection() {
         if (selectedTopic == null) {
             Text(
                 "Tuoreimmat ensin · järjestys mukautuu lukemiisi aiheisiin",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+        } else if (selectedTopic == READ_TAG) {
+            Text(
+                "Viimeksi lukemasi · uusin ylimpänä (enintään 100)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -182,7 +208,8 @@ internal fun ForeignNewsSection() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             items.isEmpty() -> Text(
-                "Ei uutisia juuri nyt. Päivitä alapalkin painikkeesta.",
+                if (selectedTopic == READ_TAG) "Et ole vielä lukenut uutisia."
+                else "Ei uutisia juuri nyt. Päivitä alapalkin painikkeesta.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -191,6 +218,7 @@ internal fun ForeignNewsSection() {
                     ForeignNewsRow(a, showOriginal, a.url in boostedUrls) {
                         NewsProfile.recordClick(prefs, a.topics, a.source)
                         NewsProfile.markOpened(a.topics, a.source)
+                        NewsProfile.markRead(prefs, a)
                         openUrl(context, a.url)
                     }
                 }
