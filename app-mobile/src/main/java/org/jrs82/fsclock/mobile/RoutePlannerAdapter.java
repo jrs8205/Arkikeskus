@@ -1,8 +1,14 @@
 package org.jrs82.fsclock.mobile;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.graphics.drawable.GradientDrawable;
+import android.text.TextUtils;
+import android.view.GestureDetector;
+import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -28,11 +34,13 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     interface Listener {
         void onSuggestClick(GeoPlace p);
         void onItineraryClick(Itinerary it);
+        void onAlertClick(TransitAlert a);
     }
 
     private static final int TYPE_SUGGEST = 0;
     private static final int TYPE_ITINERARY = 1;
     private static final int TYPE_LEG = 2;
+    private static final int TYPE_ALERT = 3;
     private static final Locale FI = new Locale("fi", "FI");
     private static final SimpleDateFormat CLOCK = new SimpleDateFormat("HH:mm", FI);
 
@@ -52,6 +60,7 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         Object it = items.get(position);
         if (it instanceof GeoPlace) return TYPE_SUGGEST;
         if (it instanceof Itinerary) return TYPE_ITINERARY;
+        if (it instanceof TransitAlert) return TYPE_ALERT;
         return TYPE_LEG;
     }
 
@@ -65,9 +74,13 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         if (viewType == TYPE_ITINERARY) {
             return new ItineraryVH(inf.inflate(R.layout.item_itinerary, parent, false));
         }
+        if (viewType == TYPE_ALERT) {
+            return AlertVH.create(parent.getContext());
+        }
         return new LegVH(inf.inflate(R.layout.item_leg, parent, false));
     }
 
+    @SuppressLint("ClickableViewAccessibility")  // osarivin tap ohjataan kortin avaukseen, skrollaus säilyy
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         Object item = items.get(position);
@@ -87,14 +100,46 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             buildLegBar(vh.legs, it);
             bindDepartureLine(vh.departure, it);
             vh.itemView.setOnClickListener(v -> { if (listener != null) listener.onItineraryClick(it); });
-            // Skrollattava osarivi nielee napautukset → laatikoiden napautus avaa saman reitin.
+            // HorizontalScrollView kuluttaa kosketukset (myös pelkän napautuksen) → klikki ei muuten
+            // välity kortille osarivin kohdalla (esim. tyhjä alue "48 min" alla). Ohjataan osarivin
+            // tap-ele reitin avaukseen GestureDetectorilla; skrollaus säilyy (onTouch palauttaa false).
+            View legsScroll = (View) vh.legs.getParent();
+            if (legsScroll != null) {
+                final GestureDetector gd = new GestureDetector(ctx,
+                        new GestureDetector.SimpleOnGestureListener() {
+                            @Override public boolean onSingleTapUp(MotionEvent e) {
+                                if (listener != null) listener.onItineraryClick(it);
+                                return false;
+                            }
+                        });
+                legsScroll.setOnTouchListener((v, e) -> { gd.onTouchEvent(e); return false; });
+            }
+            // Yksittäiset osalaatikot avaavat myös saman reitin.
             for (int c = 0; c < vh.legs.getChildCount(); c++) {
                 vh.legs.getChildAt(c).setOnClickListener(
                         v -> { if (listener != null) listener.onItineraryClick(it); });
             }
+        } else if (item instanceof TransitAlert) {
+            bindAlert((AlertVH) holder, (TransitAlert) item);
         } else {
             bindLeg((LegVH) holder, (Leg) item, ctx);
         }
+    }
+
+    private void bindAlert(AlertVH vh, TransitAlert a) {
+        Context ctx = vh.box.getContext();
+        vh.text.setText(a.displayText());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(ctx, 10));
+        bg.setColor(ContextCompat.getColor(ctx, alertColorRes(a.severityRank())));
+        vh.box.setBackground(bg);
+        vh.box.setOnClickListener(v -> { if (listener != null) listener.onAlertClick(a); });
+    }
+
+    private static int alertColorRes(int rank) {
+        if (rank >= 3) return R.color.mobile_alert_severe;     // SEVERE
+        if (rank == 2) return R.color.mobile_alert_warning;    // WARNING
+        return R.color.mobile_alert_info;                      // INFO / tuntematon
     }
 
     @Override
@@ -141,7 +186,7 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             content = ContextCompat.getColor(ctx, R.color.mobile_text_secondary);
         } else {
             bg.setColor(TransitStyle.modeColor(ctx, leg.mode));
-            content = 0xFFFFFFFF;
+            content = TransitStyle.onModeColor(ctx, leg.mode);  // musta/valkoinen luettavuuden mukaan
         }
         row.setBackground(bg);
 
@@ -217,6 +262,7 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             vh.badge.setText(leg.routeShortName == null || leg.routeShortName.isEmpty()
                     ? "?" : leg.routeShortName);
             vh.badge.setBackgroundTintList(ColorStateList.valueOf(TransitStyle.modeColor(ctx, leg.mode)));
+            vh.badge.setTextColor(TransitStyle.onModeColor(ctx, leg.mode));  // musta/valk luettavuuden mukaan
             String head = leg.headsign == null || leg.headsign.isEmpty() ? "" : " → " + leg.headsign;
             vh.primary.setText(modeWord(leg.mode) + head);
             String stop = stopInfo(leg);
@@ -297,6 +343,50 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             badge = v.findViewById(R.id.leg_badge);
             primary = v.findViewById(R.id.leg_primary);
             secondary = v.findViewById(R.id.leg_secondary);
+        }
+    }
+
+    /** Häiriötiedoterivi reittihaun osat-listalla (rakennetaan ohjelmallisesti — ei omaa XML:ää). */
+    static final class AlertVH extends RecyclerView.ViewHolder {
+        final LinearLayout box;
+        final TextView text;
+        AlertVH(@NonNull LinearLayout box, @NonNull TextView text) {
+            super(box);
+            this.box = box;
+            this.text = text;
+        }
+
+        static AlertVH create(Context ctx) {
+            LinearLayout row = new LinearLayout(ctx);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            int padH = dp(ctx, 12);
+            int padV = dp(ctx, 10);
+            row.setPadding(padH, padV, padH, padV);
+            RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(dp(ctx, 16), dp(ctx, 4), dp(ctx, 16), dp(ctx, 4));
+            row.setLayoutParams(lp);
+
+            ImageView icon = new ImageView(ctx);
+            int sz = dp(ctx, 18);
+            icon.setLayoutParams(new LinearLayout.LayoutParams(sz, sz));
+            icon.setImageResource(R.drawable.mobile_ic_info_24);
+            icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
+            row.addView(icon);
+
+            TextView t = new TextView(ctx);
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            tlp.setMarginStart(dp(ctx, 10));
+            t.setLayoutParams(tlp);
+            t.setTextColor(0xFFFFFFFF);
+            t.setTextSize(13);
+            t.setMaxLines(3);
+            t.setEllipsize(TextUtils.TruncateAt.END);
+            t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
+            row.addView(t);
+            return new AlertVH(row, t);
         }
     }
 }

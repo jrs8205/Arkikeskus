@@ -21,11 +21,12 @@ final class Leg {
     final String tripGtfsId;      // vuoron gtfsId (live-bussin haku), tyhjä kävelyllä
     final String patternCode;     // vuoron pattern-koodi (vehiclePositions-haku), tyhjä kävelyllä
     final List<double[]> stops;   // osuuden pysäkit [lat,lon] (kartan pienet pisteet), tyhjä kävelyllä
+    final List<TransitAlert> alerts; // osuuden linjan häiriötiedotteet (tyhjä kävelyllä/jos ei)
 
     Leg(String mode, long startEpochMs, long endEpochMs, int durationSec, int distanceMeters,
         String fromName, String toName, String routeShortName, String headsign, boolean realtime,
         String fromStopCode, String fromPlatform, List<double[]> geometry,
-        String tripGtfsId, String patternCode, List<double[]> stops) {
+        String tripGtfsId, String patternCode, List<double[]> stops, List<TransitAlert> alerts) {
         this.mode = mode;
         this.startEpochMs = startEpochMs;
         this.endEpochMs = endEpochMs;
@@ -42,6 +43,7 @@ final class Leg {
         this.tripGtfsId = tripGtfsId == null ? "" : tripGtfsId;
         this.patternCode = patternCode == null ? "" : patternCode;
         this.stops = stops == null ? Collections.emptyList() : stops;
+        this.alerts = alerts == null ? Collections.emptyList() : alerts;
     }
 
     boolean isWalk() { return "WALK".equals(mode); }

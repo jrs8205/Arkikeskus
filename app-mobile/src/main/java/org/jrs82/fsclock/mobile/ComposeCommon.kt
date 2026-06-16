@@ -95,6 +95,13 @@ internal fun transitModeColor(mode: String?): Color {
     return Color(TransitStyle.modeColor(ctx, mode ?: ""))
 }
 
+/** Luettava teksti-/ikoniväri moodivärin päällä (musta vaaleilla, valkoinen tummilla HSL-väreillä). */
+@Composable
+internal fun transitOnModeColor(mode: String?): Color {
+    val ctx = LocalContext.current
+    return Color(TransitStyle.onModeColor(ctx, mode ?: ""))
+}
+
 /** Moodi-ikonin drawable-resurssi (vektori) — sama lähde kuin View-puolella. */
 internal fun transitModeIconRes(mode: String?): Int = TransitStyle.modeIcon(mode ?: "")
 
@@ -109,7 +116,7 @@ internal fun TransitLineBadge(text: String, mode: String?, modifier: Modifier = 
         Text(
             text.ifEmpty { "?" },
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            color = Color.White,
+            color = transitOnModeColor(mode),
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleSmall,
         )

@@ -1420,6 +1420,95 @@ internal fun NewsSection() {
     }
 }
 
+// ===================== Omat syötteet -sektio (vain käyttäjän custom-RSS-syötteet) =====================
+
+/** Listaa VAIN käyttäjän omat custom-RSS-syötteet (NewsFeedStore.customFeeds). Builtin-lähteet hoituvat
+ *  backend-Kotimaista + per-lähde-etusivukorteista; tämä antaa omille syötteille (blogit/niche) lukunäkymän
+ *  joka jäi orvoksi kun "Kotimaiset" siirtyi backendiin (2.10.0). Malli: [NewsSection]. */
+@Composable
+internal fun OwnFeedsScreen() {
+    val context = LocalContext.current
+    val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    // Sama tick-kuvio kuin NewsSection: ei hae paluulla taustalta, vain kylmästart/Päivitä/väli; syötteen
+    // lisäys/muokkaus asetuksissa (mobile_custom_news_feeds → homeNewsRevision++) virkistää näkymän.
+    val refresh = LocalNewsRefreshTick.current
+    val newsRevision = LocalHomeNewsRevision.current
+    var items by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
+    var hasFeeds by remember { mutableStateOf(NewsFeedStore.customFeeds(prefs).isNotEmpty()) }
+    var loading by remember { mutableStateOf(true) }
+    var handledRefresh by remember { mutableIntStateOf(refresh) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) NewsProfile.recordPendingRead(prefs)
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    LaunchedEffect(refresh, newsRevision) {
+        val forceNetwork = refresh != handledRefresh
+        handledRefresh = refresh
+        loading = true
+        val feeds = NewsFeedStore.customFeeds(prefs)
+        hasFeeds = feeds.isNotEmpty()
+        items = withContext(Dispatchers.IO) {
+            val all = ArrayList<NewsItem>()
+            for (f in feeds) {
+                try {
+                    all.addAll(RssRepository.get().fetchForFeed(f, forceNetwork))
+                } catch (e: Exception) {
+                    // ohita yksittäisen syötteen virhe, näytä muut
+                }
+            }
+            val sorted = all.sortedByDescending { it.pubTimeMs }
+            if (sorted.isNotEmpty()) {
+                val snap = NewsProfile.snapshot(prefs)
+                NewsProfile.rerank(sorted, { NewsProfile.scoreWith(snap, "", it.feedName) }, { it.pubTimeMs })
+            } else {
+                sorted
+            }
+        }
+        loading = false
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text("Omat syötteet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        when {
+            loading -> Text("Haetaan uutisia…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            !hasFeeds -> Text(
+                "Ei omia syötteitä. Lisää asetuksista.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            items.isEmpty() -> Text(
+                "Ei uutisia juuri nyt.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> {
+                val shown = items.take(50)
+                val note = if (shown.size < items.size) "Näytetään ${shown.size} uusinta uutista" else "${items.size} uutista"
+                Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                shown.forEach { item ->
+                    NewsRow(item) {
+                        NewsProfile.recordClick(prefs, "", item.feedName)
+                        NewsProfile.markOpened("", item.feedName)
+                        openUrl(context, item.link)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun NewsRow(item: NewsItem, onOpen: () -> Unit) {
     Row(

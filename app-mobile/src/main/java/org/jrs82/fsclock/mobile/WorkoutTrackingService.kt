@@ -27,6 +27,7 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.db.WorkoutEntity
 import java.util.Locale
@@ -49,10 +50,15 @@ class WorkoutTrackingService : Service() {
         const val EXTRA_OPEN_SECTION = "open_section"
 
         private const val CHANNEL_ID = "workout_tracking"
+        private const val KM_CHANNEL_ID = "workout_km_split"
         private const val NOTIF_ID = 41
         private const val DONE_NOTIF_ID = 42
+        private const val KM_NOTIF_ID = 43
         private const val TICK_MS = 5_000L
         private val FI = Locale("fi", "FI")
+
+        /** Asetuskytkin: näytetäänkö ääni-ilmoitus joka kilometri (oletus päällä). */
+        const val KEY_WORKOUT_KM_NOTIFY = "workout_km_notify"
 
         fun start(context: Context, type: Int) {
             val i = Intent(context, WorkoutTrackingService::class.java)
@@ -110,7 +116,10 @@ class WorkoutTrackingService : Service() {
         t.start()
         thread = t
         handler = Handler(t.looper)
-        WorkoutTracker.onSplit = { vibrateSplit() }
+        WorkoutTracker.onSplit = { split, totalMovingMs ->
+            vibrateSplit()
+            postKmNotification(split.index, split.durationMs, totalMovingMs)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -230,6 +239,12 @@ class WorkoutTrackingService : Service() {
         val ch = NotificationChannel(CHANNEL_ID, "Lenkin seuranta", NotificationManager.IMPORTANCE_LOW)
         ch.description = "Käynnissä olevan lenkin tila ja hallinta"
         nm.createNotificationChannel(ch)
+        // Km-väli-ilmoitus: oma kanava DEFAULT-tärkeydellä → ääni-ilmoitus poksahtaa (mm. kelloon).
+        // Värinä tulee vibrateSplitistä → kanavan oma värinä pois, ettei tuplaannu.
+        val km = NotificationChannel(KM_CHANNEL_ID, "Lenkin kilometrivälit", NotificationManager.IMPORTANCE_DEFAULT)
+        km.description = "Ilmoitus jokaisen täyden kilometrin täyttyessä lenkillä"
+        km.enableVibration(false)
+        nm.createNotificationChannel(km)
     }
 
     private fun startForegroundCompat() {
@@ -309,6 +324,36 @@ class WorkoutTrackingService : Service() {
         try { nm.notify(DONE_NOTIF_ID, n) } catch (e: Exception) { }
     }
 
+    /** Näytä km-väli-ilmoitus (oma DEFAULT-kanava). Gate asetuskytkimellä + POST_NOTIFICATIONS-luvalla. */
+    private fun postKmNotification(index: Int, paceMs: Long, totalMovingMs: Long) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(KEY_WORKOUT_KM_NOTIFY, true)) return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val openIntent = Intent(this, MobileComposeMainActivity::class.java)
+            .putExtra(EXTRA_OPEN_SECTION, "WORKOUT")
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        val pi = PendingIntent.getActivity(
+            this, 6, openIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val n = NotificationCompat.Builder(this, KM_CHANNEL_ID)
+            .setSmallIcon(R.drawable.mobile_ic_transit_walk)
+            .setContentTitle("$index. kilometri")
+            .setContentText(kmSplitStatsText(index, paceMs, totalMovingMs))
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(false)
+            .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+            .build()
+        try { nm.notify(KM_NOTIF_ID, n) } catch (e: Exception) { }
+    }
+
     private fun vibrateSplit() {
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -329,4 +374,24 @@ class WorkoutTrackingService : Service() {
         return if (h > 0) String.format(FI, "%d:%02d:%02d", h, m, s)
         else String.format(FI, "%02d:%02d", m, s)
     }
+}
+
+/**
+ * Km-väli-ilmoituksen tilastorivi (pure → yksikkötestattava, ei Android-riippuvuuksia).
+ * - tahti = `paceMs` (juuri täyttyneen kilometrin kesto) → m:ss /km
+ * - aika = `totalMovingMs` (kokonaisliikeaika) → m:ss tai h:mm:ss
+ * - keskinopeus: km-splitissä matka on tasan `index` km → ka = index / (totalMovingMs tunteina)
+ */
+internal fun kmSplitStatsText(index: Int, paceMs: Long, totalMovingMs: Long): String {
+    val fi = Locale("fi", "FI")
+    val paceSec = (paceMs / 1000).coerceAtLeast(0)
+    val pace = String.format(fi, "%d:%02d", paceSec / 60, paceSec % 60)
+    val totalSec = (totalMovingMs / 1000).coerceAtLeast(0)
+    val total = if (totalSec >= 3600) {
+        String.format(fi, "%d:%02d:%02d", totalSec / 3600, (totalSec % 3600) / 60, totalSec % 60)
+    } else {
+        String.format(fi, "%d:%02d", totalSec / 60, totalSec % 60)
+    }
+    val avgKmh = if (totalMovingMs > 0) index * 3_600_000.0 / totalMovingMs else 0.0
+    return String.format(fi, "tahti %s/km · aika %s · ka %.1f km/h", pace, total, avgKmh)
 }

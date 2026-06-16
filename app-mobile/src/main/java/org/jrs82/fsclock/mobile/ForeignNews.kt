@@ -36,15 +36,17 @@ object ForeignNewsClient {
     private class Entry(val items: List<ForeignArticle>, val timestamp: Long)
     private val cache = HashMap<String, Entry>()
 
-    /** topic = null/tyhjä → "kaikki" (lomitettu). Palauttaa välimuistin ellei [forced]. */
-    fun fetch(topic: String?, limit: Int, forced: Boolean): List<ForeignArticle> {
-        val key = (topic ?: "") + "|" + limit
+    /** topic = null/tyhjä → "kaikki" (lomitettu). domestic=true → Kotimaat (?domestic=1, suomalaiset
+     *  lähteet); false → Ulkomaat. Palauttaa välimuistin ellei [forced]. */
+    fun fetch(topic: String?, limit: Int, forced: Boolean, domestic: Boolean = false): List<ForeignArticle> {
+        val key = (if (domestic) "d|" else "f|") + (topic ?: "") + "|" + limit
         synchronized(cache) {
             val e = cache[key]
             if (!forced && e != null && System.currentTimeMillis() - e.timestamp < CACHE_TTL_MS) return e.items
         }
         val sb = StringBuilder(BASE_URL).append("/api/articles?limit=").append(limit)
         if (!topic.isNullOrBlank()) sb.append("&topic=").append(topic)
+        if (domestic) sb.append("&domestic=1")
         val items = request(sb.toString())
         if (items.isNotEmpty()) {
             synchronized(cache) { cache[key] = Entry(items, System.currentTimeMillis()) }

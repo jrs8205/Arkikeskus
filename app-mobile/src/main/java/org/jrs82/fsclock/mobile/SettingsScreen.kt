@@ -397,8 +397,8 @@ fun SettingsScreen() {
                 }
             }
 
-            // ---------- Ulkomaiden uutiskategoriat (Ulkomaat-sirujen näkyvyys) ----------
-            item { SectionHeader("Ulkomaiden uutiskategoriat", R.drawable.mobile_ic_news_24) }
+            // ---------- Uutiskategoriat (jaettu: Kotimaat + Ulkomaat; hard-filter) ----------
+            item { SectionHeader("Uutiskategoriat (Kotimaat + Ulkomaat)", R.drawable.mobile_ic_news_24) }
             item {
                 SettingsCard {
                     FOREIGN_CATEGORY_TAGS.forEachIndexed { index, pair ->
@@ -408,6 +408,18 @@ fun SettingsScreen() {
                         )
                         if (index < FOREIGN_CATEGORY_TAGS.lastIndex) RowDivider()
                     }
+                }
+            }
+
+            // ---------- Lenkkiseuranta ----------
+            item { SectionHeader("Lenkkiseuranta", R.drawable.mobile_ic_transit_walk) }
+            item {
+                SettingsCard {
+                    PrefSwitchRow(
+                        prefs, WorkoutTrackingService.KEY_WORKOUT_KM_NOTIFY, "Kilometri-ilmoitus",
+                        subtitle = "Ääni-ilmoitus joka täyden kilometrin täyttyessä lenkillä",
+                        leadingIconRes = R.drawable.mobile_ic_transit_walk, default = true,
+                    )
                 }
             }
 

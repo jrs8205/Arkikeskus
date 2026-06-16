@@ -32,12 +32,23 @@ final class DigitransitApi {
             "scheduledDeparture realtimeDeparture realtime serviceDay headsign"
             + " trip { gtfsId routeShortName pattern { code stops { name } } route { gtfsId mode } }";
 
+    // Häiriö-/poikkeustiedotteet (stop / route / leg.route). Severity: INFO/WARNING/SEVERE/UNKNOWN.
+    private static final String ALERT_FIELDS =
+            "alertHeaderText alertDescriptionText alertSeverityLevel alertEffect"
+            + " effectiveStartDate effectiveEndDate";
+
+    // Koko HSL-syötteen häiriöt ("Häiriöt ja muutokset" -sivu) — linja/pysäkki mukaan.
+    private static final String SERVICE_ALERTS_QUERY =
+            "{ alerts(feeds:[\"HSL\"]) { " + ALERT_FIELDS
+            + " route { shortName mode } stop { name } } }";
+
     private static final String NEAREST_QUERY =
             "query Nearest($lat: Float!, $lon: Float!) {"
             + " nearest(lat: $lat, lon: $lon, maxResults: 20, maxDistance: 700,"
             + " filterByPlaceTypes: [STOP]) {"
             + " edges { node { distance place { ... on Stop {"
             + " gtfsId name code zoneId vehicleMode"
+            + " alerts { " + ALERT_FIELDS + " }"
             + " stoptimesWithoutPatterns(numberOfDepartures: 5) { " + STOPTIME_FIELDS + " } } } } } } }";
 
     private static final String ROUTES_QUERY =
@@ -56,13 +67,30 @@ final class DigitransitApi {
     private static final String STOP_QUERY =
             "query Stop($id: String!) { stop(id: $id) {"
             + " gtfsId name code zoneId vehicleMode"
+            + " alerts { " + ALERT_FIELDS + " }"
             + " stoptimesWithoutPatterns(numberOfDepartures: 5) { " + STOPTIME_FIELDS + " } } }";
 
     // Asema (station) on oma tyyppinsä: stop(id:) palauttaa null asema-id:lle → käytä station(id:).
     private static final String STATION_QUERY =
             "query Station($id: String!) { station(id: $id) {"
             + " gtfsId name code zoneId"
+            + " alerts { " + ALERT_FIELDS + " }"
             + " stoptimesWithoutPatterns(numberOfDepartures: 6) { " + STOPTIME_FIELDS + " } } }";
+
+    // Koko päivän aikataulu yhdelle pysäkille/asemalle: timeRange 24 h, jopa 100 lähtöä.
+    private static final String STOP_FULLDAY_QUERY =
+            "query Stop($id: String!) { stop(id: $id) {"
+            + " gtfsId name code zoneId vehicleMode"
+            + " alerts { " + ALERT_FIELDS + " }"
+            + " stoptimesWithoutPatterns(numberOfDepartures: 100, timeRange: 86400) { "
+            + STOPTIME_FIELDS + " } } }";
+
+    private static final String STATION_FULLDAY_QUERY =
+            "query Station($id: String!) { station(id: $id) {"
+            + " gtfsId name code zoneId"
+            + " alerts { " + ALERT_FIELDS + " }"
+            + " stoptimesWithoutPatterns(numberOfDepartures: 100, timeRange: 86400) { "
+            + STOPTIME_FIELDS + " } } }";
 
     // Paikkahaun geokoodaus (Pelias-autocomplete). sources=gtfshsl → vain HSL-pysäkit/asemat,
     // jolloin addendum.GTFS.modes kertoo moodit (ikoneita varten).
@@ -71,7 +99,8 @@ final class DigitransitApi {
 
     private static final String ROUTE_PATTERNS_QUERY =
             "query RP($id: String!) { route(id: $id) {"
-            + " shortName longName mode patterns { code directionId headsign stops { name } } } }";
+            + " shortName longName mode alerts { " + ALERT_FIELDS + " }"
+            + " patterns { code directionId headsign stops { name } } } }";
 
     private static final String PATTERN_TIMETABLE_QUERY =
             "query PT($id: String!) { pattern(id: $id) { headsign directionId"
@@ -127,6 +156,61 @@ final class DigitransitApi {
         return parseStop(station, Double.NaN);
     }
 
+    // --- Koko päivän aikataulu (timeRange 24 h, jopa 100 lähtöä) ---
+
+    static NearbyStop stopDeparturesFullDay(String stopGtfsId) throws Exception {
+        JSONObject variables = new JSONObject();
+        variables.put("id", stopGtfsId);
+        JSONObject data = postQuery(STOP_FULLDAY_QUERY, variables);
+        JSONObject stop = data == null ? null : data.optJSONObject("stop");
+        if (stop == null) return null;
+        return parseStop(stop, Double.NaN);
+    }
+
+    static NearbyStop stationDeparturesFullDay(String stationGtfsId) throws Exception {
+        JSONObject variables = new JSONObject();
+        variables.put("id", stationGtfsId);
+        JSONObject data = postQuery(STATION_FULLDAY_QUERY, variables);
+        JSONObject station = data == null ? null : data.optJSONObject("station");
+        if (station == null) return null;
+        return parseStop(station, Double.NaN);
+    }
+
+    // --- Kaikki HSL-häiriöt ("Häiriöt ja muutokset" -sivu) ---
+
+    /** Koko HSL-syötteen aktiiviset häiriöt linja-/pysäkkitietoineen. Poistaa tarkat tuplat
+     *  (sama otsikko+kuvaus+linja+pysäkki) ja järjestää: vakavin ensin, sitten uusin alkamisaika. */
+    static List<TransitAlert> serviceAlerts() throws Exception {
+        JSONObject data = postQuery(SERVICE_ALERTS_QUERY, new JSONObject());
+        JSONArray arr = data == null ? null : data.optJSONArray("alerts");
+        List<TransitAlert> out = new ArrayList<>();
+        if (arr == null) return out;
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject a = arr.optJSONObject(i);
+            if (a == null) continue;
+            String header = a.isNull("alertHeaderText") ? "" : a.optString("alertHeaderText", "");
+            String desc = a.isNull("alertDescriptionText") ? "" : a.optString("alertDescriptionText", "");
+            if (header.isEmpty() && desc.isEmpty()) continue;
+            String sev = a.isNull("alertSeverityLevel") ? "" : a.optString("alertSeverityLevel", "");
+            String eff = a.isNull("alertEffect") ? "" : a.optString("alertEffect", "");
+            long start = a.optLong("effectiveStartDate", 0L);
+            long end = a.optLong("effectiveEndDate", 0L);
+            JSONObject route = a.optJSONObject("route");
+            String rsn = (route == null || route.isNull("shortName")) ? "" : route.optString("shortName", "");
+            String mode = (route == null || route.isNull("mode")) ? "" : route.optString("mode", "");
+            JSONObject stop = a.optJSONObject("stop");
+            String stopName = (stop == null || stop.isNull("name")) ? "" : stop.optString("name", "");
+            if (!seen.add(header + "|" + desc + "|" + rsn + "|" + stopName)) continue;
+            out.add(new TransitAlert(header, desc, sev, eff, start, end, rsn, mode, stopName));
+        }
+        out.sort((x, y) -> {
+            int bySev = Integer.compare(y.severityRank(), x.severityRank());
+            return bySev != 0 ? bySev : Long.compare(y.startEpochSec, x.startEpochSec);
+        });
+        return out;
+    }
+
     private static NearbyStop parseStop(JSONObject place, double distance) {
         String name = place.optString("name", "");
         // optString palauttaa merkkijonon "null" jos arvo on JSONObject.NULL → suojaa isNull():lla.
@@ -142,7 +226,29 @@ final class DigitransitApi {
                 if (d != null) departures.add(d);
             }
         }
-        return new NearbyStop(gtfsId, name, code, zoneId, vehicleMode, distance, departures);
+        List<TransitAlert> alerts = parseAlerts(place.optJSONArray("alerts"));
+        return new NearbyStop(gtfsId, name, code, zoneId, vehicleMode, distance, departures, alerts);
+    }
+
+    /** Parsii Digitransitin {@code alerts}-taulukon listaksi. Ohittaa tyhjät ja samat tuplat. */
+    private static List<TransitAlert> parseAlerts(JSONArray arr) {
+        List<TransitAlert> out = new ArrayList<>();
+        if (arr == null) return out;
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject a = arr.optJSONObject(i);
+            if (a == null) continue;
+            String header = a.isNull("alertHeaderText") ? "" : a.optString("alertHeaderText", "");
+            String desc = a.isNull("alertDescriptionText") ? "" : a.optString("alertDescriptionText", "");
+            if (header.isEmpty() && desc.isEmpty()) continue;
+            if (!seen.add(header + "" + desc)) continue;   // sama tiedote useammalta linjalta → kerran
+            String sev = a.isNull("alertSeverityLevel") ? "" : a.optString("alertSeverityLevel", "");
+            String eff = a.isNull("alertEffect") ? "" : a.optString("alertEffect", "");
+            long start = a.optLong("effectiveStartDate", 0L);
+            long end = a.optLong("effectiveEndDate", 0L);
+            out.add(new TransitAlert(header, desc, sev, eff, start, end));
+        }
+        return out;
     }
 
     private static Departure parseStoptime(JSONObject st, String stopMode, double distance,
@@ -339,7 +445,8 @@ final class DigitransitApi {
                 + "dateTime:{" + dtField + ":\"" + dateTimeIso + "\"}," + modes + "first:" + first + "){"
                 + "edges{node{duration numberOfTransfers start end walkDistance "
                 + "legs{mode duration distance start{scheduledTime estimated{time}} "
-                + "end{scheduledTime estimated{time}} from{name stop{code platformCode}} to{name} route{shortName} "
+                + "end{scheduledTime estimated{time}} from{name stop{code platformCode}} to{name} "
+                + "route{shortName alerts{" + ALERT_FIELDS + "}} "
                 + "trip{tripHeadsign gtfsId pattern{code}} stopCalls{stopLocation{... on Stop{lat lon}}}"
                 + " legGeometry{points}}}}}}";
         JSONObject data = postQuery(q, new JSONObject());
@@ -397,6 +504,7 @@ final class DigitransitApi {
                 if (!Double.isNaN(slat) && !Double.isNaN(slon)) stops.add(new double[]{slat, slon});
             }
         }
+        List<TransitAlert> alerts = parseAlerts(route == null ? null : route.optJSONArray("alerts"));
         return new Leg(lg.optString("mode", ""), st[0], en[0],
                 (int) Math.round(lg.optDouble("duration", 0)),
                 (int) Math.round(lg.optDouble("distance", 0)),
@@ -404,7 +512,7 @@ final class DigitransitApi {
                 to == null ? "" : to.optString("name", ""),
                 route == null ? "" : route.optString("shortName", ""),
                 trip == null ? "" : trip.optString("tripHeadsign", ""),
-                st[1] == 1L, fCode, fPlat, geometry, tripGtfsId, patternCode, stops);
+                st[1] == 1L, fCode, fPlat, geometry, tripGtfsId, patternCode, stops, alerts);
     }
 
     /** Etsii vuorolla (tripGtfsId) tällä hetkellä liikkeellä olevan ajoneuvon vehicleId:n
@@ -558,8 +666,9 @@ final class DigitransitApi {
                         firstStop, lastStop));
             }
         }
+        List<TransitAlert> alerts = parseAlerts(route.optJSONArray("alerts"));
         return new RoutePatterns(route.optString("shortName", ""),
-                route.optString("longName", ""), route.optString("mode", ""), pats);
+                route.optString("longName", ""), route.optString("mode", ""), pats, alerts);
     }
 
     static TripTimeline patternTimetable(String patternCode, String routeShortName, String mode)

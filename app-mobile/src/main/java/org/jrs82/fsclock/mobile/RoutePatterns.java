@@ -8,12 +8,15 @@ final class RoutePatterns {
     final String longName;
     final String mode;
     final List<Pat> patterns;
+    final List<TransitAlert> alerts;   // linjan häiriötiedotteet (tyhjä jos ei)
 
-    RoutePatterns(String shortName, String longName, String mode, List<Pat> patterns) {
+    RoutePatterns(String shortName, String longName, String mode, List<Pat> patterns,
+                  List<TransitAlert> alerts) {
         this.shortName = shortName;
         this.longName = longName;
         this.mode = mode;
         this.patterns = patterns;
+        this.alerts = alerts == null ? java.util.Collections.emptyList() : alerts;
     }
 
     static final class Pat {
