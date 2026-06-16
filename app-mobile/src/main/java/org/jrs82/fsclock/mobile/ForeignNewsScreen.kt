@@ -78,7 +78,7 @@ private const val READ_TAG = "__read__"
  * pysyvät tuoreusjärjestyksessä. Napautus kirjaa klikin + avaa jutun selaimeen (Custom Tabs).
  */
 @Composable
-internal fun ForeignNewsSection() {
+internal fun NewsCategoryScreen(domestic: Boolean) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     // Uutisten oma tick: ei hae paluulla selaimesta/taustalta, vain kylmästart/Päivitä/väli.
@@ -103,7 +103,10 @@ internal fun ForeignNewsSection() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
 
-    LaunchedEffect(selectedTopic, refresh) {
+    // showOnboarding avaimena: kun alkukysely valmistuu (true→false), feed haetaan uudelleen, jotta
+    // juuri valitut kategoriat suodattuvat heti (muuten näkyisi alkukyselyä ennen haettu kaikki-lista).
+    LaunchedEffect(selectedTopic, refresh, showOnboarding) {
+        if (showOnboarding) return@LaunchedEffect   // odota valinta ennen hakua
         val forced = refresh != handledRefresh
         handledRefresh = refresh
         loading = true
@@ -115,13 +118,22 @@ internal fun ForeignNewsSection() {
                 return@withContext NewsProfile.readArticles(prefs)
             }
             val fetched = try {
-                ForeignNewsClient.fetch(topic, FOREIGN_LIMIT, forced)
+                ForeignNewsClient.fetch(topic, FOREIGN_LIMIT, forced, domestic)
             } catch (e: Exception) {
                 emptyList()
             }
             // Piilota jo luetut jutut KAIKISTA näkymistä (myös "Kaikki") → eivät tule uudestaan vastaan.
             val read = NewsProfile.readUrls(prefs)
-            val unread = if (read.isEmpty()) fetched else fetched.filter { it.url !in read }
+            val unreadAll = if (read.isEmpty()) fetched else fetched.filter { it.url !in read }
+            // HARD-FILTER "Kaikki"-näkymässä: näytä VAIN valitut kategoriat (alkukyselyn/asetusten valinta).
+            // Kategorianäkymät on jo rajattu yhteen; tyhjä valinta tai kaikki valittu → ei suodatusta.
+            val allTags = FOREIGN_CATEGORY_TAGS.map { it.first }
+            val cats = NewsProfile.visibleCats(prefs, allTags)
+            val unread = if (topic == null && cats.isNotEmpty() && cats.size < allTags.size) {
+                unreadAll.filter { NewsProfile.topicVisible(it.topics, cats) }
+            } else {
+                unreadAll
+            }
             // Kategoriassa (ei "Kaikki", ei "Luetut") kaikki tuoreet luettu → oma tyhjäteksti (B3).
             filteredAllRead = topic != null && fetched.isNotEmpty() && unread.isEmpty()
             // Personointi vain "Kaikki"-näkymässä; kategorianäkymät pysyvät tuoreusjärjestyksessä.
@@ -155,7 +167,12 @@ internal fun ForeignNewsSection() {
 
     if (showOnboarding) {
         NewsOnboardingDialog(
-            onDone = { picked -> NewsProfile.seedTopics(prefs, picked); showOnboarding = false },
+            onDone = { picked ->
+                NewsProfile.seedTopics(prefs, picked)
+                // Valinta = näkyvät kategoriat (hard-filter, sama Kotimaat + Ulkomaat). Tyhjä = kaikki.
+                NewsProfile.applyCategorySelection(prefs, picked, FOREIGN_CATEGORY_TAGS.map { it.first })
+                showOnboarding = false
+            },
             onSkip = { NewsProfile.setOnboarded(prefs); showOnboarding = false },
         )
     }
@@ -163,14 +180,20 @@ internal fun ForeignNewsSection() {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Ulkomaat", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                if (domestic) "Kotimaat" else "Ulkomaat",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(Modifier.weight(1f))
-            // Otsikoiden kielivalinta — koskee VAIN listan otsikoita; itse jutut avautuvat selaimeen
-            // alkukielellä (käännä tarvittaessa selaimen omalla käännöksellä). Nappi näyttää kohdekielen.
-            Pill(
-                text = if (showOriginal) "Otsikot suomeksi" else "Otsikot englanniksi",
-                selected = false,
-            ) { showOriginal = !showOriginal }
+            // Otsikoiden kielivalinta — VAIN Ulkomailla (Kotimaa on jo suomeksi). Koskee vain listan
+            // otsikoita; jutut avautuvat selaimeen alkukielellä. Nappi näyttää kohdekielen.
+            if (!domestic) {
+                Pill(
+                    text = if (showOriginal) "Otsikot suomeksi" else "Otsikot englanniksi",
+                    selected = false,
+                ) { showOriginal = !showOriginal }
+            }
         }
         Spacer(Modifier.height(10.dp))
         Row(
@@ -252,7 +275,8 @@ internal fun NewsOnboardingDialog(onDone: (List<String>) -> Unit, onSkip: () -> 
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    "Valitse kiinnostavat aiheet, niin suosittelemme niitä hieman enemmän. " +
+                    "Valitse aiheet joista haluat uutisia — näytämme vain valitsemiasi kategorioita " +
+                        "(sekä koti- että ulkomaat). Jos et valitse mitään, näytetään kaikki. " +
                         "Voit muuttaa valintoja myöhemmin asetuksista.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

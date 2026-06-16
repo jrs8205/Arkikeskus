@@ -72,6 +72,62 @@ class NewsReadHistoryTest {
         NewsProfile.markRead(p, art(""))
         assertTrue(NewsProfile.readUrls(p).isEmpty())
     }
+
+    // ---- 2.10.0: alkukyselyn hard-filter (kategoriavalinta → näkyvät kategoriat) ----
+
+    @Test
+    fun `topicVisible osuu kun jokin jutun aihe on valittu`() {
+        assertTrue(NewsProfile.topicVisible("tech,mobile", setOf("tech")))
+        assertTrue(NewsProfile.topicVisible("world", setOf("world", "sport")))
+        assertFalse(NewsProfile.topicVisible("sport", setOf("tech", "world")))
+        assertFalse(NewsProfile.topicVisible("", setOf("tech")))
+    }
+
+    @Test
+    fun `applyCategorySelection asettaa vain valitut nakyviin`() {
+        val p = FakeSharedPreferences()
+        val all = listOf("world", "tech", "sport", "culture")
+        NewsProfile.applyCategorySelection(p, listOf("tech", "world"), all)
+        assertEquals(setOf("tech", "world"), NewsProfile.visibleCats(p, all))
+        assertFalse(p.getBoolean(NewsProfile.catVisibleKey("sport"), true))
+    }
+
+    @Test
+    fun `tyhja valinta nayttaa kaikki kategoriat`() {
+        val p = FakeSharedPreferences()
+        val all = listOf("world", "tech", "sport")
+        NewsProfile.applyCategorySelection(p, emptyList(), all)
+        assertEquals(all.toSet(), NewsProfile.visibleCats(p, all))
+    }
+
+    // ---- 2.10.0: etusivun uutiskorttien jaettu hard-filter (hardFilterCategories) ----
+
+    private fun artTopic(url: String, topics: String) = art(url).copy(topics = topics)
+
+    @Test
+    fun `hardFilterCategories nayttaa vain valittujen kategorioiden jutut`() {
+        val items = listOf(
+            artTopic("https://1", "tech"),
+            artTopic("https://2", "sport"),
+            artTopic("https://3", "tech,world"),
+            artTopic("https://4", "culture"),
+        )
+        val out = hardFilterCategories(items, setOf("tech"), allTagCount = 4)
+        assertEquals(listOf("https://1", "https://3"), out.map { it.url })
+    }
+
+    @Test
+    fun `hardFilterCategories tyhja valinta palauttaa kaikki`() {
+        val items = listOf(artTopic("https://1", "tech"), artTopic("https://2", "sport"))
+        assertEquals(items, hardFilterCategories(items, emptySet(), allTagCount = 4))
+    }
+
+    @Test
+    fun `hardFilterCategories kaikki valittu ei suodata`() {
+        val items = listOf(artTopic("https://1", "tech"), artTopic("https://2", "sport"))
+        // visible.size == allTagCount → "kaikki valittu" → ei suodatusta (näytä kaikki).
+        assertEquals(items, hardFilterCategories(items, setOf("a", "b", "c", "d"), allTagCount = 4))
+    }
 }
 
 /** Muistinvarainen SharedPreferences-fake JVM-yksikkötesteihin (vain merkkijonot tarvitaan tässä). */

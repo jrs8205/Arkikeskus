@@ -137,6 +137,22 @@ object NewsProfile {
     fun visibleCats(prefs: SharedPreferences, all: List<String>): Set<String> =
         all.filter { prefs.getBoolean(catVisibleKey(it), true) }.toSet()
 
+    /** Alkukyselyn / asetusten kategoriavalinta → näkyvät kategoriat (HARD-filter: feed näyttää vain
+     *  valitut). Tyhjä valinta = KAIKKI näkyvät (ei jätetä tyhjää feediä). Sama valinta koskee sekä
+     *  Kotimaita että Ulkomaita (jaetut news_cat_show_-avaimet). */
+    fun applyCategorySelection(prefs: SharedPreferences, selected: List<String>, allTags: List<String>) {
+        val showAll = selected.isEmpty()
+        val ed = prefs.edit()
+        for (tag in allTags) ed.putBoolean(catVisibleKey(tag), showAll || tag in selected)
+        ed.apply()
+    }
+
+    /** Onko jutun jokin aihe näkyvien kategorioiden joukossa — "Kaikki"-näkymän hard-filter. */
+    fun topicVisible(topics: String, visible: Set<String>): Boolean {
+        for (t in topics.split(",")) if (t.trim() in visible) return true
+        return false
+    }
+
     // ---- luetut-historia (Ulkomaat): piilota luetut syötteistä + "Luetut"-välilehti ----
     // JSON-lista uusin-luettu-ensin, katto 100 (vanhin tippuu). Koko jutun metadata talletetaan,
     // jotta luettu näkyy "Luetut"-listassa vaikka olisi kiertynyt pois API-syötteestä. Avain ei

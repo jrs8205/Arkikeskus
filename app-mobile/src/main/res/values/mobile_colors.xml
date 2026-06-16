@@ -13,13 +13,20 @@
     <color name="mobile_text_primary">#111827</color>
     <color name="mobile_text_body">#374151</color>
     <color name="mobile_text_secondary">#4B5563</color>
-    <color name="mobile_text_muted">#55606E</color>
-    <color name="mobile_accent">#1D4ED8</color>
+    <!-- WCAG-yli-korostus (AAA, ≥7:1 valkoisella kortilla) — 2.9.0 ulko-/hämäräluettavuus. -->
+    <color name="mobile_text_muted">#49515D</color>
+    <color name="mobile_accent">#1B45C0</color>
     <!-- Reittikortin "Lähtee klo X" -korostus (HSL-tyylinen vihreä). -->
-    <color name="mobile_route_depart">#0B7A3B</color>
-    <color name="mobile_warning_yellow">#8A6200</color>
-    <color name="mobile_warning_orange">#A14E10</color>
-    <color name="mobile_warning_red">#C12018</color>
+    <color name="mobile_route_depart">#09602E</color>
+    <!-- Varoitus-/häiriö-TEKSTIT (viive "+N min", pörssisähkö, liikennetiedote) — tummat vaalealla. -->
+    <color name="mobile_warning_yellow">#6E4E00</color>
+    <color name="mobile_warning_orange">#8A3F0A</color>
+    <color name="mobile_warning_red">#AC150F</color>
+    <!-- Häiriöbannerin TAUSTAT: teemariippumattomat (vain täällä → samat myös tummassa),
+         vahva kylläinen + valkoinen teksti ≥7,5:1. -->
+    <color name="mobile_alert_severe">#A8160F</color>
+    <color name="mobile_alert_warning">#8A3F0A</color>
+    <color name="mobile_alert_info">#6E4E00</color>
     <!-- HSL-moodivärit (brändivärit, samat molemmissa teemoissa; badge-tausta valkoisella tekstillä) -->
     <color name="mobile_transit_bus">#007AC9</color>
     <color name="mobile_transit_tram">#00985F</color>

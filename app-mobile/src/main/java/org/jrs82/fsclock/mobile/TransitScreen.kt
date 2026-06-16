@@ -18,6 +18,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +55,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -111,8 +114,11 @@ private val TR_CLOCK = SimpleDateFormat("HH:mm", FI_TR)
 // ===================== Listan rivimalli (vastaa TransitFragment.buildItems-tyyppejä) =====================
 
 private sealed class TransitRow(val key: String) {
-    class HeaderRow(val title: String, val mode: String, key: String, val zone: String) : TransitRow("h|$key")
+    // stop != null pysäkkiotsikoilla (avaa koko päivän aikataulun); null ryhmäotsikoilla.
+    class HeaderRow(val title: String, val mode: String, key: String, val zone: String,
+                    val stop: NearbyStop? = null) : TransitRow("h|$key")
     class DepRow(val d: Departure, key: String) : TransitRow("d|$key")
+    class AlertRow(val alert: TransitAlert, key: String) : TransitRow("a|$key")
     class RouteRow(val r: RouteHit) : TransitRow("r|${r.gtfsId}")
     class PlaceRow(val p: PlaceHit) : TransitRow("p|${p.gtfsId}|${p.name}")
 }
@@ -154,6 +160,8 @@ private class TransitState(private val appContext: Context) {
     var favVersion by mutableIntStateOf(0)
     var detail by mutableStateOf<TransitDetail?>(null)
     var favDialogFor by mutableStateOf<Departure?>(null)
+    var fullDayStop by mutableStateOf<NearbyStop?>(null)   // avoinna koko päivän aikataulu
+    var alertDialogFor by mutableStateOf<TransitAlert?>(null)   // häiriön koko teksti
 
     // Kulkuvälinesuodatin (null = kaikki; muuten BUS/TRAM/RAIL/SUBWAY/FERRY). Valinta
     // talletetaan prefseihin, jotta se säilyy käyntien välillä.
@@ -394,7 +402,8 @@ private class TransitState(private val appContext: Context) {
         if (sel != null) {
             val deps = sel.departures.sortedBy { it.departureEpochSec }
             val sectionKey = "selected-stop|${sel.gtfsId}"
-            items.add(TransitRow.HeaderRow(stopHeaderText(sel), headerModeOf(sel), sectionKey, zoneLabelOf(sel)))
+            items.add(TransitRow.HeaderRow(stopHeaderText(sel), headerModeOf(sel), sectionKey, zoneLabelOf(sel), sel))
+            addAlertRows(items, sel, sectionKey)
             addDepRows(items, deps, minOf(deps.size, MAX_PER_SELECTED_STOP), sectionKey)
             return items
         }
@@ -418,7 +427,8 @@ private class TransitState(private val appContext: Context) {
             val n = minOf(deps.size, MAX_PER_FAV_STOP)
             if (n == 0) continue
             val sectionKey = "favorite-stop|${fs.gtfsId}"
-            items.add(TransitRow.HeaderRow(stopHeaderText(fs) + " ★", fs.vehicleMode, sectionKey, zoneLabelOf(fs)))
+            items.add(TransitRow.HeaderRow(stopHeaderText(fs) + " ★", fs.vehicleMode, sectionKey, zoneLabelOf(fs), fs))
+            addAlertRows(items, fs, sectionKey)
             addDepRows(items, deps, n, sectionKey)
         }
 
@@ -434,7 +444,8 @@ private class TransitState(private val appContext: Context) {
             if (deps.isEmpty()) continue
             if (stopsShown >= MAX_NEARBY_STOPS) break
             val sectionKey = "nearby-stop|${stop.gtfsId}"
-            items.add(TransitRow.HeaderRow(stopHeaderText(stop), headerModeOf(stop), sectionKey, zoneLabelOf(stop)))
+            items.add(TransitRow.HeaderRow(stopHeaderText(stop), headerModeOf(stop), sectionKey, zoneLabelOf(stop), stop))
+            addAlertRows(items, stop, sectionKey)
             addDepRows(items, deps, minOf(deps.size, MAX_PER_STOP), sectionKey)
             stopsShown++
         }
@@ -445,6 +456,14 @@ private class TransitState(private val appContext: Context) {
         for (i in 0 until count) {
             val d = deps[i]
             items.add(TransitRow.DepRow(d, "$sectionKey|${d.tripGtfsId}|${d.stopGtfsId}|${d.departureEpochSec}"))
+        }
+    }
+
+    /** Pysäkin häiriötiedotteet otsikon alle, vakavin ensin. */
+    private fun addAlertRows(items: MutableList<TransitRow>, stop: NearbyStop, sectionKey: String) {
+        val sorted = stop.alerts.sortedByDescending { it.severityRank() }
+        for ((idx, a) in sorted.withIndex()) {
+            items.add(TransitRow.AlertRow(a, "$sectionKey|$idx"))
         }
     }
 }
@@ -672,8 +691,9 @@ internal fun TransitScreen() {
                 ) {
                     items(items, key = { it.key }) { row ->
                         when (row) {
-                            is TransitRow.HeaderRow -> TransitHeaderRow(row)
+                            is TransitRow.HeaderRow -> TransitHeaderRow(row, onFullDay = { state.fullDayStop = it })
                             is TransitRow.DepRow -> TransitDepartureRow(row.d, favTick, state)
+                            is TransitRow.AlertRow -> TransitAlertRow(row.alert) { state.alertDialogFor = it }
                             is TransitRow.RouteRow -> TransitRouteRow(row.r, favTick, state)
                             is TransitRow.PlaceRow -> TransitPlaceRow(row.p, state)
                         }
@@ -698,8 +718,28 @@ internal fun TransitScreen() {
             TransitDetailOverlay(detail = det, onClose = { state.detail = null })
         }
 
+        state.fullDayStop?.let { fd ->
+            TransitFullDayOverlay(
+                stop = fd,
+                onClose = { state.fullDayStop = null },
+                onDeparture = { d ->
+                    state.fullDayStop = null
+                    if (!d.tripGtfsId.isNullOrEmpty()) {
+                        state.detail = TransitDetail.Trip(
+                            d.tripGtfsId, d.patternCode, d.stopGtfsId, d.mode ?: "",
+                            d.routeShortName ?: "", d.directionLabel() ?: "",
+                        )
+                    }
+                },
+            )
+        }
+
         state.favDialogFor?.let { d ->
             TransitFavoriteDialog(d, state) { state.favDialogFor = null }
+        }
+
+        state.alertDialogFor?.let { a ->
+            TransitAlertDialog(a) { state.alertDialogFor = null }
         }
     }
 }
@@ -707,10 +747,11 @@ internal fun TransitScreen() {
 // ===================== Listarivit =====================
 
 @Composable
-private fun TransitHeaderRow(row: TransitRow.HeaderRow) {
+private fun TransitHeaderRow(row: TransitRow.HeaderRow, onFullDay: (NearbyStop) -> Unit = {}) {
+    val stop = row.stop
+    val base = Modifier.fillMaxWidth()
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = (if (stop != null) base.clickable { onFullDay(stop) } else base)
             .padding(start = 16.dp, top = 18.dp, end = 16.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -723,7 +764,7 @@ private fun TransitHeaderRow(row: TransitRow.HeaderRow) {
             Icon(
                 painterResource(transitModeIconRes(row.mode)),
                 contentDescription = null,
-                tint = Color.White,
+                tint = transitOnModeColor(row.mode),
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -737,6 +778,15 @@ private fun TransitHeaderRow(row: TransitRow.HeaderRow) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (stop != null) {
+            Text(
+                "Koko päivä ›",
+                modifier = Modifier.padding(start = 8.dp),
+                color = colorResource(R.color.mobile_accent),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
         if (row.zone.isNotEmpty()) {
             Box(
                 modifier = Modifier
@@ -787,7 +837,7 @@ private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState)
             ) {
                 Text(
                     if (d.routeShortName.isNullOrEmpty()) "?" else d.routeShortName,
-                    color = Color.White,
+                    color = transitOnModeColor(d.mode),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -885,7 +935,7 @@ private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
             ) {
                 Text(
                     if (r.shortName.isNullOrEmpty()) "?" else r.shortName,
-                    color = Color.White,
+                    color = transitOnModeColor(r.mode),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1015,6 +1065,261 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
     )
 }
 
+// ===================== Häiriötiedotteet =====================
+
+private fun alertColorRes(rank: Int): Int = when {
+    rank >= 3 -> R.color.mobile_alert_severe      // SEVERE
+    rank == 2 -> R.color.mobile_alert_warning     // WARNING
+    else -> R.color.mobile_alert_info             // INFO / tuntematon
+}
+
+@Composable
+private fun TransitAlertRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(colorResource(alertColorRes(a.severityRank())))
+            .clickable { onClick(a) }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painterResource(R.drawable.mobile_ic_info_24),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            a.displayText(),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 10.dp),
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 18.sp,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun TransitAlertDialog(a: TransitAlert, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Sulje") } },
+        title = {
+            Text(
+                if (a.header.isNotEmpty()) a.header else "Häiriötiedote",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            val body = if (a.description.isNotEmpty()) a.description else a.displayText()
+            Text(
+                body,
+                modifier = Modifier
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState()),
+                fontSize = 15.sp,
+                lineHeight = 21.sp,
+            )
+        },
+    )
+}
+
+// ===================== Koko päivän aikataulu (per pysäkki) =====================
+
+private sealed class FullDayRow {
+    class Hour(val label: String) : FullDayRow()
+    class Dep(val d: Departure) : FullDayRow()
+}
+
+private val TR_HOUR = SimpleDateFormat("HH", FI_TR)
+
+/** Tunti-otsikko jokaiselle (aikajärjestyksessä olevalle) lähdölle, tai null jos sama tunti kuin
+ *  edellinen. Eriytetty puhtaaksi funktioksi yksikkötestiä varten. */
+internal fun fullDayHourHeaders(epochSecs: List<Long>): List<String?> {
+    val out = ArrayList<String?>(epochSecs.size)
+    var last = ""
+    for (e in epochSecs) {
+        val h = TR_HOUR.format(Date(e * 1000L))
+        if (h != last) {
+            out.add("klo $h")
+            last = h
+        } else {
+            out.add(null)
+        }
+    }
+    return out
+}
+
+private fun buildFullDayRows(deps: List<Departure>): List<FullDayRow> {
+    val sorted = deps.sortedBy { it.departureEpochSec }
+    val headers = fullDayHourHeaders(sorted.map { it.departureEpochSec })
+    val out = ArrayList<FullDayRow>(sorted.size + 24)
+    for (i in sorted.indices) {
+        headers[i]?.let { out.add(FullDayRow.Hour(it)) }
+        out.add(FullDayRow.Dep(sorted[i]))
+    }
+    return out
+}
+
+@Composable
+private fun TransitFullDayOverlay(
+    stop: NearbyStop,
+    onClose: () -> Unit,
+    onDeparture: (Departure) -> Unit,
+) {
+    BackHandler(onBack = onClose)
+    var rows by remember(stop) { mutableStateOf<List<FullDayRow>?>(null) }
+    var status by remember(stop) { mutableStateOf("Haetaan koko päivän aikataulua…") }
+    LaunchedEffect(stop) {
+        val ns = withContext(Dispatchers.IO) {
+            try {
+                // stop(id) palauttaa nullin asema-id:lle → fallback station(id):iin.
+                DigitransitApi.stopDeparturesFullDay(stop.gtfsId)
+                    ?: DigitransitApi.stationDeparturesFullDay(stop.gtfsId)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        if (ns == null || ns.departures.isEmpty()) {
+            status = "Koko päivän aikataulua ei saatu."
+            rows = emptyList()
+        } else {
+            rows = buildFullDayRows(ns.departures)
+            status = ""
+        }
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(start = 4.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+                Icon(painterResource(R.drawable.mobile_ic_arrow_back), contentDescription = "Takaisin")
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 6.dp),
+            ) {
+                Text(
+                    if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "Koko päivän aikataulu",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        val r = rows
+        if (r.isNullOrEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                Text(
+                    status,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(32.dp),
+                    textAlign = TextAlign.Center,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 6.dp, bottom = 20.dp),
+            ) {
+                items(r.size) { i ->
+                    when (val row = r[i]) {
+                        is FullDayRow.Hour -> Text(
+                            row.label,
+                            modifier = Modifier.padding(start = 18.dp, top = 14.dp, bottom = 4.dp),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        is FullDayRow.Dep -> FullDayDepRow(row.d, onDeparture)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullDayDepRow(d: Departure, onClick: (Departure) -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 3.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable { onClick(d) }
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .height(30.dp)
+                    .widthIn(min = 42.dp)
+                    .background(transitModeColor(d.mode), RoundedCornerShape(7.dp))
+                    .padding(horizontal = 7.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (d.routeShortName.isNullOrEmpty()) "?" else d.routeShortName,
+                    color = transitOnModeColor(d.mode),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            val direction = d.directionLabel()
+            Text(
+                if (direction.isNullOrEmpty()) "—" else direction,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 10.dp),
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                liveClockText(d.departureEpochSec),
+                modifier = Modifier.padding(start = 8.dp),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorResource(
+                    if (d.realtime) R.color.mobile_transit_tram else R.color.mobile_text_secondary,
+                ),
+            )
+        }
+    }
+}
+
 // ===================== Detaljioverlay: vuoron aikajana / linjanäkymä =====================
 
 /** Live-MQTT-projektion tila (vastaa TransitFragmentin liveCum/liveStopDist/liveStopVertex/liveLastAlong). */
@@ -1107,6 +1412,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
         mutableStateOf(if (detail is TransitDetail.Route) "Haetaan linjan tietoja…" else "Haetaan vuoron tietoja…")
     }
     val liveHolder = remember(detail) { mutableStateOf<LiveTracking?>(null) }
+    var detailAlert by remember(detail) { mutableStateOf<TransitAlert?>(null) }
 
     // Linjanäkymä: hae suunnat kerran (vastaa openRoute-iota).
     LaunchedEffect(detail) {
@@ -1225,7 +1531,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             ) {
                 Text(
                     detail.shortName.ifEmpty { "?" },
-                    color = Color.White,
+                    color = transitOnModeColor(detail.mode),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1268,6 +1574,19 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             fontWeight = FontWeight.Bold,
             lineHeight = 21.sp,
         )
+        // Linjan häiriötiedotteet (vain linjanäkymässä; vakavin ensin).
+        val routeAlerts = routePatterns?.alerts
+        if (detail is TransitDetail.Route && !routeAlerts.isNullOrEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+            ) {
+                routeAlerts.sortedByDescending { it.severityRank() }.forEach { a ->
+                    TransitAlertRow(a) { detailAlert = a }
+                }
+            }
+        }
         // Aikajana.
         val vehicles = remember(tl) { tl?.vehicleStopIndices?.toSet() ?: emptySet() }
         val passedBefore = if (tl != null && detail is TransitDetail.Trip && tl.vehicleStopIndices.size == 1) {
@@ -1291,6 +1610,10 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                 )
             }
         }
+    }
+
+    detailAlert?.let { a ->
+        TransitAlertDialog(a) { detailAlert = null }
     }
 }
 
@@ -1360,5 +1683,211 @@ private fun TimelineStopRow(
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+// ===================== Häiriöt ja muutokset (kaikki HSL-häiriöt) =====================
+
+private val TR_DATETIME = SimpleDateFormat("d.M. 'klo' HH:mm", FI_TR)
+
+/** Listan severity-ikonin väri (teema-adaptoituva AAA-tekstiväri neutraalilla kortilla). */
+private fun alertIconColorRes(rank: Int): Int = when {
+    rank >= 3 -> R.color.mobile_warning_red
+    rank == 2 -> R.color.mobile_warning_orange
+    else -> R.color.mobile_warning_yellow
+}
+
+private fun effectiveRangeText(a: TransitAlert): String {
+    val s = if (a.startEpochSec > 0) TR_DATETIME.format(Date(a.startEpochSec * 1000L)) else ""
+    val e = if (a.endEpochSec > 0) TR_DATETIME.format(Date(a.endEpochSec * 1000L)) else ""
+    return when {
+        s.isNotEmpty() && e.isNotEmpty() -> "$s – $e"
+        s.isNotEmpty() -> "alkaen $s"
+        e.isNotEmpty() -> "$e asti"
+        else -> ""
+    }
+}
+
+/** Häiriölistan suodatus (puhdas, yksikkötestattava): moodi (valittu moodi vaatii täsmäyksen;
+ *  yleiset mode=="" näkyvät vain "Kaikki"-näkymässä), voimassaolo nyt, ja tekstihaku
+ *  linja/pysäkki/otsikko/kuvaus. */
+internal fun filterDisruptions(
+    list: List<TransitAlert>,
+    mode: String?,
+    activeOnly: Boolean,
+    query: String,
+    nowSec: Long,
+): List<TransitAlert> {
+    val q = query.trim().lowercase(FI_TR)
+    return list.filter { a ->
+        val modeOk = mode == null || a.mode.equals(mode, ignoreCase = true)
+        val activeOk = !activeOnly || a.isActiveAt(nowSec)
+        val textOk = q.isEmpty() ||
+            a.routeShortName.lowercase(FI_TR).contains(q) ||
+            a.stopName.lowercase(FI_TR).contains(q) ||
+            a.header.lowercase(FI_TR).contains(q) ||
+            a.description.lowercase(FI_TR).contains(q)
+        modeOk && activeOk && textOk
+    }
+}
+
+@Composable
+internal fun HslDisruptionsScreen() {
+    val refreshTick = LocalRefreshTick.current
+    var all by remember { mutableStateOf<List<TransitAlert>?>(null) }
+    var status by remember { mutableStateOf("Haetaan häiriöitä…") }
+    var query by remember { mutableStateOf("") }
+    var modeFilter by remember { mutableStateOf<String?>(null) }
+    var activeOnly by remember { mutableStateOf(true) }
+    var dialogFor by remember { mutableStateOf<TransitAlert?>(null) }
+
+    LaunchedEffect(refreshTick) {
+        if (all == null) status = "Haetaan häiriöitä…"
+        val result = withContext(Dispatchers.IO) {
+            try { DigitransitApi.serviceAlerts() } catch (e: Exception) { null }
+        }
+        if (result == null) {
+            if (all == null) status = "Häiriöiden haku epäonnistui. Kokeile Päivitä-nappia."
+        } else {
+            all = result
+        }
+    }
+
+    val shown = remember(all, query, modeFilter, activeOnly) {
+        all?.let { filterDisruptions(it, modeFilter, activeOnly, query, System.currentTimeMillis() / 1000L) }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            "Häiriöt ja muutokset",
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        SearchTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = "Hae linja tai pysäkki",
+            modifier = Modifier.padding(horizontal = 14.dp),
+            onClear = { query = "" },
+        )
+        Row(
+            modifier = Modifier
+                .padding(start = 14.dp, end = 14.dp, top = 6.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = modeFilter == null,
+                onClick = { modeFilter = null },
+                label = { Text("Kaikki") },
+            )
+            listOf(
+                "BUS" to "Bussit", "TRAM" to "Ratikat", "RAIL" to "Junat",
+                "SUBWAY" to "Metro", "FERRY" to "Lautat",
+            ).forEach { (mode, label) ->
+                FilterChip(
+                    selected = modeFilter == mode,
+                    onClick = { modeFilter = if (modeFilter == mode) null else mode },
+                    label = { Text(label) },
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 16.dp, top = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(
+                selected = activeOnly,
+                onClick = { activeOnly = !activeOnly },
+                label = { Text("Vain voimassa olevat") },
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            shown?.let {
+                Text(
+                    "${it.size} häiriötä",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            val list = shown
+            if (list != null && list.isNotEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 6.dp, bottom = 20.dp),
+                ) {
+                    items(list.size) { i -> DisruptionRow(list[i]) { dialogFor = it } }
+                }
+            } else {
+                Text(
+                    if (list == null) status else "Ei häiriöitä valituilla suodattimilla.",
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(32.dp),
+                    textAlign = TextAlign.Center,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+
+    dialogFor?.let { a ->
+        TransitAlertDialog(a) { dialogFor = null }
+    }
+}
+
+@Composable
+private fun DisruptionRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable { onClick(a) }
+                .padding(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                painterResource(R.drawable.mobile_ic_info_24),
+                contentDescription = null,
+                tint = colorResource(alertIconColorRes(a.severityRank())),
+                modifier = Modifier.size(20.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+            ) {
+                if (a.routeShortName.isNotEmpty()) {
+                    TransitLineBadge(a.routeShortName, a.mode)
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+                Text(
+                    a.displayText(),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 19.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val sub = listOf(effectiveRangeText(a), a.stopName)
+                    .filter { it.isNotEmpty() }
+                    .joinToString("  ·  ")
+                if (sub.isNotEmpty()) {
+                    Text(
+                        sub,
+                        modifier = Modifier.padding(top = 3.dp),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 }

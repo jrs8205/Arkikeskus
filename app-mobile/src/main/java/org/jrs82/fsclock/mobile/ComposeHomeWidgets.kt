@@ -200,41 +200,53 @@ fun homeWidgetTitleForId(prefs: SharedPreferences, id: String): String {
 
 // ===================== Uutiset-widget (kevyt, etusivulle) =====================
 
+/**
+ * Etusivun uutiskorttien yhteinen kategoria-hard-filter: näytä VAIN valittujen kategorioiden jutut.
+ * Tyhjä valinta (kaikki kategoriat piilossa) TAI kaikki valittu → ei suodatusta — sama sääntö kuin
+ * Kotimaat/Ulkomaat "Kaikki"-näkymässä ([ForeignNewsScreen]). Pure → yksikkötestattava.
+ */
+internal fun hardFilterCategories(
+    items: List<ForeignArticle>,
+    visible: Set<String>,
+    allTagCount: Int,
+): List<ForeignArticle> =
+    if (visible.isNotEmpty() && visible.size < allTagCount) {
+        items.filter { NewsProfile.topicVisible(it.topics, visible) }
+    } else {
+        items
+    }
+
+/** Hakee etusivun uutiskortille näytettävän listan: piilota luetut, sitten kategorioiden hard-filter. */
+private fun filterHomeNews(prefs: SharedPreferences, fetched: List<ForeignArticle>): List<ForeignArticle> {
+    val read = NewsProfile.readUrls(prefs)
+    val unread = if (read.isEmpty()) fetched else fetched.filterNot { it.url in read }
+    val allTags = FOREIGN_CATEGORY_TAGS.map { it.first }
+    val cats = NewsProfile.visibleCats(prefs, allTags)
+    return hardFilterCategories(unread, cats, allTags.size)
+}
+
 @Composable
 internal fun HomeNewsCard(onOpenNews: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
-    val newsRevision = LocalHomeNewsRevision.current
-    var items by remember { mutableStateOf(sHomeNewsCache ?: emptyList()) }
-    var loading by remember { mutableStateOf(sHomeNewsCache == null) }
+    var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
     var handledRefresh by remember { mutableIntStateOf(refresh) }
-    LaunchedEffect(refresh, newsRevision) {
-        val cached = sHomeNewsCache
-        if (cached != null && refresh == sHomeNewsTick) {
-            // Jo haettu tällä tickillä → näytä välimuisti heti, ei uutta hakua eikä latausvilkutusta.
-            items = cached
-            loading = false
-            return@LaunchedEffect
-        }
-        if (cached == null) {
-            items = emptyList()
-            loading = true
-        }
-        val forceNetwork = refresh != handledRefresh
+    LaunchedEffect(refresh) {
+        val forced = refresh != handledRefresh
         handledRefresh = refresh
+        if (items.isEmpty()) loading = true
         val fresh = withContext(Dispatchers.IO) {
-            try {
-                RssRepository.get().fetchEnabled(prefs, forceNetwork)
+            val fetched = try {
+                // Haetaan 40 (näytetään 5) → luettujen + kategoria-hard-filterin jälkeen jää yleensä ≥5.
+                ForeignNewsClient.fetch(null, 40, forced, domestic = true)
             } catch (e: Exception) {
-                null
+                emptyList()
             }
+            filterHomeNews(prefs, fetched)
         }
-        if (fresh != null) {
-            sHomeNewsCache = fresh
-            sHomeNewsTick = refresh
-            items = fresh
-        }
+        if (fresh.isNotEmpty()) items = fresh
         loading = false
     }
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -252,11 +264,11 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 items.isEmpty() -> Text(
-                    "Ei uutisia. Tarkista uutislähteet asetuksista.",
+                    "Ei uutisia juuri nyt.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                else -> items.take(5).forEach { CompactNewsRow(it) }
+                else -> items.take(5).forEach { CompactForeignNewsRow(it) }
             }
         }
     }
@@ -328,14 +340,13 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
         if (items.isEmpty()) loading = true
         val fresh = withContext(Dispatchers.IO) {
             val fetched = try {
-                // Haetaan 12 (näytetään 5) → luettujen suodatuksen jälkeen jää yleensä ≥5.
-                ForeignNewsClient.fetch(null, 12, forced)
+                // Haetaan 40 (näytetään 5) → luettujen + kategoria-hard-filterin jälkeen jää yleensä ≥5.
+                ForeignNewsClient.fetch(null, 40, forced)
             } catch (e: Exception) {
                 emptyList()
             }
-            // Piilota jo luetut myös etusivun kortista (johdonmukaisuus Ulkomaat-osion kanssa, B2).
-            val read = NewsProfile.readUrls(prefs)
-            if (read.isEmpty()) fetched else fetched.filterNot { it.url in read }
+            // Piilota luetut + näytä vain valitut kategoriat (hard-filter, sama kuin Ulkomaat-osio).
+            filterHomeNews(prefs, fetched)
         }
         if (fresh.isNotEmpty()) items = fresh
         loading = false
@@ -751,7 +762,7 @@ private fun DepartureRow(d: Departure, expanded: Boolean, onToggle: () -> Unit) 
                     .clip(RoundedCornerShape(8.dp))
                     .background(colorResource(transitModeColorRes(d.mode)))
                     .padding(horizontal = 10.dp, vertical = 4.dp),
-                color = Color.White,
+                color = transitOnModeColor(d.mode),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
             )

@@ -74,8 +74,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -128,7 +131,11 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private BottomSheetBehavior<View> sheetBehavior;
     private View sheetView;
     private Style mapStyle;
-    private HslMqttClient mqtt;   // reitin live-bussi (V4)
+    private HslMqttClient mqtt;   // reitin live-bussit (V4, kaikki joukkoliikenneosuudet)
+    // Live-bussit vehicleId → kartan Feature; värit/ikonit per vehicleId (rakennetaan tilausta tehtäessä).
+    private final Map<String, Feature> liveBusFeatures = new HashMap<>();
+    private Map<String, String> liveColorByVid;
+    private Map<String, String> liveIconByVid;
     private ImageView locButton;  // paikannusnappi (kartan oikea alakulma / paneelin yläreuna)
     private boolean following = false;  // seuraako kamera omaa sijaintia (napin sininen/harmaa)
     private boolean pendingRouteFit = false;
@@ -643,13 +650,42 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (it == null) return;
         detailTitle.setText("Reitti");
         detailSummary.setText(routeSummary(it));
-        detailAdapter.submit(it.legs);
+        // Reitin linjojen häiriöt osat-listan kärkeen, sitten reitin osat.
+        List<Object> detailItems = new ArrayList<>(collectAlerts(it));
+        detailItems.addAll(it.legs);
+        detailAdapter.submit(detailItems);
         hideKeyboard();
         setDetailMode(true);
         if (sheetBehavior != null) sheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
         if (backCallback != null) backCallback.setEnabled(true);
         pendingItinerary = it;
         if (map != null && routeReady) requestRouteFit(it);
+    }
+
+    /** Reitin joukkoliikenneosuuksien häiriöt: samat tuplat poistettu, vakavin ensin. */
+    private static List<TransitAlert> collectAlerts(Itinerary it) {
+        LinkedHashMap<String, TransitAlert> map = new LinkedHashMap<>();
+        for (Leg leg : it.legs) {
+            for (TransitAlert a : leg.alerts) {
+                String key = a.displayText();
+                if (!map.containsKey(key)) map.put(key, a);
+            }
+        }
+        List<TransitAlert> out = new ArrayList<>(map.values());
+        out.sort((x, y) -> Integer.compare(y.severityRank(), x.severityRank()));
+        return out;
+    }
+
+    @Override
+    public void onAlertClick(TransitAlert a) {
+        Context ctx = getContext();
+        if (ctx == null || a == null) return;
+        String body = !a.description.isEmpty() ? a.description : a.displayText();
+        new AlertDialog.Builder(ctx)
+                .setTitle(!a.header.isEmpty() ? a.header : "Häiriötiedote")
+                .setMessage(body)
+                .setPositiveButton("Sulje", null)
+                .show();
     }
 
     private void requestRouteFit(Itinerary it) {
@@ -866,6 +902,13 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         int mapW = mapView.getWidth() > 0 ? mapView.getWidth() : getResources().getDisplayMetrics().widthPixels;
         int mapH = mapView.getHeight() > 0 ? mapView.getHeight() : getResources().getDisplayMetrics().heightPixels;
         int sheetTop = mapH - sheetCoveredHeight();
+        // Paneelin ollessa laajennettuna (haku/reittilista) kartta ei juuri näy → piilota
+        // paikannusnappi, ettei se jää kellumaan ruudun yläreunaan paneelin päälle.
+        if (sheetTop <= dpPx(140)) {
+            locButton.setVisibility(View.GONE);
+            return;
+        }
+        locButton.setVisibility(View.VISIBLE);
         locButton.setX(mapW - buttonW - margin);
         locButton.setY(Math.max(dpPx(16), sheetTop - buttonH - margin));
         locButton.bringToFront();
@@ -917,22 +960,17 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 PropertyFactory.circleStrokeWidth(2f));
         style.addLayer(stops);
 
-        // Live-bussi (V4) — päällimmäisenä, moodivärillä, isompi + valkoinen reunus.
+        // Live-bussit (V4, kaikki joukkoliikenneosuudet) — päällimmäisenä.
         busSource = new GeoJsonSource("route-bus", FeatureCollection.fromFeatures(new ArrayList<>()));
         style.addSource(busSource);
-        CircleLayer bus = new CircleLayer("route-bus-dot", "route-bus");
-        bus.setProperties(
-                PropertyFactory.circleColor(Expression.toColor(Expression.get("color"))),
-                PropertyFactory.circleRadius(11f),
-                PropertyFactory.circleStrokeColor("#FFFFFF"),
-                PropertyFactory.circleStrokeWidth(3f));
-        style.addLayer(bus);
 
-        // Kulkuvälineikoni ympyrän keskelle (valkoinen, ei kierretä — pysyy luettavana) +
-        // suuntanuoli kehälle, joka kääntyy HFP:n hdg-suunnan mukaan kartan suhteen.
+        // Yksi yhtenäinen merkki: moodivärinen levy + valkoinen moodi-ikoni leivottuna samaan
+        // bittikarttaan (ei erillistä pohjaympyräkerrosta) + suuntanuoli kehälle, joka kääntyy
+        // HFP:n hdg-suunnan mukaan kartan suhteen.
         String[] vehModes = {"BUS", "RAIL", "TRAM", "SUBWAY", "FERRY"};
         for (String m : vehModes) {
-            style.addImage("veh-icon-" + m, vectorBitmap(TransitStyle.modeIcon(m), 14, 0xFFFFFFFF));
+            style.addImage("veh-icon-" + m,
+                    vehicleMarkerBitmap(TransitStyle.modeColor(requireContext(), m), TransitStyle.modeIcon(m)));
         }
         style.addImage("veh-arrow", arrowBitmap(38));
         SymbolLayer busIcon = new SymbolLayer("route-bus-icon", "route-bus");
@@ -952,16 +990,26 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         style.addLayer(busArrow);
     }
 
-    /** Vektori-drawable bitmapiksi kartan symbolikerrosta varten. */
-    private android.graphics.Bitmap vectorBitmap(int resId, int sizeDp, int tint) {
-        android.graphics.drawable.Drawable d =
-                androidx.core.content.ContextCompat.getDrawable(requireContext(), resId).mutate();
-        d.setTint(tint);
-        int s = dpPx(sizeDp);
+    /** Yhdistetty ajoneuvomerkki: moodivärinen täytetty ympyrä + valkoinen reunus + valkoinen
+     *  moodi-ikoni keskellä. Korvaa erillisen pohjaympyräkerroksen yhdellä luettavalla symbolilla. */
+    private android.graphics.Bitmap vehicleMarkerBitmap(int fillColor, int glyphRes) {
+        int s = dpPx(26);
         android.graphics.Bitmap b =
                 android.graphics.Bitmap.createBitmap(s, s, android.graphics.Bitmap.Config.ARGB_8888);
         android.graphics.Canvas c = new android.graphics.Canvas(b);
-        d.setBounds(0, 0, s, s);
+        android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        float cx = s / 2f;
+        float r = dpPx(11);
+        p.setColor(0xFFFFFFFF);                       // valkoinen reunus
+        c.drawCircle(cx, cx, r, p);
+        p.setColor(0xFF000000 | (fillColor & 0xFFFFFF)); // moodiväritäyttö
+        c.drawCircle(cx, cx, r - dpPx(2), p);
+        android.graphics.drawable.Drawable d =
+                androidx.core.content.ContextCompat.getDrawable(requireContext(), glyphRes).mutate();
+        d.setTint(TransitStyle.onColorFor(fillColor));  // musta/valk levyn kirkkauden mukaan
+        int g = dpPx(14);
+        int off = Math.round((s - g) / 2f);
+        d.setBounds(off, off, off + g, off + g);
         d.draw(c);
         return b;
     }
@@ -1055,52 +1103,65 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         stopLiveBus();
         if (!sectionVisible || !isResumed() || pendingItinerary != it) return;
         final long request = liveBusGeneration;
-        Leg transit = null;
+        final List<Leg> transitLegs = new ArrayList<>();
         for (Leg leg : it.legs) {
             if (!leg.isWalk() && !leg.tripGtfsId.isEmpty() && !leg.patternCode.isEmpty()) {
-                transit = leg;
-                break;
+                transitLegs.add(leg);
             }
         }
-        if (transit == null) return;
-        final Leg leg = transit;
-        final String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode));
+        if (transitLegs.isEmpty()) return;
         searchIo.execute(() -> {
-            String vid;
-            try { vid = DigitransitApi.vehicleForTrip(leg.patternCode, leg.tripGtfsId); }
-            catch (Exception e) { vid = ""; }
-            if (vid == null || vid.isEmpty()) return;
-            final String vehicleId = vid;
+            // Selvitä jokaiselle joukkoliikenneosuudelle liikkeellä oleva ajoneuvo (vehicleId).
+            final List<String> vehicleIds = new ArrayList<>();
+            final Map<String, String> colorByVid = new HashMap<>();
+            final Map<String, String> iconByVid = new HashMap<>();
+            for (Leg leg : transitLegs) {
+                String vid;
+                try { vid = DigitransitApi.vehicleForTrip(leg.patternCode, leg.tripGtfsId); }
+                catch (Exception e) { vid = ""; }
+                if (vid == null || vid.isEmpty() || colorByVid.containsKey(vid)) continue;
+                vehicleIds.add(vid);
+                colorByVid.put(vid, String.format(FI, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode)));
+                iconByVid.put(vid, "veh-icon-" + (leg.mode == null ? "BUS" : leg.mode));
+            }
+            if (vehicleIds.isEmpty()) return;
             ui.post(() -> {
                 if (!hasLiveView() || !sectionVisible || !isResumed() || busSource == null
                         || request != liveBusGeneration || pendingItinerary != it) return;
                 if (mqtt == null) mqtt = new HslMqttClient();
-                final String iconName = "veh-icon-" + (leg.mode == null ? "BUS" : leg.mode);
-                mqtt.subscribeVehicle(vehicleId,
-                        (lat, lon, spd, dl, loc, hdg, tsi) ->
-                                ui.post(() -> updateBus(lat, lon, hex, iconName, hdg, tsi, request)));
+                liveBusFeatures.clear();
+                liveColorByVid = colorByVid;
+                liveIconByVid = iconByVid;
+                mqtt.subscribeVehicles(vehicleIds,
+                        (vehicleId, lat, lon, spd, dl, loc, hdg, tsi) ->
+                                ui.post(() -> updateBus(vehicleId, lat, lon, hdg, tsi, request)));
             });
         });
     }
 
-    private void updateBus(double lat, double lon, String hex, String iconName, double hdg,
-                           long tsi, long request) {
+    private void updateBus(String vehicleId, double lat, double lon, double hdg, long tsi, long request) {
         if (!hasLiveView() || !sectionVisible || busSource == null || request != liveBusGeneration
                 || !validCoordinate(lat, lon)) return;
         long nowSec = System.currentTimeMillis() / 1000L;
         if (tsi > 0 && (tsi < nowSec - 60 || tsi > nowSec + 30)) return;
+        String hex = liveColorByVid == null ? null : liveColorByVid.get(vehicleId);
+        if (hex == null) hex = "#1A73E8";
+        String iconName = liveIconByVid == null ? null : liveIconByVid.get(vehicleId);
+        if (iconName == null) iconName = "veh-icon-BUS";
         Feature f = Feature.fromGeometry(Point.fromLngLat(lon, lat));
         f.addStringProperty("color", hex);
         f.addStringProperty("icon", iconName);
         boolean hasHdg = !Double.isNaN(hdg);
         f.addBooleanProperty("hasHdg", hasHdg);
         f.addNumberProperty("hdg", hasHdg ? hdg : 0.0);
-        busSource.setGeoJson(FeatureCollection.fromFeatures(java.util.Collections.singletonList(f)));
+        liveBusFeatures.put(vehicleId, f);
+        busSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>(liveBusFeatures.values())));
     }
 
     private void stopLiveBus() {
         liveBusGeneration++;
         if (mqtt != null) mqtt.disconnect();
+        liveBusFeatures.clear();
         if (busSource != null) busSource.setGeoJson(FeatureCollection.fromFeatures(new ArrayList<>()));
     }
 

@@ -7,6 +7,7 @@ import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -19,6 +20,12 @@ final class HslMqttClient {
     /** lat/lon WGS84 (NaN jos puuttuu); speed m/s; delay s (negatiivinen=myöhässä); loc: GPS/ODO/MAN/DR/N-A. */
     interface Listener {
         void onVehicle(double lat, double lon, double speed, int delay, String loc, double heading, long tsi);
+    }
+
+    /** Kuten {@link Listener}, mutta välittää myös vehicleId:n (usean ajoneuvon yhteinen tilaus). */
+    interface MultiListener {
+        void onVehicle(String vehicleId, double lat, double lon, double speed, int delay,
+                       String loc, double heading, long tsi);
     }
 
     private final AtomicLong generation = new AtomicLong();
@@ -64,6 +71,63 @@ final class HslMqttClient {
                         }
                     });
         });
+    }
+
+    /** Tilaa usean ajoneuvon vp-virrat YHDELLÄ yhteydellä (yksi TLS-kättely). Callback kertoo
+     *  vehicleId:n, jotta kutsuja osaa kohdistaa päivityksen oikealle reitin osuudelle. */
+    void subscribeVehicles(List<String> vehicleIds, MultiListener listener) {
+        disconnect();
+        if (vehicleIds == null || vehicleIds.isEmpty() || listener == null) return;
+        final long token = generation.incrementAndGet();
+        final Mqtt3AsyncClient c = MqttClient.builder()
+                .useMqttVersion3()
+                .identifier("arkikeskus-" + UUID.randomUUID())
+                .serverHost("mqtt.hsl.fi")
+                .serverPort(8883)
+                .useSslWithDefaultConfig()
+                .buildAsync();
+        client = c;
+        c.connect().whenComplete((ack, err) -> {
+            if (err != null) {
+                if (client == c) client = null;
+                return;
+            }
+            if (generation.get() != token || client != c) {
+                disconnectClient(c);
+                return;
+            }
+            for (String vid : vehicleIds) {
+                String[] ov = parseOperVeh(vid);
+                if (ov == null) continue;
+                final String vehicleId = vid;
+                final String topic = "/hfp/v2/journey/ongoing/vp/+/" + ov[0] + "/" + ov[1] + "/#";
+                c.subscribeWith()
+                        .topicFilter(topic)
+                        .qos(MqttQos.AT_MOST_ONCE)
+                        .callback(pub -> {
+                            if (generation.get() == token && client == c) {
+                                handleMulti(vehicleId, pub.getPayloadAsBytes(), listener);
+                            }
+                        })
+                        .send();
+            }
+        });
+    }
+
+    private void handleMulti(String vehicleId, byte[] payload, MultiListener l) {
+        try {
+            JSONObject vp = new JSONObject(new String(payload, StandardCharsets.UTF_8)).optJSONObject("VP");
+            if (vp == null) return;
+            l.onVehicle(
+                    vehicleId,
+                    vp.optDouble("lat", Double.NaN),
+                    vp.optDouble("long", Double.NaN),
+                    vp.optDouble("spd", Double.NaN),
+                    vp.optInt("dl", 0),
+                    vp.optString("loc", ""),
+                    vp.optDouble("hdg", Double.NaN),
+                    vp.optLong("tsi", 0L));
+        } catch (Exception ignored) { }
     }
 
     private void handle(byte[] payload, Listener l) {

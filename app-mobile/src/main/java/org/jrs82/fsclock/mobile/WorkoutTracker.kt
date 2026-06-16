@@ -54,8 +54,10 @@ object WorkoutTracker {
     private val mutableState = MutableStateFlow(UiState())
     val state: StateFlow<UiState> get() = mutableState
 
-    /** Palvelu asettaa: täyden kilometrin täyttyessä (värinä + notifikaatio). */
-    @Volatile var onSplit: ((Int) -> Unit)? = null
+    /** Palvelu asettaa: täyden kilometrin täyttyessä (värinä + notifikaatio). Parametrit: valmistunut
+     *  [Split] (index + sen kilometrin kesto) + kokonaisliikeaika ms juuri tällä hetkellä — välitetään
+     *  suoraan, koska [state] päivitetään vasta onLocationin lopussa (callback näkisi vanhan arvon). */
+    @Volatile var onSplit: ((Split, Long) -> Unit)? = null
 
     private val io = Executors.newSingleThreadExecutor()
     private var dao: WorkoutDao? = null
@@ -305,7 +307,7 @@ object WorkoutTracker {
                 se.endLon = sLon
                 val d = dao(context)
                 io.execute { d.insertSplit(se) }
-                onSplit?.invoke(split.index)
+                onSplit?.invoke(split, w.movingTimeMs)
                 nextKm++
             }
 

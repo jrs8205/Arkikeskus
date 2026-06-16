@@ -242,11 +242,13 @@ enum class HomeSection(val title: String) {
     ROAD_CAMERAS("Kelikamerat"),
     TRANSIT("Lähilähdöt"),
     ROUTE_PLANNER("Reittihaku"),
+    HSL_DISRUPTIONS("Häiriöt ja muutokset"),
     SPEEDOMETER("GPS-nopeus"),
     STEPS("Askeleet"),
     WORKOUT("Lenkki"),
     NEWS("Kotimaiset"),
     NEWS_FOREIGN("Ulkomaat"),
+    OWN_FEEDS("Omat syötteet"),
     ELECTRICITY("Pörssisähkö"),
     TELETEXT("Teksti-TV"),
     TV_GUIDE("TV-ohjelmat"),
@@ -533,8 +535,9 @@ fun ComposeMainScreen(
                     HomeSection.WORKOUT -> WorkoutScreen()
                     HomeSection.SENSORS -> SensorsSection()
                     HomeSection.ELECTRICITY -> ElectricitySection()
-                    HomeSection.NEWS -> NewsSection()
-                    HomeSection.NEWS_FOREIGN -> ForeignNewsSection()
+                    HomeSection.NEWS -> NewsCategoryScreen(domestic = true)
+                    HomeSection.NEWS_FOREIGN -> NewsCategoryScreen(domestic = false)
+                    HomeSection.OWN_FEEDS -> OwnFeedsScreen()
                     // TV-ohjelmat = Teksti-TV:n ohjelmaopassivut 300– (kattaa myös MTV3/Nelosen;
                     // Ylen julkinen API ei tarjoa erillistä EPG:tä, ja tämä on lisenssin mukainen).
                     HomeSection.TELETEXT -> TeletextScreen(100, section.title)
@@ -548,6 +551,7 @@ fun ComposeMainScreen(
                     // sheetiin ilman omaa elekoodia → uudelleenkirjoituksen regressioriski ylittäisi
                     // hyödyn. Visuaalinen yhtenäisyys tulee jaetusta kuoresta (drawer/alapalkki/teema).
                     HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
+                    HomeSection.HSL_DISRUPTIONS -> HslDisruptionsScreen()
                     HomeSection.SPEEDOMETER -> SpeedometerSection()
                     HomeSection.TRAFFIC_ACCIDENTS -> TrafficSection(TrafficNotice.Kind.ACCIDENT, section.title)
                     HomeSection.TRAFFIC_ROADWORKS -> TrafficSection(TrafficNotice.Kind.ROAD_WORK, section.title)
@@ -624,6 +628,7 @@ private fun DrawerContent(
             DrawerHeader("Joukkoliikenne (HSL)", R.drawable.mobile_ic_bus_24)
             DrawerItem(HomeSection.TRANSIT, current, onSelect)
             DrawerItem(HomeSection.ROUTE_PLANNER, current, onSelect)
+            DrawerItem(HomeSection.HSL_DISRUPTIONS, current, onSelect)
 
             DrawerHeader("TV", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.TELETEXT, current, onSelect)
@@ -632,6 +637,7 @@ private fun DrawerContent(
             DrawerHeader("Uutiset", R.drawable.mobile_ic_news_24)
             DrawerItem(HomeSection.NEWS, current, onSelect)
             DrawerItem(HomeSection.NEWS_FOREIGN, current, onSelect)
+            DrawerItem(HomeSection.OWN_FEEDS, current, onSelect)
 
             DrawerHeader("Liikunta", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.WORKOUT, current, onSelect)
