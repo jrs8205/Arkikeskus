@@ -1063,7 +1063,7 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun ClickableRow(
+internal fun ClickableRow(
     title: String,
     subtitle: String? = null,
     leadingIconRes: Int? = null,
@@ -1105,7 +1105,7 @@ private fun ClickableRow(
 
 /** HSL-tyylinen sininen leading-ikoni asetusrivin vasemmalla (kutsutaan RowScopessa). */
 @Composable
-private fun RowLeadingIcon(iconRes: Int) {
+internal fun RowLeadingIcon(iconRes: Int) {
     Icon(
         painter = painterResource(iconRes),
         contentDescription = null,
@@ -1140,7 +1140,7 @@ private fun InfoRow(title: String, value: String, leadingIconRes: Int? = null) {
 }
 
 @Composable
-private fun SwitchRow(
+internal fun SwitchRow(
     title: String,
     subtitle: String? = null,
     leadingIconRes: Int? = null,

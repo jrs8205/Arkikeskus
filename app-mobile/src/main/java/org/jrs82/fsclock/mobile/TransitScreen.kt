@@ -702,8 +702,8 @@ internal fun TransitScreen() {
                     if (items.isNotEmpty()) {
                         item(key = "reminder_hint") {
                             Text(
-                                "Vinkki: paina lähtöä pohjassa → voit lisätä sen suosikiksi tai asettaa " +
-                                    "muistutuksen (saat ilmoituksen haluamasi ajan ennen lähtöä).",
+                                "Vinkki: tallenna lähtö suosikiksi ja aseta muistutus.\n" +
+                                    "Saat ilmoituksen 1–60 minuuttia ennen lähtöä.",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1044,62 +1044,52 @@ private fun TransitPlaceRow(p: PlaceHit, state: TransitState) {
     }
 }
 
-/** Pitkän painalluksen suosikkivalikko (linja / pysäkki) — vastaa View-AlertDialogia. */
+/** Pitkän painalluksen valikko lähdölle: suosikkilinja/-pysäkki (asetussivun täpät) + lähtömuistutus. */
 @Composable
 private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val lineFav = TransitFavorites.isLineFav(context, d.routeGtfsId)
-    val stopFav = TransitFavorites.isStopFav(context, d.stopGtfsId)
-    val lineLabel = (if (lineFav) "Poista suosikeista: linja " else "Lisää suosikiksi: linja ") +
-        (d.routeShortName ?: "")
-    val stopLabel = (if (stopFav) "Poista suosikeista: pysäkki " else "Lisää suosikiksi: pysäkki ") +
-        (d.stopName ?: "")
+    var lineFav by remember { mutableStateOf(TransitFavorites.isLineFav(context, d.routeGtfsId)) }
+    var stopFav by remember { mutableStateOf(TransitFavorites.isStopFav(context, d.stopGtfsId)) }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Peruuta") }
+            TextButton(onClick = onDismiss) { Text("Sulje") }
         },
         text = {
-            Column {
-                Text(
-                    lineLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            TransitFavorites.toggleLineFav(context, d.routeGtfsId, d.routeShortName, "", d.mode)
-                            state.favVersion++
-                            onDismiss()
-                        }
-                        .padding(vertical = 14.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    stopLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            TransitFavorites.toggleStopFav(context, d.stopGtfsId, d.stopName)
-                            state.favVersion++
-                            onDismiss()
-                            state.refresh()
-                        }
-                        .padding(vertical = 14.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                // Lähtömuistutus (#4): vain tuleville lähdöille → avaa ajan asetus -dialogin.
-                if (d.departureEpochSec - System.currentTimeMillis() / 1000L >= 60) {
-                    Text(
-                        "Muistuta ennen tätä lähtöä…",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onDismiss()
-                                state.reminderFor = d
-                            }
-                            .padding(vertical = 14.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+            // Samat täpät/rivit kuin asetussivulla (SwitchRow/ClickableRow) → yhtenäinen ulkoasu.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SwitchRow(
+                    title = "Suosikkilinja",
+                    subtitle = "Linja ${d.routeShortName ?: ""}",
+                    leadingIconRes = R.drawable.mobile_ic_star_outline,
+                    checked = lineFav,
+                ) {
+                    lineFav = TransitFavorites.toggleLineFav(context, d.routeGtfsId, d.routeShortName, "", d.mode)
+                    state.favVersion++
+                }
+                SwitchRow(
+                    title = "Suosikkipysäkki",
+                    subtitle = d.stopName ?: "",
+                    leadingIconRes = R.drawable.mobile_ic_star_outline,
+                    checked = stopFav,
+                ) {
+                    stopFav = TransitFavorites.toggleStopFav(context, d.stopGtfsId, d.stopName)
+                    state.favVersion++
+                    state.refresh()
+                }
+                // Lähtömuistutus (#4): klikattava rivi (chevron-nuoli) joka avaa ajan asetus -ikkunan.
+                // Vain jos lähtö on >= 2 min päässä → säädin 1–60 min on aina kelvollinen.
+                if (d.departureEpochSec - System.currentTimeMillis() / 1000L >= 120) {
+                    ClickableRow(
+                        title = "Lisää muistutus lähtöajasta",
+                        subtitle = "Saat ilmoituksen ennen lähtöä",
+                        leadingIconRes = R.drawable.mobile_ic_clock_24,
+                        trailingIconRes = R.drawable.mobile_ic_chevron_right_24,
+                    ) {
+                        onDismiss()
+                        state.reminderFor = d
+                    }
                 }
             }
         },
@@ -1111,7 +1101,7 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
 private fun TransitReminderDialog(d: Departure, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val nowSec = System.currentTimeMillis() / 1000L
-    val maxLead = minOf(60, ((d.departureEpochSec - nowSec) / 60L).toInt()).coerceAtLeast(1)
+    val maxLead = minOf(60, ((d.departureEpochSec - nowSec) / 60L).toInt()).coerceAtLeast(2)
     var lead by remember { mutableFloatStateOf(minOf(10, maxLead).toFloat()) }
     val leadMin = lead.toInt()
     val remindAtSec = d.departureEpochSec - leadMin * 60L
@@ -1151,8 +1141,8 @@ private fun TransitReminderDialog(d: Departure, onDismiss: () -> Unit) {
                 Slider(
                     value = lead,
                     onValueChange = { lead = it },
-                    valueRange = 0f..maxLead.toFloat(),
-                    steps = (maxLead - 1).coerceAtLeast(0),
+                    valueRange = 1f..maxLead.toFloat(),
+                    steps = (maxLead - 2).coerceAtLeast(0),
                 )
                 if (!d.stopName.isNullOrEmpty()) {
                     Text(
