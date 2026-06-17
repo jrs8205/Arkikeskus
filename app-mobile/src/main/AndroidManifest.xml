@@ -22,6 +22,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Lähilähtömuistutus (#4): tarkka AlarmManager-herätys ennen valittua lähtöä. USE_EXACT_ALARM
+         on Android 13+:lla aina myönnetty (sideload, ei Play-kaupan rajoitusta); SCHEDULE_EXACT_ALARM
+         kattaa Android 12:n. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
@@ -74,6 +79,11 @@
             android:name="org.jrs82.fsclock.mobile.WorkoutTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- Lähilähtömuistutus (#4): AlarmManager herättää tämän, joka näyttää ilmoituksen. -->
+        <receiver
+            android:name="org.jrs82.fsclock.mobile.DepartureReminderReceiver"
+            android:exported="false" />
 
         <!-- Health Connect: perustelunäkymä (Android 13 ja vanhemmat). Ohut Compose-näyttö. -->
         <activity
