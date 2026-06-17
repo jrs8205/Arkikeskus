@@ -49,6 +49,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.Slider
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -160,6 +162,7 @@ private class TransitState(private val appContext: Context) {
     var favVersion by mutableIntStateOf(0)
     var detail by mutableStateOf<TransitDetail?>(null)
     var favDialogFor by mutableStateOf<Departure?>(null)
+    var reminderFor by mutableStateOf<Departure?>(null)    // lähtömuistutuksen ajan asetus (#4)
     var fullDayStop by mutableStateOf<NearbyStop?>(null)   // avoinna koko päivän aikataulu
     var alertDialogFor by mutableStateOf<TransitAlert?>(null)   // häiriön koko teksti
 
@@ -695,6 +698,20 @@ internal fun TransitScreen() {
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 20.dp),
                 ) {
+                    // Ohje lähtömuistutuksesta (#4): kertoo ominaisuudesta ja sen käytöstä. Vierii pois listan mukana.
+                    if (items.isNotEmpty()) {
+                        item(key = "reminder_hint") {
+                            Text(
+                                "Vinkki: paina lähtöä pohjassa → voit lisätä sen suosikiksi tai asettaa " +
+                                    "muistutuksen (saat ilmoituksen haluamasi ajan ennen lähtöä).",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     items(items, key = { it.key }) { row ->
                         when (row) {
                             is TransitRow.HeaderRow -> TransitHeaderRow(row, onFullDay = { state.fullDayStop = it })
@@ -742,6 +759,10 @@ internal fun TransitScreen() {
 
         state.favDialogFor?.let { d ->
             TransitFavoriteDialog(d, state) { state.favDialogFor = null }
+        }
+
+        state.reminderFor?.let { d ->
+            TransitReminderDialog(d) { state.reminderFor = null }
         }
 
         state.alertDialogFor?.let { a ->
@@ -1066,34 +1087,79 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
                         .padding(vertical = 14.dp),
                     style = MaterialTheme.typography.bodyLarge,
                 )
-                // Lähtömuistutus (#4): kertamuistutus X min ennen tätä lähtöä — vain jos lähtö
-                // on tarpeeksi kaukana (lead-aika mahtuu ennen sitä).
-                val nowSec = System.currentTimeMillis() / 1000L
-                val minsToDep = ((d.departureEpochSec - nowSec) / 60L).toInt()
-                if (minsToDep >= 3) {
-                    Spacer(Modifier.height(4.dp))
+                // Lähtömuistutus (#4): vain tuleville lähdöille → avaa ajan asetus -dialogin.
+                if (d.departureEpochSec - System.currentTimeMillis() / 1000L >= 60) {
                     Text(
-                        "Muistuta ennen lähtöä (klo ${TR_CLOCK.format(Date(d.departureEpochSec * 1000L))}):",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "Muistuta ennen tätä lähtöä…",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onDismiss()
+                                state.reminderFor = d
+                            }
+                            .padding(vertical = 14.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** Lähtömuistutuksen (#4) ajan asetus: 0–60 min ennen lähtöä (rajattu lähdön ajankohtaan). */
+@Composable
+private fun TransitReminderDialog(d: Departure, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val nowSec = System.currentTimeMillis() / 1000L
+    val maxLead = minOf(60, ((d.departureEpochSec - nowSec) / 60L).toInt()).coerceAtLeast(1)
+    var lead by remember { mutableFloatStateOf(minOf(10, maxLead).toFloat()) }
+    val leadMin = lead.toInt()
+    val remindAtSec = d.departureEpochSec - leadMin * 60L
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val ok = DepartureReminder.schedule(
+                    context, d.routeShortName ?: "", d.directionLabel() ?: "",
+                    d.stopName ?: "", d.departureEpochSec,
+                    "${d.tripGtfsId}|${d.stopGtfsId}|${d.departureEpochSec}", leadMin,
+                )
+                Toast.makeText(
+                    context,
+                    if (ok) "Muistutus $leadMin min ennen lähtöä (klo ${TR_CLOCK.format(Date(remindAtSec * 1000L))})"
+                    else "Lähtö on jo liian lähellä",
+                    Toast.LENGTH_LONG,
+                ).show()
+                onDismiss()
+            }) { Text("Aseta muistutus") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Peruuta") } },
+        title = {
+            Text(
+                (if (!d.routeShortName.isNullOrEmpty()) "Linja ${d.routeShortName} " else "Lähtö ") +
+                    "klo ${TR_CLOCK.format(Date(d.departureEpochSec * 1000L))}",
+            )
+        },
+        text = {
+            Column {
+                Text("Muistuta $leadMin min ennen lähtöä", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Ilmoitus klo ${TR_CLOCK.format(Date(remindAtSec * 1000L))}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Slider(
+                    value = lead,
+                    onValueChange = { lead = it },
+                    valueRange = 0f..maxLead.toFloat(),
+                    steps = (maxLead - 1).coerceAtLeast(0),
+                )
+                if (!d.stopName.isNullOrEmpty()) {
+                    Text(
+                        "Pysäkiltä ${d.stopName}",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        for (lead in listOf(5, 10, 15)) {
-                            if (lead < minsToDep) {
-                                TextButton(onClick = {
-                                    DepartureReminder.schedule(
-                                        context, d.routeShortName ?: "", d.directionLabel() ?: "",
-                                        d.stopName ?: "", d.departureEpochSec,
-                                        "${d.tripGtfsId}|${d.stopGtfsId}|${d.departureEpochSec}", lead,
-                                    )
-                                    Toast.makeText(
-                                        context, "Muistutus $lead min ennen lähtöä", Toast.LENGTH_SHORT,
-                                    ).show()
-                                    onDismiss()
-                                }) { Text("$lead min") }
-                            }
-                        }
-                    }
                 }
             }
         },
