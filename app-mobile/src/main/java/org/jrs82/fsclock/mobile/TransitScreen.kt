@@ -1100,6 +1100,10 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
 @Composable
 private fun TransitReminderDialog(d: Departure, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    // Ilmoituslupa (Android 13+): myös muistutuksen asettaminen pyytää POST_NOTIFICATIONS jos se puuttuu.
+    val notifPerm = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
     val nowSec = System.currentTimeMillis() / 1000L
     val maxLead = minOf(60, ((d.departureEpochSec - nowSec) / 60L).toInt()).coerceAtLeast(2)
     var lead by remember { mutableFloatStateOf(minOf(10, maxLead).toFloat()) }
@@ -1109,6 +1113,12 @@ private fun TransitReminderDialog(d: Departure, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = {
+                if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
                 val ok = DepartureReminder.schedule(
                     context, d.routeShortName ?: "", d.directionLabel() ?: "",
                     d.stopName ?: "", d.departureEpochSec,

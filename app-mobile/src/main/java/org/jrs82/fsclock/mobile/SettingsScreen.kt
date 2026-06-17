@@ -139,6 +139,29 @@ fun SettingsScreen() {
             toast(context, "Bluetooth-skannauslupa tarvitaan antureiden etsimiseen.")
         }
     }
+
+    // Ilmoituslupa (Android 13+): MIKÄ TAHANSA ilmoituskytkin pyytää POST_NOTIFICATIONS jos se puuttuu
+    // (ilman tätä Notifications.post vaikenee hiljaa eikä yhtään ilmoitusta tule). Luvan jälkeen runOnce.
+    val notifPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            Notifications.runOnce(context)
+        } else {
+            toast(context, "Salli ilmoitukset, jotta sovellus voi lähettää ilmoituksia.")
+        }
+    }
+    val enableNotif: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            Notifications.runOnce(context)
+        }
+    }
+
     val requestScan: () -> Unit = {
         val perm = bluetoothScanPermission()
         if (hasPermission(context, perm)) {
@@ -442,25 +465,25 @@ fun SettingsScreen() {
                         prefs, HslAlertNotifier.KEY_ENABLED, "HSL-häiriöt suosikeilla",
                         subtitle = "Ilmoita kun suosikkilinjalle tai -pysäkille tulee uusi häiriö",
                         leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) Notifications.runOnce(context) },
+                        onChange = { if (it) enableNotif() },
                     )
                     PrefSwitchRow(
                         prefs, WeatherWarningNotifier.KEY_ENABLED, "Säävaroitukset (oma paikkakunta)",
                         subtitle = "Ilmoita FMI:n säävaroituksista kotipaikkakunnallasi",
                         leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) Notifications.runOnce(context) },
+                        onChange = { if (it) enableNotif() },
                     )
                     PrefSwitchRow(
                         prefs, ElectricityNotifier.KEY_ENABLED, "Pörssisähkö (huomisen hinnat)",
                         subtitle = "Ilmoita kun huomisen sähköhinnat saapuvat (n. klo 14)",
                         leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) Notifications.runOnce(context) },
+                        onChange = { if (it) enableNotif() },
                     )
                     PrefSwitchRow(
                         prefs, StepGoalNotifier.KEY_ENABLED, "Askeltavoite",
                         subtitle = "Ilmoita kun saavutat päivän askeltavoitteen",
                         leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) Notifications.runOnce(context) },
+                        onChange = { if (it) enableNotif() },
                     )
                     ClickableRow(
                         title = "Tavoite",
@@ -471,7 +494,7 @@ fun SettingsScreen() {
                         prefs, AppUpdateNotifier.KEY_ENABLED, "Sovelluspäivitykset",
                         subtitle = "Ilmoita kun Arkikeskuksesta on uusi versio",
                         leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) Notifications.runOnce(context) },
+                        onChange = { if (it) enableNotif() },
                     )
                 }
             }
