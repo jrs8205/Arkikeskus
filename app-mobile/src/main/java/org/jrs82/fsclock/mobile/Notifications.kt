@@ -51,6 +51,9 @@ object Notifications {
     const val CHANNEL_ELECTRICITY = "arki_electricity"
     const val NOTIF_ID_ELECTRICITY = 56 // Pörssisähkö (56; varaa 56–59 tälle ryhmälle)
 
+    const val CHANNEL_STEPS = "arki_step_goal"
+    const val NOTIF_ID_STEPS = 57 // Askeltavoite (57)
+
     const val CHANNEL_UPDATE = "arki_app_update"
     const val NOTIF_ID_UPDATE = 60 // Sovelluspäivitys (60)
 
@@ -70,6 +73,8 @@ object Notifications {
             "FMI:n säävaroitukset kotipaikkakunnallasi")
         highChannel(nm, CHANNEL_ELECTRICITY, "Pörssisähkö",
             "Ilmoitus kun huomisen pörssisähköhinnat saapuvat")
+        highChannel(nm, CHANNEL_STEPS, "Askeltavoite",
+            "Ilmoitus kun päivän askeltavoite on saavutettu")
         highChannel(nm, CHANNEL_UPDATE, "Sovelluspäivitykset",
             "Ilmoitus kun Arkikeskuksesta on uusi versio saatavilla")
     }
@@ -175,6 +180,11 @@ class NotificationsWorker(context: Context, params: WorkerParameters) : Worker(c
             ElectricityNotifier.check(applicationContext)
         } catch (e: Exception) {
             android.util.Log.w("Notifications", "ElectricityNotifier epäonnistui", e)
+        }
+        try {
+            StepGoalNotifier.check(applicationContext)
+        } catch (e: Exception) {
+            android.util.Log.w("Notifications", "StepGoalNotifier epäonnistui", e)
         }
         try {
             AppUpdateNotifier.check(applicationContext)
