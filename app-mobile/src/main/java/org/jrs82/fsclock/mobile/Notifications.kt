@@ -54,6 +54,9 @@ object Notifications {
     const val CHANNEL_STEPS = "arki_step_goal"
     const val NOTIF_ID_STEPS = 57 // Askeltavoite (57)
 
+    const val CHANNEL_DEPARTURE = "arki_departure"
+    const val NOTIF_ID_DEPARTURE = 58 // Lähilähtömuistutus (oletus; todellinen ID per muistutus hashista)
+
     const val CHANNEL_UPDATE = "arki_app_update"
     const val NOTIF_ID_UPDATE = 60 // Sovelluspäivitys (60)
 
@@ -75,6 +78,8 @@ object Notifications {
             "Ilmoitus kun huomisen pörssisähköhinnat saapuvat")
         highChannel(nm, CHANNEL_STEPS, "Askeltavoite",
             "Ilmoitus kun päivän askeltavoite on saavutettu")
+        highChannel(nm, CHANNEL_DEPARTURE, "Lähtömuistutukset",
+            "Muistutus valitsemastasi joukkoliikennelähdöstä ennen sen lähtöä")
         highChannel(nm, CHANNEL_UPDATE, "Sovelluspäivitykset",
             "Ilmoitus kun Arkikeskuksesta on uusi versio saatavilla")
     }

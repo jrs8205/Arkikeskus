@@ -1066,6 +1066,35 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
                         .padding(vertical = 14.dp),
                     style = MaterialTheme.typography.bodyLarge,
                 )
+                // Lähtömuistutus (#4): kertamuistutus X min ennen tätä lähtöä — vain jos lähtö
+                // on tarpeeksi kaukana (lead-aika mahtuu ennen sitä).
+                val nowSec = System.currentTimeMillis() / 1000L
+                val minsToDep = ((d.departureEpochSec - nowSec) / 60L).toInt()
+                if (minsToDep >= 3) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Muistuta ennen lähtöä (klo ${TR_CLOCK.format(Date(d.departureEpochSec * 1000L))}):",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        for (lead in listOf(5, 10, 15)) {
+                            if (lead < minsToDep) {
+                                TextButton(onClick = {
+                                    DepartureReminder.schedule(
+                                        context, d.routeShortName ?: "", d.directionLabel() ?: "",
+                                        d.stopName ?: "", d.departureEpochSec,
+                                        "${d.tripGtfsId}|${d.stopGtfsId}|${d.departureEpochSec}", lead,
+                                    )
+                                    Toast.makeText(
+                                        context, "Muistutus $lead min ennen lähtöä", Toast.LENGTH_SHORT,
+                                    ).show()
+                                    onDismiss()
+                                }) { Text("$lead min") }
+                            }
+                        }
+                    }
+                }
             }
         },
     )
