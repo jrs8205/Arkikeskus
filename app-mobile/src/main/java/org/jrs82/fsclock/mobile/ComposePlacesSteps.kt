@@ -125,14 +125,24 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
     var results by remember { mutableStateOf<List<PlaceChoice>>(emptyList()) }
     LaunchedEffect(query) {
         val q = query.trim()
-        if (q.length < 3) {
+        if (q.isEmpty()) {
             results = emptyList()
-            status = if (q.isEmpty()) "" else "Kirjoita vähintään kolme kirjainta."
+            status = ""
             return@LaunchedEffect
         }
-        status = "Haetaan…"
+        // 1) Välitön offline-kuntahaku assets-listasta (jo 1 merkistä, ei verkkoa) → ehdotukset heti.
+        val offline = withContext(Dispatchers.Default) {
+            KuntaList.search(context, q, 8).map { PlaceChoice(it.name, it.name, it.lat, it.lon) }
+        }
+        results = offline
+        status = if (offline.isNotEmpty()) "Valitse paikka listalta." else "Haetaan…"
+        // 2) MML täydentää osoitteet/kylät/kaupunginosat (vaatii ≥3 merkkiä). Yhdistetään: kunnat ensin, dedup.
+        if (q.length < 3) {
+            if (offline.isEmpty()) status = "Kirjoita vähintään kolme kirjainta."
+            return@LaunchedEffect
+        }
         delay(250)
-        val hits = withContext(Dispatchers.IO) {
+        val mml = withContext(Dispatchers.IO) {
             try {
                 MmlGeocodingClient.searchPlaces(q, 8).map {
                     PlaceChoice(it.dataPlace, it.displayPlace, it.latitude, it.longitude)
@@ -141,10 +151,16 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
                 null
             }
         }
-        when {
-            hits == null -> { status = "Haku epäonnistui."; results = emptyList() }
-            hits.isEmpty() -> { status = "Kaupunkeja ei löytynyt."; results = emptyList() }
-            else -> { status = "Valitse paikka listalta."; results = hits }
+        if (mml != null) {
+            val seen = HashSet<String>()
+            val merged = ArrayList<PlaceChoice>()
+            for (p in offline + mml) {
+                if (seen.add(KuntaList.normalize(p.displayPlace))) merged.add(p)
+            }
+            results = if (merged.size > 12) ArrayList(merged.subList(0, 12)) else merged
+            status = if (merged.isEmpty()) "Kaupunkeja ei löytynyt." else "Valitse paikka listalta."
+        } else if (offline.isEmpty()) {
+            status = "Haku epäonnistui."
         }
     }
 
