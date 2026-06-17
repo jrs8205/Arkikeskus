@@ -700,9 +700,22 @@ internal fun StepsSection() {
             Spacer(Modifier.height(14.dp))
 
             if (tab == 0) {
+                // Matka-arvio: askelpituus omasta askelmitasta (cm) tai pituudesta (yleinen kaava).
+                // Näytetään vain jos pituus tai askelmitta on annettu.
+                val stepCm = prefs.getFloat(KEY_PROFILE_STEP, 0f)
+                val heightCm = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f)
+                val distanceText = if ((heightCm > 0f || stepCm > 0f) && todaySteps > 0) {
+                    String.format(
+                        java.util.Locale("fi", "FI"), "≈ %.1f km kävelty",
+                        StepCalorieEstimator.distanceKm(todaySteps, heightCm.toDouble(), stepCm.toDouble()),
+                    )
+                } else {
+                    ""
+                }
                 StepsTodayContent(
                     steps = todaySteps,
                     caloriesText = caloriesText,
+                    distanceText = distanceText,
                     useHc = useHc,
                     lastRefreshMs = lastRefreshMs,
                     hasProfile = hasProfile(prefs),
@@ -856,6 +869,7 @@ private fun StepsTab(label: String, selected: Boolean, modifier: Modifier, onCli
 private fun StepsTodayContent(
     steps: Long,
     caloriesText: String,
+    distanceText: String,
     useHc: Boolean,
     lastRefreshMs: Long,
     hasProfile: Boolean,
@@ -875,6 +889,14 @@ private fun StepsTodayContent(
         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(formatStepsNum(steps), fontSize = 52.sp, fontWeight = FontWeight.Bold, color = arki.health)
             Text("askelta tänään" + if (useHc) " (Health Connect)" else "", style = MaterialTheme.typography.bodyMedium)
+            if (distanceText.isNotEmpty()) {
+                Text(
+                    distanceText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = arki.health,
+                )
+            }
         }
     }
     if (caloriesText.isNotEmpty()) {
@@ -903,7 +925,7 @@ private fun StepsTodayContent(
     }
     Spacer(Modifier.height(12.dp))
     TextButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) {
-        Text(if (hasProfile) "Muokkaa profiilia" else "Lisää pituus ja paino kaloriarviota varten")
+        Text(if (hasProfile) "Muokkaa profiilia" else "Lisää pituus ja paino kalori- ja matka-arviota varten")
     }
     Spacer(Modifier.height(4.dp))
     Button(onClick = onExport, enabled = !exporting, modifier = Modifier.fillMaxWidth()) {
@@ -921,7 +943,7 @@ private fun ProfileDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onSav
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Profiili kaloriarviota varten") },
+        title = { Text("Profiili kalori- ja matka-arviota varten") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text("Sukupuoli", style = MaterialTheme.typography.labelLarge)

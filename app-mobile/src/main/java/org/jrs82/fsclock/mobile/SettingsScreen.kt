@@ -102,6 +102,14 @@ private val INTERVAL_OPTIONS = listOf(
     "60" to "60 minuuttia",
     "120" to "120 minuuttia",
 )
+private val STEP_GOAL_OPTIONS = listOf(
+    "7000" to "7 000 askelta",
+    "8000" to "8 000 askelta",
+    "10000" to "10 000 askelta",
+    "12000" to "12 000 askelta",
+    "15000" to "15 000 askelta",
+    "20000" to "20 000 askelta",
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -268,6 +276,7 @@ fun SettingsScreen() {
     var showModeDialog by remember { mutableStateOf(false) }
     var showIntervalDialog by remember { mutableStateOf(false) }
     var showThresholdDialog by remember { mutableStateOf(false) }
+    var showStepGoalDialog by remember { mutableStateOf(false) }
     var editSensorMac by remember { mutableStateOf<String?>(null) }
     var addFeed by remember { mutableStateOf(false) }
     var editFeed by remember { mutableStateOf<NewsFeed?>(null) }
@@ -281,6 +290,8 @@ fun SettingsScreen() {
         ?: MobileThemeController.DEFAULT_UPDATE_INTERVAL_MINUTES
     val threshold = prefs.getString(MobileThemeController.KEY_CHEAP_ELECTRICITY_THRESHOLD, MobileThemeController.DEFAULT_CHEAP_ELECTRICITY_THRESHOLD)
         ?: MobileThemeController.DEFAULT_CHEAP_ELECTRICITY_THRESHOLD
+    val stepGoal = prefs.getString(StepGoalNotifier.KEY_GOAL, StepGoalNotifier.DEFAULT_GOAL)
+        ?: StepGoalNotifier.DEFAULT_GOAL
     val builtinFeeds = remember { NewsFeedStore.allFeeds(prefs).filter { it.builtin } }
     val customFeeds = remember(refreshTick) { NewsFeedStore.customFeeds(prefs) }
 
@@ -445,6 +456,17 @@ fun SettingsScreen() {
                         leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
                         onChange = { if (it) Notifications.runOnce(context) },
                     )
+                    PrefSwitchRow(
+                        prefs, StepGoalNotifier.KEY_ENABLED, "Askeltavoite",
+                        subtitle = "Ilmoita kun saavutat päivän askeltavoitteen",
+                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                        onChange = { if (it) Notifications.runOnce(context) },
+                    )
+                    ClickableRow(
+                        title = "Tavoite",
+                        subtitle = labelFor(STEP_GOAL_OPTIONS, stepGoal),
+                        leadingIconRes = R.drawable.mobile_ic_info_24,
+                    ) { showStepGoalDialog = true }
                     PrefSwitchRow(
                         prefs, AppUpdateNotifier.KEY_ENABLED, "Sovelluspäivitykset",
                         subtitle = "Ilmoita kun Arkikeskuksesta on uusi versio",
@@ -706,6 +728,19 @@ fun SettingsScreen() {
                 refreshTick++
             },
             onDismiss = { showIntervalDialog = false },
+        )
+    }
+    if (showStepGoalDialog) {
+        RadioDialog(
+            title = "Askeltavoite",
+            options = STEP_GOAL_OPTIONS,
+            current = stepGoal,
+            onPick = { value ->
+                showStepGoalDialog = false
+                prefs.edit().putString(StepGoalNotifier.KEY_GOAL, value).apply()
+                refreshTick++
+            },
+            onDismiss = { showStepGoalDialog = false },
         )
     }
     if (showThresholdDialog) {
