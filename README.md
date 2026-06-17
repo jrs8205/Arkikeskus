@@ -2,6 +2,10 @@
 
 **Suomalaiseen kotiin tehty Android-kojelauta:** kello, sää, pörssisähkö, joukkoliikenne, liikennetiedot, kelikamerat, anturit, askelmittari ja uutiset — kaikki yhdellä säädettävällä etusivulla.
 
+**🌐 Verkkosivu: [arkikeskus.com](https://arkikeskus.com)**
+
+[![Verkkosivu](https://img.shields.io/badge/🌐%20Verkkosivu-arkikeskus.com-1B45C0)](https://arkikeskus.com)
+
 > ## ✅ Varmennettu kehittäjä
 >
 > **Arkikeskuksen kehittäjä ja sovelluksen pakettinimi (`org.jrs82.arkikeskus`) on rekisteröity Googlen Android Developer Verification ‑järjestelmässä.**

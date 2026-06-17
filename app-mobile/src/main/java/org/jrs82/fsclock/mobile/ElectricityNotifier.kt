@@ -11,7 +11,8 @@ import java.util.TimeZone
 /**
  * 4b-ilmoitus #3: ilmoittaa kun HUOMISEN pörssisähköhinnat ovat saapuneet (NordPool day-ahead ~klo 14)
  * — halvin/kallein vartti + keskihinta. Käyttää valmista [ElectricityClient]-hakua (Elering spot).
- * Ilmoitetaan kerran per päivä ([KEY_LAST_DAY]). Opt-in (oletus pois). Hinnat snt/kWh ilman ALV:tä.
+ * Ilmoitetaan kerran per päivä ([KEY_LAST_DAY]). Opt-in (oletus pois). Hinnat snt/kWh samasta
+ * [ElectricityClient]-lähteestä kuin sähkösivulla (sama yksikkö/ALV kuin sovelluksessa muutenkin).
  */
 object ElectricityNotifier {
 
