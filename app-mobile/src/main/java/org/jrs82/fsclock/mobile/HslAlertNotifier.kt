@@ -83,14 +83,14 @@ object HslAlertNotifier {
             val label = if (a.routeShortName.isNotEmpty()) "linja ${a.routeShortName}" else a.stopName
             Notifications.post(
                 context, Notifications.CHANNEL_HSL_ALERTS, Notifications.NOTIF_ID_HSL,
-                "HSL-häiriö: $label", a.displayText(), "HSL_DISRUPTIONS",
+                "HSL-häiriö: $label", a.displayText(), "HSL_DISRUPTIONS", favoritesFocus = true,
             )
         } else {
             Notifications.post(
                 context, Notifications.CHANNEL_HSL_ALERTS, Notifications.NOTIF_ID_HSL,
                 "Uusia HSL-häiriöitä suosikeillasi",
                 "${toNotify.size} uutta häiriötä suosikkilinjoillasi tai -pysäkeilläsi. Avaa nähdäksesi.",
-                "HSL_DISRUPTIONS",
+                "HSL_DISRUPTIONS", favoritesFocus = true,
             )
         }
     }

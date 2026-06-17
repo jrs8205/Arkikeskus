@@ -32,7 +32,9 @@ object AppUpdater {
     const val PREF_DISMISSED_VERSION = "appupdate_dismissed_version"
     const val AUTO_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000
 
-    private val main = Handler(Looper.getMainLooper())
+    // Lazy: ei luoda Handleria objektin alustuksessa → isNewer ym. puhtaat funktiot toimivat
+    // JVM-yksikkötesteissä ilman Android-Looperia.
+    private val main by lazy { Handler(Looper.getMainLooper()) }
 
     data class ReleaseInfo(
         val tag: String,
@@ -54,6 +56,9 @@ object AppUpdater {
             main.post { cb(rel, newer) }
         }.start()
     }
+
+    /** Synkroninen haku taustatyölle (kutsuttava taustasäikeestä). Null jos epäonnistuu. */
+    fun fetchLatestSync(): ReleaseInfo? = try { fetchLatest() } catch (e: Exception) { null }
 
     private fun fetchLatest(): ReleaseInfo? {
         val conn = (URL(API).openConnection() as HttpURLConnection).apply {

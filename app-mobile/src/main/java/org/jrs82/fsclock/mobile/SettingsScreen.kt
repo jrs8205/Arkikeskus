@@ -445,6 +445,12 @@ fun SettingsScreen() {
                         leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
                         onChange = { if (it) Notifications.runOnce(context) },
                     )
+                    PrefSwitchRow(
+                        prefs, AppUpdateNotifier.KEY_ENABLED, "Sovelluspäivitykset",
+                        subtitle = "Ilmoita kun Arkikeskuksesta on uusi versio",
+                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                        onChange = { if (it) Notifications.runOnce(context) },
+                    )
                 }
             }
 

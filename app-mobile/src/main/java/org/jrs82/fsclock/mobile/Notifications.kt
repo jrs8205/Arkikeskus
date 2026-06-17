@@ -37,6 +37,9 @@ object Notifications {
 
     const val WORK_NAME = "arkikeskus_notifications"
 
+    // Napautus → Häiriöt-sivu "Vain suosikit" -suodatettuna (näyttää vain suosikkien häiriöt).
+    const val EXTRA_DISRUPTION_FAV = "open_disruption_fav"
+
     // HUOM: ID:t vaihdettu (notif_* → arki_*), koska tärkeys nostettiin DEFAULT→HIGH eikä Android
     // päivitä olemassa olevan kanavan tärkeyttä. Vanhat poistetaan [ensureChannels]issa.
     const val CHANNEL_HSL_ALERTS = "arki_hsl_alerts"
@@ -47,6 +50,9 @@ object Notifications {
 
     const val CHANNEL_ELECTRICITY = "arki_electricity"
     const val NOTIF_ID_ELECTRICITY = 56 // Pörssisähkö (56; varaa 56–59 tälle ryhmälle)
+
+    const val CHANNEL_UPDATE = "arki_app_update"
+    const val NOTIF_ID_UPDATE = 60 // Sovelluspäivitys (60)
 
     // Hiljaiset tunnit: ei push-ilmoituksia yöllä. Uusi häiriö jää "uudeksi" ja ilmoittaa klo 7 jälkeen.
     private const val QUIET_START_HOUR = 23
@@ -64,6 +70,8 @@ object Notifications {
             "FMI:n säävaroitukset kotipaikkakunnallasi")
         highChannel(nm, CHANNEL_ELECTRICITY, "Pörssisähkö",
             "Ilmoitus kun huomisen pörssisähköhinnat saapuvat")
+        highChannel(nm, CHANNEL_UPDATE, "Sovelluspäivitykset",
+            "Ilmoitus kun Arkikeskuksesta on uusi versio saatavilla")
     }
 
     private fun highChannel(nm: NotificationManager, id: String, name: String, desc: String) {
@@ -81,6 +89,7 @@ object Notifications {
         title: String,
         text: String,
         openSection: String?,
+        favoritesFocus: Boolean = false,
     ) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -94,6 +103,7 @@ object Notifications {
         if (openSection != null) {
             open.putExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION, openSection)
         }
+        if (favoritesFocus) open.putExtra(EXTRA_DISRUPTION_FAV, true)
         val pi = PendingIntent.getActivity(
             context, notifId, open,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -165,6 +175,11 @@ class NotificationsWorker(context: Context, params: WorkerParameters) : Worker(c
             ElectricityNotifier.check(applicationContext)
         } catch (e: Exception) {
             android.util.Log.w("Notifications", "ElectricityNotifier epäonnistui", e)
+        }
+        try {
+            AppUpdateNotifier.check(applicationContext)
+        } catch (e: Exception) {
+            android.util.Log.w("Notifications", "AppUpdateNotifier epäonnistui", e)
         }
         return Result.success()
     }

@@ -56,6 +56,9 @@ class MobileComposeMainActivity : AppCompatActivity() {
         appliedDynamicColor = MobileThemeController.dynamicColor(this)
         maybeAskInitialLocationPermission()
         externalSection.value = intent?.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
+        if (intent?.getBooleanExtra(Notifications.EXTRA_DISRUPTION_FAV, false) == true) {
+            DisruptionNav.requestFocusFavorites()
+        }
         maybeRecoverWorkout()
         maybeImportWorkoutFile(intent)
         // Palautuksen jälkeinen vahvistus: prosessi käynnistettiin uudelleen → kerro käyttäjälle.
@@ -75,6 +78,9 @@ class MobileComposeMainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.getBooleanExtra(Notifications.EXTRA_DISRUPTION_FAV, false)) {
+            DisruptionNav.requestFocusFavorites()
+        }
         intent.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)?.let {
             externalSection.value = it
         }
