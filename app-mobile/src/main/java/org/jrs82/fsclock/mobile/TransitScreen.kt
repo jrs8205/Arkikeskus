@@ -1744,6 +1744,18 @@ internal fun filterDisruptions(
     }
 }
 
+/** Kertaluonteinen navigointivihje: HSL-suosikkihäiriö-ilmoituksen napautus → avaa Häiriöt-sivu
+ *  suoraan "Vain suosikit" -suodatettuna. [MobileComposeMainActivity] asettaa intentistä, näkymä kuluttaa. */
+internal object DisruptionNav {
+    @Volatile private var focusFavorites = false
+    fun requestFocusFavorites() { focusFavorites = true }
+    fun consumeFocusFavorites(): Boolean {
+        val v = focusFavorites
+        focusFavorites = false
+        return v
+    }
+}
+
 @Composable
 internal fun HslDisruptionsScreen() {
     val refreshTick = LocalRefreshTick.current
@@ -1753,6 +1765,12 @@ internal fun HslDisruptionsScreen() {
     var modeFilter by remember { mutableStateOf<String?>(null) }
     var activeOnly by remember { mutableStateOf(true) }
     var dialogFor by remember { mutableStateOf<TransitAlert?>(null) }
+    val context = LocalContext.current
+    val favLines = remember { TransitFavorites.getLines(context).map { it.shortName }.filter { it.isNotEmpty() }.toSet() }
+    val favStops = remember { TransitFavorites.getStops(context).map { it.name }.filter { it.isNotEmpty() }.toSet() }
+    val hasFavorites = favLines.isNotEmpty() || favStops.isNotEmpty()
+    // Ilmoituksesta avattaessa (HSL-suosikkihäiriö): näytä heti vain suosikkien häiriöt.
+    var favoritesOnly by remember { mutableStateOf(DisruptionNav.consumeFocusFavorites() && hasFavorites) }
 
     LaunchedEffect(refreshTick) {
         if (all == null) status = "Haetaan häiriöitä…"
@@ -1766,8 +1784,18 @@ internal fun HslDisruptionsScreen() {
         }
     }
 
-    val shown = remember(all, query, modeFilter, activeOnly) {
-        all?.let { filterDisruptions(it, modeFilter, activeOnly, query, System.currentTimeMillis() / 1000L) }
+    val shown = remember(all, query, modeFilter, activeOnly, favoritesOnly) {
+        all?.let { list0 ->
+            val base = filterDisruptions(list0, modeFilter, activeOnly, query, System.currentTimeMillis() / 1000L)
+            if (favoritesOnly) {
+                base.filter { a ->
+                    (a.routeShortName.isNotEmpty() && favLines.contains(a.routeShortName)) ||
+                        (a.stopName.isNotEmpty() && favStops.contains(a.stopName))
+                }
+            } else {
+                base
+            }
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1815,6 +1843,14 @@ internal fun HslDisruptionsScreen() {
                 onClick = { activeOnly = !activeOnly },
                 label = { Text("Vain voimassa olevat") },
             )
+            if (hasFavorites) {
+                Spacer(modifier = Modifier.width(8.dp))
+                FilterChip(
+                    selected = favoritesOnly,
+                    onClick = { favoritesOnly = !favoritesOnly },
+                    label = { Text("Vain suosikit") },
+                )
+            }
             Spacer(modifier = Modifier.weight(1f))
             shown?.let {
                 Text(
