@@ -89,6 +89,7 @@ private const val KEY_PROFILE_AGE = "mobile_profile_age"
 private const val KEY_PROFILE_HEIGHT = "mobile_profile_height_cm"
 private const val KEY_PROFILE_WEIGHT = "mobile_profile_weight_kg"
 private const val KEY_PROFILE_STEP = "mobile_profile_step_length_cm"
+private const val KEY_STEPS_USE_HC = "mobile_steps_use_hc" // VALINNAINEN: käytä Health Connectia (oletus pois → puhelimen anturi)
 
 // ============================================================================
 //  PAIKKAKUNNAT (PLACES)
@@ -495,6 +496,7 @@ internal fun StepsSection() {
     val rawAvailable = remember { stepCounter.isAvailable() }
 
     var enabled by remember { mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_STEPS_ENABLED, false)) }
+    var useHcEnabled by remember { mutableStateOf(prefs.getBoolean(KEY_STEPS_USE_HC, false)) }
     var hcGranted by remember { mutableStateOf(false) }
     var hcCaloriesGranted by remember { mutableStateOf(false) }
     var permTick by remember { mutableStateOf(0) }
@@ -502,11 +504,15 @@ internal fun StepsSection() {
         HealthConnectStepsBridge.hasPermission(context) { hcGranted = it }
         HealthConnectStepsBridge.hasCaloriePermission(context) { hcCaloriesGranted = it }
     }
-    val useHc = hcAvailable && hcGranted
+    // Oletuslähde on puhelimen oma askelanturi; Health Connect on VALINNAINEN (useHcEnabled, oletus pois).
+    val useHc = hcAvailable && hcGranted && useHcEnabled
     val canHcCalories = useHc && hcCaloriesGranted
 
     var tab by remember { mutableStateOf(0) }
     var todaySteps by remember { mutableStateOf(0L) }
+    var hcSteps by remember { mutableStateOf(-1L) } // Health Connectin luku; -1 = ei haettu/ei dataa
+    var rawSteps by remember { mutableStateOf(0L) }  // puhelimen anturi (varakeino kun HC tyhjä)
+    var arTick by remember { mutableStateOf(0) }     // kasvaa kun liikunta-aktiivisuuslupa myönnetään
     var sourcePkgs by remember { mutableStateOf(arrayOf<String>()) }
     var sourceSteps by remember { mutableStateOf(LongArray(0)) }
     var lastRefreshMs by remember { mutableStateOf(0L) }
@@ -530,36 +536,52 @@ internal fun StepsSection() {
         if (ok) {
             prefs.edit().putBoolean(MobileThemeController.KEY_STEPS_ENABLED, true).apply()
             enabled = true
-            stepCounter.start()
+            arTick++ // käynnistää puhelimen askelanturin (DisposableEffect-avain)
             refreshTrigger++
         }
     }
 
-    // Raw-anturin elinkaari (vain kun HC ei käytössä).
-    DisposableEffect(enabled, useHc, rawAvailable) {
-        if (enabled && !useHc && rawAvailable) {
-            stepCounter.setListener { s -> todaySteps = s.toLong() }
-            if (hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)) stepCounter.start()
+    // Puhelimen askelanturi: käynnistä aina kun käytössä + saatavilla + lupa — MYÖS HC:n rinnalla
+    // varakeinoksi, koska HC palauttaa 0 jos siihen ei kirjoita mikään (esim. ilman kelloa/Fitiä).
+    DisposableEffect(enabled, rawAvailable, arTick) {
+        if (enabled && rawAvailable && hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)) {
+            stepCounter.setListener { s -> rawSteps = s.toLong() }
+            stepCounter.start()
+            rawSteps = stepCounter.currentTodaySteps().toLong()
         }
         onDispose { stepCounter.stop() }
     }
     DisposableEffect(Unit) { onDispose { stepCounter.shutdown() } }
 
-    // Tänään: askeleet
+    // Tänään: Health Connectin askeleet (hcSteps; >0 = dataa, 0 = tyhjä, -1 = ei käytössä/virhe).
     LaunchedEffect(enabled, useHc, refreshTrigger) {
-        if (!enabled) {
-            todaySteps = 0L
-            return@LaunchedEffect
-        }
-        if (useHc) {
+        if (enabled && useHc) {
             HealthConnectStepsBridge.todaySteps(context) { s ->
-                if (s >= 0) {
-                    todaySteps = s
-                    lastRefreshMs = System.currentTimeMillis()
-                }
+                hcSteps = s
+                if (s >= 0) lastRefreshMs = System.currentTimeMillis()
             }
-        } else if (rawAvailable) {
-            todaySteps = stepCounter.currentTodaySteps().toLong()
+        } else {
+            hcSteps = -1L
+        }
+    }
+
+    // Näytettävä luku: Health Connect jos sillä on dataa (> 0), muuten puhelimen anturi (varakeino).
+    LaunchedEffect(enabled, useHc, hcSteps, rawSteps) {
+        todaySteps = when {
+            !enabled -> 0L
+            useHc && hcSteps > 0L -> maxOf(hcSteps, rawSteps)
+            else -> rawSteps
+        }
+    }
+
+    // Reaaliaikaisuus: virkistä Tänään-luku ~15 s välein auki ollessa, jotta askeleet kasvavat
+    // kävellessä ilman manuaalista Päivitä-nappia (HC luetaan uudelleen; raw on jo live listenerillä).
+    LaunchedEffect(enabled, tab) {
+        if (enabled && tab == 0) {
+            while (true) {
+                kotlinx.coroutines.delay(15_000)
+                refreshTrigger++
+            }
         }
     }
 
@@ -661,25 +683,61 @@ internal fun StepsSection() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (hcAvailable && (!hcGranted || !hcCaloriesGranted)) {
-                    Spacer(Modifier.height(10.dp))
-                    FilledTonalButton(onClick = {
-                        hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
-                    }) {
-                        Text(if (!hcGranted) "Yhdistä Health Connect" else "Lue myös kalorit Health Connectista")
-                    }
-                }
-                // HC saatavilla mutta lupa puuttuu → "käytetään puhelimen anturia" toteutuu vain
-                // jos liikunta-aktiivisuuslupa on myönnetty. Ilman sitä mittari jäisi 0 askeleen
-                // tilaan — tarjoa lupa tässä, jotta fallback oikeasti käynnistyy.
-                if (enabled && hcAvailable && !hcGranted && rawAvailable &&
+                // Puhelimen oma askelanturi = OLETUSLÄHDE → tarvitsee liikunta-aktiivisuusluvan.
+                if (enabled && !useHc && rawAvailable &&
                     !hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)
                 ) {
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(10.dp))
                     FilledTonalButton(onClick = {
                         arLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
                     }) {
-                        Text("Käytä puhelimen anturia (salli liikunta-aktiivisuus)")
+                        Text("Salli liikunta-aktiivisuus (puhelimen askelmittari)")
+                    }
+                }
+                // Health Connect = VALINNAINEN lisälähde (oletus pois). Yhdistä esim. kello tai sormus.
+                if (enabled) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Käytä Health Connectia",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Switch(
+                            checked = useHcEnabled,
+                            onCheckedChange = { on ->
+                                useHcEnabled = on
+                                prefs.edit().putBoolean(KEY_STEPS_USE_HC, on).apply()
+                                if (on) {
+                                    if (!hcAvailable) openOrInstallHealthConnect(context)
+                                    else if (!hcGranted) {
+                                        hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
+                                    }
+                                }
+                                refreshTrigger++
+                            },
+                        )
+                    }
+                    Text(
+                        "Health Connect kokoaa askeleet ja muut terveystiedot yhteen — voit yhdistää esim. " +
+                            "älykellon, -sormuksen tai muut terveyssovellukset. Se ei ole oletuksena " +
+                            "asennettuna; ilman sitä Arkikeskus käyttää puhelimen omaa askelmittaria.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(
+                        onClick = { openOrInstallHealthConnect(context) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    ) {
+                        Text(if (hcAvailable) "Avaa Health Connect" else "Asenna Health Connect")
+                    }
+                    if (useHcEnabled && hcAvailable && hcGranted && !hcCaloriesGranted) {
+                        FilledTonalButton(onClick = {
+                            hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
+                        }) {
+                            Text("Lue myös kalorit Health Connectista")
+                        }
                     }
                 }
             }
@@ -1001,17 +1059,42 @@ private fun NumberField(label: String, value: String, onChange: (String) -> Unit
 private fun hasProfile(prefs: SharedPreferences): Boolean =
     prefs.getFloat(KEY_PROFILE_HEIGHT, 0f) > 0 && prefs.getFloat(KEY_PROFILE_WEIGHT, 0f) > 0
 
+/** Avaa Health Connect -asetukset jos saatavilla; muuten ohjaa Play Storeen asentamaan (onboarding). */
+private fun openOrInstallHealthConnect(context: Context) {
+    for (action in listOf(
+        "androidx.health.connect.action.HEALTH_CONNECT_SETTINGS",
+        "android.health.connect.action.HEALTH_CONNECT_SETTINGS",
+    )) {
+        try {
+            context.startActivity(android.content.Intent(action).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        } catch (e: Exception) { /* kokeile seuraavaa */ }
+    }
+    for (url in listOf(
+        "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding",
+        "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata",
+    )) {
+        try {
+            context.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            return
+        } catch (e: Exception) { /* kokeile seuraavaa */ }
+    }
+}
+
 private fun stepsNote(available: Boolean, enabled: Boolean, useHc: Boolean, hcAvailable: Boolean): String = when {
     !available -> "Tässä laitteessa ei ole askelanturia eikä Health Connectia, joten askelmittaria ei voi ottaa käyttöön."
     !enabled -> "Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet."
-    useHc -> "Lähde: Health Connect (tämän puhelimen paikallinen tietovarasto). Päivitä-nappi lukee " +
-        "uusimman datan; jos kellon tai sormuksen sovellus ei ole vielä synkannut tähän laitteeseen, avaa se ensin."
-    hcAvailable -> "Health Connect on saatavilla — myönnä lupa, niin askeleet luetaan sieltä. " +
-        "Siihen asti käytetään puhelimen anturia (vaatii liikunta-aktiivisuusluvan — nappi alla jos se puuttuu)."
-    else -> "Lähde: Puhelimen askelanturi. Historia päivittyy vain kun sovellus on ollut käytössä; taustakatkot voivat puuttua."
+    useHc -> "Lähde: Health Connect (yhdistetyt laitteet, esim. kello/sormus). Luku haetaan automaattisesti; " +
+        "jos kellon/sormuksen sovellus ei ole vielä synkannut tähän puhelimeen, avaa se kerran."
+    else -> "Lähde: puhelimen oma askelmittari. Kävellessä askeleet kasvavat reaaliajassa. Halutessasi voit " +
+        "yhdistää Health Connectin (kello/sormus) alta."
 }
 
-/** Replikoi onStepsToggle: HC ensisijaisesti, muuten raw-anturi (ACTIVITY_RECOGNITION). */
+/** Askelmittarin pääkytkin: oletuslähde puhelimen oma anturi (ACTIVITY_RECOGNITION); Health Connect
+ *  on erillinen opt-in askelsivulla. HC otetaan käyttöön ainoana lähteenä vain jos anturia ei ole. */
 private fun toggleSteps(
     context: Context,
     prefs: SharedPreferences,
@@ -1031,24 +1114,20 @@ private fun toggleSteps(
         stepCounter.stop()
         return
     }
-    if (hcAvailable) {
-        prefs.edit().putBoolean(MobileThemeController.KEY_STEPS_ENABLED, true).apply()
-        onEnabledChange(true)
-        if (!hcGranted) {
-            hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
-            return
-        }
-        onRefresh()
-        return
-    }
-    if (!rawAvailable) return
-    if (!hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)) {
-        arLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
-        return
-    }
+    // Oletuslähde: puhelimen oma askelanturi (Health Connect on erillinen opt-in askelsivulla).
     prefs.edit().putBoolean(MobileThemeController.KEY_STEPS_ENABLED, true).apply()
     onEnabledChange(true)
-    stepCounter.start()
+    if (rawAvailable) {
+        if (!hasGranted(context, Manifest.permission.ACTIVITY_RECOGNITION)) {
+            arLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+            return
+        }
+        stepCounter.start()
+    } else if (hcAvailable && !hcGranted) {
+        // Ei puhelimen anturia → Health Connect ainoana lähteenä.
+        hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
+        return
+    }
     onRefresh()
 }
 
