@@ -6,7 +6,7 @@ import java.util.Locale;
 /** Yksittäinen HSL-häiriö-/poikkeustiedote (Digitransit GraphQL {@code alerts}).
  *  Liitetään pysäkkiin ({@link NearbyStop}), linjaan ({@link RoutePatterns}) ja
  *  reittihaun osuuteen ({@link Leg}). */
-final class TransitAlert {
+public final class TransitAlert {
 
     final String header;        // alertHeaderText
     final String description;   // alertDescriptionText

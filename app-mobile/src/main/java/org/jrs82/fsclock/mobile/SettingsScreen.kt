@@ -423,6 +423,31 @@ fun SettingsScreen() {
                 }
             }
 
+            // ---------- Ilmoitukset ----------
+            item { SectionHeader("Ilmoitukset", R.drawable.mobile_ic_info_24) }
+            item {
+                SettingsCard {
+                    PrefSwitchRow(
+                        prefs, HslAlertNotifier.KEY_ENABLED, "HSL-häiriöt suosikeilla",
+                        subtitle = "Ilmoita kun suosikkilinjalle tai -pysäkille tulee uusi häiriö",
+                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                        onChange = { if (it) Notifications.runOnce(context) },
+                    )
+                    PrefSwitchRow(
+                        prefs, WeatherWarningNotifier.KEY_ENABLED, "Säävaroitukset (oma paikkakunta)",
+                        subtitle = "Ilmoita FMI:n säävaroituksista kotipaikkakunnallasi",
+                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                        onChange = { if (it) Notifications.runOnce(context) },
+                    )
+                    PrefSwitchRow(
+                        prefs, ElectricityNotifier.KEY_ENABLED, "Pörssisähkö (huomisen hinnat)",
+                        subtitle = "Ilmoita kun huomisen sähköhinnat saapuvat (n. klo 14)",
+                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                        onChange = { if (it) Notifications.runOnce(context) },
+                    )
+                }
+            }
+
             // ---------- Ruuvi-anturit ----------
             item { SectionHeader("Ruuvi-anturit", R.drawable.mobile_ic_thermometer_24) }
             item {
@@ -1139,11 +1164,13 @@ private fun PrefSwitchRow(
     subtitle: String? = null,
     leadingIconRes: Int? = null,
     default: Boolean,
+    onChange: ((Boolean) -> Unit)? = null,
 ) {
     var checked by remember { mutableStateOf(prefs.getBoolean(key, default)) }
     SwitchRow(title = title, subtitle = subtitle, leadingIconRes = leadingIconRes, checked = checked) {
         checked = it
         prefs.edit().putBoolean(key, it).apply()
+        onChange?.invoke(it)
     }
 }
 
