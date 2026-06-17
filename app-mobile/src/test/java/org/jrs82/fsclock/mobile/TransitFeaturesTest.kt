@@ -117,6 +117,20 @@ class TransitFeaturesTest {
     }
 
     @Test
+    fun `filterDisruptions yksi merkki osuu vain linjaan ei proosaan`() {
+        val list = listOf(
+            disruption("Lähijuna A Leppävaaraan", route = "A", mode = "RAIL", stop = "Pasila"),
+            disruption("Bussin 30 reitti muuttuu Arabiassa", route = "30", mode = "BUS", stop = "Arabia"),
+        )
+        // "a" osuu vain linjaan A (tarkka/alkuosa), EI bussiin 30 vaikka sen otsikko/pysäkki sisältää a-kirjaimen.
+        val res = filterDisruptions(list, null, false, "a", 0L)
+        assertEquals(1, res.size)
+        assertEquals("A", res.single().routeShortName)
+        // ≥2 merkkiä avaa myös vapaan tekstihaun (pysäkki).
+        assertEquals("30", filterDisruptions(list, null, false, "arabia", 0L).single().routeShortName)
+    }
+
+    @Test
     fun `filterDisruptions voimassa-suodatin pudottaa menneet`() {
         val list = listOf(
             disruption("vanha", route = "1", mode = "BUS", start = 10L, end = 20L),

@@ -50,7 +50,8 @@ class WorkoutTrackingService : Service() {
         const val EXTRA_OPEN_SECTION = "open_section"
 
         private const val CHANNEL_ID = "workout_tracking"
-        private const val KM_CHANNEL_ID = "workout_km_split"
+        // ID vaihdettu (workout_km_split → arki_workout_km), koska tärkeys nostettiin DEFAULT→HIGH.
+        private const val KM_CHANNEL_ID = "arki_workout_km"
         private const val NOTIF_ID = 41
         private const val DONE_NOTIF_ID = 42
         private const val KM_NOTIF_ID = 43
@@ -239,9 +240,10 @@ class WorkoutTrackingService : Service() {
         val ch = NotificationChannel(CHANNEL_ID, "Lenkin seuranta", NotificationManager.IMPORTANCE_LOW)
         ch.description = "Käynnissä olevan lenkin tila ja hallinta"
         nm.createNotificationChannel(ch)
-        // Km-väli-ilmoitus: oma kanava DEFAULT-tärkeydellä → ääni-ilmoitus poksahtaa (mm. kelloon).
+        // Km-väli-ilmoitus: oma kanava HIGH-tärkeydellä (heads-up + ääni, sama taso kuin muut hälytykset).
         // Värinä tulee vibrateSplitistä → kanavan oma värinä pois, ettei tuplaannu.
-        val km = NotificationChannel(KM_CHANNEL_ID, "Lenkin kilometrivälit", NotificationManager.IMPORTANCE_DEFAULT)
+        nm.deleteNotificationChannel("workout_km_split") // vanha DEFAULT-kanava → uusi HIGH-ID
+        val km = NotificationChannel(KM_CHANNEL_ID, "Lenkin kilometrivälit", NotificationManager.IMPORTANCE_HIGH)
         km.description = "Ilmoitus jokaisen täyden kilometrin täyttyessä lenkillä"
         km.enableVibration(false)
         nm.createNotificationChannel(km)
@@ -344,11 +346,13 @@ class WorkoutTrackingService : Service() {
         )
         val n = NotificationCompat.Builder(this, KM_CHANNEL_ID)
             .setSmallIcon(R.drawable.mobile_ic_transit_walk)
+            .setColor(ContextCompat.getColor(this, R.color.mobile_accent))
             .setContentTitle("$index. kilometri")
             .setContentText(kmSplitStatsText(index, paceMs, totalMovingMs))
             .setContentIntent(pi)
             .setAutoCancel(true)
             .setOnlyAlertOnce(false)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .build()
         try { nm.notify(KM_NOTIF_ID, n) } catch (e: Exception) { }

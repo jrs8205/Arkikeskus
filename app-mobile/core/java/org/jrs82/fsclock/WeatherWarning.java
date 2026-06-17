@@ -64,8 +64,10 @@ public class WeatherWarning {
         if (e.contains("veneilij") || e.contains("merialue")) return true;
         String a = areaDesc == null ? "" : areaDesc.toLowerCase(Locale.ROOT);
         // Suomen merialueiden nimet MeteoAlarmissa
+        // HUOM: "ahvenanmer" (Ahvenanmeri = meri), EI "ahvenanm" — muuten maakunta "Ahvenanmaa"
+        // (maa-alue) leimaisi koko maan maavaroitukset virheellisesti merivaroituksiksi.
         if (a.contains("perämer") || a.contains("selkämer") || a.contains("suomenlah")
-                || a.contains("ahvenanm") || a.contains("saaristom") || a.contains("merenkurk")
+                || a.contains("ahvenanmer") || a.contains("saaristom") || a.contains("merenkurk")
                 || a.contains("riianlah") || a.contains("itämer")) return true;
         if (emmaIds != null) {
             for (String id : emmaIds) {

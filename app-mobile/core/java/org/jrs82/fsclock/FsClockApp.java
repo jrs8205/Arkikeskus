@@ -6,6 +6,7 @@ import android.util.Log;
 
 import org.jrs82.fsclock.db.BatteryMonitor;
 import org.jrs82.fsclock.db.DailyStatsScheduler;
+import org.jrs82.fsclock.mobile.Notifications;
 
 public class FsClockApp extends Application {
 
@@ -29,6 +30,10 @@ public class FsClockApp extends Application {
         }
 
         SettingsManager.get().init(this);
+
+        // Taustailmoitukset (4b): ajasta tunnittainen WorkManager-työ. Worker tarkistaa per-tyyppi-
+        // kytkimet → kaikki opt-in (oletus pois), joten pois päältä olevat eivät tee mitään.
+        Notifications.schedule(this);
 
         // Akun keräys ja päivätilastot pyörivät koko prosessin elinkaaren.
         // Näin Asetukset/Järjestelmä-sivun avaaminen ei katkaise datavirtaa.

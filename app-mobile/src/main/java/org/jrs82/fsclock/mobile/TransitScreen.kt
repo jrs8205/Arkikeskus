@@ -327,7 +327,13 @@ private class TransitState(private val appContext: Context) {
         if (disposed) return
         searchIo.execute {
             val routes = try { DigitransitApi.searchRoutes(q) } catch (e: Exception) { ArrayList() }
-            val places = try { DigitransitApi.searchPlaces(q, lastLat, lastLon) } catch (e: Exception) { ArrayList() }
+            // Yksi merkki (esim. junalinjat A/P/I/K/T/E/L/U) → vain linjahaku; paikkahaku (geokoodaus)
+            // vaatii ≥2 merkkiä ettei se tuota roskatuloksia.
+            val places = if (q.length >= 2) {
+                try { DigitransitApi.searchPlaces(q, lastLat, lastLon) } catch (e: Exception) { ArrayList() }
+            } else {
+                ArrayList()
+            }
             ui.post {
                 if (disposed) return@post
                 if (selectedStop != null || q != query.trim()) return@post   // vanhentunut tulos
@@ -592,7 +598,8 @@ internal fun TransitScreen() {
         val q = state.query.trim()
         if (q.isEmpty()) return@LaunchedEffect
         delay(TRANSIT_SEARCH_DEBOUNCE_MS)
-        if (q.length >= 2) state.runLiveSearch(q)
+        // 1 merkki riittää (HSL:n junalinjat ovat yksikirjaimisia: A/P/I/K/T/E/L/U…); q on jo ei-tyhjä.
+        state.runLiveSearch(q)
     }
 
     // Resume-virkistys + 25 s auto-virkistys vain etualalla (vastaa onResume + autoRefresh-tick).
@@ -623,7 +630,6 @@ internal fun TransitScreen() {
     val emptyStatus: String? = if (items.isNotEmpty()) null else when {
         state.selectedStop != null -> "Ei tulevia lähtöjä tältä pysäkiltä."
         trimmedQuery.isNotEmpty() -> when {
-            trimmedQuery.length < 2 -> "Kirjoita vähintään 2 merkkiä."
             state.searchRoutes == null && state.searchPlaces == null -> "Haetaan \"$trimmedQuery\"…"
             else -> "Ei osumia haulla \"$trimmedQuery\".\nKokeile pysäkin, aseman tai linjan nimeä/numeroa."
         }
@@ -656,7 +662,7 @@ internal fun TransitScreen() {
                 placeholder = "Hae linja (esim. 550), pysäkki tai asema",
                 modifier = Modifier.padding(horizontal = 14.dp),
                 onSearch = {
-                    if (state.query.trim().length >= 2) state.runLiveSearch(state.query)
+                    if (state.query.trim().isNotEmpty()) state.runLiveSearch(state.query)
                 },
             )
             // Kulkuvälinesuodatin — näkyy vain lähilistassa (ei haussa eikä valitulla pysäkillä).
@@ -1722,11 +1728,18 @@ internal fun filterDisruptions(
     return list.filter { a ->
         val modeOk = mode == null || a.mode.equals(mode, ignoreCase = true)
         val activeOk = !activeOnly || a.isActiveAt(nowSec)
-        val textOk = q.isEmpty() ||
-            a.routeShortName.lowercase(FI_TR).contains(q) ||
-            a.stopName.lowercase(FI_TR).contains(q) ||
-            a.header.lowercase(FI_TR).contains(q) ||
-            a.description.lowercase(FI_TR).contains(q)
+        // Linjanumero osuu tarkasti tai alkuosalla (myös yksikirjaimiset junalinjat A/P/T) ja ≥2
+        // merkillä myös osumana. Vapaa tekstihaku (pysäkki/otsikko/kuvaus) vasta ≥2 merkillä, ettei
+        // yksi kirjain tulvi proosasta (suomenkielinen teksti sisältää lähes aina kysytyn kirjaimen).
+        val rsn = a.routeShortName.lowercase(FI_TR)
+        val routeOk = q.isNotEmpty() && (rsn == q || rsn.startsWith(q) || (q.length >= 2 && rsn.contains(q)))
+        val textOk = q.isEmpty() || routeOk || (
+            q.length >= 2 && (
+                a.stopName.lowercase(FI_TR).contains(q) ||
+                    a.header.lowercase(FI_TR).contains(q) ||
+                    a.description.lowercase(FI_TR).contains(q)
+                )
+            )
         modeOk && activeOk && textOk
     }
 }
