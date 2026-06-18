@@ -55,6 +55,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -666,7 +667,11 @@ internal fun StepsSection() {
             val pw = prefs.getFloat(KEY_PROFILE_WEIGHT, 0f).toDouble()
             val pstep = prefs.getFloat(KEY_PROFILE_STEP, 0f).toDouble()
             val rows = withContext(Dispatchers.IO) {
-                StepsHistory.buildRows(context, tab, ph, pw, pstep).map { StepHistRow(it.label, it.steps.toLong(), it.kcal) }
+                StepsHistory.buildRows(context, tab, ph, pw, pstep).map {
+                    val km = if ((ph > 0 || pstep > 0) && it.steps > 0)
+                        StepCalorieEstimator.distanceKm(it.steps.toLong(), ph, pstep) else 0.0
+                    StepHistRow(it.label, it.steps.toLong(), km, it.kcal)
+                }
             }
             if (myGen == historyGen[0]) {
                 historyRows = rows
@@ -1217,8 +1222,8 @@ private fun buildCaloriesText(km: Double, active: Int, activeIsHc: Boolean, tota
     return sb.toString()
 }
 
-/** Yksi sarakkeistettu historiarivi: nimi, askeleet, aktiiviset kalorit (0 = ei näytetä). */
-private data class StepHistRow(val label: String, val steps: Long, val kcal: Int)
+/** Yksi sarakkeistettu historiarivi: nimi, askeleet, matka (km, 0 = ei näytetä), aktiiviset kalorit (0 = ei näytetä). */
+private data class StepHistRow(val label: String, val steps: Long, val km: Double, val kcal: Int)
 
 /** HC-historia rakenteisina riveinä (uusin ensin): aktiiviset kalorit HC:stä tai profiiliarviosta. */
 private fun hcHistoryRows(
@@ -1240,7 +1245,9 @@ private fun hcHistoryRows(
             canEstimate && steps[i] > 0 -> StepCalorieEstimator.activeKcal(steps[i], h, w, stepCm)
             else -> 0
         }
-        out.add(StepHistRow(hcHistoryLabel(labels[i], periodType), steps[i], kcal))
+        val km = if ((h > 0 || stepCm > 0) && steps[i] > 0)
+            StepCalorieEstimator.distanceKm(steps[i], h, stepCm) else 0.0
+        out.add(StepHistRow(hcHistoryLabel(labels[i], periodType), steps[i], km, kcal))
     }
     return out
 }
@@ -1250,46 +1257,40 @@ private fun hcHistoryRows(
  *  mahtuu myös kapeille näytöille (ei rivitystä). */
 @Composable
 private fun StepHistoryColumn(rows: List<StepHistRow>, note: String) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(modifier = Modifier.padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(Modifier.weight(1f))
-            Text(
-                "Askeleet", style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End, modifier = Modifier.width(88.dp),
-            )
-            Text(
-                "🔥 kcal", style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End, modifier = Modifier.width(64.dp),
-            )
+            Text("Askeleet", style = MaterialTheme.typography.labelMedium, color = muted,
+                textAlign = TextAlign.End, modifier = Modifier.width(78.dp))
+            Text("km", style = MaterialTheme.typography.labelMedium, color = muted,
+                textAlign = TextAlign.End, modifier = Modifier.width(46.dp))
+            Text("🔥 kcal", style = MaterialTheme.typography.labelMedium, color = muted,
+                textAlign = TextAlign.End, modifier = Modifier.width(58.dp))
         }
         rows.forEach { r ->
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(r.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Text(
-                    formatStepsNum(r.steps), style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.End, modifier = Modifier.width(88.dp),
-                )
-                Text(
-                    if (r.kcal > 0) r.kcal.toString() else "–",
+                Text(r.label, style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(formatStepsNum(r.steps), style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.End, modifier = Modifier.width(78.dp))
+                Text(if (r.km > 0) String.format(Locale("fi", "FI"), "%.1f", r.km) else "–",
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.End, modifier = Modifier.width(64.dp),
-                )
+                    textAlign = TextAlign.End, modifier = Modifier.width(46.dp))
+                Text(if (r.kcal > 0) r.kcal.toString() else "–",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.End, modifier = Modifier.width(58.dp))
             }
         }
         if (note.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text(
-                note, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(note, style = MaterialTheme.typography.bodySmall, color = muted)
         }
     }
 }
