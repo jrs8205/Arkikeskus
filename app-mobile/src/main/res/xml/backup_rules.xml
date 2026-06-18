@@ -8,4 +8,6 @@
     <!-- Automaattibackupin tila (SAF-URI, ajastus) on laitekohtainen — palautettuna toiselle
          laitteelle se näyttäisi valheellista päällä-tilaa ilman persistoitua lupaa. -->
     <exclude domain="sharedpref" path="auto_backup_prefs.xml" />
+    <!-- Drive-varmuuskopion tila (frekvenssi, viimeisin kopio) on laite-/tilikohtainen. -->
+    <exclude domain="sharedpref" path="drive_backup_prefs.xml" />
 </full-backup-content>
