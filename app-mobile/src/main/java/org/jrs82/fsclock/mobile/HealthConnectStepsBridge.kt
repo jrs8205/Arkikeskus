@@ -44,6 +44,9 @@ object HealthConnectStepsBridge {
     // Mukana lupaPYYNNÖISSÄ, mutta EI lupatarkistuksissa (hasPermission/hasCaloriePermission);
     // historiafunktioissa on lisäksi 30 pv:n clamp-fallback jos laaja kysely hylätään.
     private const val READ_HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY"
+    // Valinnainen: sallii HC-luvun TAUSTATYÖSSÄ (askeltavoite-ilmoitus). Mukana lupaPYYNNÖISSÄ, EI
+    // lupatarkistuksissa (hasPermission) — ilman taustalukulupaa HC-lähde toimii silti etualalla.
+    private const val READ_BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
     private val scope = CoroutineScope(Dispatchers.Main)
 
     fun interface BoolCallback { fun onResult(value: Boolean) }
@@ -61,15 +64,15 @@ object HealthConnectStepsBridge {
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
 
     @JvmStatic
-    fun permissions(): Array<String> = (READ_STEPS + READ_CALS + READ_HISTORY).toTypedArray()
+    fun permissions(): Array<String> = (READ_STEPS + READ_CALS + READ_HISTORY + READ_BACKGROUND).toTypedArray()
 
     /** Vain askelluvat (pakollinen HC-lähteelle) + valinnainen historialupa. */
     @JvmStatic
-    fun stepPermissions(): Array<String> = (READ_STEPS + READ_HISTORY).toTypedArray()
+    fun stepPermissions(): Array<String> = (READ_STEPS + READ_HISTORY + READ_BACKGROUND).toTypedArray()
 
     /** Vain kaloriluvat (valinnaiset, aktiivinen + kokonais) + valinnainen historialupa. */
     @JvmStatic
-    fun caloriePermissions(): Array<String> = (READ_CALS + READ_HISTORY).toTypedArray()
+    fun caloriePermissions(): Array<String> = (READ_CALS + READ_HISTORY + READ_BACKGROUND).toTypedArray()
 
     /** Health Connectin oma lupanäkymä-contract Javan registerForActivityResultille. */
     @JvmStatic

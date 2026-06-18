@@ -88,7 +88,7 @@ private const val KEY_PROFILE_AGE = "mobile_profile_age"
 private const val KEY_PROFILE_HEIGHT = "mobile_profile_height_cm"
 private const val KEY_PROFILE_WEIGHT = "mobile_profile_weight_kg"
 private const val KEY_PROFILE_STEP = "mobile_profile_step_length_cm"
-private const val KEY_STEPS_USE_HC = "mobile_steps_use_hc" // VALINNAINEN: käytä Health Connectia (oletus pois → puhelimen anturi)
+internal const val KEY_STEPS_USE_HC = "mobile_steps_use_hc" // VALINNAINEN: käytä Health Connectia (oletus pois → puhelimen anturi)
 
 // ============================================================================
 //  PAIKKAKUNNAT (PLACES)

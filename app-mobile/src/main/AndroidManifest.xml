@@ -33,6 +33,8 @@
     <!-- Valinnainen: ilman tätä HC rajaa luvun 30 pv:ään ennen ensimmäistä lupahetkeä →
          pitkät historiat (8 vk / 6 kk / HTML-vienti) voisivat jäädä tyhjiksi. -->
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+    <!-- Valinnainen: sallii askeltavoite-ilmoituksen lukea HC:tä taustatyössä (NotificationsWorker). -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
