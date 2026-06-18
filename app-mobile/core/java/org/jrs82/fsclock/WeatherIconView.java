@@ -1,6 +1,7 @@
 package org.jrs82.fsclock;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -36,6 +37,24 @@ public class WeatherIconView extends View {
     private int symbol = SUNNY;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
+
+    /** True = vaalea teema (vaalea kortin tausta). Päivitetään onDrawssa konfiguraatiosta, joka
+     *  heijastaa AppCompatin setLocalNightMode-tilaa. Vaalealla taustalla vaaleat ikonivärit (kuu,
+     *  lumi, vaaleat pilvet, sumu) nostetaan tummemmiksi, jotta ne erottuvat; tumma teema ennallaan. */
+    private boolean lightBg = false;
+
+    private int moonColor() { return lightBg ? 0xFF505A78 : 0xFFE0E0E0; }
+    private int snowColor() { return lightBg ? 0xFF5E86AC : 0xFFFFFFFF; }
+    private int fogColor() { return lightBg ? 0xFF7C848E : 0xFFB0B0B0; }
+
+    /** Tummentaa värin kertoimella (säilyttää sävyn) — vaalealla taustalla harmaat pilvet näkyviksi. */
+    private static int darken(int c, float f) {
+        int a = (c >>> 24) & 0xFF;
+        int r = Math.round(((c >> 16) & 0xFF) * f);
+        int g = Math.round(((c >> 8) & 0xFF) * f);
+        int b = Math.round((c & 0xFF) * f);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
 
     public WeatherIconView(Context c) { super(c); }
     public WeatherIconView(Context c, AttributeSet a) { super(c, a); }
@@ -119,6 +138,8 @@ public class WeatherIconView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        lightBg = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                != Configuration.UI_MODE_NIGHT_YES;
         int w = getWidth();
         int h = getHeight();
         float size = Math.min(w, h);
@@ -157,7 +178,7 @@ public class WeatherIconView extends View {
         float scx = cx + s * 0.28f;
         float scy = cy - s * 0.30f;
         if (night) {
-            paint.setColor(0xFFE0E0E0);
+            paint.setColor(moonColor());
             paint.setStyle(Paint.Style.FILL);
             path.reset();
             float r = s * 0.10f;
@@ -203,7 +224,7 @@ public class WeatherIconView extends View {
     private void drawMostlySnow(Canvas c, float cx, float cy, float s, boolean night) {
         drawTinySunOrMoon(c, cx, cy, s, night);
         drawCloud(c, cx - s * 0.02f, cy - s * 0.08f, s * 0.95f, 0xFFB8B8B8);
-        paint.setColor(0xFFFFFFFF);
+        paint.setColor(snowColor());
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(s * 0.03f);
         paint.setStrokeCap(Paint.Cap.ROUND);
@@ -231,7 +252,7 @@ public class WeatherIconView extends View {
                 paint.setColor(0xFF4FA8E0);
                 c.drawLine(x + s * 0.04f, dy, x - s * 0.02f, dy + s * 0.17f, paint);
             } else {
-                paint.setColor(0xFFFFFFFF);
+                paint.setColor(snowColor());
                 float r = s * 0.05f;
                 c.drawLine(x - r, dy + s * 0.09f, x + r, dy + s * 0.09f, paint);
                 c.drawLine(x, dy + s * 0.04f, x, dy + s * 0.14f, paint);
@@ -247,7 +268,7 @@ public class WeatherIconView extends View {
         float scy = cy - s * 0.25f;
         if (night) {
             // Pieni kuu
-            paint.setColor(0xFFE0E0E0);
+            paint.setColor(moonColor());
             paint.setStyle(Paint.Style.FILL);
             path.reset();
             float r = s * 0.16f;
@@ -292,7 +313,7 @@ public class WeatherIconView extends View {
     private void drawPartlySnow(Canvas c, float cx, float cy, float s, boolean night) {
         drawSmallSunOrMoon(c, cx, cy, s, night);
         drawCloud(c, cx - s * 0.04f, cy - s * 0.06f, s * 0.85f, 0xFFC8C8C8);
-        paint.setColor(0xFFFFFFFF);
+        paint.setColor(snowColor());
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(s * 0.03f);
         paint.setStrokeCap(Paint.Cap.ROUND);
@@ -320,7 +341,7 @@ public class WeatherIconView extends View {
                 paint.setColor(0xFF4FA8E0);
                 c.drawLine(x + s * 0.04f, dy, x - s * 0.02f, dy + s * 0.16f, paint);
             } else {
-                paint.setColor(0xFFFFFFFF);
+                paint.setColor(snowColor());
                 float r = s * 0.05f;
                 c.drawLine(x - r, dy + s * 0.08f, x + r, dy + s * 0.08f, paint);
                 c.drawLine(x, dy + s * 0.03f, x, dy + s * 0.13f, paint);
@@ -349,7 +370,7 @@ public class WeatherIconView extends View {
     }
 
     private void drawMoon(Canvas c, float cx, float cy, float s) {
-        paint.setColor(0xFFE0E0E0);
+        paint.setColor(moonColor());
         paint.setStyle(Paint.Style.FILL);
         path.reset();
         float r = s * 0.30f;
@@ -361,7 +382,7 @@ public class WeatherIconView extends View {
     }
 
     private void drawCloud(Canvas c, float cx, float cy, float s, int color) {
-        paint.setColor(color);
+        paint.setColor(lightBg ? darken(color, 0.68f) : color);
         paint.setStyle(Paint.Style.FILL);
         // pilvi - 3 ympyraa + alapohja suorakaide
         float r1 = s * 0.18f;
@@ -417,7 +438,7 @@ public class WeatherIconView extends View {
 
     private void drawSnow(Canvas c, float cx, float cy, float s) {
         drawCloud(c, cx, cy - s * 0.12f, s, 0xFFC0C0C0);
-        paint.setColor(0xFFFFFFFF);
+        paint.setColor(snowColor());
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(s * 0.03f);
         paint.setStrokeCap(Paint.Cap.ROUND);
@@ -444,7 +465,7 @@ public class WeatherIconView extends View {
                 paint.setColor(0xFF4FA8E0);
                 c.drawLine(x + s * 0.04f, dy, x - s * 0.02f, dy + s * 0.18f, paint);
             } else {
-                paint.setColor(0xFFFFFFFF);
+                paint.setColor(snowColor());
                 float r = s * 0.05f;
                 c.drawLine(x - r, dy + s * 0.09f, x + r, dy + s * 0.09f, paint);
                 c.drawLine(x, dy + s * 0.04f, x, dy + s * 0.14f, paint);
@@ -453,7 +474,7 @@ public class WeatherIconView extends View {
     }
 
     private void drawFog(Canvas c, float cx, float cy, float s) {
-        paint.setColor(0xFFB0B0B0);
+        paint.setColor(fogColor());
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(s * 0.06f);
         paint.setStrokeCap(Paint.Cap.ROUND);
