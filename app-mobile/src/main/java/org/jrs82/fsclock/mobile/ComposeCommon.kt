@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -7,6 +8,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -29,6 +34,30 @@ import androidx.compose.ui.unit.dp
  * luetaan [TransitStyle]-apureista, jotka jaetaan reittihaun View-toteutuksen kanssa
  * (HSL-brändivärit pysyvät identtisinä kaikkialla).
  */
+
+/**
+ * Sovelluksen yhteinen kortti — M3 [Card] pehmeällä, hieman näkyvämmällä varjolla (elevation 3 dp,
+ * oletus ~1 dp oli lähes litteä). Yksi paikka kaikelle korttityylille → varjon/kulmien/värin säätö
+ * tehdään jatkossa täällä. Välittää [modifier]/[onClick]/[shape]/[colors] kuten Card; [onClick] != null
+ * → klikattava kortti. Erikoiskortit (omat värit/muoto) toimivat antamalla colors/shape.
+ */
+@Composable
+internal fun ArkiCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    shape: Shape = CardDefaults.shape,
+    colors: CardColors = CardDefaults.cardColors(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    if (onClick != null) {
+        Card(onClick = onClick, modifier = modifier, shape = shape, colors = colors,
+            elevation = elevation, content = content)
+    } else {
+        Card(modifier = modifier, shape = shape, colors = colors,
+            elevation = elevation, content = content)
+    }
+}
 
 /** Hakukenttä: yksi rivi, ×-tyhjennys näkyy vain kun tekstiä on, IME-haku sulkee näppäimistön. */
 @Composable

@@ -27,7 +27,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -183,7 +182,7 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
             confirmButton = { TextButton(onClick = { showNotes = false }) { Text("Sulje") } },
         )
     }
-    Card(
+    ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 12.dp),
@@ -659,7 +658,7 @@ private fun DrawerItem(section: HomeSection, current: HomeSection, onSelect: (Ho
     // Kukin valikon kohta omana pyöristettynä laatikkona (sama tyyli kuin asetussivulla).
     // Nykyinen sektio korostetaan primaryContainer-värillä.
     val selected = current == section
-    Card(
+    ArkiCard(
         onClick = { onSelect(section) },
         modifier = Modifier
             .fillMaxWidth()

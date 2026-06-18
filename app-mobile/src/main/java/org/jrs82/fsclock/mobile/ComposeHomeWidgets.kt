@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -249,7 +248,7 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
         if (fresh.isNotEmpty()) items = fresh
         loading = false
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Kotimaan uutiset", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -351,7 +350,7 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
         if (fresh.isNotEmpty()) items = fresh
         loading = false
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Ulkomaan uutiset", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -464,7 +463,7 @@ internal fun HomeNewsSourceCard(feedId: String) {
             items = emptyList()
         }
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 feed.name.ifEmpty { "Uutiset" },
@@ -506,7 +505,7 @@ internal fun HomeWarningsCard() {
     }
     val warnings = remember(tick) { repo.getLatest() }
     if (warnings.isEmpty()) return
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "Säävaroitukset",
@@ -599,7 +598,7 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
             notices = result
         }
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -701,7 +700,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
             deps = result
         }
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Lähilähdöt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))

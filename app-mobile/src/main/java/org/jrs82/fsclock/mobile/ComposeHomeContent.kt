@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -46,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -375,6 +375,7 @@ private fun ClockBlock(nowMs: Long) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp))
             .background(
                 Brush.verticalGradient(
@@ -409,7 +410,7 @@ private fun ClockBlock(nowMs: Long) {
 @Composable
 private fun HolidayCard(holidayLine: String, flagLine: String) {
     if (holidayLine.isEmpty() && flagLine.isEmpty()) return
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             if (holidayLine.isNotEmpty()) {
                 HolidayRow("Seuraava pyhä", holidayLine)
@@ -505,7 +506,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
         return
     }
     val arki = ArkiTheme.colors
-    Card(
+    ArkiCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = arki.weatherContainer,
@@ -645,7 +646,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val notice = remember(tick, settingsRevision) { cheapNotice(prefs, repo) }
     val threshold = remember(tick, settingsRevision) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Pörssisähkö", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -737,7 +738,7 @@ private fun PricePill(level: PriceLevel) {
 private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: Int) {
     val settingsRevision = LocalHomeDataRevision.current
     val sensors = remember(tick, settingsRevision) { buildSensors(prefs, repo) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Anturit", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
@@ -817,7 +818,7 @@ private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
 
 @Composable
 private fun GenericCard(title: String, note: String) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
@@ -958,7 +959,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
     val min = quarters.minByOrNull { it.sntPerKwh }
     val max = quarters.maxByOrNull { it.sntPerKwh }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             if (dayOffset == 0 && current != null) {
                 val level = priceLevel(current.sntPerKwh, threshold)
@@ -1012,7 +1013,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
         }
     }
     Spacer(Modifier.height(12.dp))
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             quarters.take(96).forEach { q ->
                 QuarterRow(q, isCurrent = current != null && q.timestamp == current.timestamp, threshold = threshold)
@@ -1065,7 +1066,7 @@ private fun ElectricityCompare(context: Context, refresh: Int) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        else -> Card(modifier = Modifier.fillMaxWidth()) {
+        else -> ArkiCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 r.forEach { CompareRowView(it) }
             }
@@ -1271,7 +1272,7 @@ private fun DayTab(label: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData.Hour?) {
-    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+    ArkiCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(hhmm(h.timestamp), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             ProviderRow(

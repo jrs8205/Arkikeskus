@@ -32,7 +32,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -453,7 +452,7 @@ private fun WorkoutStatsView(onClose: () -> Unit) {
  *  laji-erittely. Nolla-arvoiset tunnusluvut (esim. pyöräilyssä askeleet) jätetään pois. */
 @Composable
 private fun WorkoutStatBucketCard(b: WorkoutStats.Bucket) {
-    Card(
+    ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
@@ -506,7 +505,7 @@ private fun lajiBreakdown(walk: Int, bike: Int): String {
 /** Historiarivi: nimi (tai aika · laji) + tunnusluvut; jaetuissa lenkeissä Jaettu-merkki. */
 @Composable
 private fun WorkoutHistoryRow(w: WorkoutEntity, onOpenWorkout: (Long) -> Unit) {
-    Card(
+    ArkiCard(
         onClick = { onOpenWorkout(w.id) },
         modifier = Modifier
             .fillMaxWidth()
@@ -870,7 +869,7 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
         if (w == null) {
             Text("Ladataan…", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            ArkiCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     StatRow("Laji", if (w.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely")
                     StatRow("Alkoi", timeText(w.startedAtMs))
@@ -894,7 +893,7 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
             }
             if (splits.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ArkiCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Kilometrivälit", style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold)

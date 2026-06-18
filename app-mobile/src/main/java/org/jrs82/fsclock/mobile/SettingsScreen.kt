@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -1093,7 +1092,7 @@ internal fun ClickableRow(
     trailingIconRes: Int? = null,
     onClick: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
+    ArkiCard(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1140,7 +1139,7 @@ internal fun RowLeadingIcon(iconRes: Int) {
 
 @Composable
 private fun InfoRow(title: String, value: String, leadingIconRes: Int? = null) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
+    ArkiCard(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1170,7 +1169,7 @@ internal fun SwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
+    ArkiCard(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
