@@ -29,7 +29,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -181,7 +180,7 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
         )
 
         // Nykyinen paikka + suosikiksi-kytkin
-        Card(modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
+        ArkiCard(modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
             Row(
                 modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -282,7 +281,7 @@ private fun PlaceRow(label: String, leading: Int, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        ArkiCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -302,7 +301,7 @@ private fun PlaceRow(label: String, leading: Int, onClick: () -> Unit) {
 
 @Composable
 private fun FavoritePlaceRow(place: String, onSelect: () -> Unit, onRemove: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+    ArkiCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -679,7 +678,7 @@ internal fun StepsSection() {
         Spacer(Modifier.height(12.dp))
 
         // Kytkin + lähde-info
-        Card(modifier = Modifier.fillMaxWidth()) {
+        ArkiCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Askelmittari", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -809,7 +808,7 @@ internal fun StepsSection() {
                 )
                 if (useHc) {
                     Spacer(Modifier.height(14.dp))
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    ArkiCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 "Lähteet (Health Connect)",
@@ -873,7 +872,7 @@ internal fun StepsSection() {
                     }
                 }
             } else {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                ArkiCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         historyText.ifEmpty { "Ladataan…" },
                         style = MaterialTheme.typography.bodyMedium,
@@ -953,7 +952,7 @@ private fun StepsTodayContent(
     onExport: () -> Unit,
 ) {
     val arki = ArkiTheme.colors
-    Card(
+    ArkiCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = arki.healthContainer,
@@ -975,7 +974,7 @@ private fun StepsTodayContent(
     }
     if (caloriesText.isNotEmpty()) {
         Spacer(Modifier.height(12.dp))
-        Card(modifier = Modifier.fillMaxWidth()) {
+        ArkiCard(modifier = Modifier.fillMaxWidth()) {
             Text(caloriesText, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
         }
     }

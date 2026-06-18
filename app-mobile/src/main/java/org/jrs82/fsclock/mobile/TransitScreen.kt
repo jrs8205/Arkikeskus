@@ -38,7 +38,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -833,7 +832,7 @@ private fun TransitHeaderRow(row: TransitRow.HeaderRow, onFullDay: (NearbyStop) 
 private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState) {
     val context = LocalContext.current
     val fav = remember(d.routeGtfsId, favTick) { TransitFavorites.isLineFav(context, d.routeGtfsId) }
-    Card(
+    ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -934,7 +933,7 @@ private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState)
 private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
     val context = LocalContext.current
     val fav = remember(r.gtfsId, favTick) { TransitFavorites.isLineFav(context, r.gtfsId) }
-    Card(
+    ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -995,7 +994,7 @@ private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
 
 @Composable
 private fun TransitPlaceRow(p: PlaceHit, state: TransitState) {
-    Card(
+    ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -1372,7 +1371,7 @@ private fun TransitFullDayOverlay(
 
 @Composable
 private fun FullDayDepRow(d: Departure, onClick: (Departure) -> Unit) {
-    Card(
+    ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 3.dp),
@@ -1986,7 +1985,7 @@ internal fun HslDisruptionsScreen() {
 
 @Composable
 private fun DisruptionRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
-    Card(
+    ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
