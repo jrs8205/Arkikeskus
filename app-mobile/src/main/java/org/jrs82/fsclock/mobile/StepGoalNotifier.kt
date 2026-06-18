@@ -31,7 +31,16 @@ object StepGoalNotifier {
         if (prefs.getInt(KEY_LAST_DAY, 0) == today) return // jo ilmoitettu tänään
         val goal = goal(prefs)
         if (goal <= 0) return
-        val steps = try { FsClockDb.get(context).dailyStepsDao().stepsForDay(today) ?: 0 } catch (e: Exception) { return }
+        // Lue askeleet KÄYTTÄJÄN VALITSEMASTA lähteestä — sama kuin askelnäkymä: Health Connect kun se on
+        // opt-in (KEY_STEPS_USE_HC), muuten puhelimen oma anturi (Room daily_steps). Aiemmin luettiin AINA
+        // Roomista → HC-käyttäjällä ilmoitus ei lauennut vaikka HC näytti tavoitteen yli (puhelimen luku jäi pieneksi).
+        val steps: Long = if (prefs.getBoolean(KEY_STEPS_USE_HC, false)) {
+            val hc = readHealthConnectStepsBlocking(context)
+            if (hc < 0L) return // HC ei saatavilla / lupaa puuttuu (myös taustalukulupa) / virhe → ei ilmoiteta, yritetään uudelleen
+            hc
+        } else {
+            try { (FsClockDb.get(context).dailyStepsDao().stepsForDay(today) ?: 0).toLong() } catch (e: Exception) { return }
+        }
         if (steps < goal) return
         android.util.Log.i("StepGoalNotifier", "askeltavoite saavutettu: $steps/$goal")
         Notifications.post(
@@ -41,5 +50,22 @@ object StepGoalNotifier {
             "STEPS",
         )
         prefs.edit().putInt(KEY_LAST_DAY, today).apply()
+    }
+
+    /** Tämän päivän Health Connect -askeleet synkronisesti. [NotificationsWorker] on synkroninen, joten
+     *  odotetaan HC:n async-tulos lyhyellä latchilla (HC-aggregate pyörii Mainissa, eri säikeessä → ei
+     *  lukkiudu). Taustaluku vaatii READ_HEALTH_DATA_IN_BACKGROUND-luvan; ilman sitä/virheellä → -1. */
+    private fun readHealthConnectStepsBlocking(context: Context): Long {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val result = java.util.concurrent.atomic.AtomicLong(-1L)
+        HealthConnectStepsBridge.todaySteps(context) { s ->
+            result.set(s)
+            latch.countDown()
+        }
+        return try {
+            if (latch.await(8, java.util.concurrent.TimeUnit.SECONDS)) result.get() else -1L
+        } catch (e: InterruptedException) {
+            -1L
+        }
     }
 }
