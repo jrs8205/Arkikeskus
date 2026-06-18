@@ -20,6 +20,7 @@ object StepGoalNotifier {
     const val KEY_GOAL = "step_goal"
     const val DEFAULT_GOAL = "10000"
     private const val KEY_LAST_DAY = "notify_step_goal_day"
+    private const val KEY_LAST_DAY_HALF = "notify_step_goal_day_half"
 
     fun goal(prefs: android.content.SharedPreferences): Int =
         (prefs.getString(KEY_GOAL, DEFAULT_GOAL) ?: DEFAULT_GOAL).toIntOrNull() ?: 10000
@@ -41,15 +42,30 @@ object StepGoalNotifier {
         } else {
             try { (FsClockDb.get(context).dailyStepsDao().stepsForDay(today) ?: 0).toLong() } catch (e: Exception) { return }
         }
-        if (steps < goal) return
-        android.util.Log.i("StepGoalNotifier", "askeltavoite saavutettu: $steps/$goal")
-        Notifications.post(
-            context, Notifications.CHANNEL_STEPS, Notifications.NOTIF_ID_STEPS,
-            "Päivän askeltavoite saavutettu!",
-            String.format(Locale("fi", "FI"), "%,d askelta tänään (tavoite %,d).", steps, goal),
-            "STEPS",
-        )
-        prefs.edit().putInt(KEY_LAST_DAY, today).apply()
+        if (steps >= goal) {
+            android.util.Log.i("StepGoalNotifier", "askeltavoite saavutettu: $steps/$goal")
+            Notifications.post(
+                context, Notifications.CHANNEL_STEPS, Notifications.NOTIF_ID_STEPS,
+                "Päivän askeltavoite saavutettu!",
+                String.format(Locale("fi", "FI"), "%,d askelta tänään (tavoite %,d).", steps, goal),
+                "STEPS",
+            )
+            // Merkitään myös puolimatka tehdyksi, ettei se enää laukea tavoitteen jälkeen.
+            prefs.edit().putInt(KEY_LAST_DAY, today).putInt(KEY_LAST_DAY_HALF, today).apply()
+            return
+        }
+        // Puolimatkan kannustus: kun ≥ 50 % tavoitteesta, kerran/päivä, vain ennen tavoitteen täyttymistä.
+        if (prefs.getInt(KEY_LAST_DAY_HALF, 0) != today && steps >= goal / 2) {
+            android.util.Log.i("StepGoalNotifier", "askeltavoitteen puolimatka: $steps/$goal")
+            Notifications.post(
+                context, Notifications.CHANNEL_STEPS, Notifications.NOTIF_ID_STEPS,
+                "Olet puolimatkassa!",
+                String.format(Locale("fi", "FI"),
+                    "Hyvä — olet puolivälissä tavoitetta. Koita vielä saavuttaa se! (%,d / %,d askelta)", steps, goal),
+                "STEPS",
+            )
+            prefs.edit().putInt(KEY_LAST_DAY_HALF, today).apply()
+        }
     }
 
     /** Tämän päivän Health Connect -askeleet synkronisesti. [NotificationsWorker] on synkroninen, joten
