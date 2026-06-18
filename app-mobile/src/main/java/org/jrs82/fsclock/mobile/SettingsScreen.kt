@@ -56,6 +56,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -177,6 +178,8 @@ fun SettingsScreen() {
 
     // --- Varmuuskopiointi: vienti/palautus SAF:lla (käyttäjä voi valita esim. Driven) ---
     var restoreDone by remember { mutableStateOf<BackupManager.RestoreResult?>(null) }
+    // Drive-varmuuskopiosivu (WhatsApp-tyyli) avataan täysnäyttö-dialogina.
+    var showDriveBackup by remember { mutableStateOf(false) }
     val backupExportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -225,49 +228,10 @@ fun SettingsScreen() {
             }.start()
         }
     }
-    var showRestoreChoice by remember { mutableStateOf(false) }
     val backupRestoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) runRestoreFrom(uri)
-    }
-
-    // --- Automaattinen varmuuskopiointi: kohdetiedosto valitaan kerran, WorkManager ajaa.
-    // Tila on AutoBackupin OMASSA prefs-tiedostossa (ei Androidin Auto Backupin piirissä). ---
-    val abPrefs = remember { AutoBackup.prefs(context) }
-    // isEnabled validoi persistoidun luvan ja siivoaa vanhentuneen tilan (esim. toiselta
-    // laitteelta palautunut URI) — kytkin ei näytä päällä-tilaa joka ei oikeasti kirjoita.
-    var autoBackupOn by remember { mutableStateOf(AutoBackup.isEnabled(context)) }
-    // Tilarivi päivittyy heti kun taustatyö kirjoittaa aikaleiman/virheen prefseihin
-    // (ilman kuuntelijaa "ensimmäinen kopio tekeillä…" jäisi näkyviin kunnes sivu avataan uudelleen).
-    var autoBackupTick by remember { mutableStateOf(0) }
-    DisposableEffect(Unit) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key != null && key.startsWith("auto_backup_")) autoBackupTick++
-        }
-        abPrefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { abPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
-    val autoBackupStatus = remember(autoBackupOn, autoBackupTick) {
-        autoBackupSubtitle(abPrefs, autoBackupOn)
-    }
-    val autoBackupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        if (uri != null) {
-            // Päälle vasta kun persistoitu lupa + ajastus ovat varmasti kunnossa — eräät
-            // tarjoajat eivät myönnä pysyvää lupaa (SecurityException enablen sisällä).
-            if (AutoBackup.enable(context, uri)) {
-                autoBackupOn = true
-                toast(context, "Automaattinen varmuuskopiointi käytössä — ensimmäinen kopio tehdään nyt.")
-            } else {
-                autoBackupOn = false
-                toast(context, "Sijainti ei kelpaa automaattiseen varmuuskopiointiin — " +
-                    "valitse toinen sijainti (esim. Drive tai puhelimen muisti).")
-            }
-        } else {
-            autoBackupOn = false
-        }
     }
 
     // --- Sää: automaattinen sijainti + lupavirta ---
@@ -599,7 +563,13 @@ fun SettingsScreen() {
             item {
                 SettingsCard {
                     ClickableRow(
-                        title = "Vie varmuuskopio",
+                        title = "Varmuuskopiointi Driveen",
+                        subtitle = "WhatsApp-tyylinen Google Drive -varmuuskopio",
+                        leadingIconRes = R.drawable.mobile_ic_backup_24,
+                    ) { showDriveBackup = true }
+                    RowDivider()
+                    ClickableRow(
+                        title = "Vie varmuuskopio (tiedostoon)",
                         subtitle = "Asetukset ja lenkit yhteen tiedostoon (esim. Driveen)",
                         leadingIconRes = R.drawable.mobile_ic_backup_24,
                     ) {
@@ -609,38 +579,12 @@ fun SettingsScreen() {
                     }
                     RowDivider()
                     ClickableRow(
-                        title = "Palauta varmuuskopio",
-                        subtitle = if (autoBackupOn)
-                            "Automaattisesta varmuuskopiosta tai tiedostosta"
-                        else "Tuo aiemmin viety varmuuskopiotiedosto",
+                        title = "Palauta varmuuskopio (tiedostosta)",
+                        subtitle = "Tuo aiemmin viety varmuuskopiotiedosto",
                         leadingIconRes = R.drawable.mobile_ic_restore_24,
                     ) {
-                        // Kun automaattibackup on käytössä, palautus onnistuu suoraan ilman
-                        // tiedostovalitsinta (käyttäjän palaute: valitsimen back-nappi
-                        // kulkee Drive-kansiopuuta, ei takaisin sovellukseen).
-                        if (autoBackupOn) {
-                            showRestoreChoice = true
-                        } else {
-                            backupRestoreLauncher.launch(
-                                arrayOf("application/json", "application/octet-stream"))
-                        }
-                    }
-                    RowDivider()
-                    SwitchRow(
-                        title = "Automaattinen varmuuskopiointi",
-                        subtitle = autoBackupStatus,
-                        leadingIconRes = R.drawable.mobile_ic_backup_24,
-                        checked = autoBackupOn,
-                    ) { on ->
-                        if (on) {
-                            // Kohdetiedosto valitaan kerran (esim. Drive) → pysyvä kirjoituslupa.
-                            toast(context, "Drive löytyy valitsimen ☰-valikosta vasemmasta yläkulmasta.")
-                            autoBackupLauncher.launch("Arkikeskus-autovarmuuskopio.json")
-                        } else {
-                            AutoBackup.disable(context)
-                            autoBackupOn = false
-                            toast(context, "Automaattinen varmuuskopiointi pois käytöstä.")
-                        }
+                        backupRestoreLauncher.launch(
+                            arrayOf("application/json", "application/octet-stream"))
                     }
                 }
             }
@@ -651,40 +595,6 @@ fun SettingsScreen() {
     }
 
     // ---------- Dialogit ----------
-    if (showRestoreChoice) {
-        val lastMs = abPrefs.getLong(AutoBackup.KEY_LAST_MS, 0L)
-        val lastBytes = abPrefs.getInt(AutoBackup.KEY_LAST_BYTES, 0)
-        AlertDialog(
-            onDismissRequest = { showRestoreChoice = false },
-            title = { Text("Palauta varmuuskopio") },
-            text = {
-                Text(
-                    "Palautetaanko suoraan automaattisesta varmuuskopiosta?" +
-                        (if (lastMs > 0)
-                            "\n\nViimeisin kopio: " +
-                                SimpleDateFormat("d.M. HH:mm", FI).format(Date(lastMs)) +
-                                (if (lastBytes > 0) " (${formatBackupBytes(lastBytes)})" else "")
-                        else "") +
-                        "\n\nVoit myös valita varmuuskopiotiedoston itse.",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRestoreChoice = false
-                    val uriStr = abPrefs.getString(AutoBackup.KEY_URI, null)
-                    if (uriStr != null) runRestoreFrom(android.net.Uri.parse(uriStr))
-                    else toast(context, "Automaattista varmuuskopiota ei löytynyt.")
-                }) { Text("Automaattisesta") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showRestoreChoice = false
-                    backupRestoreLauncher.launch(
-                        arrayOf("application/json", "application/octet-stream"))
-                }) { Text("Valitse tiedosto…") }
-            },
-        )
-    }
     restoreDone?.let { res ->
         AlertDialog(
             onDismissRequest = { },
@@ -706,6 +616,10 @@ fun SettingsScreen() {
                 }) { Text("OK") }
             },
         )
+    }
+    if (showDriveBackup) {
+        DriveBackupScreen(onClose = { showDriveBackup = false })
+        BackHandler { showDriveBackup = false }
     }
     if (showThemeDialog) {
         RadioDialog(
@@ -1027,22 +941,6 @@ private fun CustomFeedDialog(
 }
 
 // ===================== Rivikomponentit =====================
-
-/** Automaattibackupin tilateksti: viimeisin onnistunut ajo tai virheohje. */
-private fun autoBackupSubtitle(prefs: android.content.SharedPreferences, on: Boolean): String {
-    if (!on) return "Päivittäin valitsemaasi tiedostoon (Drive: valitsimen ☰-valikko)"
-    if (prefs.getString(AutoBackup.KEY_ERROR, null) != null) {
-        return "Edellinen ajo epäonnistui — valitse kohde uudelleen (pois ja päälle)"
-    }
-    val last = prefs.getLong(AutoBackup.KEY_LAST_MS, 0L)
-    return if (last > 0) {
-        val bytes = prefs.getInt(AutoBackup.KEY_LAST_BYTES, 0)
-        "Päivittäin · viimeisin " + SimpleDateFormat("d.M. HH:mm", FI).format(Date(last)) +
-            (if (bytes > 0) " · " + formatBackupBytes(bytes) else "")
-    } else {
-        "Päivittäin · ensimmäinen kopio tekeillä…"
-    }
-}
 
 /** Varmuuskopion koko luettavana: "11,6 kt" / "1,2 Mt" — kasvava luku kertoo että dataa kertyy. */
 private fun formatBackupBytes(bytes: Int): String =
