@@ -658,7 +658,10 @@ internal fun StepsSection() {
                 }
             }
         } else {
-            val text = withContext(Dispatchers.IO) { StepsHistory.build(context, tab).toString() }
+            val ph = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f).toDouble()
+            val pw = prefs.getFloat(KEY_PROFILE_WEIGHT, 0f).toDouble()
+            val pstep = prefs.getFloat(KEY_PROFILE_STEP, 0f).toDouble()
+            val text = withContext(Dispatchers.IO) { StepsHistory.build(context, tab, ph, pw, pstep).toString() }
             if (myGen == historyGen[0]) historyText = text
         }
     }
