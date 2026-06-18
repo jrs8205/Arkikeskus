@@ -68,6 +68,12 @@ class MobileComposeMainActivity : AppCompatActivity() {
             android.widget.Toast.makeText(
                 this, "Varmuuskopio palautettu.", android.widget.Toast.LENGTH_LONG).show()
         }
+        // Kertamigraatio: vanha SAF-pohjainen automaattivarmuuskopio on korvattu Drive-varmuuskopiolla
+        // -> perutaan upgrade-kayttajien vanha ajastettu tyo kerran, ettei se jaa roikkumaan taustalle.
+        if (!prefs.getBoolean("saf_autobackup_removed", false)) {
+            AutoBackup.disable(applicationContext)
+            prefs.edit().putBoolean("saf_autobackup_removed", true).apply()
+        }
         setContent {
             ArkikeskusTheme(dynamicColor = appliedDynamicColor) {
                 ComposeMainScreen(externalSection = externalSection)
