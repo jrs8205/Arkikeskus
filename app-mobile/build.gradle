@@ -31,8 +31,8 @@ android {
         applicationId 'org.jrs82.arkikeskus'
         minSdk 30
         targetSdk 35
-        versionCode 67
-        versionName '2.12.0-mobile'
+        versionCode 68
+        versionName '2.13.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
         buildConfigField "String", "YLE_APP_ID", "\"${yleAppId}\""
