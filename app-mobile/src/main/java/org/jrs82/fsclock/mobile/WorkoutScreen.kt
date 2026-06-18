@@ -87,9 +87,14 @@ internal fun WorkoutScreen() {
     val state by WorkoutTracker.state.collectAsStateWithLifecycle()
     var dismissedSummaryId by remember { mutableLongStateOf(0L) }
     var openWorkoutId by remember { mutableLongStateOf(0L) }
+    var showStats by remember { mutableStateOf(false) }
 
     when {
         state.phase != WorkoutTracker.Phase.IDLE -> ActiveWorkoutView(state)
+        showStats -> {
+            androidx.activity.compose.BackHandler { showStats = false }
+            WorkoutStatsView(onClose = { showStats = false })
+        }
         openWorkoutId != 0L -> {
             androidx.activity.compose.BackHandler { openWorkoutId = 0L }
             WorkoutSummaryView(
@@ -104,7 +109,11 @@ internal fun WorkoutScreen() {
                 autoStopped = state.autoStopped,
                 onClose = { dismissedSummaryId = state.lastFinishedId },
             )
-        else -> StartWorkoutView(prefs, onOpenWorkout = { openWorkoutId = it })
+        else -> StartWorkoutView(
+            prefs,
+            onOpenWorkout = { openWorkoutId = it },
+            onOpenStats = { showStats = true },
+        )
     }
 }
 
@@ -114,6 +123,7 @@ internal fun WorkoutScreen() {
 private fun StartWorkoutView(
     prefs: android.content.SharedPreferences,
     onOpenWorkout: (Long) -> Unit,
+    onOpenStats: () -> Unit,
 ) {
     val context = LocalContext.current
     var type by remember {
@@ -310,6 +320,11 @@ private fun StartWorkoutView(
         val sharedWorkouts = history.filter { it.shared }
         if (ownWorkouts.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
+            FilledTonalButton(
+                onClick = onOpenStats,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Viikko- ja kuukausitilastot") }
+            Spacer(Modifier.height(20.dp))
             Text("Aiemmat lenkit", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
@@ -364,6 +379,128 @@ private fun StartWorkoutView(
                 "application/xml", "text/xml", "application/octet-stream"))
         }) { Text("Tuo lenkki tiedostosta (GPX/TCX)") }
     }
+}
+
+// ===================== Tilastonäkymä =====================
+
+/** Omat lenkit viikoittain/kuukausittain summattuna (matka, määrä, aika, kcal, askeleet, nousu).
+ *  Jaettuja (tuotuja) lenkkejä ei lasketa mukaan. Aggregointi [WorkoutStats]-puhdasfunktiolla. */
+@Composable
+private fun WorkoutStatsView(onClose: () -> Unit) {
+    val context = LocalContext.current
+    var workouts by remember { mutableStateOf<List<WorkoutEntity>?>(null) }
+    var byMonth by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        workouts = withContext(Dispatchers.IO) {
+            try {
+                FsClockDb.get(context).workoutDao().allFinishedWorkouts().filter { !it.shared }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onClose) { Text("‹ Takaisin") }
+            Spacer(Modifier.width(4.dp))
+            Text("Tilastot", style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(12.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = !byMonth,
+                onClick = { byMonth = false },
+                label = { Text("Viikot") },
+            )
+            FilterChip(
+                selected = byMonth,
+                onClick = { byMonth = true },
+                label = { Text("Kuukaudet") },
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        val list = workouts
+        when {
+            list == null -> Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
+            list.isEmpty() -> Text(
+                "Ei vielä omia lenkkejä.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> {
+                val buckets = remember(list, byMonth) {
+                    if (byMonth) WorkoutStats.monthly(list) else WorkoutStats.weekly(list)
+                }
+                buckets.forEach { b -> WorkoutStatBucketCard(b) }
+            }
+        }
+    }
+}
+
+/** Yksi viikko-/kuukausikortti: otsikko (+ päivämääräväli), tunnusluvut kahdella rivillä,
+ *  laji-erittely. Nolla-arvoiset tunnusluvut (esim. pyöräilyssä askeleet) jätetään pois. */
+@Composable
+private fun WorkoutStatBucketCard(b: WorkoutStats.Bucket) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(b.label, style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (b.dateRange != null) {
+                    Text(b.dateRange, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "${b.count} ${lenkkiWord(b.count)} · " +
+                    String.format(FI_WO, "%.2f km", b.distanceM / 1000.0) + " · " +
+                    formatDurationLong(b.movingTimeMs),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            val parts = buildList {
+                if (b.kcal > 0) add("${b.kcal} kcal")
+                if (b.steps > 0) add(String.format(FI_WO, "%,d askelta", b.steps))
+                if (b.elevGainM >= 1.0) add(String.format(FI_WO, "↑%.0f m", b.elevGainM))
+            }
+            if (parts.isNotEmpty()) {
+                Text(parts.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            val laji = lajiBreakdown(b.walkCount, b.bikeCount)
+            if (laji.isNotEmpty()) {
+                Text("($laji)", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+private fun lenkkiWord(n: Int) = if (n == 1) "lenkki" else "lenkkiä"
+
+/** "2 kävelyä · 1 pyöräily" — vain ne lajit joita ämpärissä on. */
+private fun lajiBreakdown(walk: Int, bike: Int): String {
+    val parts = mutableListOf<String>()
+    if (walk > 0) parts += "$walk " + if (walk == 1) "kävely" else "kävelyä"
+    if (bike > 0) parts += "$bike " + if (bike == 1) "pyöräily" else "pyöräilyä"
+    return parts.joinToString(" · ")
 }
 
 /** Historiarivi: nimi (tai aika · laji) + tunnusluvut; jaetuissa lenkeissä Jaettu-merkki. */
