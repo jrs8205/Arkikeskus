@@ -662,7 +662,7 @@ private fun DrawerItem(section: HomeSection, current: HomeSection, onSelect: (Ho
         onClick = { onSelect(section) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp),
+            .padding(vertical = 6.dp),
         shape = ItemBoxShape,
         colors = if (selected) {
             CardDefaults.cardColors(

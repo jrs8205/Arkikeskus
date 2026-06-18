@@ -92,7 +92,7 @@ internal fun WorkoutScreen() {
         state.phase != WorkoutTracker.Phase.IDLE -> ActiveWorkoutView(state)
         showStats -> {
             androidx.activity.compose.BackHandler { showStats = false }
-            WorkoutStatsView(onClose = { showStats = false })
+            WorkoutStatsView()
         }
         openWorkoutId != 0L -> {
             androidx.activity.compose.BackHandler { openWorkoutId = 0L }
@@ -275,12 +275,18 @@ private fun StartWorkoutView(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = type == WorkoutEntity.TYPE_WALK,
-                onClick = { type = WorkoutEntity.TYPE_WALK },
+                onClick = {
+                    type = WorkoutEntity.TYPE_WALK
+                    prefs.edit().putInt(KEY_WORKOUT_TYPE, WorkoutEntity.TYPE_WALK).apply()
+                },
                 label = { Text("Kävely") },
             )
             FilterChip(
                 selected = type == WorkoutEntity.TYPE_BIKE,
-                onClick = { type = WorkoutEntity.TYPE_BIKE },
+                onClick = {
+                    type = WorkoutEntity.TYPE_BIKE
+                    prefs.edit().putInt(KEY_WORKOUT_TYPE, WorkoutEntity.TYPE_BIKE).apply()
+                },
                 label = { Text("Pyöräily") },
             )
         }
@@ -291,7 +297,10 @@ private fun StartWorkoutView(
                 .fillMaxWidth()
                 .height(56.dp),
         ) {
-            Text("Aloita lenkki", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(
+                if (type == WorkoutEntity.TYPE_BIKE) "Aloita pyöräily" else "Aloita kävely",
+                fontSize = 18.sp, fontWeight = FontWeight.Bold,
+            )
         }
         Spacer(Modifier.height(8.dp))
         Text(
@@ -315,19 +324,34 @@ private fun StartWorkoutView(
                 }
             }
         }
-        val ownWorkouts = history.filter { !it.shared }
-        val sharedWorkouts = history.filter { it.shared }
-        if (ownWorkouts.isNotEmpty()) {
+        // Lista suodattuu valitun lajin mukaan: Kävely näyttää kävelylenkit, Pyöräily pyörälenkit.
+        // Tilastonappi näkyy aina kun omia lenkkejä on (mitä tahansa lajia) — tilastosivu summaa molemmat.
+        val hasOwn = history.any { !it.shared }
+        val ownWorkouts = history.filter { !it.shared && it.type == type }
+        val sharedWorkouts = history.filter { it.shared && it.type == type }
+        if (hasOwn) {
             Spacer(Modifier.height(20.dp))
             FilledTonalButton(
                 onClick = onOpenStats,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Viikko- ja kuukausitilastot") }
+        }
+        if (ownWorkouts.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
-            Text("Aiemmat lenkit", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold)
+            Text(
+                if (type == WorkoutEntity.TYPE_BIKE) "Aiemmat pyörälenkit" else "Aiemmat kävelylenkit",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(Modifier.height(6.dp))
             ownWorkouts.forEach { w -> WorkoutHistoryRow(w, onOpenWorkout) }
+        } else if (hasOwn) {
+            Spacer(Modifier.height(16.dp))
+            Text(
+                if (type == WorkoutEntity.TYPE_BIKE) "Ei vielä pyörälenkkejä." else "Ei vielä kävelylenkkejä.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         if (sharedWorkouts.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
@@ -385,7 +409,7 @@ private fun StartWorkoutView(
 /** Omat lenkit viikoittain/kuukausittain summattuna (matka, määrä, aika, kcal, askeleet, nousu).
  *  Jaettuja (tuotuja) lenkkejä ei lasketa mukaan. Aggregointi [WorkoutStats]-puhdasfunktiolla. */
 @Composable
-private fun WorkoutStatsView(onClose: () -> Unit) {
+private fun WorkoutStatsView() {
     val context = LocalContext.current
     var workouts by remember { mutableStateOf<List<WorkoutEntity>?>(null) }
     var byMonth by remember { mutableStateOf(false) }
@@ -404,12 +428,8 @@ private fun WorkoutStatsView(onClose: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onClose) { Text("‹ Takaisin") }
-            Spacer(Modifier.width(4.dp))
-            Text("Tilastot", style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold)
-        }
+        Text("Tilastot", style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -455,7 +475,7 @@ private fun WorkoutStatBucketCard(b: WorkoutStats.Bucket) {
     ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 8.dp),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -509,7 +529,7 @@ private fun WorkoutHistoryRow(w: WorkoutEntity, onOpenWorkout: (Long) -> Unit) {
         onClick = { onOpenWorkout(w.id) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 8.dp),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
