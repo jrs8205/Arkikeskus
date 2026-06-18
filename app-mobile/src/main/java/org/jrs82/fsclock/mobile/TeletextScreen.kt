@@ -332,7 +332,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(720f / 456f),
+                    .aspectRatio(720f / 432f),
             ) {
                 Image(
                     bitmap = bmp.asImageBitmap(),
@@ -355,7 +355,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(720f / 456f),
+                    .aspectRatio(720f / 432f),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
