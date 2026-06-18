@@ -536,7 +536,9 @@ internal fun StepsSection() {
     var hcCalActive by remember { mutableStateOf(0) }
     var hcCalTotal by remember { mutableStateOf(0) }
     var hcCalHas by remember { mutableStateOf(false) }
-    var historyText by remember { mutableStateOf("") }
+    var historyRows by remember { mutableStateOf<List<StepHistRow>>(emptyList()) }
+    var historyNote by remember { mutableStateOf("") }
+    var historyLoading by remember { mutableStateOf(false) }
     var showProfile by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
     var exportResult by remember { mutableStateOf<StepsHtmlExporter.Result?>(null) }
@@ -640,7 +642,7 @@ internal fun StepsSection() {
         if (tab == 0 || !enabled) {
             return@LaunchedEffect
         }
-        historyText = "Ladataan…"
+        historyLoading = true
         if (useHc) {
             val period = when (tab) {
                 2 -> HealthConnectStepsBridge.PERIOD_WEEKS
@@ -652,17 +654,27 @@ internal fun StepsSection() {
                 3 -> 6
                 else -> 14
             }
-            HealthConnectStepsBridge.historyWithCalories(context, period, count, hcCaloriesGranted) { labels, steps, active, total ->
+            HealthConnectStepsBridge.historyWithCalories(context, period, count, hcCaloriesGranted) { labels, steps, active, _ ->
                 if (myGen == historyGen[0]) {
-                    historyText = formatHcHistory(prefs, labels, steps, active, total, period)
+                    historyRows = hcHistoryRows(prefs, labels, steps, active, period)
+                    historyNote = if (historyRows.isEmpty()) "" else "🔥 = aktiiviset kalorit (Health Connect tai arvio)."
+                    historyLoading = false
                 }
             }
         } else {
             val ph = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f).toDouble()
             val pw = prefs.getFloat(KEY_PROFILE_WEIGHT, 0f).toDouble()
             val pstep = prefs.getFloat(KEY_PROFILE_STEP, 0f).toDouble()
-            val text = withContext(Dispatchers.IO) { StepsHistory.build(context, tab, ph, pw, pstep).toString() }
-            if (myGen == historyGen[0]) historyText = text
+            val rows = withContext(Dispatchers.IO) {
+                StepsHistory.buildRows(context, tab, ph, pw, pstep).map { StepHistRow(it.label, it.steps.toLong(), it.kcal) }
+            }
+            if (myGen == historyGen[0]) {
+                historyRows = rows
+                val base = "Huom: laskenta kerää askelia kun sovellus on ollut käytössä; " +
+                    "katkoja voi tulla laitteen uudelleenkäynnistyksessä."
+                historyNote = if (ph > 0 && pw > 0) "$base 🔥 = askelpohjainen aktiivinen kaloriarvio." else base
+                historyLoading = false
+            }
         }
     }
 
@@ -876,11 +888,19 @@ internal fun StepsSection() {
                 }
             } else {
                 ArkiCard(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        historyText.ifEmpty { "Ladataan…" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    when {
+                        historyRows.isEmpty() && historyLoading -> Text(
+                            "Ladataan…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                        historyRows.isEmpty() -> Text(
+                            "Ei vielä kertynyttä askeldataa.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                        else -> StepHistoryColumn(historyRows, historyNote)
+                    }
                 }
             }
         }
@@ -1197,39 +1217,81 @@ private fun buildCaloriesText(km: Double, active: Int, activeIsHc: Boolean, tota
     return sb.toString()
 }
 
-/** Replikoi formatHcHistoryWithCalories: HC-historia askeleet + kalorit per ämpäri (uusin ensin). */
-private fun formatHcHistory(
+/** Yksi sarakkeistettu historiarivi: nimi, askeleet, aktiiviset kalorit (0 = ei näytetä). */
+private data class StepHistRow(val label: String, val steps: Long, val kcal: Int)
+
+/** HC-historia rakenteisina riveinä (uusin ensin): aktiiviset kalorit HC:stä tai profiiliarviosta. */
+private fun hcHistoryRows(
     prefs: SharedPreferences,
     labels: Array<String>,
     steps: LongArray,
     active: DoubleArray,
-    total: DoubleArray,
     periodType: Int,
-): String {
-    if (labels.isEmpty()) return "Ei vielä askeldataa Health Connectissa."
+): List<StepHistRow> {
     val h = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f).toDouble()
     val w = prefs.getFloat(KEY_PROFILE_WEIGHT, 0f).toDouble()
     val stepCm = prefs.getFloat(KEY_PROFILE_STEP, 0f).toDouble()
     val canEstimate = h > 0 && w > 0
-    val sb = StringBuilder()
+    val out = ArrayList<StepHistRow>()
     for (i in labels.indices.reversed()) {
-        sb.append(hcHistoryLabel(labels[i], periodType)).append("\n  ")
-            .append(formatStepsNum(steps[i])).append(" askelta")
         val a = Math.round(active[i]).toInt()
-        val tk = Math.round(total[i]).toInt()
-        if (a > 0 || tk > 0) {
-            if (a > 0) {
-                sb.append("\n  aktiiviset $a kcal")
-                if (tk > 0) sb.append(" · yhteensä $tk kcal")
-            } else {
-                sb.append("\n  yhteensä $tk kcal")
-            }
-        } else if (canEstimate && steps[i] > 0) {
-            sb.append("\n  aktiiviset ~${StepCalorieEstimator.activeKcal(steps[i], h, w, stepCm)} kcal (arvio)")
+        val kcal = when {
+            a > 0 -> a
+            canEstimate && steps[i] > 0 -> StepCalorieEstimator.activeKcal(steps[i], h, w, stepCm)
+            else -> 0
         }
-        sb.append("\n\n")
+        out.add(StepHistRow(hcHistoryLabel(labels[i], periodType), steps[i], kcal))
     }
-    return sb.toString().trim()
+    return out
+}
+
+/** Sarakkeistettu askelhistoria: nimi (vasen, joustava) · askeleet (oikealle) · 🔥 kalorit (oikealle).
+ *  Kiinteät lukusarakkeet pitävät luvut tasattuina vaikka ne vaihtuvat; nimi joustaa painolla →
+ *  mahtuu myös kapeille näytöille (ei rivitystä). */
+@Composable
+private fun StepHistoryColumn(rows: List<StepHistRow>, note: String) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(Modifier.weight(1f))
+            Text(
+                "Askeleet", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End, modifier = Modifier.width(88.dp),
+            )
+            Text(
+                "🔥 kcal", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End, modifier = Modifier.width(64.dp),
+            )
+        }
+        rows.forEach { r ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(r.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text(
+                    formatStepsNum(r.steps), style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.End, modifier = Modifier.width(88.dp),
+                )
+                Text(
+                    if (r.kcal > 0) r.kcal.toString() else "–",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.End, modifier = Modifier.width(64.dp),
+                )
+            }
+        }
+        if (note.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                note, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 private fun hcHistoryLabel(isoDate: String, periodType: Int): String = try {

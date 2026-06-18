@@ -6,6 +6,7 @@ import org.jrs82.fsclock.db.DailyStepsEntity;
 import org.jrs82.fsclock.db.FsClockDb;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
@@ -13,7 +14,10 @@ import java.util.Locale;
 import java.util.Map;
 
 /** Rakentaa askelhistorian (päivät/viikot/kuukaudet) Room-päiväsummista raw-lähteelle.
- *  dateKey on yyyymmdd ja monotonisesti kasvava, joten BETWEEN-haku toimii. */
+ *  dateKey on yyyymmdd ja monotonisesti kasvava, joten BETWEEN-haku toimii. Palauttaa rakenteiset
+ *  rivit ([Row]) — UI sarakkeistaa ne (nimi · askeleet · kalorit), jotta luvut tasaantuvat eivätkä
+ *  rivit hypi vaakasuunnassa. Kalorit lasketaan tallennetuista askelista profiililla
+ *  ([StepCalorieEstimator.activeKcal]); kcal = 0 (ei profiilia/askelia) → UI jättää kalorit pois. */
 final class StepsHistory {
 
     private static final Locale FI = new Locale("fi");
@@ -23,41 +27,43 @@ final class StepsHistory {
 
     private StepsHistory() {}
 
+    /** Yksi historiarivi (lista uusin ensin). kcal = aktiivinen kaloriarvio (0 = ei näytetä). */
+    static final class Row {
+        final String label;
+        final int steps;
+        final int kcal;
+        Row(String label, int steps, int kcal) {
+            this.label = label;
+            this.steps = steps;
+            this.kcal = kcal;
+        }
+    }
+
     /** Suomenkielinen kuukauden nimi (1 = tammikuu). Jaettu HC-historian otsikoinnin kanssa. */
     static String monthNameFi(int monthValue) {
         if (monthValue < 1 || monthValue > 12) return "?";
         return MONTHS_FI[monthValue - 1];
     }
 
-    /** [heightCm]/[weightKg]/[stepCm] = profiili kaloriarviolle; jos pituus/paino puuttuu (≤0),
-     *  kalorit jätetään pois (vain askeleet). Kalorit lasketaan tallennetuista askelista lukuhetkellä
-     *  ([StepCalorieEstimator.activeKcal]) — sama malli kuin HC-historiassa ja HTML-viennissä. */
-    static CharSequence build(Context ctx, int tab, double heightCm, double weightKg, double stepCm) {
+    /** Historiarivit raw-lähteelle. [heightCm]/[weightKg]/[stepCm] = profiili kaloriarviolle
+     *  (puuttuva pituus/paino → kcal = 0). tab: 1 = päivät, 2 = viikot, muu = kuukaudet. */
+    static List<Row> buildRows(Context ctx, int tab, double heightCm, double weightKg, double stepCm) {
         FsClockDb db = FsClockDb.get(ctx);
         Calendar now = Calendar.getInstance();
-        StringBuilder sb = new StringBuilder();
+        List<Row> rows = new ArrayList<>();
         if (tab == 1) {
-            buildDays(db, now, sb, heightCm, weightKg, stepCm);
+            buildDays(db, now, rows, heightCm, weightKg, stepCm);
         } else if (tab == 2) {
-            buildWeeks(db, now, sb, heightCm, weightKg, stepCm);
+            buildWeeks(db, now, rows, heightCm, weightKg, stepCm);
         } else {
-            buildMonths(db, now, sb, heightCm, weightKg, stepCm);
+            buildMonths(db, now, rows, heightCm, weightKg, stepCm);
         }
-        String s = sb.toString().trim();
-        if (s.isEmpty()) return "Ei vielä kertynyttä askeldataa.";
-        String note = "\n\nHuom: laskenta kerää askelia kun sovellus on ollut käytössä; "
-                + "katkoja voi tulla laitteen uudelleenkäynnistyksessä.";
-        if (heightCm > 0 && weightKg > 0) {
-            note += " 🔥 = askelpohjainen aktiivinen kaloriarvio.";
-        }
-        return s + note;
+        return rows;
     }
 
-    /** Liittää aktiivisen kaloriarvion riviin (" · ~A kcal") kun profiili sallii ja askelia on. */
-    private static void appendKcal(StringBuilder sb, int steps, double h, double w, double stepCm) {
-        if (steps <= 0 || h <= 0 || w <= 0) return;
-        int kcal = StepCalorieEstimator.activeKcal(steps, h, w, stepCm);
-        if (kcal > 0) sb.append("   🔥 ").append(kcal).append(" kcal");
+    private static int kcalFor(int steps, double h, double wKg, double stepCm) {
+        if (steps <= 0 || h <= 0 || wKg <= 0) return 0;
+        return StepCalorieEstimator.activeKcal(steps, h, wKg, stepCm);
     }
 
     private static Map<Integer, Integer> rangeMap(FsClockDb db, int fromKey, int toKey) {
@@ -69,7 +75,7 @@ final class StepsHistory {
         return map;
     }
 
-    private static void buildDays(FsClockDb db, Calendar now, StringBuilder sb, double h, double wKg, double stepCm) {
+    private static void buildDays(FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
         Calendar from = (Calendar) now.clone();
         from.add(Calendar.DAY_OF_MONTH, -13);
         Map<Integer, Integer> map = rangeMap(db, StepCounter.dateKey(from), StepCounter.dateKey(now));
@@ -78,14 +84,12 @@ final class StepsHistory {
         for (int i = 0; i < 14; i++) {
             Integer steps = map.get(StepCounter.dateKey(c));
             int st = steps != null ? steps : 0;
-            sb.append(fmt.format(c.getTime())).append("   ").append(formatSteps(st));
-            appendKcal(sb, st, h, wKg, stepCm);
-            sb.append('\n');
+            out.add(new Row(fmt.format(c.getTime()), st, kcalFor(st, h, wKg, stepCm)));
             c.add(Calendar.DAY_OF_MONTH, -1);
         }
     }
 
-    private static void buildWeeks(FsClockDb db, Calendar now, StringBuilder sb, double h, double wKg, double stepCm) {
+    private static void buildWeeks(FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
         // Kohdista ikkunan alku 7 viikkoa taakse JA viikon alkuun (maanantai), jotta kaikki 8 viikkoa
         // ovat täysiä eikä reunapäiviä putoa eri (9.) viikolle, jonka numeroa ei ole listassa.
         Calendar from = (Calendar) now.clone();
@@ -117,13 +121,11 @@ final class StepsHistory {
             d.add(Calendar.DAY_OF_MONTH, 1);
         }
         for (int w = 0; w < 8; w++) {
-            sb.append("Viikko ").append(weekNum[w]).append("   ").append(formatSteps(weekSum[w]));
-            appendKcal(sb, weekSum[w], h, wKg, stepCm);
-            sb.append('\n');
+            out.add(new Row("Viikko " + weekNum[w], weekSum[w], kcalFor(weekSum[w], h, wKg, stepCm)));
         }
     }
 
-    private static void buildMonths(FsClockDb db, Calendar now, StringBuilder sb, double h, double wKg, double stepCm) {
+    private static void buildMonths(FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
         Calendar from = (Calendar) now.clone();
         from.add(Calendar.MONTH, -5);
         from.set(Calendar.DAY_OF_MONTH, 1);
@@ -151,20 +153,7 @@ final class StepsHistory {
             d.add(Calendar.DAY_OF_MONTH, 1);
         }
         for (int m = 0; m < 6; m++) {
-            sb.append(MONTHS_FI[month[m]]).append(' ').append(year[m]).append("   ").append(formatSteps(sums[m]));
-            appendKcal(sb, sums[m], h, wKg, stepCm);
-            sb.append('\n');
+            out.add(new Row(MONTHS_FI[month[m]] + " " + year[m], sums[m], kcalFor(sums[m], h, wKg, stepCm)));
         }
-    }
-
-    private static String formatSteps(int steps) {
-        String s = String.valueOf(steps);
-        StringBuilder out = new StringBuilder();
-        int cnt = 0;
-        for (int i = s.length() - 1; i >= 0; i--) {
-            out.insert(0, s.charAt(i));
-            if (++cnt % 3 == 0 && i > 0) out.insert(0, ' ');
-        }
-        return out + " askelta";
     }
 }
