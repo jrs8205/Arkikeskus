@@ -1,7 +1,9 @@
 package org.jrs82.fsclock.mobile
 
+import android.util.Log
 import org.json.JSONArray
 import org.jrs82.fsclock.BuildConfig
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -63,11 +65,25 @@ object ForeignNewsClient {
                 setRequestProperty("User-Agent", "Arkikeskus/" + BuildConfig.VERSION_NAME + " (Android)")
                 setRequestProperty("Accept", "application/json")
             }
-            if (conn.responseCode != 200) return emptyList()
-            val bytes = conn.inputStream.readBytes()
-            val trimmed = if (bytes.size > MAX_BODY) bytes.copyOf(MAX_BODY) else bytes
-            parse(trimmed.toString(Charsets.UTF_8))
+            if (conn.responseCode != 200) {
+                Log.w("ForeignNews", "HTTP " + conn.responseCode + " " + conn.responseMessage)
+                return emptyList()
+            }
+            // Kattorajattu virtaluku: lue 8 kt:n paloissa ja keskeytä jos koko ylittää MAX_BODYn,
+            // jottei koko vastausta ladata muistiin ennen rajan tarkistusta (vrt. RssClient.httpGet).
+            val baos = ByteArrayOutputStream()
+            conn.inputStream.use { input ->
+                val buf = ByteArray(8192)
+                while (true) {
+                    val read = input.read(buf)
+                    if (read <= 0) break
+                    baos.write(buf, 0, read)
+                    if (baos.size() > MAX_BODY) break
+                }
+            }
+            parse(baos.toString("UTF-8"))
         } catch (e: Exception) {
+            Log.w("ForeignNews", "Haku epäonnistui: " + e.message)
             emptyList()
         } finally {
             conn?.disconnect()

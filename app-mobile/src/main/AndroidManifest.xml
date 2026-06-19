@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Sovelluksen itsepäivitys: ladatun APK:n asennuksen käynnistäminen. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Lähtömuistutus (#4): aseta avoimet AlarmManager-muistutukset uudelleen laitteen
+         uudelleenkäynnistyksen jälkeen (AlarmManager ei säilytä hälytyksiä bootin yli). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-permission
         android:name="android.permission.BLUETOOTH"
@@ -86,6 +89,17 @@
         <receiver
             android:name="org.jrs82.fsclock.mobile.DepartureReminderReceiver"
             android:exported="false" />
+
+        <!-- Lähtömuistutusten uudelleenasetus laitteen uudelleenkäynnistyksen / sovelluspäivityksen
+             jälkeen. BOOT_COMPLETED + MY_PACKAGE_REPLACED ovat suojattuja järjestelmäbroadcasteja. -->
+        <receiver
+            android:name="org.jrs82.fsclock.mobile.DepartureBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Health Connect: perustelunäkymä (Android 13 ja vanhemmat). Ohut Compose-näyttö. -->
         <activity

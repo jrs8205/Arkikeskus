@@ -749,6 +749,10 @@ final class DigitransitApi {
     }
 
     private static String httpPost(String jsonBody) throws Exception {
+        // Ilman avainta Digitransit vastaa 401/403 → epää heti selkeällä virheellä (kutsujat ottavat kiinni).
+        if (BuildConfig.DIGITRANSIT_KEY == null || BuildConfig.DIGITRANSIT_KEY.trim().isEmpty()) {
+            throw new IOException("Digitransit-avain puuttuu");
+        }
         HttpURLConnection conn = (HttpURLConnection) new URL(ENDPOINT).openConnection();
         conn.setConnectTimeout(TIMEOUT_MS);
         conn.setReadTimeout(TIMEOUT_MS);
@@ -783,6 +787,10 @@ final class DigitransitApi {
     }
 
     private static String httpGet(String urlString) throws Exception {
+        // Ilman avainta Digitransit vastaa 401/403 → epää heti selkeällä virheellä (kutsujat ottavat kiinni).
+        if (BuildConfig.DIGITRANSIT_KEY == null || BuildConfig.DIGITRANSIT_KEY.trim().isEmpty()) {
+            throw new IOException("Digitransit-avain puuttuu");
+        }
         HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
         conn.setConnectTimeout(TIMEOUT_MS);
         conn.setReadTimeout(TIMEOUT_MS);

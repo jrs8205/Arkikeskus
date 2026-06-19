@@ -1,11 +1,14 @@
 package org.jrs82.fsclock;
 
 import android.app.Application;
+import android.content.ComponentCallbacks2;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.util.Log;
 
 import org.jrs82.fsclock.db.BatteryMonitor;
 import org.jrs82.fsclock.db.DailyStatsScheduler;
+import org.jrs82.fsclock.mobile.ImageLoader;
 import org.jrs82.fsclock.mobile.Notifications;
 
 public class FsClockApp extends Application {
@@ -61,5 +64,24 @@ public class FsClockApp extends Application {
             fmiStats.start();
         };
         SettingsManager.get().registerListener(prefsListener);
+
+        // Vapauta uutisten pikkukuva-LruCache muistipaineessa — singleton ei muuten reagoi siihen.
+        registerComponentCallbacks(new ComponentCallbacks2() {
+            @Override
+            public void onTrimMemory(int level) {
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+                    ImageLoader.get().trim();
+                }
+            }
+
+            @Override
+            public void onLowMemory() {
+                ImageLoader.get().trim();
+            }
+
+            @Override
+            public void onConfigurationChanged(Configuration newConfig) {
+            }
+        });
     }
 }

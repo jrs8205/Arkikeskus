@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
  * ImageView:n tagilla varmistetaan silti ettei myöhästynyt lataus piirrä
  * väärää kuvaa jos sama view:tä käytettäisiin uudelleen.
  */
-final class ImageLoader {
+public final class ImageLoader {
 
     private static final int TIMEOUT_MS = 8000;
     /** Pikkukuvan tavoiteleveys px; isompi data alinäytteistetään tähän. */
@@ -46,13 +46,19 @@ final class ImageLoader {
         };
     }
 
-    static ImageLoader get() {
+    public static ImageLoader get() {
         if (INSTANCE == null) {
             synchronized (ImageLoader.class) {
                 if (INSTANCE == null) INSTANCE = new ImageLoader();
             }
         }
         return INSTANCE;
+    }
+
+    /** Tyhjentää pikkukuvavälimuistin muistipaineessa (ComponentCallbacks2.onTrimMemory/onLowMemory).
+     *  Ei muuta välimuistin kokoa eikä normaalia latauspolkua — bitmapit ladataan tarvittaessa uudelleen. */
+    public void trim() {
+        cache.evictAll();
     }
 
     void load(String url, ImageView target, int placeholderRes) {

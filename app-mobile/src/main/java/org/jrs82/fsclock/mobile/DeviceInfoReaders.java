@@ -50,7 +50,11 @@ final class DeviceInfoReaders {
     static CharSequence battery(Context ctx) {
         StringBuilder sb = new StringBuilder();
         BatteryManager bm = (BatteryManager) ctx.getSystemService(Context.BATTERY_SERVICE);
-        Intent i = ctx.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        Intent i = null;
+        // registerReceiver voi heittää (esim. rajoitettu konteksti) — suojataan kuten sisarmetodit.
+        try {
+            i = ctx.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        } catch (Exception ignored) { }
 
         if (bm != null) {
             int cap = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);

@@ -1,5 +1,7 @@
 package org.jrs82.fsclock.mobile
 
+import android.content.ComponentCallbacks2
+import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -43,7 +45,20 @@ internal fun rememberMapViewWithLifecycle(): MapView {
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+        // MapLibre vapauttaa natiivit tiilipuskurit vasta onLowMemory()-kutsulla. Elinkaari ei
+        // välitä muistipainetta, joten välitetään se erikseen ComponentCallbacks2:n kautta
+        // (kuten Fragment-versiot tekivät mapView.onLowMemory()-kutsulla).
+        val memoryCallbacks = object : ComponentCallbacks2 {
+            override fun onLowMemory() = mapView.onLowMemory()
+            override fun onTrimMemory(level: Int) {
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) mapView.onLowMemory()
+            }
+            override fun onConfigurationChanged(newConfig: Configuration) {}
+        }
+        val appContext = context.applicationContext
+        appContext.registerComponentCallbacks(memoryCallbacks)
         onDispose {
+            appContext.unregisterComponentCallbacks(memoryCallbacks)
             lifecycleOwner.lifecycle.removeObserver(observer)
             if (resumed) mapView.onPause()
             if (started) mapView.onStop()

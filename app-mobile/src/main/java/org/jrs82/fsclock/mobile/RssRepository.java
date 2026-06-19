@@ -24,7 +24,7 @@ final class RssRepository {
 
     private static final String TAG = "RssRepository";
     private static final long CACHE_TTL_MS = 10L * 60_000L;
-    private static final long HARD_TIMEOUT_MS = 15L * 1000L;
+    private static final long HARD_TIMEOUT_MS = 10L * 1000L;
 
     private static volatile RssRepository INSTANCE;
 

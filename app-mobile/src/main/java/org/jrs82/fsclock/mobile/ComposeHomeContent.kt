@@ -38,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -105,6 +106,10 @@ private var sForecastWeatherKey: String? = null
 private var sForecastWeather: WeatherData? = null
 private var sForecastOpenMeteoKey: String? = null
 private var sForecastOpenMeteo: OpenMeteoData? = null
+// Sähkövertailun (Vertailu-välilehti) prosessivälimuisti: keskiarvot ovat kalliita laskea (vuosi-/
+// kuukausiaggregaatit) → ei lasketa uudelleen joka välilehtivaihdossa, vain kun refresh muuttuu.
+private var sElectricityCompareTick = -1
+private var sElectricityCompareRows: List<CompareRowData>? = null
 
 internal fun invalidateHomeWeatherCache() {
     if (sHomeWeatherKey == currentHomeWeatherKey()) return
@@ -190,20 +195,25 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                     )
                 } else {
                     widgets.forEachIndexed { i, id ->
-                        if (i > 0) Spacer(Modifier.height(12.dp))
-                        when (id) {
-                            HomeWidget.CLOCK.id -> HomeClockWidget()
-                            HomeWidget.HOLIDAY.id -> HomeHolidayWidget()
-                            HomeWidget.WEATHER.id -> HomeWeatherWidget(prefs)
-                            HomeWidget.ELECTRICITY.id -> HomeElectricityWidget(prefs, onOpenElectricity = { onOpenSection(HomeSection.ELECTRICITY) })
-                            HomeWidget.WARNINGS.id -> HomeWarningsCard()
-                            HomeWidget.SENSORS.id -> HomeSensorsWidget(prefs)
-                            HomeWidget.TRAFFIC.id -> HomeTrafficCard(onOpenTraffic = { onOpenSection(HomeSection.TRAFFIC_INCIDENTS) })
-                            HomeWidget.NEWS.id -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })
-                            HomeWidget.NEWS_FOREIGN.id -> HomeForeignNewsCard(onOpenForeign = { onOpenSection(HomeSection.NEWS_FOREIGN) })
-                            HomeWidget.TRANSIT.id -> HomeTransitCard(onOpenTransit = { onOpenSection(HomeSection.TRANSIT) })
-                            else -> if (id.startsWith(HOME_NEWS_FEED_PREFIX)) {
-                                HomeNewsSourceCard(id.substring(HOME_NEWS_FEED_PREFIX.length))
+                        // key(id) → kortin muistettu tila (esim. uutisten/lähtöjen lataustila) sitoutuu
+                        // kortin id:hen eikä listapaikkaan, joten korttia siirrettäessä/poistettaessa tila
+                        // seuraa oikeaa korttia eikä mene väärälle naapurille.
+                        key(id) {
+                            if (i > 0) Spacer(Modifier.height(12.dp))
+                            when (id) {
+                                HomeWidget.CLOCK.id -> HomeClockWidget()
+                                HomeWidget.HOLIDAY.id -> HomeHolidayWidget()
+                                HomeWidget.WEATHER.id -> HomeWeatherWidget(prefs)
+                                HomeWidget.ELECTRICITY.id -> HomeElectricityWidget(prefs, onOpenElectricity = { onOpenSection(HomeSection.ELECTRICITY) })
+                                HomeWidget.WARNINGS.id -> HomeWarningsCard()
+                                HomeWidget.SENSORS.id -> HomeSensorsWidget(prefs)
+                                HomeWidget.TRAFFIC.id -> HomeTrafficCard(onOpenTraffic = { onOpenSection(HomeSection.TRAFFIC_INCIDENTS) })
+                                HomeWidget.NEWS.id -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })
+                                HomeWidget.NEWS_FOREIGN.id -> HomeForeignNewsCard(onOpenForeign = { onOpenSection(HomeSection.NEWS_FOREIGN) })
+                                HomeWidget.TRANSIT.id -> HomeTransitCard(onOpenTransit = { onOpenSection(HomeSection.TRANSIT) })
+                                else -> if (id.startsWith(HOME_NEWS_FEED_PREFIX)) {
+                                    HomeNewsSourceCard(id.substring(HOME_NEWS_FEED_PREFIX.length))
+                                }
                             }
                         }
                     }
@@ -1026,8 +1036,17 @@ private data class CompareRowData(val label: String, val value: Double, val high
 
 @Composable
 private fun ElectricityCompare(context: Context, refresh: Int) {
-    var rows by remember { mutableStateOf<List<CompareRowData>?>(null) }
+    // Seedataan prosessivälimuistista → ei lasketa raskaita keskiarvoja uudelleen joka kerta kun
+    // Vertailu-välilehti avataan (sektio poistuu kompositiosta välilehteä vaihtaessa).
+    var rows by remember { mutableStateOf(if (sElectricityCompareTick == refresh) sElectricityCompareRows else null) }
     LaunchedEffect(refresh) {
+        // Ohita lasku vain kun välimuistin tick vastaa nykyistä refreshiä → Päivitä (refresh kasvaa)
+        // pakottaa silti tuoreen laskennan.
+        val cached = sElectricityCompareRows
+        if (cached != null && sElectricityCompareTick == refresh) {
+            rows = cached
+            return@LaunchedEffect
+        }
         rows = withContext(Dispatchers.IO) {
             val out = ArrayList<CompareRowData>()
             try {
@@ -1047,6 +1066,9 @@ private fun ElectricityCompare(context: Context, refresh: Int) {
             }
             out
         }
+        // Talleta vain kun saatiin oikeaa dataa (vähintään yksi ei-sektio-rivi) → ei jää tyhjää
+        // tulosta välimuistiin verkkokatkon ajalta.
+        rows?.let { if (it.any { row -> !row.isSection }) { sElectricityCompareRows = it; sElectricityCompareTick = refresh } }
     }
     Text(
         "Pörssisähkön keskihinnat (ALV 0 %). Lähde: Elering/Nord Pool.",

@@ -2,8 +2,10 @@ package org.jrs82.fsclock.mobile
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.File
@@ -109,9 +111,27 @@ object AppUpdater {
     private fun versionParts(v: String): List<Int> =
         v.trimStart('v', 'V').substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
 
-    /** Lataa APK:n taustasäikeessä ja käynnistää asennuksen; callback pääsäikeessä (tilateksti). */
+    /** Lataa APK:n taustasäikeessä ja käynnistää asennuksen; callback pääsäikeessä (tilateksti).
+     *  Kutsuttava pääsäikeestä (UI-painike). */
     fun downloadAndInstall(context: Context, apkUrl: String, cb: (String) -> Unit) {
         val app = context.applicationContext
+        // Android 8+: asennus vaatii per-sovellus "asenna tuntemattomista lähteistä" -luvan. Ilman
+        // sitä koko lataus menisi hukkaan ja asennus epäonnistuisi selittämättä → ohjataan käyttäjä
+        // asetukseen ja yritetään uudelleen vasta luvan myöntämisen jälkeen. (Happy-path: lupa jo
+        // myönnetty → tämä ohitetaan ja toiminta on identtinen ennen muutosta.)
+        if (!app.packageManager.canRequestPackageInstalls()) {
+            try {
+                val settings = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + app.packageName),
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                app.startActivity(settings)
+            } catch (e: Exception) {
+                // Joillain laitteilla asetusnäkymää ei ole — annetaan vain ohjeteksti.
+            }
+            cb("Salli ensin asennus tuntemattomista lähteistä, sitten yritä uudelleen.")
+            return
+        }
         Thread {
             val msg = try {
                 val file = download(app, apkUrl)
@@ -145,11 +165,35 @@ object AppUpdater {
             conn.disconnect()
             throw Exception("HTTP $code")
         }
+        val expected = conn.contentLengthLong // -1 jos palvelin ei ilmoita pituutta
         val dir = File(context.cacheDir, "updates")
         dir.mkdirs()
+        // Siivoa vanhat/keskeneräiset lataukset ennen uutta → cacheDir ei paisu.
+        dir.listFiles()?.forEach { it.delete() }
         val file = File(dir, "arkikeskus-update.apk")
-        conn.inputStream.use { input -> file.outputStream().use { out -> input.copyTo(out) } }
-        conn.disconnect()
+        val part = File(dir, "arkikeskus-update.apk.part")
+        var written = 0L
+        try {
+            conn.inputStream.use { input -> part.outputStream().use { out -> written = input.copyTo(out) } }
+        } finally {
+            conn.disconnect()
+        }
+        // Eheys: jos palvelin ILMOITTI pituuden eikä se täsmää, lataus katkesi → ei asenneta vajaata.
+        // Kun pituutta ei ilmoiteta (expected <= 0), tarkistus ohitetaan ettei kelvollinen lataus esty.
+        if (expected > 0L && written != expected) {
+            part.delete()
+            throw Exception("Epätäydellinen lataus ($written/$expected tavua)")
+        }
+        if (written <= 0L) {
+            part.delete()
+            throw Exception("Tyhjä lataus")
+        }
+        file.delete()
+        if (!part.renameTo(file)) {
+            // Varakeino jos rename ei onnistu: kopioi ja poista keskeneräinen.
+            part.copyTo(file, overwrite = true)
+            part.delete()
+        }
         return file
     }
 

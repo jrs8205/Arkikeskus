@@ -2,12 +2,14 @@ package org.jrs82.fsclock.mobile
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.google.android.gms.auth.GoogleAuthException
 import com.google.android.gms.auth.GoogleAuthUtil
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -58,6 +60,9 @@ internal object DriveBackup {
 
     private val scopeObj = Scope(SCOPE)
 
+    // Sarjallistaa luonti-/päivitysvaiheen: UI ja periodinen Worker eivät saa luoda kahta tiedostoa rinnakkain.
+    private val backupLock = Any()
+
     fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -90,6 +95,8 @@ internal object DriveBackup {
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .setRequiresBatteryNotLow(true)
                     .build())
+            // Ohimenevän virheen (verkko/5xx) retry harvakseltaan — taustakopio ei ole kiireinen.
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         wm.enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, req)
     }
@@ -129,7 +136,7 @@ internal object DriveBackup {
         return GoogleAuthUtil.getToken(context, androidAcc, "oauth2:$SCOPE")
     }
 
-    private class DriveHttpException(val code: Int, msg: String) : IOException("Drive HTTP $code: $msg")
+    internal class DriveHttpException(val code: Int, msg: String) : IOException("Drive HTTP $code: $msg")
 
     /** Suorittaa Drive-operaation; 401:llä mitätöi vanhentuneen tokenin ja yrittää kerran uudelleen. */
     private fun <T> withToken(context: Context, block: (String) -> T): T {
@@ -152,9 +159,12 @@ internal object DriveBackup {
         val bos = ByteArrayOutputStream()
         BackupManager.export(context, bos)
         val data = bos.toByteArray()
-        withToken(context) { tok ->
-            val id = findFileId(tok)
-            if (id == null) createFile(tok, data) else updateFile(tok, id, data)
+        // Lukko estää, että kaksi rinnakkaista kutsua molemmat luovat saman tiedoston (manuaali + Worker).
+        synchronized(backupLock) {
+            withToken(context) { tok ->
+                val id = findFileId(tok)
+                if (id == null) createFile(tok, data) else updateFile(tok, id, data)
+            }
         }
         val info = BackupInfo(System.currentTimeMillis(), data.size.toLong())
         prefs(context).edit()
@@ -187,11 +197,37 @@ internal object DriveBackup {
             URLEncoder.encode("files(id,name,modifiedTime,size)", "UTF-8")
         val resp = httpGet(token, url)
         val files = JSONObject(resp).optJSONArray("files") ?: return null
+        // Yleensä yksi tiedosto. Jos rinnakkaiskutsu ehti luoda duplikaatin, valitaan UUSIN (modifiedTime),
+        // jotta palautus/päivitys osuu tuoreimpaan; ei poisteta muita (ei tuhoavaa muutosta).
+        var bestId: String? = null
+        var bestTime: Long = Long.MIN_VALUE
+        var firstId: String? = null
         for (i in 0 until files.length()) {
             val f = files.optJSONObject(i) ?: continue
-            if (f.optString("name") == FILE_NAME) return f.optString("id").ifEmpty { null }
+            if (f.optString("name") != FILE_NAME) continue
+            val fid = f.optString("id").ifEmpty { null } ?: continue
+            if (firstId == null) firstId = fid
+            // ISO-8601 → millit; jos jäsennys epäonnistuu, jätetään tämä järjestyksen ulkopuolelle.
+            val t = parseIso8601(f.optString("modifiedTime"))
+            if (t != null && t > bestTime) {
+                bestTime = t
+                bestId = fid
+            }
         }
-        return null
+        // bestId = uusin onnistuneesti jäsennetty; muuten ensimmäinen osuma (fallback).
+        return bestId ?: firstId
+    }
+
+    /** Jäsentää Driven ISO-8601-aikaleiman milliksi, tai null jos ei onnistu. */
+    private fun parseIso8601(s: String): Long? {
+        if (s.isEmpty()) return null
+        return try {
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.US)
+                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                .parse(s)?.time
+        } catch (e: java.text.ParseException) {
+            null
+        }
     }
 
     private fun createFile(token: String, data: ByteArray) {
@@ -204,12 +240,15 @@ internal object DriveBackup {
         conn.requestMethod = "POST"
         conn.doOutput = true
         conn.setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
+        // Mittaa osat kerran (UTF-8) ja striimaa kiinteällä pituudella → ei puskuroi koko bodya muistiin.
+        val prefix = ("--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n" +
+            "--$boundary\r\nContent-Type: application/json\r\n\r\n").toByteArray(Charsets.UTF_8)
+        val suffix = "\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8)
+        conn.setFixedLengthStreamingMode(prefix.size + data.size + suffix.size)
         conn.outputStream.use { os ->
-            os.write(
-                ("--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n" +
-                    "--$boundary\r\nContent-Type: application/json\r\n\r\n").toByteArray(Charsets.UTF_8))
+            os.write(prefix)
             os.write(data)
-            os.write("\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8))
+            os.write(suffix)
         }
         checkOk(conn)
     }
@@ -221,6 +260,8 @@ internal object DriveBackup {
         conn.setRequestProperty("X-HTTP-Method-Override", "PATCH")
         conn.doOutput = true
         conn.setRequestProperty("Content-Type", "application/json")
+        // Striimaa kiinteällä pituudella → ei puskuroi koko bodya muistiin (rajattu muistinkäyttö).
+        conn.setFixedLengthStreamingMode(data.size)
         conn.outputStream.use { it.write(data) }
         checkOk(conn)
     }
@@ -266,17 +307,33 @@ internal object DriveBackup {
     }
 }
 
-/** Periodinen Drive-varmuuskopiotyö (WorkManager). Virhe kirjataan prefseihin ja työ yrittää
- *  myöhemmin uudelleen — taustakopio ei saa kaataa mitään. */
+/**
+ * Onko Drive-virhe PYSYVÄ (ei korjaannu uudelleenyrityksellä ilman käyttäjän toimia)?
+ * Pure-funktio → yksikkötestattava. Pysyvät → Worker palauttaa failure() eikä jää ikuiseen
+ * retry-silmukkaan (token peruttu, ei tiliä, 4xx-pyyntövirhe). Ohimenevät (verkko, 5xx, 408/429)
+ * → retry myöhemmällä backoff-välillä.
+ */
+internal fun isPermanentDriveError(e: Throwable): Boolean = when (e) {
+    is DriveBackup.DriveHttpException -> e.code !in setOf(408, 429) && e.code !in 500..599
+    is GoogleAuthException -> true        // myös UserRecoverableAuthException (vaatii uudelleenhyväksynnän)
+    is IllegalStateException -> true      // ei kirjautunutta tiliä / ei Account-objektia
+    is IOException -> false               // verkkokatkos ym. ohimenevä
+    else -> false                         // tuntematon → varovasti retry
+}
+
+/** Periodinen Drive-varmuuskopiotyö (WorkManager). Virhe kirjataan prefseihin; pysyvä virhe
+ *  lopettaa työn (failure), ohimenevä yrittää myöhemmin uudelleen — taustakopio ei saa kaataa mitään. */
 class DriveBackupWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
+        // Ei kirjautunutta tiliä → ei tehtävää (esim. uloskirjautuminen jonossa olleen työn alla).
+        if (!DriveBackup.isSignedIn(applicationContext)) return Result.success()
         return try {
             DriveBackup.backupNow(applicationContext)
             Result.success()
         } catch (e: Exception) {
             android.util.Log.w("DriveBackup", "Periodinen varmuuskopio epaonnistui", e)
             DriveBackup.recordError(applicationContext, e)
-            Result.retry()
+            if (isPermanentDriveError(e)) Result.failure() else Result.retry()
         }
     }
 }

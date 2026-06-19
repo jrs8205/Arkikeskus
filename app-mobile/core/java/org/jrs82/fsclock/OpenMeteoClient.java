@@ -82,7 +82,9 @@ public class OpenMeteoClient {
         SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US);
         iso.setTimeZone(zone);
 
-        JSONArray time = h.getJSONArray("time");
+        // Osittainen Open-Meteo-vastaus (hourly ilman time-kenttää) → tyhjä tulos, ei poikkeusta.
+        JSONArray time = h.optJSONArray("time");
+        if (time == null) return;
         JSONArray temp = h.optJSONArray("temperature_2m");
         JSONArray feels = h.optJSONArray("apparent_temperature");
         JSONArray rh = h.optJSONArray("relative_humidity_2m");
@@ -99,7 +101,8 @@ public class OpenMeteoClient {
         int n = time.length();
         for (int i = 0; i < n; i++) {
             OpenMeteoData.Hour row = new OpenMeteoData.Hour();
-            String t = time.getString(i);
+            String t = time.optString(i, null);
+            if (t == null) continue;
             Date d = iso.parse(t);
             if (d == null) continue;
             row.timestamp = d.getTime();
