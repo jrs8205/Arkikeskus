@@ -325,7 +325,7 @@ private fun CameraImageOverlay(img: CamImage, onClose: () -> Unit) {
             if (b != null) {
                 Image(
                     bitmap = b.asImageBitmap(),
-                    contentDescription = null,
+                    contentDescription = "Kelikameran kuva: " + img.title,
                     modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.FillWidth,
                 )

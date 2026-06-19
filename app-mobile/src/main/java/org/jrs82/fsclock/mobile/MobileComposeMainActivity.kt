@@ -12,8 +12,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.SettingsManager
 
-/** Käynnistyskuvan minimikesto millisekunteina, jotta sen ehtii nähdä (muuten vilahtaa ohi). */
-private const val SPLASH_MIN_MS = 900L
+/** Käynnistyskuvan minimikesto millisekunteina, jotta sen ehtii nähdä (muuten vilahtaa ohi).
+ *  450 ms = logo ehtii näkyä, mutta avaus tuntuu selvästi nopeammalta kuin 900 ms:lla. */
+private const val SPLASH_MIN_MS = 450L
 
 /**
  * Sovelluksen pääruutu (launcher) — koko UI on Compose ([ComposeMainScreen]). Korvasi

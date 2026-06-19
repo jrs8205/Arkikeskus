@@ -42,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -277,7 +279,10 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
 
         // Sivunavigointi: edellinen / sivunumero / seuraava
         Row(verticalAlignment = Alignment.CenterVertically) {
-            FilledTonalButton(onClick = { open(((m?.prevPage) ?: (pageNum - 1)).toString()) }) { Text("◀") }
+            FilledTonalButton(
+                onClick = { open(((m?.prevPage) ?: (pageNum - 1)).toString()) },
+                modifier = Modifier.semantics { contentDescription = "Edellinen sivu" },
+            ) { Text("◀") }
             Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = pageInput,
@@ -292,16 +297,20 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
                 }),
             )
             Spacer(Modifier.width(8.dp))
-            FilledTonalButton(onClick = { open(((m?.nextPage) ?: (pageNum + 1)).toString()) }) { Text("▶") }
+            FilledTonalButton(
+                onClick = { open(((m?.nextPage) ?: (pageNum + 1)).toString()) },
+                modifier = Modifier.semantics { contentDescription = "Seuraava sivu" },
+            ) { Text("▶") }
         }
 
         // Alasivut (esim. uutissivuilla 1/4)
         if (m != null && m.subpageCount > 1) {
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalButton(onClick = {
-                    subIndex = (subIndex - 1 + m.subpageCount) % m.subpageCount
-                }) { Text("◀") }
+                FilledTonalButton(
+                    onClick = { subIndex = (subIndex - 1 + m.subpageCount) % m.subpageCount },
+                    modifier = Modifier.semantics { contentDescription = "Edellinen alasivu" },
+                ) { Text("◀") }
                 Text(
                     "Alasivu " + (subIndex + 1) + "/" + m.subpageCount,
                     modifier = Modifier
@@ -309,7 +318,10 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
                         .padding(horizontal = 8.dp),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                FilledTonalButton(onClick = { subIndex = (subIndex + 1) % m.subpageCount }) { Text("▶") }
+                FilledTonalButton(
+                    onClick = { subIndex = (subIndex + 1) % m.subpageCount },
+                    modifier = Modifier.semantics { contentDescription = "Seuraava alasivu" },
+                ) { Text("▶") }
             }
         }
 
