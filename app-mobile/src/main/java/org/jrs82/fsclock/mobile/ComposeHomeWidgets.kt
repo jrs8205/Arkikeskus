@@ -67,16 +67,21 @@ private val HELSINKI_W: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 // (uusi prosessi → nämä nollautuvat) tai Päivitä-napista (LocalRefreshTick kasvaa). Säilytetään myös
 // viime onnistuneen haun tick, jotta tiedetään onko Päivitä-nappia painettu haun jälkeen.
 // HUOM: Lähilähtöjä EI välimuisteta — niiden reaaliaikaisuus on tärkeä, ne haetaan tuoreina aina.
-private var sHomeNewsCache: List<NewsItem>? = null
-private var sHomeNewsTick = -1
+// Kotimaa ja Ulkomaa pidetään ERILLÄÄN — eri datalähde (domestic=true/false) → ei ristikontaminaatiota.
+private var sHomeDomesticNewsCache: List<ForeignArticle>? = null
+private var sHomeDomesticNewsTick = -1
+private var sHomeForeignNewsCache: List<ForeignArticle>? = null
+private var sHomeForeignNewsTick = -1
 private val sHomeFeedCache = HashMap<String, List<NewsItem>>()
 private val sHomeFeedTick = HashMap<String, Int>()
 
 /** Tyhjentää etusivun uutisvälimuistin → seuraava haku noutaa nykyisillä lähteillä (esim. kun lähde
  *  laitetaan pois/päälle tai oma syöte muuttuu). Kutsutaan asetusmuutoksen yhteydessä. */
 internal fun invalidateHomeNewsCache() {
-    sHomeNewsCache = null
-    sHomeNewsTick = -1
+    sHomeDomesticNewsCache = null
+    sHomeDomesticNewsTick = -1
+    sHomeForeignNewsCache = null
+    sHomeForeignNewsTick = -1
     sHomeFeedCache.clear()
     sHomeFeedTick.clear()
 }
@@ -229,10 +234,20 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
-    var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
+    // Seedataan prosessivälimuistista → ei välky "Haetaan uutisia…" sivua vaihtaessa.
+    var items by remember { mutableStateOf(sHomeDomesticNewsCache ?: emptyList()) }
+    var loading by remember { mutableStateOf(sHomeDomesticNewsCache == null) }
     var handledRefresh by remember { mutableIntStateOf(refresh) }
     LaunchedEffect(refresh) {
+        // Ohita haku vain kun välimuistin tick vastaa nykyistä refreshiä JA cachessa on dataa
+        // → Päivitä-nappi (refresh kasvaa) pakottaa silti tuoreen haun.
+        val cached = sHomeDomesticNewsCache
+        if (cached != null && sHomeDomesticNewsTick == refresh) {
+            items = cached
+            loading = false
+            handledRefresh = refresh
+            return@LaunchedEffect
+        }
         val forced = refresh != handledRefresh
         handledRefresh = refresh
         if (items.isEmpty()) loading = true
@@ -245,7 +260,11 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
             }
             filterHomeNews(prefs, fetched)
         }
-        if (fresh.isNotEmpty()) items = fresh
+        if (fresh.isNotEmpty()) {
+            sHomeDomesticNewsCache = fresh
+            sHomeDomesticNewsTick = refresh
+            items = fresh
+        }
         loading = false
     }
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
@@ -330,10 +349,20 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
-    var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
+    // Seedataan prosessivälimuistista → ei välky "Haetaan uutisia…" sivua vaihtaessa.
+    var items by remember { mutableStateOf(sHomeForeignNewsCache ?: emptyList()) }
+    var loading by remember { mutableStateOf(sHomeForeignNewsCache == null) }
     var handledRefresh by remember { mutableIntStateOf(refresh) }
     LaunchedEffect(refresh) {
+        // Ohita haku vain kun välimuistin tick vastaa nykyistä refreshiä JA cachessa on dataa
+        // → Päivitä-nappi (refresh kasvaa) pakottaa silti tuoreen haun.
+        val cached = sHomeForeignNewsCache
+        if (cached != null && sHomeForeignNewsTick == refresh) {
+            items = cached
+            loading = false
+            handledRefresh = refresh
+            return@LaunchedEffect
+        }
         val forced = refresh != handledRefresh
         handledRefresh = refresh
         if (items.isEmpty()) loading = true
@@ -347,7 +376,11 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
             // Piilota luetut + näytä vain valitut kategoriat (hard-filter, sama kuin Ulkomaat-osio).
             filterHomeNews(prefs, fetched)
         }
-        if (fresh.isNotEmpty()) items = fresh
+        if (fresh.isNotEmpty()) {
+            sHomeForeignNewsCache = fresh
+            sHomeForeignNewsTick = refresh
+            items = fresh
+        }
         loading = false
     }
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
@@ -574,9 +607,11 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
     val context = LocalContext.current
     val repo = remember { TrafficNoticesRepository() }
     val refresh = LocalRefreshTick.current
+    // Myös kotipaikan/sijainnin vaihtuessa (rev kasvaa) → referenssikoordinaatit luetaan uudelleen.
+    val rev = LocalHomeDataRevision.current
     var notices by remember { mutableStateOf<List<TrafficNotice>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(refresh) {
+    LaunchedEffect(refresh, rev) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
             note = "Salli sijainti, niin lähialueen liikennetiedot näkyvät."
@@ -672,12 +707,14 @@ private fun CompactTrafficRow(n: TrafficNotice) {
 internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
     val context = LocalContext.current
     val refresh = LocalRefreshTick.current
+    // Myös kotipaikan/sijainnin vaihtuessa (rev kasvaa) → referenssikoordinaatit luetaan uudelleen.
+    val rev = LocalHomeDataRevision.current
     // Lähilähtöjä EI välimuisteta — haetaan aina tuoreina, jotta reaaliaikaisuus säilyy.
     var deps by remember { mutableStateOf<List<Departure>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
     // Mikä lähtörivi on laajennettuna (reitti auki). Yksi kerrallaan; napautus togglaa.
     var expandedKey by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(refresh) {
+    LaunchedEffect(refresh, rev) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
             note = "Salli sijainti tai aseta kotipaikka, niin lähilähdöt näkyvät."

@@ -59,6 +59,11 @@ class MobileComposeMainActivity : AppCompatActivity() {
         if (intent?.getBooleanExtra(Notifications.EXTRA_DISRUPTION_FAV, false) == true) {
             DisruptionNav.requestFocusFavorites()
         }
+        // Kuluta deep-link-extrat heti kun ne on luettu: muuten Activityn recreate (esim. teeman-/
+        // dynamic-color-vaihto) lukisi saman "avaa sektio" -ohjeen UUDELLEEN tallennetusta intentista
+        // ja veisi pois esim. asetuksista takaisin ilmoituksen avaamaan sektioon.
+        intent?.removeExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
+        intent?.removeExtra(Notifications.EXTRA_DISRUPTION_FAV)
         maybeRecoverWorkout()
         maybeImportWorkoutFile(intent)
         // Palautuksen jälkeinen vahvistus: prosessi käynnistettiin uudelleen → kerro käyttäjälle.
@@ -73,6 +78,15 @@ class MobileComposeMainActivity : AppCompatActivity() {
         if (!prefs.getBoolean("saf_autobackup_removed", false)) {
             AutoBackup.disable(applicationContext)
             prefs.edit().putBoolean("saf_autobackup_removed", true).apply()
+        }
+        // Kertamigraatio: reittihaun "Vain suorat" -suodatin nollataan pois paalta. Oletus on aina
+        // ollut false, mutta arvo on voinut jaada persistoituneena paalle -> halutaan pois oletuksena
+        // ja vain kayttajan itse valittavissa. Tehdaan vain kerran, joten myohempi uudelleenvalinta sailyy.
+        if (!prefs.getBoolean("route_direct_only_reset_done", false)) {
+            prefs.edit()
+                .putBoolean("route_direct_only", false)
+                .putBoolean("route_direct_only_reset_done", true)
+                .apply()
         }
         setContent {
             ArkikeskusTheme(dynamicColor = appliedDynamicColor) {
@@ -90,6 +104,9 @@ class MobileComposeMainActivity : AppCompatActivity() {
         intent.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)?.let {
             externalSection.value = it
         }
+        // Kuluta extrat (sama syy kuin onCreatessa): recreate ei saa toistaa deep-linkkiä.
+        intent.removeExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
+        intent.removeExtra(Notifications.EXTRA_DISRUPTION_FAV)
         maybeImportWorkoutFile(intent)
     }
 
@@ -190,6 +207,27 @@ class MobileComposeMainActivity : AppCompatActivity() {
         super.onResume()
         if (appliedDynamicColor != MobileThemeController.dynamicColor(this)) {
             recreate()
+            return
         }
+        maybeRunNotificationCheck()
+    }
+
+    /**
+     * Aja ilmoitustarkistus heti sovellusta avattaessa (throttlattu 15 min). Periodinen
+     * taustatyö ([Notifications.schedule]) ajaa vain ~tunnittain ja on verkko-/akkurajoitettu +
+     * Dozen eräajamaa, joten esim. askeltavoitteen puolimatka-ilmoitus tuli ennen vasta seuraavalla
+     * kierroksella (tai kun käyttäjä kytki asetuksen pois/päälle → runOnce). Nyt avaus laukaisee
+     * rajoitteettoman kertatyön → ilmoitukset ovat ajantasaisia. Moduulit deduplikoivat itse
+     * (kerran/pv, "nähdyt"-setit), joten tiheä ajo ei tuota tupla-ilmoituksia.
+     */
+    private fun maybeRunNotificationCheck() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val now = System.currentTimeMillis()
+        if (now - prefs.getLong(KEY_FOREGROUND_NOTIF_CHECK_MS, 0L) < FOREGROUND_NOTIF_THROTTLE_MS) return
+        prefs.edit().putLong(KEY_FOREGROUND_NOTIF_CHECK_MS, now).apply()
+        Notifications.runOnce(applicationContext)
     }
 }
+
+private const val KEY_FOREGROUND_NOTIF_CHECK_MS = "notif_foreground_check_ms"
+private const val FOREGROUND_NOTIF_THROTTLE_MS = 15L * 60 * 1000

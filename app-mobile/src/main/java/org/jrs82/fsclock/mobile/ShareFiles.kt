@@ -12,12 +12,17 @@ import java.io.File
  */
 internal object ShareFiles {
 
+    // Vanhat jakotiedostot siivotaan iän perusteella (yli tunti vanhat). EI poisteta tuoreita,
+    // koska nopea toinen jako voisi muuten poistaa tiedoston, jota vastaanottava sovellus yhä lukee.
+    private const val SHARE_FILE_MAX_AGE_MS = 3_600_000L // 1 h
+
     /** Kirjoittaa jakotiedoston välimuistiin ja palauttaa FileProvider-URIn.
-     *  Edelliset jaot siivotaan samalla (vain uusin tiedosto pidetään). */
+     *  Yli tunnin vanhat aiemmat jaot siivotaan samalla (tuoreita ei kosketa, L10). */
     fun writeShareFile(context: Context, fileName: String, bytes: ByteArray): Uri {
         val dir = File(context.cacheDir, "share")
         if (!dir.exists()) dir.mkdirs()
-        dir.listFiles()?.forEach { if (it.name != fileName) it.delete() }
+        val cutoff = System.currentTimeMillis() - SHARE_FILE_MAX_AGE_MS
+        dir.listFiles()?.forEach { if (it.name != fileName && it.lastModified() < cutoff) it.delete() }
         val f = File(dir, fileName)
         f.writeBytes(bytes)
         return FileProvider.getUriForFile(context, context.packageName + ".fileprovider", f)

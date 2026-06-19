@@ -94,7 +94,10 @@ final class StepCounter implements SensorEventListener {
     @Override
     public void onSensorChanged(SensorEvent e) {
         final float total = e.values[0];
-        io.execute(() -> processCumulative(total));
+        // shutdown()n jälkeen myöhässä tullut anturitapahtuma ei saa kaataa (RejectedExecutionException).
+        try {
+            io.execute(() -> processCumulative(total));
+        } catch (java.util.concurrent.RejectedExecutionException ignored) { }
     }
 
     @Override

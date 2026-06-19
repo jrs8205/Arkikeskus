@@ -896,6 +896,17 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     private void updateFloatingControls() {
         if (locButton == null || mapView == null) return;
+        // Nayta paikannusnappi VAIN kun paneeli on levossa kartan nakyviin jattavassa tilassa
+        // (collapsed/half). Vetamisen/asettumisen aikana ja laajennettuna piilota HETI: aiemmin
+        // nappi siirrettiin (setY) joka onSlide-kehyksella paneelin ylareunan mukana, jolloin se
+        // "lensi" ylos oikeaa reunaa pitkin ja vilahti paneelin alta paneelia ylos vedettaessa.
+        int sheetState = sheetBehavior != null
+                ? sheetBehavior.getState() : BottomSheetBehavior.STATE_HALF_EXPANDED;
+        if (sheetState != BottomSheetBehavior.STATE_COLLAPSED
+                && sheetState != BottomSheetBehavior.STATE_HALF_EXPANDED) {
+            locButton.setVisibility(View.GONE);
+            return;
+        }
         int buttonW = locButton.getWidth() > 0 ? locButton.getWidth() : dpPx(44);
         int buttonH = locButton.getHeight() > 0 ? locButton.getHeight() : dpPx(44);
         int margin = dpPx(14);

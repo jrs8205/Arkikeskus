@@ -7,12 +7,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -64,8 +66,16 @@ object Notifications {
     private const val QUIET_START_HOUR = 23
     private const val QUIET_END_HOUR = 7
 
+    // Prosessitason vartija: kanavat luodaan vain kerran per prosessi (M9). Jokainen post() kutsui
+    // ennen 7 createNotificationChannel + 2 delete -binder-kutsua → turhaa toistoa.
+    @Volatile private var channelsEnsured = false
+
+    // Iso ikoni dekoodataan vain kerran (M9): ennen joka post() dekoodasi ison launcher-bitmapin.
+    @Volatile private var largeIcon: Bitmap? = null
+
     /** Luo ilmoituskanavat (idempotentti). Kaikki hälytyskanavat IMPORTANCE_HIGH (heads-up + ääni). */
     fun ensureChannels(context: Context) {
+        if (channelsEnsured) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // Migraatio: poista vanhat DEFAULT-tärkeyden kanavat (tärkeys lukittuu luonnissa).
         nm.deleteNotificationChannel("notif_hsl_alerts")
@@ -82,12 +92,25 @@ object Notifications {
             "Muistutus valitsemastasi joukkoliikennelähdöstä ennen sen lähtöä")
         highChannel(nm, CHANNEL_UPDATE, "Sovelluspäivitykset",
             "Ilmoitus kun Arkikeskuksesta on uusi versio saatavilla")
+        channelsEnsured = true
     }
 
     private fun highChannel(nm: NotificationManager, id: String, name: String, desc: String) {
         val ch = NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH)
         ch.description = desc
         nm.createNotificationChannel(ch)
+    }
+
+    /** Palauttaa välimuistitetun ison ilmoitusikonin (dekoodataan vain kerran, M9). Jos dekoodaus
+     *  epäonnistuu, palautetaan null → ilmoitus näkyy silti (vain iso ikoni puuttuu). */
+    private fun largeIcon(context: Context): Bitmap? {
+        largeIcon?.let { return it }
+        return try {
+            BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+                ?.also { largeIcon = it }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /** Postaa ilmoituksen. Gate POST_NOTIFICATIONS (Android 13+) → ilman lupaa vaikenee siististi.
@@ -123,8 +146,8 @@ object Notifications {
             .setSmallIcon(R.mipmap.ic_launcher_monochrome)
             // setColor tinttaa pienen ikonin + sovelluksen nimen brändisinisellä (kuten WhatsApp).
             .setColor(ContextCompat.getColor(context, R.color.mobile_accent))
-            // Iso ikoni = värillinen Arkikeskus-logo ilmoituksen oikeassa reunassa.
-            .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher))
+            // Iso ikoni = värillinen Arkikeskus-logo ilmoituksen oikeassa reunassa (välimuistitettu, M9).
+            .setLargeIcon(largeIcon(context))
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -153,9 +176,12 @@ object Notifications {
         )
     }
 
-    /** Aja tarkistus heti kerran (kun käyttäjä laittaa kytkimen päälle asetuksista). */
+    /** Aja tarkistus heti kerran (kun käyttäjä laittaa kytkimen päälle asetuksista). KEEP +
+     *  uniikki nimi: nopea kytkimen näppäily ei kasaa päällekkäisiä työntekijöitä (L1). */
     fun runOnce(context: Context) {
-        WorkManager.getInstance(context).enqueue(
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "arkikeskus_notifications_once",
+            ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<NotificationsWorker>().build(),
         )
     }

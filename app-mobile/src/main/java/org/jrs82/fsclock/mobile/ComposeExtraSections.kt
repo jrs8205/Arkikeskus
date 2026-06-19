@@ -232,9 +232,11 @@ internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
     val context = LocalContext.current
     val repo = remember { TrafficNoticesRepository() }
     val refresh = LocalRefreshTick.current
+    // Myös kotipaikan/sijainnin vaihtuessa (rev kasvaa) → referenssikoordinaatit luetaan uudelleen.
+    val rev = LocalHomeDataRevision.current
     var notices by remember(kind) { mutableStateOf<List<TrafficNotice>?>(null) }
     var status by remember(kind) { mutableStateOf("Haetaan liikennetiedotteita…") }
-    LaunchedEffect(kind, refresh) {
+    LaunchedEffect(kind, refresh, rev) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
             status = "Salli sijainti, jotta lähialueen tiedotteet voidaan hakea."

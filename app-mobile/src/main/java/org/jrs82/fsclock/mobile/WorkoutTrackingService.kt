@@ -124,9 +124,22 @@ class WorkoutTrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // FGS pitää promotoida heti startForegroundService-käynnistyksen jälkeen.
-        startForegroundCompat()
-        when (intent?.action ?: ACTION_RECOVER) {
+        val action = intent?.action ?: ACTION_RECOVER
+        // FGS pitää promotoida heti startForegroundService-käynnistyksen jälkeen. Android 14+ heittää
+        // location-tyypin promotoinnissa, jos ACCESS_FINE_LOCATION on peruttu (kesken lenkin, RECOVER-
+        // tai järjestelmän restart-polku). Promotointi on nyt try/catchissa eikä kaada palvelua.
+        if (!startForegroundCompat()) {
+            // Ei voida olla location-FGS ilman lupaa. STOP viimeistelee silti lenkin (tallennus);
+            // muut polut puretaan siististi — kesken jäänyt lenkki säilyy kannassa palautettavaksi.
+            if (action == ACTION_STOP) {
+                try { WorkoutTracker.stop(this, auto = false) } catch (e: Exception) { }
+                onWorkoutEnded(auto = false)
+            } else {
+                finishService()
+            }
+            return START_NOT_STICKY
+        }
+        when (action) {
             ACTION_START -> {
                 val type = intent?.getIntExtra(EXTRA_TYPE, WorkoutEntity.TYPE_WALK)
                     ?: WorkoutEntity.TYPE_WALK
@@ -249,11 +262,22 @@ class WorkoutTrackingService : Service() {
         nm.createNotificationChannel(km)
     }
 
-    private fun startForegroundCompat() {
-        ServiceCompat.startForeground(
-            this, NOTIF_ID, buildNotification(),
-            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
-        )
+    /**
+     * Promotoi palvelun etualalle location-tyyppisenä. Palauttaa false jos järjestelmä estää
+     * promotoinnin (esim. SecurityException / ForegroundServiceStartNotAllowedException /
+     * MissingForegroundServiceTypeException Android 14+:lla kun sijaintilupa puuttuu) — tällöin
+     * kutsuja purkaa palvelun siististi sen sijaan että prosessi kaatuisi.
+     */
+    private fun startForegroundCompat(): Boolean {
+        return try {
+            ServiceCompat.startForeground(
+                this, NOTIF_ID, buildNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun updateNotification() {

@@ -102,8 +102,8 @@ internal object BackupManager {
         return ExportResult(all.size, prefCount, data.size)
     }
 
-    /** Suurin sallittu varmuuskopiotiedoston koko (100 lenkkiä ≈ 5–8 Mt → reilu marginaali). */
-    private const val MAX_RESTORE_BYTES = 100 * 1024 * 1024
+    /** Suurin sallittu varmuuskopiotiedoston koko (100 lenkkiä ≈ 5–8 Mt → 30 Mt reilu marginaali). */
+    private const val MAX_RESTORE_BYTES = 30 * 1024 * 1024
 
     private class PendingWorkout(
         val w: WorkoutEntity,
@@ -151,7 +151,8 @@ internal object BackupManager {
             prefCount++
         }
 
-        val dao = FsClockDb.get(context).workoutDao()
+        val db = FsClockDb.get(context)
+        val dao = db.workoutDao()
         val existing = HashSet<String>()
         for (w in dao.allFinishedWorkouts()) existing.add(w.startedAtMs.toString() + ":" + w.type)
         val arr = root.optJSONArray("workouts") ?: JSONArray()
@@ -206,18 +207,24 @@ internal object BackupManager {
         }
 
         // ---- VAIHE 2: kirjoitukset — synkronisesti, koska prosessi tapetaan kohta ----
-        check(editor.commit()) { "Asetusten kirjoitus levylle epäonnistui" }
+        // Lenkit kirjoitetaan YHTEEN Room-transaktioon: jos jokin insert heittää (esim. levy
+        // täynnä), KOKO lenkkijoukko peruuntuu → ei osittaista palautusta. Asetukset kirjoitetaan
+        // vasta kun lenkit on saatu talteen, joten DB ja asetukset palautuvat joko molemmat tai
+        // ei kumpikaan (poikkeus etenee kutsujan virhekäsittelyyn ilman puolittaista tilaa).
         var imported = 0
-        for (pw in pending) {
-            val id = dao.insertWorkout(pw.w)
-            pw.points.forEach { it.workoutId = id }
-            if (pw.points.isNotEmpty()) dao.insertPoints(pw.points)
-            for (s in pw.splits) {
-                s.workoutId = id
-                dao.insertSplit(s)
+        db.runInTransaction(Runnable {
+            for (pw in pending) {
+                val id = dao.insertWorkout(pw.w)
+                pw.points.forEach { it.workoutId = id }
+                if (pw.points.isNotEmpty()) dao.insertPoints(pw.points)
+                for (s in pw.splits) {
+                    s.workoutId = id
+                    dao.insertSplit(s)
+                }
+                imported++
             }
-            imported++
-        }
+        })
+        check(editor.commit()) { "Asetusten kirjoitus levylle epäonnistui" }
         // Uudelleenkäynnistyksen jälkeinen vahvistus-toast (MobileComposeMainActivity lukee).
         // commit(): restart tappaa prosessin heti — apply() voisi hukata lipun JA palautetut arvot.
         prefs.edit().putBoolean("restore_done_pending", true).commit()

@@ -188,6 +188,20 @@ internal fun RoadCamerasScreen() {
         }
     }
 
+    // Hakuehdotukset: debounce 280 ms + haku taustasäikeessä (~800 asemaa) — ei nykimistä
+    // pääsäikeellä joka näppäimenpainalluksella. LaunchedEffect-avain (query) peruu vanhentuneet
+    // haut. Sama malli kuin TransitScreenin haku.
+    LaunchedEffect(query) {
+        val q = query.trim()
+        if (q.length < 2) {
+            suggestions = emptyList()
+            return@LaunchedEffect
+        }
+        delay(280)
+        val hits = withContext(Dispatchers.Default) { WeathercamRepository.get().search(q).take(8) }
+        suggestions = hits
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
 
@@ -199,12 +213,8 @@ internal fun RoadCamerasScreen() {
             SearchTextField(
                 value = query,
                 onValueChange = { q ->
+                    // Pelkkä tilan päivitys; varsinainen haku tehdään debouncatusti LaunchedEffectissä.
                     query = q
-                    suggestions = if (q.trim().length >= 2) {
-                        WeathercamRepository.get().search(q).take(8)
-                    } else {
-                        emptyList()
-                    }
                 },
                 placeholder = "Hae tie tai paikka",
                 onClear = {
@@ -360,7 +370,17 @@ private fun drawableToBitmap(context: Context, resId: Int): Bitmap {
     return bmp
 }
 
-/** Lataa täysikokoisen kamerakuvan. EI Authorization-headeria — weathercam palauttaa sille 400. */
+/** Suurin sallittu kameran JPG-tavumäärä (cam-kuvat ~0,1–0,4 Mt → 8 Mt = reilu turvakatto
+ *  poikkeavaa/loputonta runkoa vastaan). */
+private const val MAX_CAM_IMAGE_BYTES = 8 * 1024 * 1024
+
+/** Kohderesoluutio täyskuvalle: tyypillinen cam (1280×720) dekoodautuu täysilaatuisena, mutta
+ *  poikkeuksellisen suuret kuvat alinäytteistetään → ei OOM:ia. */
+private const val CAM_TARGET_PX = 1280
+
+/** Lataa täysikokoisen kamerakuvan. EI Authorization-headeria — weathercam palauttaa sille 400.
+ *  Luetaan tavukatolla ja dekoodataan kaksivaiheisesti (bounds → inSampleSize), ettei iso JPG
+ *  kaada sovellusta OutOfMemoryErroriin (sama malli kuin ImageLoaderin pikkukuvilla). */
 private fun downloadFullCamImage(urlStr: String): Bitmap? {
     var conn: HttpURLConnection? = null
     return try {
@@ -371,11 +391,40 @@ private fun downloadFullCamImage(urlStr: String): Bitmap? {
         if (conn.responseCode != 200) {
             null
         } else {
-            conn.inputStream.use { BitmapFactory.decodeStream(it) }
+            val data = conn.inputStream.use { readCappedBytes(it, MAX_CAM_IMAGE_BYTES) }
+            if (data == null) {
+                null
+            } else {
+                val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(data, 0, data.size, opts)
+                opts.inSampleSize = camSampleSize(opts.outWidth, opts.outHeight, CAM_TARGET_PX)
+                opts.inJustDecodeBounds = false
+                BitmapFactory.decodeByteArray(data, 0, data.size, opts)
+            }
         }
     } catch (e: Exception) {
         null
     } finally {
         conn?.disconnect()
     }
+}
+
+/** Lukee virran muistiin tavukatolla; palauttaa null jos koko ylittää [max] (suoja OOM:ia vastaan). */
+private fun readCappedBytes(input: java.io.InputStream, max: Int): ByteArray? {
+    val bos = java.io.ByteArrayOutputStream()
+    val buf = ByteArray(8192)
+    while (true) {
+        val n = input.read(buf)
+        if (n <= 0) break
+        bos.write(buf, 0, n)
+        if (bos.size() > max) return null
+    }
+    return bos.toByteArray()
+}
+
+private fun camSampleSize(w: Int, h: Int, target: Int): Int {
+    if (w <= 0 || h <= 0) return 1
+    var sample = 1
+    while (w / sample > target * 2 || h / sample > target * 2) sample *= 2
+    return sample
 }

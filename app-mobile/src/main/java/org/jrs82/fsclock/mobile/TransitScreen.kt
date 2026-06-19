@@ -1352,7 +1352,17 @@ private fun TransitFullDayOverlay(
                 modifier = Modifier.weight(1f),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 6.dp, bottom = 20.dp),
             ) {
-                items(r.size) { i ->
+                items(
+                    r.size,
+                    // Pysyvä avain: tunti-otsikko labelista, lähtö tripistä + ajasta → ei skrollihyppyä
+                    // päivityksessä. (i mukana erottamassa harvinaiset duplikaatit.)
+                    key = { i ->
+                        when (val row = r[i]) {
+                            is FullDayRow.Hour -> "h:${row.label}"
+                            is FullDayRow.Dep -> "d:${row.d.tripGtfsId}:${row.d.departureEpochSec}:$i"
+                        }
+                    },
+                ) { i ->
                     when (val row = r[i]) {
                         is FullDayRow.Hour -> Text(
                             row.label,
@@ -1699,7 +1709,9 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 20.dp),
         ) {
             val stops = tl?.stops ?: emptyList()
-            items(stops.size) { i ->
+            // Pysyvä avain pysäkin gtfsId:stä; i mukana koska reitti voi käydä samalla pysäkillä
+            // kahdesti (rengaslinja) → silti yksilöllinen.
+            items(stops.size, key = { i -> "${stops[i].gtfsId}:$i" }) { i ->
                 TimelineStopRow(
                     s = stops[i],
                     isVehicle = vehicles.contains(i),
@@ -1961,7 +1973,12 @@ internal fun HslDisruptionsScreen() {
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 6.dp, bottom = 20.dp),
                 ) {
-                    items(list.size) { i -> DisruptionRow(list[i]) { dialogFor = it } }
+                    // TransitAlertilla ei ole omaa id:tä → koostetaan pysyvä avain sisällöstä
+                    // (otsikko + alkuaika + linja) + i duplikaattisuojaksi.
+                    items(
+                        list.size,
+                        key = { i -> "${list[i].header}:${list[i].startEpochSec}:${list[i].routeShortName}:$i" },
+                    ) { i -> DisruptionRow(list[i]) { dialogFor = it } }
                 }
             } else {
                 Text(
