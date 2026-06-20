@@ -160,27 +160,39 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             val mgr = androidx.glance.appwidget.GlanceAppWidgetManager(ctx)
             val ids = mgr.getGlanceIds(DepartureWidget::class.java)
             for (gid in ids) {
-                val awId = mgr.getAppWidgetId(gid)
-                val mode = WidgetCache.departureMode(ctx, awId)
-                val stop = try {
-                    when (mode) {
-                        "FAVORITE" -> {
-                            val stopId = WidgetCache.departureStopId(ctx, awId)
-                            if (stopId.isNotBlank()) DigitransitApi.stopDepartures(stopId) else null
+                try {
+                    val awId = mgr.getAppWidgetId(gid)
+                    val mode = WidgetCache.departureMode(ctx, awId)
+                    if (mode.isBlank()) continue // ei konfiguroitu, ohita
+                    val stop = try {
+                        when (mode) {
+                            "FAVORITE" -> {
+                                val stopId = WidgetCache.departureStopId(ctx, awId)
+                                if (stopId.isNotBlank()) DigitransitApi.stopDepartures(stopId) else null
+                            }
+                            "NEAREST" -> fetchNearestStop(ctx)
+                            else -> null
                         }
-                        "NEAREST" -> fetchNearestStop(ctx)
-                        else -> null
+                    } catch (e: Exception) { null }
+                    if (stop != null) {
+                        val lines = stop.departures.take(3).map {
+                            WidgetFormat.DepartureLine(it.routeShortName, it.mode, it.departureEpochSec)
+                        }
+                        val name = if (mode == "NEAREST") stop.name
+                            else WidgetCache.departureStopName(ctx, awId).ifBlank { stop.name }
+                        WidgetCache.setDepartureData(ctx, awId, name,
+                            WidgetFormat.encodeDepartures(lines), now)
+                    } else {
+                        // Fix B (loop-esto): jos haku epäonnistui eikä cachessa ole YHTÄÄN aiempaa
+                        // dataa, kirjoitetaan tyhjä merkki jotta aikaleima etenee. Näin provideGlance
+                        // ei jää ikuisesti käynnistämään uusia workereita.
+                        // EI ylikirjoiteta olemassa olevaa hyvää dataa ohimenevällä virheellä.
+                        if (WidgetCache.departureUpdatedAt(ctx, awId) == 0L) {
+                            val fallbackName = WidgetCache.departureStopName(ctx, awId)
+                            WidgetCache.setDepartureData(ctx, awId, fallbackName, "[]", now)
+                        }
                     }
-                } catch (e: Exception) { null }
-                if (stop != null) {
-                    val lines = stop.departures.take(3).map {
-                        WidgetFormat.DepartureLine(it.routeShortName, it.mode, it.departureEpochSec)
-                    }
-                    val name = if (mode == "NEAREST") stop.name
-                        else WidgetCache.departureStopName(ctx, awId).ifBlank { stop.name }
-                    WidgetCache.setDepartureData(ctx, awId, name,
-                        WidgetFormat.encodeDepartures(lines), now)
-                }
+                } catch (e: Exception) { /* yksittainen widget ei kaada koko silmukkaa */ }
             }
         } catch (e: Exception) { }
 
@@ -206,8 +218,9 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
         }
         @JvmStatic
         fun refreshNow(context: Context) {
+            // Fix A: REPLACE ettei onResume-perus-refresh tipu jo-jonossa olevan taakse.
             WorkManager.getInstance(context).enqueueUniqueWork(
-                "${WORK}_once", ExistingWorkPolicy.KEEP,
+                "${WORK}_once", ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build(),
             )
         }
