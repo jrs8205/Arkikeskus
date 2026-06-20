@@ -52,7 +52,13 @@ class DepartureWidget : GlanceAppWidget() {
 
 @Composable
 private fun DepartureContent(context: Context, appWidgetId: Int) {
-    val stop = WidgetCache.departureStopLabel(context, appWidgetId).ifBlank { "Seuraava lähtö" }
+    val rawName = WidgetCache.departureStopLabel(context, appWidgetId)
+    val code = WidgetCache.departureStopCode(context, appWidgetId)
+    val stop = when {
+        rawName.isBlank() -> "Seuraava lähtö"
+        code.isBlank() -> rawName
+        else -> "$rawName  $code"
+    }
     val deps = WidgetFormat.decodeDepartures(WidgetCache.departureJson(context, appWidgetId))
     val now = System.currentTimeMillis() / 1000L
     val updated = WidgetCache.departureUpdatedAt(context, appWidgetId)

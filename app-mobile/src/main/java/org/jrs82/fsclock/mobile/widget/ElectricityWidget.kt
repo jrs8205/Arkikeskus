@@ -46,7 +46,20 @@ private fun ElectricityContent(context: Context) {
     }
     val sntSafe = if (!snt.isNaN() && Math.abs(snt) < 0.0005) 0.0 else snt
     val priceText = if (sntSafe.isNaN()) "–" else String.format(Locale("fi", "FI"), "%.3f c/kWh", sntSafe)
-    val updated = WidgetCache.electricityUpdatedAt(context)
+    // Paivan halvin/kallein vartti (klo-aika Helsingin ajassa).
+    fun fmtSnt(v: Double): String {
+        val s = if (!v.isNaN() && Math.abs(v) < 0.0005) 0.0 else v
+        return String.format(Locale("fi", "FI"), "%.3f", s)
+    }
+    val hki = ZoneId.of("Europe/Helsinki")
+    val minSnt = WidgetCache.electricityMinSnt(context)
+    val minAt = WidgetCache.electricityMinAt(context)
+    val maxSnt = WidgetCache.electricityMaxSnt(context)
+    val maxAt = WidgetCache.electricityMaxAt(context)
+    val minText = if (!minSnt.isNaN() && minAt > 0L)
+        "Halvin ${fmtSnt(minSnt)} klo ${WidgetFormat.clockLabel(minAt, hki)}" else null
+    val maxText = if (!maxSnt.isNaN() && maxAt > 0L)
+        "Kallein ${fmtSnt(maxSnt)} klo ${WidgetFormat.clockLabel(maxAt, hki)}" else null
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
             modifier = GlanceModifier.fillMaxSize()
@@ -82,13 +95,18 @@ private fun ElectricityContent(context: Context) {
                     fontWeight = FontWeight.Medium,
                 ),
             )
-            if (updated > 0) {
+            if (minText != null) {
                 Text(
-                    "päiv. ${WidgetFormat.clockLabel(updated, ZoneId.of("Europe/Helsinki"))}",
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 11.sp,
-                    ),
+                    minText,
+                    style = TextStyle(color = WidgetColors.cheap, fontSize = 11.sp),
+                    maxLines = 1,
+                )
+            }
+            if (maxText != null) {
+                Text(
+                    maxText,
+                    style = TextStyle(color = WidgetColors.expensive, fontSize = 11.sp),
+                    maxLines = 1,
                 )
             }
         }

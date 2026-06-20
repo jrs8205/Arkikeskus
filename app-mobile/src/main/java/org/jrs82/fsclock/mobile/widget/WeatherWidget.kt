@@ -22,6 +22,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
@@ -42,30 +43,22 @@ class WeatherWidget : GlanceAppWidget() {
 @Composable
 private fun WeatherContent(context: Context) {
     val place = WidgetCache.weatherPlace(context).ifBlank { "Sää" }
-    val temp = WidgetFormat.tempLabel(WidgetCache.weatherTempC(context))
-    val cond = WidgetCache.weatherCondition(context)
-    val wind = WidgetCache.weatherWind(context)
+    val fmiTemp = WidgetFormat.tempLabel(WidgetCache.weatherTempC(context))
+    val fmiWind = WidgetCache.weatherWind(context)
+    val omTemp = WidgetFormat.tempLabel(WidgetCache.weatherOmTempC(context))
+    val omWind = WidgetCache.weatherOmWind(context)
     val updated = WidgetCache.weatherUpdatedAt(context)
 
-    // Ladataan etukäteen piirretty ikoni tiedostosta; jos ei löydy, käytetään geneeristä.
-    val iconFile = File(context.filesDir, "widget_weather_icon.png")
-    val iconProvider: ImageProvider = if (iconFile.exists()) {
-        try {
-            val bmp = BitmapFactory.decodeFile(iconFile.absolutePath)
-            if (bmp != null) ImageProvider(bmp) else ImageProvider(R.drawable.mobile_ic_weather_24)
-        } catch (_: Exception) {
-            ImageProvider(R.drawable.mobile_ic_weather_24)
-        }
-    } else {
-        ImageProvider(R.drawable.mobile_ic_weather_24)
-    }
+    // FMI- ja Open-Meteo-ikonit erikseen (worker piirtää molemmat tiedostoon); fallback geneeriseen.
+    val fmiIcon = loadWeatherIcon(context, "widget_weather_icon.png")
+    val omIcon = loadWeatherIcon(context, "widget_weather_icon_om.png")
 
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
             modifier = GlanceModifier.fillMaxSize()
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
-                .padding(14.dp)
+                .padding(12.dp)
                 .clickable(actionStartActivity(WidgetDeepLink.deepLinkIntent(context, "HOME"))),
             verticalAlignment = Alignment.Vertical.Top,
         ) {
@@ -80,51 +73,15 @@ private fun WeatherContent(context: Context) {
                 maxLines = 1,
             )
             Spacer(GlanceModifier.height(6.dp))
-            // Ikoni + lämpötila vierekkäin
-            Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                Image(
-                    provider = iconProvider,
-                    contentDescription = cond.ifBlank { null },
-                    modifier = GlanceModifier.size(52.dp),
-                )
+            // Kaksi lähdettä vierekkäin: FMI vasen, Open-Meteo oikea
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                WeatherSourceColumn(GlanceModifier.defaultWeight(), "FMI", fmiIcon, fmiTemp, fmiWind)
                 Spacer(GlanceModifier.width(8.dp))
-                Text(
-                    temp,
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurface,
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
-            }
-            // Säätila-teksti (luettava, ei toString)
-            if (cond.isNotBlank()) {
-                Spacer(GlanceModifier.height(2.dp))
-                Text(
-                    cond,
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 12.sp,
-                    ),
-                    maxLines = 1,
-                )
-            }
-            // Tuuli
-            if (!wind.isNaN()) {
-                Spacer(GlanceModifier.height(2.dp))
-                val windStr = String.format(java.util.Locale("fi", "FI"), "Tuuli %.1f m/s", wind)
-                Text(
-                    windStr,
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 11.sp,
-                    ),
-                    maxLines = 1,
-                )
+                WeatherSourceColumn(GlanceModifier.defaultWeight(), "Open-Meteo", omIcon, omTemp, omWind)
             }
             // Päivitysaika
             if (updated > 0) {
-                Spacer(GlanceModifier.height(2.dp))
+                Spacer(GlanceModifier.height(4.dp))
                 Text(
                     "päiv. ${WidgetFormat.clockLabel(updated, ZoneId.of("Europe/Helsinki"))}",
                     style = TextStyle(
@@ -135,6 +92,66 @@ private fun WeatherContent(context: Context) {
             }
         }
     }
+}
+
+@Composable
+private fun WeatherSourceColumn(
+    modifier: GlanceModifier,
+    source: String,
+    icon: ImageProvider,
+    temp: String,
+    wind: Double,
+) {
+    Column(modifier = modifier) {
+        Text(
+            source,
+            style = TextStyle(
+                color = GlanceTheme.colors.primary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+            ),
+            maxLines = 1,
+        )
+        Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+            Image(
+                provider = icon,
+                contentDescription = null,
+                modifier = GlanceModifier.size(30.dp),
+            )
+            Spacer(GlanceModifier.width(4.dp))
+            Text(
+                temp,
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+                maxLines = 1,
+            )
+        }
+        if (!wind.isNaN()) {
+            Text(
+                String.format(java.util.Locale("fi", "FI"), "%.1f m/s", wind),
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurfaceVariant,
+                    fontSize = 10.sp,
+                ),
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/** Lataa workerin piirtämän ikonibittikartan; fallback geneeriseen vektoriin jos puuttuu. */
+private fun loadWeatherIcon(context: Context, fileName: String): ImageProvider {
+    val f = File(context.filesDir, fileName)
+    if (f.exists()) {
+        try {
+            val bmp = BitmapFactory.decodeFile(f.absolutePath)
+            if (bmp != null) return ImageProvider(bmp)
+        } catch (_: Exception) { }
+    }
+    return ImageProvider(R.drawable.mobile_ic_weather_24)
 }
 
 class WeatherWidgetReceiver : GlanceAppWidgetReceiver() {

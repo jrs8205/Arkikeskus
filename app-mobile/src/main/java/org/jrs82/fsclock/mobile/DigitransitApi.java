@@ -147,7 +147,8 @@ public final class DigitransitApi {
 
     // --- Aseman lähdöt (station aggregoi laiturit; moodi tulee per lähtö trip.route.mode:sta) ---
 
-    static NearbyStop stationDepartures(String stationGtfsId) throws Exception {
+    // public: lähtö-widgetin worker (alipaketti .widget) tarvitsee tämän suosikkiaseman lähtöihin.
+    public static NearbyStop stationDepartures(String stationGtfsId) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", stationGtfsId);
         JSONObject data = postQuery(STATION_QUERY, variables);
