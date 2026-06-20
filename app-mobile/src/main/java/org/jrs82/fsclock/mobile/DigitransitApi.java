@@ -357,9 +357,16 @@ public final class DigitransitApi {
             String name = p.optString("name", "");
             if (name.isEmpty()) continue;
             String gtfsId = gtfsIdFromGeocode(p.optString("id", ""));
-            out.add(new PlaceHit(gtfsId, name, localityOf(p, name), station, modesOf(p)));
+            out.add(new PlaceHit(gtfsId, name, localityOf(p, name), codeOf(p), station, modesOf(p)));
         }
         return out;
+    }
+
+    /** Pysäkkikoodi (esim. "V1701") geokoodausvastauksen addendum.GTFS.code-kentästä. */
+    private static String codeOf(JSONObject p) {
+        JSONObject add = p.optJSONObject("addendum");
+        JSONObject gtfs = add == null ? null : add.optJSONObject("GTFS");
+        return gtfs == null ? "" : gtfs.optString("code", "");
     }
 
     private static String localityOf(JSONObject p, String name) {

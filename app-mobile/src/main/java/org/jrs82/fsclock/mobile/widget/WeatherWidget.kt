@@ -59,7 +59,7 @@ private fun WeatherContent(context: Context) {
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
                 .padding(12.dp)
-                .clickable(actionStartActivity(WidgetDeepLink.deepLinkIntent(context, "HOME"))),
+                .clickable(actionStartActivity(WidgetDeepLink.deepLinkIntent(context, "FORECAST"))),
             verticalAlignment = Alignment.Vertical.Top,
         ) {
             // Paikannimi ylhäällä

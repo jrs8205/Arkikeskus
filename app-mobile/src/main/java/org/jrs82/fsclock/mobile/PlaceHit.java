@@ -8,13 +8,15 @@ final class PlaceHit {
     final String gtfsId;       // reititin-id, esim. "HSL:2131551"; tyhjä = ei lähtöjä haettavissa
     final String name;         // "Tapiola (M)"
     final String locality;     // "Tapiolan Keskus, Espoo" (alaotsikko)
+    final String code;         // pysäkkikoodi, esim. "V1701" (tyhjä jos ei ole)
     final boolean station;     // true = asema (station-kysely), false = yksittäinen pysäkki
     final List<String> modes;  // kanoniset moodit järjestyksessä: BUS/TRAM/RAIL/SUBWAY/FERRY
 
-    PlaceHit(String gtfsId, String name, String locality, boolean station, List<String> modes) {
+    PlaceHit(String gtfsId, String name, String locality, String code, boolean station, List<String> modes) {
         this.gtfsId = gtfsId;
         this.name = name;
         this.locality = locality;
+        this.code = code;
         this.station = station;
         this.modes = modes;
     }
