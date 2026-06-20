@@ -14,15 +14,12 @@ import androidx.work.WorkerParameters
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.view.View
 import org.jrs82.fsclock.ElectricityRepository
 import org.jrs82.fsclock.OpenMeteoData
 import org.jrs82.fsclock.OpenMeteoRepository
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.WeatherCondition
-import org.jrs82.fsclock.WeatherIconView
+import org.jrs82.fsclock.WeatherData
 import org.jrs82.fsclock.WeatherRepository
 import org.jrs82.fsclock.WeatherTextFormatter
 import org.jrs82.fsclock.db.FsClockDb
@@ -63,6 +60,35 @@ private fun fetchNearestStop(ctx: Context): NearbyStop? {
     return DigitransitApi.nearbyDepartures(lat, lon).firstOrNull()
 }
 
+/** Kokoaa tämän päivän (Helsingin aika) tuntikohtaiset FMI- ja Open-Meteo-lämpötilat ja tallentaa
+ *  ne JSON-listana widgetin skrollattavaa tuntinäkymää varten ([{h,f,o}, …]). */
+private fun storeWeatherHours(ctx: Context, fmiHours: List<WeatherData.Hour>?, om: OpenMeteoData?) {
+    val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Europe/Helsinki"))
+    val dom = cal.get(Calendar.DAY_OF_MONTH)
+    val mon = cal.get(Calendar.MONTH) + 1
+    val fmiByHour = HashMap<Int, Double>()
+    fmiHours?.forEach { h ->
+        if (h.dayOfMonth == dom && h.month == mon && !h.temperature.isNaN()) fmiByHour[h.hour] = h.temperature
+    }
+    val omByHour = HashMap<Int, Double>()
+    om?.hours?.forEach { h ->
+        val t = h.temperature
+        if (h.dayOfMonth == dom && h.month == mon && t != null) omByHour[h.hour] = t
+    }
+    val arr = org.json.JSONArray()
+    for (hh in 0..23) {
+        val f = fmiByHour[hh]
+        val o = omByHour[hh]
+        if (f != null || o != null) {
+            val obj = org.json.JSONObject().put("h", hh)
+            if (f != null) obj.put("f", f)
+            if (o != null) obj.put("o", o)
+            arr.put(obj)
+        }
+    }
+    WidgetCache.setWeatherHours(ctx, arr.toString())
+}
+
 /** Lähin Open-Meteo-tunti annettuun hetkeen (max 31 min toleranssi); null jos ei sovi. */
 private fun nearestOpenMeteoHour(om: OpenMeteoData?, nowMs: Long): OpenMeteoData.Hour? {
     val hours = om?.hours ?: return null
@@ -100,8 +126,9 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                 )
             } catch (e: Exception) { /* sailyta vanha cache */ }
             // Open-Meteo samalle paikalle (FMI:n rinnalle widgetiin); itsenainen FMI-hausta.
+            var om: OpenMeteoData? = null
             try {
-                val om = OpenMeteoRepository.get(ctx).fetch(place, true)
+                om = OpenMeteoRepository.get(ctx).fetch(place, true)
                 val h = nearestOpenMeteoHour(om, now)
                 if (h != null) {
                     val c = h.condition ?: WeatherCondition.unknown()
@@ -115,56 +142,10 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                     )
                 }
             } catch (e: Exception) { /* sailyta vanha OM-cache */ }
-        }
-        // Fix 5: Sääikoni piirretään JOKA kierroksella nykyisen WeatherCache.last-tilan ja
-        // uiModen perusteella — näin teema-/värimoodinvaihdon jälkeen ikoni päivittyy heti.
-        try {
-            val wd = WeatherCache.last
-            if (wd != null) {
-                val sizePx = 96
-                val iconFile = java.io.File(ctx.filesDir, "widget_weather_icon.png")
-                val view = WeatherIconView(ctx)
-                view.setCondition(wd.current.condition)
-                val ms = View.MeasureSpec.makeMeasureSpec(sizePx, View.MeasureSpec.EXACTLY)
-                view.measure(ms, ms)
-                view.layout(0, 0, sizePx, sizePx)
-                val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-                view.draw(Canvas(bmp))
-                iconFile.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 90, it) }
-                bmp.recycle()
-            }
-        } catch (ie: Exception) {
-            // Kuvanpiirto ei onnistu (esim. paalankausta off-main-thread) -> poistetaan vanha
-            try { java.io.File(ctx.filesDir, "widget_weather_icon.png").delete() } catch (_: Exception) {}
-        }
-        // Open-Meteon ikoni piirretaan joka kierroksella tallennetusta saatilasta (osina varastoitu)
-        // -> teema-/varimoodinvaihto paivittaa myos OM-ikonin heti, kuten FMI-ikonin.
-        try {
-            val omType = WidgetCache.weatherOmCondType(ctx)
-            val omFile = java.io.File(ctx.filesDir, "widget_weather_icon_om.png")
-            if (omType.isNotBlank() && WidgetCache.weatherOmUpdatedAt(ctx) > 0L) {
-                val c = WeatherCondition()
-                c.type = WeatherCondition.Type.valueOf(omType)
-                try {
-                    c.intensity = WeatherCondition.Intensity.valueOf(WidgetCache.weatherOmCondIntensity(ctx))
-                } catch (_: Exception) { /* tuntematon intensiteetti -> oletus NONE */ }
-                c.isNight = WidgetCache.weatherOmCondNight(ctx)
-                c.isShower = WidgetCache.weatherOmCondShower(ctx)
-                val sizePx = 96
-                val view = WeatherIconView(ctx)
-                view.setCondition(c)
-                val ms = View.MeasureSpec.makeMeasureSpec(sizePx, View.MeasureSpec.EXACTLY)
-                view.measure(ms, ms)
-                view.layout(0, 0, sizePx, sizePx)
-                val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-                view.draw(Canvas(bmp))
-                omFile.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 90, it) }
-                bmp.recycle()
-            } else {
-                try { omFile.delete() } catch (_: Exception) {}
-            }
-        } catch (ie: Exception) {
-            try { java.io.File(ctx.filesDir, "widget_weather_icon_om.png").delete() } catch (_: Exception) {}
+            // Koko paivan tuntilista (FMI + Open-Meteo) skrollattavaan saa-widgetiin.
+            try {
+                storeWeatherHours(ctx, WeatherCache.last?.hours, om)
+            } catch (e: Exception) { /* sailyta vanha tuntilista */ }
         }
         // Fix 4: Haetaan verkkodata vain jos yli 25 min vanha (e_fetch_at); vartti luetaan JOKA
         // kierroksella, jotta hinta vaihtuu 15 min välein ilman uutta verkkopyyntöä.
