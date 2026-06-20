@@ -224,6 +224,18 @@
             android:parentActivityName="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
             android:theme="@style/MobileSettingsTheme" />
 
+        <!-- Kotinayton Seuraava lahto -widget (Glance). -->
+        <receiver
+            android:name="org.jrs82.fsclock.mobile.widget.DepartureWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_departure_info" />
+        </receiver>
+
         <!-- Lahto-widgetin konfigurointi: kayttaja valitsee suosikkipysakin tai lahimman. -->
         <activity
             android:name="org.jrs82.fsclock.mobile.widget.DepartureWidgetConfigActivity"
