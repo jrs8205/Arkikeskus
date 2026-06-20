@@ -10,13 +10,32 @@ object WidgetCache {
         ctx.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     // --- Sää ---
-    fun setWeather(ctx: Context, place: String, tempC: Double, condition: String, atMs: Long) {
-        p(ctx).edit().putString("w_place", place).putString("w_temp", tempC.toString())
-            .putString("w_cond", condition).putLong("w_at", atMs).apply()
+    fun setWeather(
+        ctx: Context,
+        place: String,
+        tempC: Double,
+        conditionLabel: String,
+        windSpeed: Double,
+        feelsLike: Double,
+        precip1h: Double,
+        atMs: Long,
+    ) {
+        p(ctx).edit()
+            .putString("w_place", place)
+            .putString("w_temp", tempC.toString())
+            .putString("w_cond", conditionLabel)
+            .putString("w_wind", windSpeed.toString())
+            .putString("w_feels", feelsLike.toString())
+            .putString("w_precip", precip1h.toString())
+            .putLong("w_at", atMs)
+            .apply()
     }
     fun weatherPlace(ctx: Context) = p(ctx).getString("w_place", "") ?: ""
     fun weatherTempC(ctx: Context) = p(ctx).getString("w_temp", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun weatherCondition(ctx: Context) = p(ctx).getString("w_cond", "") ?: ""
+    fun weatherWind(ctx: Context) = p(ctx).getString("w_wind", "NaN")?.toDoubleOrNull() ?: Double.NaN
+    fun weatherFeelsLike(ctx: Context) = p(ctx).getString("w_feels", "NaN")?.toDoubleOrNull() ?: Double.NaN
+    fun weatherPrecip(ctx: Context) = p(ctx).getString("w_precip", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun weatherUpdatedAt(ctx: Context) = p(ctx).getLong("w_at", 0L)
 
     // --- Pörssisähkö ---
