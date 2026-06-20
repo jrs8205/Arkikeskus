@@ -177,5 +177,18 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                 OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build(),
             )
         }
+
+        /**
+         * Konfiguraatiokäyttöön: varmistaa että virkistys ajetaan heti (REPLACE korvaa
+         * mahdollisesti jonossa olevan pyynnön). Käytetään kun käyttäjä tallentaa uuden
+         * widgetin asetukset, jotta uusi widget ei jää "Ei lähtöjä" -tilaan.
+         */
+        @JvmStatic
+        fun refreshNowForce(context: Context) {
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "${WORK}_config", ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build(),
+            )
+        }
     }
 }

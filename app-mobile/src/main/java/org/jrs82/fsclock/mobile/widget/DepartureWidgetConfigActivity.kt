@@ -116,7 +116,7 @@ class DepartureWidgetConfigActivity : AppCompatActivity() {
 
     private fun confirm(widgetId: Int, mode: String, stopId: String, stopName: String) {
         WidgetCache.setDepartureConfig(this, widgetId, mode, stopId, stopName)
-        WidgetUpdateWorker.refreshNow(this)
+        WidgetUpdateWorker.refreshNowForce(this)
         setResult(
             RESULT_OK,
             Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
