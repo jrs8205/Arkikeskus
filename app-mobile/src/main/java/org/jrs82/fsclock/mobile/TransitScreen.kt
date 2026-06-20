@@ -123,6 +123,8 @@ private sealed class TransitRow(val key: String) {
     class AlertRow(val alert: TransitAlert, key: String) : TransitRow("a|$key")
     class RouteRow(val r: RouteHit) : TransitRow("r|${r.gtfsId}")
     class PlaceRow(val p: PlaceHit) : TransitRow("p|${p.gtfsId}|${p.name}")
+    // Suosikkipysäkki kompaktina rivinä (kuten RouteRow); napautus avaa koko päivän näkymän.
+    class FavStopRow(val stop: NearbyStop) : TransitRow("fs|${stop.gtfsId}")
 }
 
 // ===================== Avattu detaljinäkymä (vuoro tai linja) =====================
@@ -419,24 +421,23 @@ private class TransitState(private val appContext: Context) {
             return items
         }
 
-        for (fs in favStops) {
-            val deps = fs.departures.filter { depMatches(it) }.sortedBy { it.departureEpochSec }
-            val n = minOf(deps.size, MAX_PER_FAV_STOP)
-            if (n == 0) continue
-            val sectionKey = "favorite-stop|${fs.gtfsId}"
-            items.add(TransitRow.HeaderRow(stopHeaderText(fs) + " ★", fs.vehicleMode, sectionKey, zoneLabelOf(fs), fs))
-            addAlertRows(items, fs, sectionKey)
-            addDepRows(items, deps, n, sectionKey)
-        }
-
+        // Suosikit (linjat + pysäkit) yhtenäisesti ylimpänä. Suosikkipysäkit näytetään KOMPAKTEINA
+        // riveinä (kuten suosikkilinjat) — ei isoina lähtölistoina, jotka veisivät koko näkymän ja
+        // työntäisivät suosikkilinjat alas. Suodatetaan haetut favStops nykyisten suosikkien mukaan,
+        // jotta poisto näkyy heti (favStops päivittyy vasta seuraavassa haussa).
+        val favStopIdsNow = TransitFavorites.getStops(ctx).map { it.gtfsId }.toHashSet()
+        val shownFavStops = favStops.filter { it.gtfsId in favStopIdsNow }
         val favLines = TransitFavorites.getLines(ctx)
-        if (favLines.isNotEmpty()) {
-            items.add(TransitRow.HeaderRow("Suosikkilinjat", "FAV", "favorite-routes", ""))
+        if (favLines.isNotEmpty() || shownFavStops.isNotEmpty()) {
+            items.add(TransitRow.HeaderRow("Suosikit", "FAV", "favorites", ""))
             favLines.forEach { items.add(TransitRow.RouteRow(it)) }
+            shownFavStops.forEach { items.add(TransitRow.FavStopRow(it)) }
         }
 
+        // Lähimmät pysäkit — suosikkipysäkit jätetään pois, ettei sama pysäkki näy kahdesti.
         var stopsShown = 0
         for (stop in lastStops) {
+            if (stop.gtfsId in favStopIdsNow) continue
             val deps = stop.departures.filter { depMatches(it) }.sortedBy { it.departureEpochSec }
             if (deps.isEmpty()) continue
             if (stopsShown >= MAX_NEARBY_STOPS) break
@@ -707,6 +708,7 @@ internal fun TransitScreen() {
                             is TransitRow.AlertRow -> TransitAlertRow(row.alert) { state.alertDialogFor = it }
                             is TransitRow.RouteRow -> TransitRouteRow(row.r, favTick, state)
                             is TransitRow.PlaceRow -> TransitPlaceRow(row.p, state)
+                            is TransitRow.FavStopRow -> TransitFavStopRow(row.stop, state)
                         }
                     }
                 }
@@ -742,6 +744,8 @@ internal fun TransitScreen() {
                         )
                     }
                 },
+                // Suosikin lisäys/poisto: virkistä lista, jotta uusi suosikkipysäkki ilmestyy heti.
+                onFavoritesChanged = { state.favVersion++; state.refresh() },
             )
         }
 
@@ -764,6 +768,8 @@ internal fun TransitScreen() {
 @Composable
 private fun TransitHeaderRow(row: TransitRow.HeaderRow, onFullDay: (NearbyStop) -> Unit = {}) {
     val stop = row.stop
+    val context = LocalContext.current
+    val isFavStop = stop != null && TransitFavorites.isStopFav(context, stop.gtfsId)
     val base = Modifier.fillMaxWidth()
     Row(
         modifier = (if (stop != null) base.clickable { onFullDay(stop) } else base)
@@ -783,16 +789,32 @@ private fun TransitHeaderRow(row: TransitRow.HeaderRow, onFullDay: (NearbyStop) 
                 modifier = Modifier.size(20.dp),
             )
         }
-        Text(
-            row.title,
+        Row(
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 12.dp),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                row.title,
+                modifier = Modifier.weight(1f, fill = false),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // Suosikkipysäkin keltainen tähti (sama kuin reittien tähdet; drawablen oma väri).
+            if (isFavStop) {
+                Icon(
+                    painterResource(R.drawable.mobile_ic_star),
+                    contentDescription = "Suosikki",
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .size(18.dp),
+                )
+            }
+        }
         if (stop != null) {
             Text(
                 "Koko päivä ›",
@@ -974,6 +996,64 @@ private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
                 Icon(
                     painterResource(if (fav) R.drawable.mobile_ic_star else R.drawable.mobile_ic_star_outline),
                     contentDescription = "Suosikki",
+                    tint = Color.Unspecified,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TransitFavStopRow(stop: NearbyStop, state: TransitState) {
+    val context = LocalContext.current
+    ArkiCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable { state.fullDayStop = stop }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(transitModeColor(stop.vehicleMode), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(transitModeIconRes(stop.vehicleMode)),
+                    contentDescription = null,
+                    tint = transitOnModeColor(stop.vehicleMode),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Text(
+                stopHeaderText(stop),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            IconButton(
+                onClick = {
+                    TransitFavorites.toggleStopFav(
+                        context, stop.gtfsId,
+                        if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name,
+                    )
+                    Toast.makeText(context, "Pysäkki poistettu suosikeista", Toast.LENGTH_SHORT).show()
+                    state.favVersion++
+                },
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    painterResource(R.drawable.mobile_ic_star),
+                    contentDescription = "Poista suosikeista",
                     tint = Color.Unspecified,
                 )
             }
@@ -1290,6 +1370,7 @@ private fun TransitFullDayOverlay(
     stop: NearbyStop,
     onClose: () -> Unit,
     onDeparture: (Departure) -> Unit,
+    onFavoritesChanged: () -> Unit = {},
 ) {
     BackHandler(onBack = onClose)
     val context = LocalContext.current
@@ -1358,6 +1439,7 @@ private fun TransitFullDayOverlay(
                         if (fav) "Pysäkki lisätty suosikkeihin" else "Pysäkki poistettu suosikeista",
                         Toast.LENGTH_SHORT,
                     ).show()
+                    onFavoritesChanged()
                 },
                 modifier = Modifier.size(48.dp),
             ) {
