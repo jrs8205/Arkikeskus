@@ -44,7 +44,8 @@ private fun ElectricityContent(context: Context) {
         PriceLevel.NORMAL -> WidgetColors.normal
         PriceLevel.EXPENSIVE -> WidgetColors.expensive
     }
-    val priceText = if (snt.isNaN()) "–" else String.format(Locale("fi", "FI"), "%.3f c/kWh", snt)
+    val sntSafe = if (!snt.isNaN() && Math.abs(snt) < 0.0005) 0.0 else snt
+    val priceText = if (sntSafe.isNaN()) "–" else String.format(Locale("fi", "FI"), "%.3f c/kWh", sntSafe)
     val updated = WidgetCache.electricityUpdatedAt(context)
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
