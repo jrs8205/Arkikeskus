@@ -24,7 +24,6 @@ import androidx.glance.text.TextStyle
 import androidx.preference.PreferenceManager
 import java.time.ZoneId
 import java.util.Locale
-import java.util.Locale.forLanguageTag
 
 class ElectricityWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -45,7 +44,7 @@ private fun ElectricityContent(context: Context) {
         PriceLevel.NORMAL -> WidgetColors.normal
         PriceLevel.EXPENSIVE -> WidgetColors.expensive
     }
-    val priceText = if (snt.isNaN()) "–" else String.format(forLanguageTag("fi-FI"), "%.2f c/kWh", snt)
+    val priceText = if (snt.isNaN()) "–" else String.format(Locale("fi", "FI"), "%.2f c/kWh", snt)
     val updated = WidgetCache.electricityUpdatedAt(context)
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
