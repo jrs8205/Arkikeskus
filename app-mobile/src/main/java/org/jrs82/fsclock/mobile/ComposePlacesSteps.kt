@@ -70,6 +70,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
+import androidx.glance.appwidget.updateAll
+import org.jrs82.fsclock.mobile.widget.StepsWidget
+import org.jrs82.fsclock.mobile.widget.WidgetCache
 import java.util.Locale
 import kotlin.coroutines.resume
 
@@ -589,6 +592,21 @@ internal fun StepsSection() {
             !enabled -> 0L
             useHc && hcSteps > 0L -> maxOf(hcSteps, rawSteps)
             else -> rawSteps
+        }
+    }
+
+    // Widget-push: päivitä askelwidgetti kun käyttäjä katsoo askelsivua.
+    // Kirjoitetaan cache aina kun todaySteps muuttuu (halpa), mutta updateAll rajoitetaan
+    // kerran per 60 s jotta ei spämmätä Glance-rendering-polkua kävellessä.
+    var lastWidgetPushMs by remember { mutableStateOf(0L) }
+    LaunchedEffect(todaySteps, enabled) {
+        if (!enabled || todaySteps <= 0L) return@LaunchedEffect
+        val goal = StepGoalNotifier.goal(prefs)
+        WidgetCache.setSteps(context, todaySteps.toInt(), goal, System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        if (now - lastWidgetPushMs >= 60_000L) {
+            lastWidgetPushMs = now
+            try { StepsWidget().updateAll(context) } catch (_: Exception) { }
         }
     }
 
