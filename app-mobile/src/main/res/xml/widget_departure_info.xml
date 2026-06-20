@@ -8,4 +8,5 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:configure="org.jrs82.fsclock.mobile.widget.DepartureWidgetConfigActivity"
-    android:description="@string/widget_departure_desc" />
+    android:description="@string/widget_departure_desc"
+    android:previewImage="@drawable/seuraava_lahto_4x2" />
