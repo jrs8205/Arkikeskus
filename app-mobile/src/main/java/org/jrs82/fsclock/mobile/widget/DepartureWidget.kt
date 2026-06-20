@@ -36,6 +36,16 @@ import java.time.ZoneId
 class DepartureWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        // Fix B (self-heal): widget on tässä kohtaa sidottu (bound), joten GlanceId on validi.
+        // Jos widget on konfiguroitu mutta sillä ei ole vielä yhtään dataa (d_at == 0),
+        // käynnistetään worker heti — se hakee lähdöt ja kutsuu updateAll, jolloin widget
+        // päivittyy ilman ylimääräistä käyttäjän toimintaa.
+        // Loop-esto: worker kirjoittaa tyhjän merkin (d_at != 0) myös epäonnistuneesta hausta
+        // kun dataa ei ole aiemmin ollut, joten tämä haara laukeaa vain KERRAN per widget.
+        if (WidgetCache.departureMode(context, appWidgetId).isNotBlank() &&
+            WidgetCache.departureUpdatedAt(context, appWidgetId) == 0L) {
+            WidgetUpdateWorker.refreshNowForce(context)
+        }
         provideContent { DepartureContent(context, appWidgetId) }
     }
 }
