@@ -96,6 +96,9 @@ public final class DigitransitApi {
     // jolloin addendum.GTFS.modes kertoo moodit (ikoneita varten).
     private static final String GEOCODE_URL =
             "https://api.digitransit.fi/geocoding/v1/autocomplete";
+    // Pelias-search löytää pysäkkikoodit (esim. "V1701"), joita autocomplete EI löydä.
+    private static final String GEOCODE_SEARCH_URL =
+            "https://api.digitransit.fi/geocoding/v1/search";
 
     private static final String ROUTE_PATTERNS_QUERY =
             "query RP($id: String!) { route(id: $id) {"
@@ -325,9 +328,19 @@ public final class DigitransitApi {
     // --- Paikkahaku: HSL-pysäkit ja -asemat moodeineen (ennakoiva, sources=gtfshsl) ---
 
     static List<PlaceHit> searchPlaces(String text, double lat, double lon) throws Exception {
+        List<PlaceHit> out = geocodeHslPlaces(GEOCODE_URL, text, lat, lon);
+        // Autocomplete ei löydä pysäkkikoodeja (esim. "V1701") → fallback /search-endpointtiin.
+        if (out.isEmpty()) {
+            out = geocodeHslPlaces(GEOCODE_SEARCH_URL, text, lat, lon);
+        }
+        return out;
+    }
+
+    private static List<PlaceHit> geocodeHslPlaces(String baseUrl, String text, double lat, double lon)
+            throws Exception {
         double flat = Double.isNaN(lat) ? 60.17 : lat;
         double flon = Double.isNaN(lon) ? 24.94 : lon;
-        String url = GEOCODE_URL + "?text=" + URLEncoder.encode(text, "UTF-8")
+        String url = baseUrl + "?text=" + URLEncoder.encode(text, "UTF-8")
                 + "&lang=fi&size=10&sources=gtfshsl"
                 + "&focus.point.lat=" + flat + "&focus.point.lon=" + flon;
         String raw = httpGet(url);
