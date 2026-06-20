@@ -211,6 +211,8 @@ class MobileComposeMainActivity : AppCompatActivity() {
             return
         }
         maybeRunNotificationCheck()
+        // Paivita kotinäytön widgetit heti kun sovellus tulee etualalle.
+        org.jrs82.fsclock.mobile.widget.WidgetUpdateWorker.refreshNow(this)
     }
 
     /**
