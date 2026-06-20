@@ -39,4 +39,15 @@ class WidgetFormatTest {
         // 2026-06-20 10:11 Europe/Helsinki = 1750403460000 ms
         assertEquals("10.11", WidgetFormat.clockLabel(1750403460000L, ZoneId.of("Europe/Helsinki")))
     }
+    @Test fun departures_roundTrip() {
+        val list = listOf(
+            WidgetFormat.DepartureLine("550", "TRAM", 1750000000L),
+            WidgetFormat.DepartureLine("H305", "RAIL", 1750000600L),
+        )
+        val json = WidgetFormat.encodeDepartures(list)
+        val back = WidgetFormat.decodeDepartures(json)
+        assertEquals(list, back)
+        assertEquals(emptyList<WidgetFormat.DepartureLine>(), WidgetFormat.decodeDepartures("[]"))
+        assertEquals(emptyList<WidgetFormat.DepartureLine>(), WidgetFormat.decodeDepartures("garbage"))
+    }
 }

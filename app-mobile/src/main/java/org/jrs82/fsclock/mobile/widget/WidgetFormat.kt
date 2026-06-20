@@ -43,4 +43,21 @@ object WidgetFormat {
 
     fun clockLabel(epochMs: Long, zone: ZoneId): String =
         HHMM.format(Instant.ofEpochMilli(epochMs).atZone(zone))
+
+    data class DepartureLine(val line: String, val mode: String, val epochSec: Long)
+
+    fun encodeDepartures(list: List<DepartureLine>): String {
+        val arr = org.json.JSONArray()
+        for (d in list) arr.put(org.json.JSONObject()
+            .put("l", d.line).put("m", d.mode).put("t", d.epochSec))
+        return arr.toString()
+    }
+
+    fun decodeDepartures(json: String): List<DepartureLine> = try {
+        val arr = org.json.JSONArray(json)
+        (0 until arr.length()).map {
+            val o = arr.getJSONObject(it)
+            DepartureLine(o.optString("l"), o.optString("m"), o.optLong("t"))
+        }
+    } catch (e: Exception) { emptyList() }
 }
