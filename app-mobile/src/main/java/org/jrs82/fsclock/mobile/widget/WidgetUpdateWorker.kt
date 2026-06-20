@@ -15,9 +15,14 @@ import androidx.work.WorkerParameters
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
 import org.jrs82.fsclock.ElectricityRepository
 import org.jrs82.fsclock.SettingsManager
+import org.jrs82.fsclock.WeatherIconView
 import org.jrs82.fsclock.WeatherRepository
+import org.jrs82.fsclock.WeatherTextFormatter
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.mobile.DigitransitApi
 import org.jrs82.fsclock.mobile.NearbyStop
@@ -70,8 +75,28 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                 // -> kaytamme suoraan avainmerkkijonoa.
                 val place = (prefs.getString("mobile_auto_location_display_name", "")
                     ?: "").ifBlank { SettingsManager.get().homePlace }
-                WidgetCache.setWeather(ctx, place, wd.current.temperature,
-                    wd.current.condition?.toString() ?: "", now)
+                val condLabel = WeatherTextFormatter.label(ctx, wd.current.condition)
+                WidgetCache.setWeather(
+                    ctx, place, wd.current.temperature, condLabel,
+                    wd.current.windSpeed, wd.current.feelsLike, wd.current.precip1h, now,
+                )
+                // Piirrä sääikoni bitmapiksi widgettiä varten.
+                try {
+                    val sizePx = 96
+                    val iconFile = java.io.File(ctx.filesDir, "widget_weather_icon.png")
+                    val view = WeatherIconView(ctx)
+                    view.setCondition(wd.current.condition)
+                    val ms = View.MeasureSpec.makeMeasureSpec(sizePx, View.MeasureSpec.EXACTLY)
+                    view.measure(ms, ms)
+                    view.layout(0, 0, sizePx, sizePx)
+                    val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+                    view.draw(Canvas(bmp))
+                    iconFile.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 90, it) }
+                    bmp.recycle()
+                } catch (ie: Exception) {
+                    // Kuvanpiirto ei onnistu (esim. paalankausta off-main-thread) -> poistetaan vanha
+                    try { java.io.File(ctx.filesDir, "widget_weather_icon.png").delete() } catch (_: Exception) {}
+                }
             } catch (e: Exception) { /* sailyta vanha cache */ }
         }
         if (now - WidgetCache.electricityUpdatedAt(ctx) > stale) {
