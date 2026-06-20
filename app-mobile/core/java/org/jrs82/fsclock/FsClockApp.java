@@ -38,6 +38,9 @@ public class FsClockApp extends Application {
         // kytkimet → kaikki opt-in (oletus pois), joten pois päältä olevat eivät tee mitään.
         Notifications.schedule(this);
 
+        // Kotinaytton widgettien taustapaivitys (15 min).
+        org.jrs82.fsclock.mobile.widget.WidgetUpdateWorker.schedule(this);
+
         // Akun keräys ja päivätilastot pyörivät koko prosessin elinkaaren.
         // Näin Asetukset/Järjestelmä-sivun avaaminen ei katkaise datavirtaa.
         batteryMonitor = new BatteryMonitor(this);
