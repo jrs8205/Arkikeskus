@@ -71,6 +71,12 @@ object WidgetCache {
     fun weatherOmCondShower(ctx: Context) = p(ctx).getBoolean("w_om_cshower", false)
     fun weatherOmUpdatedAt(ctx: Context) = p(ctx).getLong("w_om_at", 0L)
 
+    // --- Sää: koko päivän tuntilista (FMI + Open-Meteo), JSON-taulukko [{h,f,o}, …] ---
+    fun setWeatherHours(ctx: Context, json: String) {
+        p(ctx).edit().putString("w_hours", json).apply()
+    }
+    fun weatherHoursJson(ctx: Context) = p(ctx).getString("w_hours", "[]") ?: "[]"
+
     // --- Pörssisähkö ---
     fun setElectricity(ctx: Context, snt: Double, atMs: Long) {
         p(ctx).edit().putString("e_snt", snt.toString()).putLong("e_at", atMs).apply()
