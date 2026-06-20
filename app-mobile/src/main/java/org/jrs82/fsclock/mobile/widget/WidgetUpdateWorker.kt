@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.ElectricityRepository
@@ -64,12 +65,14 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             WidgetCache.setSteps(ctx, steps, StepGoalNotifier.goal(prefs), now)
         } catch (e: Exception) { /* sailyta vanha */ }
 
-        // (Lahtodata haetaan Task 13:ssa.) Widgettien updateAll lisataan kunkin widgetin taskissa.
+        // Paivita Glance-widgetit uudella cachella.
+        try { WeatherWidget().updateAll(ctx) } catch (e: Exception) { }
         Result.success()
     }
 
     companion object {
         private const val WORK = "arkikeskus_widgets"
+        @JvmStatic
         fun schedule(context: Context) {
             val work = PeriodicWorkRequestBuilder<WidgetUpdateWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(
@@ -81,6 +84,7 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.UPDATE, work)
         }
+        @JvmStatic
         fun refreshNow(context: Context) {
             WorkManager.getInstance(context).enqueueUniqueWork(
                 "${WORK}_once", ExistingWorkPolicy.KEEP,
