@@ -7,7 +7,6 @@ import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -25,11 +24,15 @@ import org.jrs82.fsclock.WeatherRepository
 import org.jrs82.fsclock.WeatherTextFormatter
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.mobile.DigitransitApi
+import org.jrs82.fsclock.mobile.HealthConnectStepsBridge
+import org.jrs82.fsclock.mobile.KEY_STEPS_USE_HC
 import org.jrs82.fsclock.mobile.NearbyStop
 import org.jrs82.fsclock.mobile.StepGoalNotifier
 import org.jrs82.fsclock.mobile.WeatherCache
 import java.util.Calendar
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Etsii lahinta pysakkia kaytten ensin laitteen viimeista tunnettua sijaintia (GPS tai verkko),
@@ -80,43 +83,76 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                     ctx, place, wd.current.temperature, condLabel,
                     wd.current.windSpeed, wd.current.feelsLike, wd.current.precip1h, now,
                 )
-                // Piirrä sääikoni bitmapiksi widgettiä varten.
-                try {
-                    val sizePx = 96
-                    val iconFile = java.io.File(ctx.filesDir, "widget_weather_icon.png")
-                    val view = WeatherIconView(ctx)
-                    view.setCondition(wd.current.condition)
-                    val ms = View.MeasureSpec.makeMeasureSpec(sizePx, View.MeasureSpec.EXACTLY)
-                    view.measure(ms, ms)
-                    view.layout(0, 0, sizePx, sizePx)
-                    val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-                    view.draw(Canvas(bmp))
-                    iconFile.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 90, it) }
-                    bmp.recycle()
-                } catch (ie: Exception) {
-                    // Kuvanpiirto ei onnistu (esim. paalankausta off-main-thread) -> poistetaan vanha
-                    try { java.io.File(ctx.filesDir, "widget_weather_icon.png").delete() } catch (_: Exception) {}
-                }
             } catch (e: Exception) { /* sailyta vanha cache */ }
         }
-        if (now - WidgetCache.electricityUpdatedAt(ctx) > stale) {
+        // Fix 5: Sääikoni piirretään JOKA kierroksella nykyisen WeatherCache.last-tilan ja
+        // uiModen perusteella — näin teema-/värimoodinvaihdon jälkeen ikoni päivittyy heti.
+        try {
+            val wd = WeatherCache.last
+            if (wd != null) {
+                val sizePx = 96
+                val iconFile = java.io.File(ctx.filesDir, "widget_weather_icon.png")
+                val view = WeatherIconView(ctx)
+                view.setCondition(wd.current.condition)
+                val ms = View.MeasureSpec.makeMeasureSpec(sizePx, View.MeasureSpec.EXACTLY)
+                view.measure(ms, ms)
+                view.layout(0, 0, sizePx, sizePx)
+                val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+                view.draw(Canvas(bmp))
+                iconFile.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 90, it) }
+                bmp.recycle()
+            }
+        } catch (ie: Exception) {
+            // Kuvanpiirto ei onnistu (esim. paalankausta off-main-thread) -> poistetaan vanha
+            try { java.io.File(ctx.filesDir, "widget_weather_icon.png").delete() } catch (_: Exception) {}
+        }
+        // Fix 4: Haetaan verkkodata vain jos yli 25 min vanha (e_fetch_at); vartti luetaan JOKA
+        // kierroksella, jotta hinta vaihtuu 15 min välein ilman uutta verkkopyyntöä.
+        if (now - WidgetCache.electricityFetchAt(ctx) > stale) {
             try {
                 val repo = ElectricityRepository.get(ctx)
                 repo.fetchIfStale()
-                val q = repo.currentQuarter()
-                if (q != null) WidgetCache.setElectricity(ctx, q.sntPerKwh, now)
+                WidgetCache.setElectricityFetchAt(ctx, now)
             } catch (e: Exception) { /* sailyta vanha */ }
         }
-        // Askeleet joka kierros (paikallinen, halpa).
-        // StepCounter on package-private -> ei saavutettavissa workerista.
-        // Lasketaan paivaainen samalla logiikalla kuin StepCounter.todayKey().
+        try {
+            val repo = ElectricityRepository.get(ctx)
+            val q = repo.currentQuarter()
+            if (q != null) WidgetCache.setElectricity(ctx, q.sntPerKwh, now)
+        } catch (e: Exception) { /* sailyta vanha */ }
+        // Fix 1: Askeleet joka kierros (paikallinen, halpa). Huomioidaan HC-opt-in, ja säilytetään
+        // saman päivän paras arvo (ei korvata suurempaa pienemmällä tai nollalla).
         try {
             val c = Calendar.getInstance()
-            val today = c.get(Calendar.YEAR) * 10000 +
+            val dayKey = c.get(Calendar.YEAR) * 10000 +
                 (c.get(Calendar.MONTH) + 1) * 100 + c.get(Calendar.DAY_OF_MONTH)
-            val room = FsClockDb.get(ctx).dailyStepsDao().stepsForDay(today)
-            val steps = room ?: 0
-            WidgetCache.setSteps(ctx, steps, StepGoalNotifier.goal(prefs), now)
+            val roomSteps = FsClockDb.get(ctx).dailyStepsDao().stepsForDay(dayKey) ?: 0
+            val useHc = prefs.getBoolean(KEY_STEPS_USE_HC, false)
+            val hcSteps: Long = if (useHc) {
+                val latch = CountDownLatch(1)
+                val result = AtomicLong(-1L)
+                HealthConnectStepsBridge.todaySteps(ctx) { s ->
+                    result.set(s)
+                    latch.countDown()
+                }
+                try {
+                    if (latch.await(8, TimeUnit.SECONDS)) result.get() else -1L
+                } catch (ie: InterruptedException) { -1L }
+            } else -1L
+            val best: Int = when {
+                useHc && hcSteps >= 0L -> maxOf(roomSteps, hcSteps.toInt())
+                else -> roomSteps
+            }
+            val goal = StepGoalNotifier.goal(prefs)
+            // Ei korvata saman päivän parempaa arvoa huonommalla; ei koskaan kirjoiteta negatiivista.
+            val cachedDay = WidgetCache.stepsDayKey(ctx)
+            val cachedSteps = WidgetCache.steps(ctx)
+            val skipWrite = best <= 0 && cachedDay == dayKey && cachedSteps > 0
+            if (!skipWrite) {
+                val toWrite: Int = if (cachedDay == dayKey) maxOf(best, cachedSteps).coerceAtLeast(0)
+                                   else best.coerceAtLeast(0)
+                WidgetCache.setStepsWithDay(ctx, toWrite, goal, dayKey, now)
+            }
         } catch (e: Exception) { /* sailyta vanha */ }
 
         // Lahto-widgetit: hae kunkin asetetun widgetin pysakin lahdot.
@@ -160,13 +196,11 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
         private const val WORK = "arkikeskus_widgets"
         @JvmStatic
         fun schedule(context: Context) {
+            // Fix 2: Ei verkko- tai akkuehtoja — askeleet ja ikonipäivitys onnistuvat myös offline.
+            // Verkkohaut ovat jo staleness-gatettuja ja suojattu try/catchilla.
             val work = PeriodicWorkRequestBuilder<WidgetUpdateWorker>(15, TimeUnit.MINUTES)
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .setRequiresBatteryNotLow(true)
-                        .build(),
-                ).build()
+                .setConstraints(Constraints.Builder().build())
+                .build()
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.UPDATE, work)
         }

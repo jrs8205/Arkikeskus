@@ -52,6 +52,19 @@ object WidgetCache {
     fun steps(ctx: Context) = p(ctx).getInt("s_steps", 0)
     fun stepsGoal(ctx: Context) = p(ctx).getInt("s_goal", 10000)
     fun stepsUpdatedAt(ctx: Context) = p(ctx).getLong("s_at", 0L)
+    /** Päiväavain (YYYYMMDD) jolle viimeisin s_steps on tallennettu. 0 = ei dataa. */
+    fun stepsDayKey(ctx: Context) = p(ctx).getInt("s_day", 0)
+    fun setStepsWithDay(ctx: Context, steps: Int, goal: Int, dayKey: Int, atMs: Long) {
+        p(ctx).edit()
+            .putInt("s_steps", steps).putInt("s_goal", goal)
+            .putInt("s_day", dayKey).putLong("s_at", atMs).apply()
+    }
+
+    // --- Sähkö: erillinen fetch-aikaleima (pyöräytys vs. hakuleima) ---
+    fun electricityFetchAt(ctx: Context) = p(ctx).getLong("e_fetch_at", 0L)
+    fun setElectricityFetchAt(ctx: Context, atMs: Long) {
+        p(ctx).edit().putLong("e_fetch_at", atMs).apply()
+    }
 
     // --- Lähtö-widgetin konfigurointi (per appWidgetId) ---
     fun setDepartureConfig(ctx: Context, id: Int, mode: String, stopId: String, stopName: String) {
