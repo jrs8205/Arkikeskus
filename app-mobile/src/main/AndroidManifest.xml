@@ -224,6 +224,16 @@
             android:parentActivityName="org.jrs82.fsclock.mobile.MobileComposeMainActivity"
             android:theme="@style/MobileSettingsTheme" />
 
+        <!-- Lahto-widgetin konfigurointi: kayttaja valitsee suosikkipysakin tai lahimman. -->
+        <activity
+            android:name="org.jrs82.fsclock.mobile.widget.DepartureWidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/MobileComposeTheme">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Ladatun päivitys-APK:n jakaminen pakettiasentajalle. -->
         <provider
             android:name="androidx.core.content.FileProvider"
