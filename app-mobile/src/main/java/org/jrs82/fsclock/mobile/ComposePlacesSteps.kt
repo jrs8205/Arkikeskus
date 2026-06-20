@@ -596,18 +596,20 @@ internal fun StepsSection() {
     }
 
     // Widget-push: päivitä askelwidgetti kun käyttäjä katsoo askelsivua.
-    // Kirjoitetaan cache aina kun todaySteps muuttuu (halpa), mutta updateAll rajoitetaan
-    // kerran per 60 s jotta ei spämmätä Glance-rendering-polkua kävellessä.
-    var lastWidgetPushMs by remember { mutableStateOf(0L) }
+    // Cache kirjoitetaan välittömästi (halpa + pitää s_day-avaimen synkassa workerin kanssa),
+    // mutta updateAll debounce-viivästetään 800 ms: LaunchedEffect peruuttaa ja käynnistää
+    // itsensä uudelleen aina kun todaySteps muuttuu, joten delay ei koskaan valmistu kesken
+    // nopean muutoksen → updateAll laukeaa vain loppuarvolla.
     LaunchedEffect(todaySteps, enabled) {
         if (!enabled || todaySteps <= 0L) return@LaunchedEffect
         val goal = StepGoalNotifier.goal(prefs)
-        WidgetCache.setSteps(context, todaySteps.toInt(), goal, System.currentTimeMillis())
-        val now = System.currentTimeMillis()
-        if (now - lastWidgetPushMs >= 60_000L) {
-            lastWidgetPushMs = now
-            try { StepsWidget().updateAll(context) } catch (_: Exception) { }
-        }
+        val cal = java.util.Calendar.getInstance()
+        val dayKey = cal.get(java.util.Calendar.YEAR) * 10000 +
+            (cal.get(java.util.Calendar.MONTH) + 1) * 100 +
+            cal.get(java.util.Calendar.DAY_OF_MONTH)
+        WidgetCache.setStepsWithDay(context, todaySteps.toInt(), goal, dayKey, System.currentTimeMillis())
+        delay(800L)
+        try { StepsWidget().updateAll(context) } catch (_: Exception) { }
     }
 
     // Reaaliaikaisuus: virkistä Tänään-luku ~15 s välein auki ollessa, jotta askeleet kasvavat
