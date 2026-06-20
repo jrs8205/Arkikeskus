@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-buildin nimi: erottaa debug-version (applicationId org.jrs82.arkikeskus.debug, debug-avain)
+  selvästi oikeasta release-sovelluksesta (org.jrs82.arkikeskus). Vain debug-source-setissä →
+  ei vaikuta release-buildiin. Asentuu rinnalle, ei korvaa oikeaa sovellusta.
+-->
+<resources>
+    <string name="app_mobile_name">Arkikeskus DEBUG</string>
+</resources>

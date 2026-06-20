@@ -275,6 +275,9 @@ fun ComposeMainScreen(
     // Asetukset samanlaisena overlayna kuin valikko (alapalkki jää näkyviin, ratas korostuu).
     // rememberSaveable → teeman-/dynamic color -vaihdon recreate palauttaa asetukset auki.
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    // Asetusten alasivu (keskussivu HUB + 10 alasivua). rememberSaveable → teemanvaihdon recreate
+    // pitää käyttäjän samalla alasivulla. Avattaessa nollataan keskussivulle (ks. alapalkki).
+    var settingsPage by rememberSaveable(stateSaver = SettingsPageSaver) { mutableStateOf(SettingsPage.HUB) }
     val scope = rememberCoroutineScope()
     // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
     var refreshTick by remember { mutableStateOf(0) }
@@ -478,12 +481,20 @@ fun ComposeMainScreen(
                         label = { Text("Valikko") },
                     )
                     // Asetukset suoraan alapalkissa (käyttäjän toive: valikon perällä sitä ei löydä).
-                    // Avautuu overlayna kuten valikko; uusi painallus sulkee.
+                    // Avautuu overlayna kuten valikko (aina keskussivulle); alasivulla napautus tekee
+                    // pop-to-rootin (keskussivulle); keskussivulla napautus sulkee.
                     NavigationBarItem(
                         selected = settingsOpen,
                         onClick = {
-                            settingsOpen = !settingsOpen
                             menuOpen = false
+                            when {
+                                !settingsOpen -> {
+                                    settingsPage = SettingsPage.HUB
+                                    settingsOpen = true
+                                }
+                                settingsPage != SettingsPage.HUB -> settingsPage = SettingsPage.HUB
+                                else -> settingsOpen = false
+                            }
                         },
                         icon = {
                             Icon(painterResource(R.drawable.mobile_ic_settings_24), contentDescription = "Asetukset")
@@ -576,9 +587,13 @@ fun ComposeMainScreen(
                 }
 
                 // Asetukset-overlay (kuten valikko): sisältöalueen päällä, alapalkki näkyvissä.
+                // Takaisin-käsittely on SettingsScreenin sisällä (alasivu → keskussivu → sulje).
                 if (settingsOpen) {
-                    SettingsScreen()
-                    BackHandler(enabled = true) { settingsOpen = false }
+                    SettingsScreen(
+                        page = settingsPage,
+                        onPageChange = { settingsPage = it },
+                        onClose = { settingsOpen = false },
+                    )
                 }
             }
         }

@@ -62,7 +62,10 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "Arkikeskus-${variant.versionName}.apk"
+            // Debug-APK selvästi merkitty tiedostonimessä; release pysyy ennallaan (julkaisutyön
+            // odottama nimi Arkikeskus-{V}.apk).
+            def suffix = variant.buildType.name == 'debug' ? '-debug' : ''
+            outputFileName = "Arkikeskus-${variant.versionName}${suffix}.apk"
         }
     }
 

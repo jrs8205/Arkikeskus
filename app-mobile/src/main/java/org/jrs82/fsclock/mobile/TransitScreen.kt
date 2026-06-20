@@ -675,20 +675,20 @@ internal fun TransitScreen() {
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    FilterChip(
+                    ModeFilterChip(
                         selected = state.modeFilter == null,
-                        onClick = { state.updateModeFilter(null) },
-                        label = { Text("Kaikki") },
-                    )
+                        label = "Kaikki",
+                        mode = null,
+                    ) { state.updateModeFilter(null) }
                     listOf(
                         "BUS" to "Bussit", "TRAM" to "Ratikat", "RAIL" to "Junat",
                         "SUBWAY" to "Metro", "FERRY" to "Lautat",
                     ).forEach { (mode, label) ->
-                        FilterChip(
+                        ModeFilterChip(
                             selected = state.modeFilter == mode,
-                            onClick = { state.updateModeFilter(if (state.modeFilter == mode) null else mode) },
-                            label = { Text(label) },
-                        )
+                            label = label,
+                            mode = mode,
+                        ) { state.updateModeFilter(if (state.modeFilter == mode) null else mode) }
                     }
                 }
             }
@@ -1924,20 +1924,20 @@ internal fun HslDisruptionsScreen() {
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(
+            ModeFilterChip(
                 selected = modeFilter == null,
-                onClick = { modeFilter = null },
-                label = { Text("Kaikki") },
-            )
+                label = "Kaikki",
+                mode = null,
+            ) { modeFilter = null }
             listOf(
                 "BUS" to "Bussit", "TRAM" to "Ratikat", "RAIL" to "Junat",
                 "SUBWAY" to "Metro", "FERRY" to "Lautat",
             ).forEach { (mode, label) ->
-                FilterChip(
+                ModeFilterChip(
                     selected = modeFilter == mode,
-                    onClick = { modeFilter = if (modeFilter == mode) null else mode },
-                    label = { Text(label) },
-                )
+                    label = label,
+                    mode = mode,
+                ) { modeFilter = if (modeFilter == mode) null else mode }
             }
         }
         Row(
@@ -2001,6 +2001,29 @@ internal fun HslDisruptionsScreen() {
 }
 
 @Composable
+/** Kulkuvälinesuodattimen chip-ikoni: "Kaikki" (mode=null) → done_all, muut kortin moodi-ikoni. */
+private fun transitModeChipIcon(mode: String?): Int =
+    if (mode == null) R.drawable.mobile_ic_done_all_24 else transitModeIconRes(mode)
+
+/** Suodatinchip ikonilla + tekstillä (sama tyyli Lähilähdöissä ja Häiriöissä). Ikoni perii chipin
+ *  tekstivärin (FilterChip-oletus), 18 dp. Suodatuslogiikka säilyy kutsujalla. */
+@Composable
+private fun ModeFilterChip(selected: Boolean, label: String, mode: String?, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = {
+            Icon(
+                painterResource(transitModeChipIcon(mode)),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        },
+    )
+}
+
+@Composable
 private fun DisruptionRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
     ArkiCard(
         modifier = Modifier
@@ -2025,7 +2048,16 @@ private fun DisruptionRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
                     .padding(start = 12.dp),
             ) {
                 if (a.routeShortName.isNotEmpty()) {
-                    TransitLineBadge(a.routeShortName, a.mode)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painterResource(transitModeIconRes(a.mode)),
+                            contentDescription = null,
+                            tint = transitModeColor(a.mode),
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        TransitLineBadge(a.routeShortName, a.mode)
+                    }
                     Spacer(modifier = Modifier.height(6.dp))
                 }
                 Text(

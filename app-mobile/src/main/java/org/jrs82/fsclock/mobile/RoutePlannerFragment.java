@@ -492,14 +492,14 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 {"TRAM", "Ratikka"}, {"SUBWAY", "Metro"}, {"FERRY", "Lautta"}};
         for (String[] m : modes) {
             final String mode = m[0];
-            filterRow.addView(makeFilterChip(m[1], mode.equals(planTransitMode), v -> {
+            filterRow.addView(makeFilterChip(m[1], routeModeChipIcon(mode), mode.equals(planTransitMode), v -> {
                 planTransitMode = mode;
                 persistRouteFilters();
                 buildFilterChips();
                 if (bothEndsReady()) doSearch();
             }));
         }
-        filterRow.addView(makeFilterChip("Vain suorat", planDirectOnly, v -> {
+        filterRow.addView(makeFilterChip("Vain suorat", R.drawable.mobile_ic_arrow_right_alt_24, planDirectOnly, v -> {
             planDirectOnly = !planDirectOnly;
             persistRouteFilters();
             buildFilterChips();
@@ -507,25 +507,47 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         }));
     }
 
-    private android.view.View makeFilterChip(String label, boolean selected,
+    /** Suodatinchipin ikoni: "" (Kaikki) → done_all, muut kulkuvälineen oma moodi-ikoni
+     *  (sama lähde kuin ajoneuvomerkit, [TransitStyle.modeIcon]) → yhtenäinen Lähilähtöjen kanssa. */
+    private static int routeModeChipIcon(String mode) {
+        if (mode == null || mode.isEmpty()) return R.drawable.mobile_ic_done_all_24;
+        return TransitStyle.modeIcon(mode);
+    }
+
+    private android.view.View makeFilterChip(String label, int iconRes, boolean selected,
                                              android.view.View.OnClickListener onClick) {
         android.widget.TextView t = new android.widget.TextView(requireContext());
         float dp = getResources().getDisplayMetrics().density;
         t.setText(label);
         t.setTextSize(13f);
         t.setTypeface(null, selected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
-        t.setPadding((int) (12 * dp), (int) (7 * dp), (int) (12 * dp), (int) (7 * dp));
+        // Vaakapadding hieman pienempi (12→10 dp), koska ikoni vie tilaa → rivi pysyy tiiviinä.
+        t.setPadding((int) (10 * dp), (int) (7 * dp), (int) (12 * dp), (int) (7 * dp));
+        t.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        final int textColor;
         android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
         bg.setCornerRadius(18 * dp);
         if (selected) {
             bg.setColor(0xFF1A73E8);
-            t.setTextColor(0xFFFFFFFF);
+            textColor = 0xFFFFFFFF;
         } else {
             bg.setColor(0x00000000);
             bg.setStroke((int) (1 * dp), androidx.core.content.ContextCompat.getColor(
                     requireContext(), R.color.mobile_text_muted));
-            t.setTextColor(androidx.core.content.ContextCompat.getColor(
-                    requireContext(), R.color.mobile_text_primary));
+            textColor = androidx.core.content.ContextCompat.getColor(
+                    requireContext(), R.color.mobile_text_primary);
+        }
+        t.setTextColor(textColor);
+        // Ikoni tekstin eteen, sama väri kuin teksti, ~18 dp + 6 dp väli.
+        android.graphics.drawable.Drawable icon =
+                androidx.core.content.ContextCompat.getDrawable(requireContext(), iconRes);
+        if (icon != null) {
+            icon = icon.mutate();
+            int sz = (int) (18 * dp);
+            icon.setBounds(0, 0, sz, sz);
+            icon.setTint(textColor);
+            t.setCompoundDrawablesRelative(icon, null, null, null);
+            t.setCompoundDrawablePadding((int) (6 * dp));
         }
         t.setBackground(bg);
         android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
