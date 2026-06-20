@@ -11,7 +11,6 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.LinearProgressIndicator
-import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -46,7 +45,7 @@ private fun StepsContent(context: Context) {
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
                 .padding(14.dp)
-                .clickable(actionStartActivity(WidgetDeepLink.deepLinkIntent(context, "STEPS"))),
+                .clickable(WidgetDeepLink.openSection("STEPS")),
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
             Text(

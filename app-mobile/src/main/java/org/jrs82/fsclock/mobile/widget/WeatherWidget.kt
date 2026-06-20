@@ -13,7 +13,6 @@ import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -59,7 +58,7 @@ private fun WeatherContent(context: Context) {
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
                 .padding(12.dp)
-                .clickable(actionStartActivity(WidgetDeepLink.deepLinkIntent(context, "FORECAST"))),
+                .clickable(WidgetDeepLink.openSection("FORECAST")),
             verticalAlignment = Alignment.Vertical.Top,
         ) {
             // Paikannimi ylhäällä
