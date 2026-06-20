@@ -10,7 +10,6 @@ import androidx.glance.GlanceTheme
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -66,7 +65,7 @@ private fun ElectricityContent(context: Context) {
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
                 .padding(14.dp)
-                .clickable(actionStartActivity(WidgetDeepLink.deepLinkIntent(context, "ELECTRICITY"))),
+                .clickable(WidgetDeepLink.openSection("ELECTRICITY")),
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
             Text(

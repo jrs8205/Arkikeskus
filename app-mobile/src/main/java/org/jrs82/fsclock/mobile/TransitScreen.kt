@@ -940,6 +940,32 @@ private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState)
     }
 }
 
+/** Pieni tyyppimerkki ("LINJA" / "PYSÄKKI" / "ASEMA") ikonilla — kertoo heti suosikkirivin tyypin. */
+@Composable
+private fun TransitTypeEyebrow(iconRes: Int, label: String) {
+    Row(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            painterResource(iconRes),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(13.dp),
+        )
+        Text(
+            label.uppercase(FI_TR),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
 @Composable
 private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
     val context = LocalContext.current
@@ -977,15 +1003,24 @@ private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
                     fontWeight = FontWeight.Bold,
                 )
             }
-            Text(
-                r.longName ?: "",
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 12.dp),
-                fontSize = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            ) {
+                TransitTypeEyebrow(transitModeIconRes(r.mode), "Linja")
+                val routeText = r.longName ?: ""
+                if (routeText.isNotBlank()) {
+                    Text(
+                        routeText,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 3.dp),
+                    )
+                }
+            }
             IconButton(
                 onClick = {
                     TransitFavorites.toggleLineFav(context, r.gtfsId, r.shortName, r.longName, r.mode)
@@ -1006,6 +1041,13 @@ private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
 @Composable
 private fun TransitFavStopRow(stop: NearbyStop, state: TransitState) {
     val context = LocalContext.current
+    val mode = stop.vehicleMode ?: ""
+    // Best-effort: metro-/juna-pysäkki = asema (oma moodi-ikoni), muut = pysäkki (pylväsikoni).
+    val isStation = mode == "SUBWAY" || mode == "RAIL"
+    val typeIcon = if (isStation) transitModeIconRes(mode) else R.drawable.mobile_ic_signpost_24
+    val typeLabel = if (isStation) "Asema" else "Pysäkki"
+    val name = if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name
+    val code = stop.code ?: ""
     ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -1017,36 +1059,52 @@ private fun TransitFavStopRow(stop: NearbyStop, state: TransitState) {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Tyyppi-ikoni (pylväs/asema) vaalealla pohjalla — erottuu linjan numerolapusta.
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .background(transitModeColor(stop.vehicleMode), RoundedCornerShape(8.dp)),
+                    .height(46.dp)
+                    .widthIn(min = 52.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        RoundedCornerShape(10.dp),
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painterResource(transitModeIconRes(stop.vehicleMode)),
+                    painterResource(typeIcon),
                     contentDescription = null,
-                    tint = transitOnModeColor(stop.vehicleMode),
-                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
                 )
             }
-            Text(
-                stopHeaderText(stop),
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 12.dp),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            ) {
+                TransitTypeEyebrow(typeIcon, typeLabel)
+                Text(
+                    name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 3.dp),
+                )
+                if (code.isNotBlank()) {
+                    Text(
+                        code,
+                        fontSize = 12.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier.padding(top = 1.dp),
+                    )
+                }
+            }
             IconButton(
                 onClick = {
-                    TransitFavorites.toggleStopFav(
-                        context, stop.gtfsId,
-                        if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name,
-                    )
-                    Toast.makeText(context, "Pysäkki poistettu suosikeista", Toast.LENGTH_SHORT).show()
+                    TransitFavorites.toggleStopFav(context, stop.gtfsId, name)
+                    Toast.makeText(context, "Poistettu suosikeista", Toast.LENGTH_SHORT).show()
                     state.favVersion++
                 },
                 modifier = Modifier.size(40.dp),

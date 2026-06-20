@@ -1,22 +1,23 @@
 package org.jrs82.fsclock.mobile.widget
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import androidx.glance.action.Action
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
+import androidx.glance.action.actionStartActivity
 import org.jrs82.fsclock.mobile.MobileComposeMainActivity
 import org.jrs82.fsclock.mobile.WorkoutTrackingService
 
-/** Widgetin tap -> avaa sovellus oikeaan sektioon (olemassa oleva open_section-deep-link). */
+/**
+ * Widgetin tap -> avaa sovellus oikeaan sektioon.
+ *
+ * Glancen TUETTU tapa on ActionParameters: Glance toimittaa arvon intentin extrana avaimen nimella
+ * (= EXTRA_OPEN_SECTION), jonka MobileComposeMainActivity jo lukee. Raaka Intent + putExtra EI
+ * valittynyt luotettavasti widget-napautuksessa (Glance ei sailyta mielivaltaisen Intentin extroja
+ * -> jokainen widget avasi sovelluksen etusivulle). Todennettu Android-dokumentaatiosta + laitteella.
+ */
 object WidgetDeepLink {
-    fun deepLinkIntent(ctx: Context, section: String): Intent =
-        Intent(ctx, MobileComposeMainActivity::class.java).apply {
-            putExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION, section)
-            // Yksilöllinen data-Uri per sektio. Intent.filterEquals EI vertaile extroja, joten
-            // ilman tätä kaikkien widgettien intentit olisivat "samat" -> Androidin PendingIntent-
-            // cache palauttaisi yhden ja saman intentin kaikille -> jokainen widget veisi väärään
-            // (samaan) sektioon. Uri tekee jokaisesta uniikin. Toiminta-actionia EI aseteta, jotta
-            // MobileComposeMainActivityn ACTION_VIEW-tiedostotuonti ei laukea.
-            data = Uri.parse("arkikeskus://widget/$section")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
+    private val SECTION_KEY = ActionParameters.Key<String>(WorkoutTrackingService.EXTRA_OPEN_SECTION)
+
+    fun openSection(section: String): Action =
+        actionStartActivity<MobileComposeMainActivity>(actionParametersOf(SECTION_KEY to section))
 }
