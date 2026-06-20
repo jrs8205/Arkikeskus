@@ -13,7 +13,7 @@ import java.util.List;
 
 /** Joukkoliikenteen suosikit (linjat + pysäkit) SharedPreferenceseissä JSON-listoina.
  *  Kevyt; ei Roomia/migraatiota (vrt. sovelluksen muu SharedPreferences-asetustyyli). */
-final class TransitFavorites {
+public final class TransitFavorites {
 
     private static final String KEY_LINES = "transit_fav_lines";
     private static final String KEY_STOPS = "transit_fav_stops";
@@ -23,9 +23,9 @@ final class TransitFavorites {
     private static volatile java.util.Set<String> lineIdCache;
     private static volatile java.util.Set<String> stopIdCache;
 
-    static final class FavStop {
-        final String gtfsId;
-        final String name;
+    public static final class FavStop {
+        public final String gtfsId;
+        public final String name;
         FavStop(String gtfsId, String name) { this.gtfsId = gtfsId; this.name = name; }
     }
 
@@ -97,7 +97,7 @@ final class TransitFavorites {
 
     // --- Pysäkit ---
 
-    static List<FavStop> getStops(Context ctx) {
+    public static List<FavStop> getStops(Context ctx) {
         List<FavStop> out = new ArrayList<>();
         try {
             JSONArray arr = new JSONArray(prefs(ctx).getString(KEY_STOPS, "[]"));
