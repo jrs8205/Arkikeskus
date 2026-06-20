@@ -68,6 +68,7 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
         // Paivita Glance-widgetit uudella cachella.
         try { WeatherWidget().updateAll(ctx) } catch (e: Exception) { }
         try { ElectricityWidget().updateAll(ctx) } catch (e: Exception) { }
+        try { StepsWidget().updateAll(ctx) } catch (e: Exception) { }
         Result.success()
     }
 
