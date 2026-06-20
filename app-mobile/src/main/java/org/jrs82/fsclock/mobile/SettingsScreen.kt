@@ -4,6 +4,7 @@ import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -16,37 +17,35 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +55,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -74,16 +74,38 @@ import java.util.Locale
  * MobileSettingsFragment + mobile_preferences.xml -parin (poistettu). Kaikki asetukset luetaan ja
  * kirjoitetaan SAMOIHIN SharedPreferences-avaimiin kuin ennenkin, joten käytös säilyy identtisenä.
  *
- * Osiot vastaavat vanhaa preferences-XML:ää: Sää (auto-sijainti), Etusivu (widget-järjestys),
- * Uutislähteet (10 kytkintä), Omat uutissyötteet (lisää/muokkaa/poista), Ruuvi-anturit
- * (BLE-skannaus + 3 slottia + nimet), Pörssisähkö (huomio/raja/ajankohta), Sovellus
- * (päivitysväli/teema/versiotiedot).
+ * Rakenne: **keskussivu (HUB) + 10 alasivua** ([SettingsPage]). Keskussivulta avataan alasivu, jolla
+ * kyseisen ominaisuuden asetukset ja sitä koskevat ilmoituskytkimet ovat vierekkäin (oma
+ * "Ilmoitukset"-aliotsikko). Navigaatio on host-tilaohjattu kuten muutkin näkymät ("Lenkki",
+ * "Häiriöt ja muutokset"): [page] kertoo nykyisen sivun, [onPageChange] vaihtaa sen, ja
+ * [BackHandler] palaa alasivulta keskussivulle (keskussivulta [onClose] sulkee asetukset). Ei
+ * erillistä NavHostia eikä modaaleja → järjestelmän takaisin-ele toimii ja alapalkki jää näkyviin.
  */
 
 private val FI = Locale("fi", "FI")
 
 /** Yhtenäinen pyöristetty laatikkomuoto valikon ja asetusten kohdille (sama molemmilla sivuilla). */
 internal val ItemBoxShape = RoundedCornerShape(20.dp)
+
+/** Asetusten keskussivu + alasivut. Järjestys = keskussivun kategorioiden järjestys. */
+enum class SettingsPage(val title: String) {
+    HUB("Asetukset"),
+    WEATHER("Sää & sijainti"),
+    ELECTRICITY("Pörssisähkö"),
+    NEWS("Uutiset"),
+    TRANSIT("Joukkoliikenne"),
+    FITNESS("Lenkki & askeleet"),
+    RUUVI("Ruuvi-anturit"),
+    APPEARANCE("Ulkoasu"),
+    APP_DATA("Sovellus & data"),
+    ABOUT("Tietoja"),
+}
+
+/** Sivun talletus Activityn uudelleenluontiin (teemanvaihto) — käyttäjä jää samalle alasivulle. */
+internal val SettingsPageSaver = Saver<SettingsPage, String>(
+    save = { it.name },
+    restore = { runCatching { SettingsPage.valueOf(it) }.getOrDefault(SettingsPage.HUB) },
+)
 
 private val THEME_OPTIONS = listOf(
     MobileThemeController.VALUE_SYSTEM to "Järjestelmän mukaan",
@@ -113,7 +135,11 @@ private val STEP_GOAL_OPTIONS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    page: SettingsPage,
+    onPageChange: (SettingsPage) -> Unit,
+    onClose: () -> Unit,
+) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val repo = remember { RuuviRepository.get(context) }
@@ -280,317 +306,365 @@ fun SettingsScreen() {
         ?: StepGoalNotifier.DEFAULT_GOAL
     val builtinFeeds = remember { NewsFeedStore.allFeeds(prefs).filter { it.builtin } }
     val customFeeds = remember(refreshTick) { NewsFeedStore.customFeeds(prefs) }
+    val namedSensors = remember(refreshTick) { SettingsManager.get().sensorNamesByMac().entries.toList() }
 
-    // Hostataan overlayna ComposeMainScreenin sisältöalueella → ulompi Scaffold hoitaa
-    // status-/navigaatiopalkin insetit; nollataan omat, ettei yläreunaan tule tuplapehmustetta.
-    // Ei takaisin-nuolta: overlay suljetaan takaisin-eleellä, ratas-napilla tai Koti-napilla.
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                title = { Text("Asetukset") },
-                windowInsets = WindowInsets(0, 0, 0, 0),
-            )
-        },
-    ) { padding ->
-        LazyColumn(
+    // Takaisin-ele/-nappi: alasivulta keskussivulle, keskussivulta sulje asetukset. Drive-overlayn
+    // ollessa auki tämä on pois käytöstä → Drive-sivun oma BackHandler (komposoituu myöhemmin) sulkee
+    // sen ensin. AlertDialogit kuluttavat takaisin-eleen itse.
+    BackHandler(enabled = !showDriveBackup) {
+        if (page != SettingsPage.HUB) onPageChange(SettingsPage.HUB) else onClose()
+    }
+
+    // Overlay sisältöalueen päällä (kuten valikko): peittävä Surface, ulompi Scaffold hoitaa insetit
+    // ja alapalkki jää näkyviin.
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            // Kapeat reunamarginaalit → kortit lähes koko sivun levyisiä (kuten HSL), enemmän tilaa.
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp)
+                .padding(top = 8.dp, bottom = 32.dp),
         ) {
-            // ---------- Sää ----------
-            item { SectionHeader("Sää", R.drawable.mobile_ic_location_24) }
-            item {
-                SettingsCard {
-                    SwitchRow(
-                        title = "Automaattinen sijainti",
-                        subtitle = "Päivitä paikkakunta laitteen sijainnin perusteella, jos lupa on annettu",
-                        leadingIconRes = R.drawable.mobile_ic_location_24,
-                        checked = autoLocation,
-                    ) { enable ->
-                        if (enable) {
-                            if (hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                                autoLocation = true
-                                prefs.edit()
-                                    .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)
-                                    .apply()
-                                resetAutoLocationThrottle()
+            when (page) {
+                // ============================ KESKUSSIVU ============================
+                SettingsPage.HUB -> {
+                    SettingsPageTitle("Asetukset")
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        val ruuviSubtitle = if (namedSensors.isNotEmpty())
+                            "${namedSensors.size} anturia · etsi uusia" else "Etsi antureita Bluetoothilla"
+                        // Etusivu ylimpänä; avaa SUORAAN korttijärjestelynäkymän (ei turhaa välisivua).
+                        HubRow("Etusivu", "Näkyvät kortit ja järjestys",
+                            R.drawable.mobile_ic_dashboard_24) {
+                            context.startActivity(Intent(context, MobileWidgetOrderActivity::class.java))
+                        }
+                        HubRow("Sää & sijainti", "Sijainti · säävaroitukset",
+                            R.drawable.mobile_ic_location_24) { onPageChange(SettingsPage.WEATHER) }
+                        HubRow("Pörssisähkö", "Halvan sähkön huomio ja rajat",
+                            R.drawable.mobile_ic_bolt_24) { onPageChange(SettingsPage.ELECTRICITY) }
+                        HubRow("Uutiset", "10 lähdettä · 9 kategoriaa · omat syötteet",
+                            R.drawable.mobile_ic_news_24) { onPageChange(SettingsPage.NEWS) }
+                        HubRow("Joukkoliikenne", "HSL-häiriöilmoitukset suosikeille",
+                            R.drawable.mobile_ic_bus_24) { onPageChange(SettingsPage.TRANSIT) }
+                        HubRow("Lenkki & askeleet", "Kilometri-ilmoitus · askeltavoite",
+                            R.drawable.mobile_ic_transit_walk) { onPageChange(SettingsPage.FITNESS) }
+                        HubRow("Ruuvi-anturit", ruuviSubtitle,
+                            R.drawable.mobile_ic_thermometer_24) { onPageChange(SettingsPage.RUUVI) }
+                        HubRow("Ulkoasu", "Teema · laitteen värit",
+                            R.drawable.mobile_ic_palette_24) { onPageChange(SettingsPage.APPEARANCE) }
+                        HubRow("Sovellus & data", "Päivitysväli · varmuuskopiointi",
+                            R.drawable.mobile_ic_tune_24) { onPageChange(SettingsPage.APP_DATA) }
+                        HubRow("Tietoja", "Versio ${appVersion(context)} · GitHub",
+                            R.drawable.mobile_ic_info_24) { onPageChange(SettingsPage.ABOUT) }
+                    }
+                }
+
+                // ============================ Sää & sijainti ============================
+                SettingsPage.WEATHER -> {
+                    SettingsPageTitle("Sää & sijainti")
+                    SubHeader("Sijainti")
+                    GroupCard {
+                        GroupRowSwitch(
+                            title = "Automaattinen sijainti",
+                            subtitle = "Päivitä paikkakunta laitteen sijainnin perusteella, jos lupa on annettu",
+                            leadingIconRes = R.drawable.mobile_ic_location_24,
+                            checked = autoLocation,
+                        ) { enable ->
+                            if (enable) {
+                                if (hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                                    autoLocation = true
+                                    prefs.edit()
+                                        .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)
+                                        .apply()
+                                    resetAutoLocationThrottle()
+                                } else {
+                                    prefs.edit()
+                                        .putBoolean(MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED, true)
+                                        .apply()
+                                    locationPermLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                                        ),
+                                    )
+                                }
                             } else {
+                                SettingsManager.get().clearHomeCoordinates()
                                 prefs.edit()
-                                    .putBoolean(MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED, true)
+                                    .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false)
+                                    .remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
                                     .apply()
-                                locationPermLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION,
-                                    ),
-                                )
+                                autoLocation = false
                             }
-                        } else {
-                            SettingsManager.get().clearHomeCoordinates()
-                            prefs.edit()
-                                .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, false)
-                                .remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
-                                .apply()
-                            autoLocation = false
+                        }
+                        GroupDivider()
+                        GroupRowInfo(
+                            title = "Viimeisin sääpäivitys",
+                            value = lastUpdateText(),
+                            leadingIconRes = R.drawable.mobile_ic_clock_24,
+                        )
+                    }
+                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    GroupCard {
+                        GroupPrefSwitchRow(
+                            prefs, WeatherWarningNotifier.KEY_ENABLED, "Säävaroitukset (oma paikkakunta)",
+                            subtitle = "Ilmoita FMI:n säävaroituksista kotipaikkakunnallasi",
+                            leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                            onChange = { if (it) enableNotif() },
+                        )
+                    }
+                }
+
+                // ============================ Pörssisähkö ============================
+                SettingsPage.ELECTRICITY -> {
+                    SettingsPageTitle("Pörssisähkö")
+                    SubHeader("Halpa sähkö")
+                    GroupCard {
+                        GroupPrefSwitchRow(
+                            prefs, MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE, "Halvan sähkön huomio",
+                            subtitle = "Näytä huomio etusivulla kun sähkö on halpaa",
+                            leadingIconRes = R.drawable.mobile_ic_bolt_24, default = true,
+                        )
+                        GroupDivider()
+                        GroupRowClickable(
+                            title = "Halvan sähkön raja",
+                            leadingIconRes = R.drawable.mobile_ic_bolt_24,
+                            valueText = "$threshold c/kWh",
+                            showChevron = true,
+                        ) { showThresholdDialog = true }
+                        GroupDivider()
+                        GroupRowClickable(
+                            title = "Milloin huomio näytetään",
+                            leadingIconRes = R.drawable.mobile_ic_clock_24,
+                            valueText = labelFor(CHEAP_MODE_OPTIONS, cheapMode),
+                            showChevron = true,
+                        ) { showModeDialog = true }
+                    }
+                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    GroupCard {
+                        GroupPrefSwitchRow(
+                            prefs, ElectricityNotifier.KEY_ENABLED, "Huomisen hinnat",
+                            subtitle = "Ilmoita kun huomisen sähköhinnat saapuvat (n. klo 14)",
+                            leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                            onChange = { if (it) enableNotif() },
+                        )
+                    }
+                }
+
+                // ============================ Uutiset ============================
+                SettingsPage.NEWS -> {
+                    SettingsPageTitle("Uutiset")
+                    SubHeader("Uutislähteet · ${builtinFeeds.size}")
+                    GroupCard {
+                        builtinFeeds.forEachIndexed { index, feed ->
+                            GroupPrefSwitchRow(
+                                prefs, feed.enabledKey(), feed.name,
+                                leadingIconRes = R.drawable.mobile_ic_news_24, default = true,
+                            )
+                            if (index < builtinFeeds.lastIndex) GroupDivider()
                         }
                     }
-                    RowDivider()
-                    InfoRow(
-                        title = "Viimeisin sääpäivitys",
-                        value = lastUpdateText(),
-                        leadingIconRes = R.drawable.mobile_ic_clock_24,
-                    )
-                }
-            }
-
-            // ---------- Etusivu ----------
-            item { SectionHeader("Etusivu", R.drawable.mobile_ic_dashboard_24) }
-            item {
-                SettingsCard {
-                    ClickableRow(
-                        title = "Etusivun kortit",
-                        subtitle = "Valitse näkyvät kortit ja järjestä ne raahaamalla (kello, sää, sähkö, anturit, uutiset, lähilähdöt…)",
-                        leadingIconRes = R.drawable.mobile_ic_dashboard_24,
-                    ) {
-                        context.startActivity(Intent(context, MobileWidgetOrderActivity::class.java))
+                    SubHeader("Omat uutissyötteet")
+                    GroupCard {
+                        customFeeds.forEach { feed ->
+                            GroupRowClickable(
+                                title = feed.name, subtitle = feed.url,
+                                leadingIconRes = R.drawable.mobile_ic_rss_24,
+                            ) { editFeed = feed }
+                            GroupDivider()
+                        }
+                        GroupRowClickable(
+                            title = "Lisää oma syöte",
+                            subtitle = "Lisää oma RSS- tai Atom-syöte (nimi + osoite)",
+                            leadingIconRes = R.drawable.mobile_ic_add_24,
+                        ) { addFeed = true }
+                    }
+                    SubHeader("Uutiskategoriat (Kotimaat + Ulkomaat) · ${FOREIGN_CATEGORY_TAGS.size}")
+                    GroupCard {
+                        FOREIGN_CATEGORY_TAGS.forEachIndexed { index, pair ->
+                            GroupPrefSwitchRow(
+                                prefs, NewsProfile.catVisibleKey(pair.first), pair.second,
+                                leadingIconRes = R.drawable.mobile_ic_news_24, default = true,
+                            )
+                            if (index < FOREIGN_CATEGORY_TAGS.lastIndex) GroupDivider()
+                        }
                     }
                 }
-            }
 
-            // ---------- Uutislähteet ----------
-            item { SectionHeader("Uutislähteet", R.drawable.mobile_ic_news_24) }
-            item {
-                SettingsCard {
-                    builtinFeeds.forEachIndexed { index, feed ->
-                        PrefSwitchRow(
-                            prefs, feed.enabledKey(), feed.name,
-                            leadingIconRes = R.drawable.mobile_ic_news_24, default = true,
+                // ============================ Joukkoliikenne ============================
+                SettingsPage.TRANSIT -> {
+                    SettingsPageTitle(
+                        "Joukkoliikenne",
+                        "HSL-häiriöilmoitukset suosikkilinjoillesi ja -pysäkeillesi.",
+                    )
+                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    GroupCard {
+                        GroupPrefSwitchRow(
+                            prefs, HslAlertNotifier.KEY_ENABLED, "HSL-häiriöt suosikeilla",
+                            subtitle = "Ilmoita kun suosikkilinjalle tai -pysäkille tulee uusi häiriö",
+                            leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                            onChange = { if (it) enableNotif() },
                         )
-                        if (index < builtinFeeds.lastIndex) RowDivider()
                     }
                 }
-            }
 
-            // ---------- Omat uutissyötteet ----------
-            item { SectionHeader("Omat uutissyötteet", R.drawable.mobile_ic_rss_24) }
-            item {
-                SettingsCard {
-                    customFeeds.forEach { feed ->
-                        ClickableRow(
-                            title = feed.name, subtitle = feed.url,
-                            leadingIconRes = R.drawable.mobile_ic_rss_24,
-                        ) { editFeed = feed }
-                        RowDivider()
+                // ============================ Lenkki & askeleet ============================
+                SettingsPage.FITNESS -> {
+                    SettingsPageTitle("Lenkki & askeleet")
+                    SubHeader("Askeltavoite")
+                    GroupCard {
+                        GroupRowClickable(
+                            title = "Tavoite",
+                            leadingIconRes = R.drawable.mobile_ic_transit_walk,
+                            valueText = labelFor(STEP_GOAL_OPTIONS, stepGoal),
+                            showChevron = true,
+                        ) { showStepGoalDialog = true }
                     }
-                    ClickableRow(
-                        title = "Lisää oma syöte",
-                        subtitle = "Lisää oma RSS- tai Atom-syöte (nimi + osoite)",
-                        leadingIconRes = R.drawable.mobile_ic_add_24,
-                    ) { addFeed = true }
-                }
-            }
-
-            // ---------- Uutiskategoriat (jaettu: Kotimaat + Ulkomaat; hard-filter) ----------
-            item { SectionHeader("Uutiskategoriat (Kotimaat + Ulkomaat)", R.drawable.mobile_ic_news_24) }
-            item {
-                SettingsCard {
-                    FOREIGN_CATEGORY_TAGS.forEachIndexed { index, pair ->
-                        PrefSwitchRow(
-                            prefs, NewsProfile.catVisibleKey(pair.first), pair.second,
-                            leadingIconRes = R.drawable.mobile_ic_news_24, default = true,
+                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    GroupCard {
+                        GroupPrefSwitchRow(
+                            prefs, WorkoutTrackingService.KEY_WORKOUT_KM_NOTIFY, "Kilometri-ilmoitus",
+                            subtitle = "Ääni-ilmoitus joka täyden kilometrin täyttyessä lenkillä",
+                            leadingIconRes = R.drawable.mobile_ic_info_24, default = true,
                         )
-                        if (index < FOREIGN_CATEGORY_TAGS.lastIndex) RowDivider()
+                        GroupDivider()
+                        GroupPrefSwitchRow(
+                            prefs, StepGoalNotifier.KEY_ENABLED, "Askeltavoite saavutettu",
+                            subtitle = "Ilmoita kun saavutat päivän askeltavoitteen",
+                            leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                            onChange = { if (it) enableNotif() },
+                        )
                     }
                 }
-            }
 
-            // ---------- Lenkkiseuranta ----------
-            item { SectionHeader("Lenkkiseuranta", R.drawable.mobile_ic_transit_walk) }
-            item {
-                SettingsCard {
-                    PrefSwitchRow(
-                        prefs, WorkoutTrackingService.KEY_WORKOUT_KM_NOTIFY, "Kilometri-ilmoitus",
-                        subtitle = "Ääni-ilmoitus joka täyden kilometrin täyttyessä lenkillä",
-                        leadingIconRes = R.drawable.mobile_ic_transit_walk, default = true,
+                // ============================ Ruuvi-anturit ============================
+                SettingsPage.RUUVI -> {
+                    SettingsPageTitle(
+                        "Ruuvi-anturit",
+                        "Skannaa ja nimeä RuuviTag-anturit. Lukemat näkyvät etusivulla ja Anturit-näkymässä.",
                     )
-                }
-            }
-
-            // ---------- Ilmoitukset ----------
-            item { SectionHeader("Ilmoitukset", R.drawable.mobile_ic_info_24) }
-            item {
-                SettingsCard {
-                    PrefSwitchRow(
-                        prefs, HslAlertNotifier.KEY_ENABLED, "HSL-häiriöt suosikeilla",
-                        subtitle = "Ilmoita kun suosikkilinjalle tai -pysäkille tulee uusi häiriö",
-                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) enableNotif() },
-                    )
-                    PrefSwitchRow(
-                        prefs, WeatherWarningNotifier.KEY_ENABLED, "Säävaroitukset (oma paikkakunta)",
-                        subtitle = "Ilmoita FMI:n säävaroituksista kotipaikkakunnallasi",
-                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) enableNotif() },
-                    )
-                    PrefSwitchRow(
-                        prefs, ElectricityNotifier.KEY_ENABLED, "Pörssisähkö (huomisen hinnat)",
-                        subtitle = "Ilmoita kun huomisen sähköhinnat saapuvat (n. klo 14)",
-                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) enableNotif() },
-                    )
-                    PrefSwitchRow(
-                        prefs, StepGoalNotifier.KEY_ENABLED, "Askeltavoite",
-                        subtitle = "Ilmoita kun saavutat päivän askeltavoitteen",
-                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) enableNotif() },
-                    )
-                    ClickableRow(
-                        title = "Tavoite",
-                        subtitle = labelFor(STEP_GOAL_OPTIONS, stepGoal),
-                        leadingIconRes = R.drawable.mobile_ic_info_24,
-                    ) { showStepGoalDialog = true }
-                    PrefSwitchRow(
-                        prefs, AppUpdateNotifier.KEY_ENABLED, "Sovelluspäivitykset",
-                        subtitle = "Ilmoita kun Arkikeskuksesta on uusi versio",
-                        leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
-                        onChange = { if (it) enableNotif() },
-                    )
-                }
-            }
-
-            // ---------- Ruuvi-anturit ----------
-            item { SectionHeader("Ruuvi-anturit", R.drawable.mobile_ic_thermometer_24) }
-            item {
-                SettingsCard {
-                    ClickableRow(
-                        title = "Etsi antureita (Bluetooth)",
-                        subtitle = "Skannaa lähellä olevat RuuviTagit ja nimeä napauttamalla",
-                        leadingIconRes = R.drawable.mobile_ic_bluetooth_24,
-                    ) { requestScan() }
-                }
-            }
-            item {
-                // Rajaton nimeäminen: kaikki nimetyt anturit (MAC → nimi) dynaamisena listana.
-                val named = remember(refreshTick) {
-                    SettingsManager.get().sensorNamesByMac().entries.toList()
-                }
-                SettingsCard {
-                    if (named.isEmpty()) {
-                        ClickableRow(
-                            title = "Ei nimettyjä antureita",
-                            subtitle = "Etsi antureita ja napauta löytynyttä antaaksesi sille nimen. " +
-                                "Antureita voi nimetä rajattomasti.",
-                            leadingIconRes = R.drawable.mobile_ic_thermometer_24,
+                    SubHeader("Anturit")
+                    GroupCard {
+                        GroupRowClickable(
+                            title = "Etsi antureita (Bluetooth)",
+                            subtitle = "Skannaa lähellä olevat RuuviTagit ja nimeä napauttamalla",
+                            leadingIconRes = R.drawable.mobile_ic_bluetooth_24,
                         ) { requestScan() }
-                    } else {
-                        named.forEachIndexed { i, e ->
-                            if (i > 0) RowDivider()
-                            ClickableRow(
+                        namedSensors.forEach { e ->
+                            GroupDivider()
+                            GroupRowClickable(
                                 title = e.value,
                                 subtitle = macSummary(repo, e.key),
                                 leadingIconRes = R.drawable.mobile_ic_thermometer_24,
                             ) { editSensorMac = e.key }
                         }
                     }
-                }
-            }
-
-            // ---------- Pörssisähkö ----------
-            item { SectionHeader("Pörssisähkö", R.drawable.mobile_ic_bolt_24) }
-            item {
-                SettingsCard {
-                    PrefSwitchRow(
-                        prefs,
-                        MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE,
-                        "Halvan sähkön huomio",
-                        subtitle = "Näytä huomio etusivulla kun sähkö on halpaa",
-                        leadingIconRes = R.drawable.mobile_ic_bolt_24,
-                        default = true,
-                    )
-                    RowDivider()
-                    ClickableRow(
-                        title = "Halvan sähkön raja",
-                        subtitle = "$threshold c/kWh (ALV 0 %)",
-                        leadingIconRes = R.drawable.mobile_ic_bolt_24,
-                    ) { showThresholdDialog = true }
-                    RowDivider()
-                    ClickableRow(
-                        title = "Milloin huomio näytetään",
-                        subtitle = labelFor(CHEAP_MODE_OPTIONS, cheapMode),
-                        leadingIconRes = R.drawable.mobile_ic_clock_24,
-                    ) { showModeDialog = true }
-                }
-            }
-
-            // ---------- Teema ----------
-            item { SectionHeader("Teema", R.drawable.mobile_ic_palette_24) }
-            item {
-                SettingsCard {
-                    ClickableRow(
-                        title = "Teema",
-                        subtitle = labelFor(THEME_OPTIONS, themeMode),
-                        leadingIconRes = R.drawable.mobile_ic_palette_24,
-                    ) {
-                        showThemeDialog = true
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        RowDivider()
-                        DynamicColorRow(prefs, context)
+                    if (namedSensors.isEmpty()) {
+                        Text(
+                            "Antureita voi nimetä rajattomasti. Nimetyt anturit näkyvät tässä.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp),
+                        )
                     }
                 }
-            }
 
-            // ---------- Sovellus ----------
-            item { SectionHeader("Sovellus", R.drawable.mobile_ic_tune_24) }
-            item {
-                SettingsCard {
-                    // Koskee KAIKKIA automaattisesti haettavia tietoja (sää, sähkö, uutiset,
-                    // liikenne…) — kuinka usein näkyvä sivu virkistetään sovelluksen ollessa auki.
-                    ClickableRow(
-                        title = "Tietojen päivitysväli",
-                        subtitle = "Kaikki tiedot (sää, sähkö, uutiset…) · " + labelFor(INTERVAL_OPTIONS, interval),
-                        leadingIconRes = R.drawable.mobile_ic_clock_24,
-                    ) { showIntervalDialog = true }
-                }
-            }
-
-            // ---------- Varmuuskopiointi ----------
-            item { SectionHeader("Varmuuskopiointi", R.drawable.mobile_ic_backup_24) }
-            item {
-                SettingsCard {
-                    ClickableRow(
-                        title = "Varmuuskopiointi Driveen",
-                        subtitle = "WhatsApp-tyylinen Google Drive -varmuuskopio",
-                        leadingIconRes = R.drawable.mobile_ic_backup_24,
-                    ) { showDriveBackup = true }
-                    RowDivider()
-                    ClickableRow(
-                        title = "Vie varmuuskopio (tiedostoon)",
-                        subtitle = "Asetukset ja lenkit yhteen tiedostoon (esim. Driveen)",
-                        leadingIconRes = R.drawable.mobile_ic_backup_24,
-                    ) {
-                        backupExportLauncher.launch(
-                            "Arkikeskus-varmuuskopio-" +
-                                SimpleDateFormat("yyyy-MM-dd", FI).format(Date()) + ".json")
-                    }
-                    RowDivider()
-                    ClickableRow(
-                        title = "Palauta varmuuskopio (tiedostosta)",
-                        subtitle = "Tuo aiemmin viety varmuuskopiotiedosto",
-                        leadingIconRes = R.drawable.mobile_ic_restore_24,
-                    ) {
-                        backupRestoreLauncher.launch(
-                            arrayOf("application/json", "application/octet-stream"))
+                // ============================ Ulkoasu ============================
+                SettingsPage.APPEARANCE -> {
+                    SettingsPageTitle("Ulkoasu")
+                    SubHeader("Teema")
+                    GroupCard {
+                        GroupRowClickable(
+                            title = "Teema",
+                            leadingIconRes = R.drawable.mobile_ic_palette_24,
+                            valueText = labelFor(THEME_OPTIONS, themeMode),
+                            showChevron = true,
+                        ) { showThemeDialog = true }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            GroupDivider()
+                            var dynamic by remember {
+                                mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_DYNAMIC_COLOR, false))
+                            }
+                            GroupRowSwitch(
+                                title = "Käytä laitteen värejä",
+                                subtitle = "Material You -värit taustakuvasta. Pois päältä: oma kirkas brändipaletti.",
+                                leadingIconRes = R.drawable.mobile_ic_palette_24,
+                                checked = dynamic,
+                            ) {
+                                dynamic = it
+                                prefs.edit().putBoolean(MobileThemeController.KEY_DYNAMIC_COLOR, it).apply()
+                                (context as? android.app.Activity)?.recreate()
+                            }
+                        }
                     }
                 }
-            }
 
-            // ---------- Tietoja sovelluksesta (versio + päivitys + GitHub) ----------
-            item { AppInfoSection(context) }
+                // ============================ Sovellus & data ============================
+                SettingsPage.APP_DATA -> {
+                    SettingsPageTitle("Sovellus & data")
+                    SubHeader("Tietojen päivitys")
+                    GroupCard {
+                        // Koskee KAIKKIA automaattisesti haettavia tietoja (sää, sähkö, uutiset,
+                        // liikenne…) — kuinka usein näkyvä sivu virkistetään sovelluksen ollessa auki.
+                        GroupRowClickable(
+                            title = "Tietojen päivitysväli",
+                            subtitle = "Kaikki tiedot (sää, sähkö, uutiset…)",
+                            leadingIconRes = R.drawable.mobile_ic_clock_24,
+                            valueText = labelFor(INTERVAL_OPTIONS, interval),
+                            showChevron = true,
+                        ) { showIntervalDialog = true }
+                    }
+                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    GroupCard {
+                        GroupPrefSwitchRow(
+                            prefs, AppUpdateNotifier.KEY_ENABLED, "Sovelluspäivitykset",
+                            subtitle = "Ilmoita kun Arkikeskuksesta on uusi versio",
+                            leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
+                            onChange = { if (it) enableNotif() },
+                        )
+                    }
+                    SubHeader("Varmuuskopiointi", R.drawable.mobile_ic_backup_24)
+                    GroupCard {
+                        GroupRowClickable(
+                            title = "Varmuuskopiointi Driveen",
+                            subtitle = "WhatsApp-tyylinen Google Drive -varmuuskopio",
+                            leadingIconRes = R.drawable.mobile_ic_backup_24,
+                            showChevron = true,
+                        ) { showDriveBackup = true }
+                        GroupDivider()
+                        GroupRowClickable(
+                            title = "Vie varmuuskopio (tiedostoon)",
+                            subtitle = "Asetukset ja lenkit yhteen tiedostoon (esim. Driveen)",
+                            leadingIconRes = R.drawable.mobile_ic_backup_24,
+                        ) {
+                            backupExportLauncher.launch(
+                                "Arkikeskus-varmuuskopio-" +
+                                    SimpleDateFormat("yyyy-MM-dd", FI).format(Date()) + ".json")
+                        }
+                        GroupDivider()
+                        GroupRowClickable(
+                            title = "Palauta varmuuskopio (tiedostosta)",
+                            subtitle = "Tuo aiemmin viety varmuuskopiotiedosto",
+                            leadingIconRes = R.drawable.mobile_ic_restore_24,
+                        ) {
+                            backupRestoreLauncher.launch(
+                                arrayOf("application/json", "application/octet-stream"))
+                        }
+                    }
+                }
+
+                // ============================ Tietoja ============================
+                SettingsPage.ABOUT -> {
+                    SettingsPageTitle("Tietoja")
+                    SubHeader("Sovellus")
+                    AboutGroup(context)
+                }
+            }
         }
     }
 
@@ -940,47 +1014,209 @@ private fun CustomFeedDialog(
     )
 }
 
-// ===================== Rivikomponentit =====================
+// ===================== Otsikko- ja ryhmäkomponentit =====================
 
 /** Varmuuskopion koko luettavana: "11,6 kt" / "1,2 Mt" — kasvava luku kertoo että dataa kertyy. */
 private fun formatBackupBytes(bytes: Int): String =
     if (bytes < 1024 * 1024) String.format(FI, "%.1f kt", bytes / 1024.0)
     else String.format(FI, "%.1f Mt", bytes / (1024.0 * 1024.0))
 
+/** Iso vasemmalle tasattu sivuotsikko (sama tyyli kuin "Lenkki"/"Häiriöt ja muutokset"); ei nuolta/ikonia. */
 @Composable
-private fun SectionHeader(text: String, iconRes: Int? = null) {
+private fun SettingsPageTitle(title: String, description: String? = null) {
+    Column(modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)) {
+        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        if (description != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Pieni harmaa aliotsikko (versaalit). Ilmoitukset-otsikossa pieni kuvake edessä. */
+@Composable
+private fun SubHeader(text: String, leadingIconRes: Int? = null) {
     Row(
-        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 18.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (iconRes != null) {
+        if (leadingIconRes != null) {
             Icon(
-                painter = painterResource(iconRes),
+                painter = painterResource(leadingIconRes),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(15.dp),
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
         }
         Text(
-            text = text,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
+            text.uppercase(FI),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.5.sp,
         )
     }
 }
 
-/** Osion sisältö: kukin rivi on nyt OMA pyöristetty laatikko (ClickableRow/SwitchRow/InfoRow),
- *  joten tämä on vain väljästi välistetty Column (ei enää yhtä korttia + erotinviivoja). */
+/** Yksi pyöristetty kortti, jonka sisälle ladotaan tiiviit rivit + [GroupDivider]it (säästää tilaa). */
 @Composable
-private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        content = content,
+private fun GroupCard(content: @Composable ColumnScope.() -> Unit) {
+    ArkiCard(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape, content = content)
+}
+
+/**
+ * Ohut sisennetty jakaja ryhmäkortin rivien välissä. Väri johdetaan kortin SISÄLLÖN väristä
+ * (onSurfaceVariant) matalalla alfalla → erottuu kortin pinnasta (surfaceVariant) sekä vaalealla
+ * ETTÄ tummalla teemalla. (outlineVariant on tummassa identtinen surfaceVariantin kanssa → näkymätön.)
+ */
+@Composable
+private fun GroupDivider() {
+    HorizontalDivider(
+        thickness = 1.dp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
+        modifier = Modifier.padding(horizontal = 16.dp),
     )
 }
+
+/** Keskussivun kategoriarivi: oma pyöristetty kortti + chevron oikealla. */
+@Composable
+private fun HubRow(
+    title: String,
+    subtitle: String,
+    leadingIconRes: Int,
+    onClick: () -> Unit,
+) {
+    ClickableRow(
+        title = title,
+        subtitle = subtitle,
+        leadingIconRes = leadingIconRes,
+        trailingIconRes = R.drawable.mobile_ic_chevron_right_24,
+        onClick = onClick,
+    )
+}
+
+/** Klikattava ryhmärivi (ei omaa korttia). Valinnainen arvoteksti + chevron oikealla. */
+@Composable
+private fun GroupRowClickable(
+    title: String,
+    subtitle: String? = null,
+    leadingIconRes: Int? = null,
+    valueText: String? = null,
+    showChevron: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leadingIconRes != null) RowLeadingIcon(leadingIconRes)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (valueText != null) {
+            Spacer(Modifier.width(12.dp))
+            Text(
+                valueText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (showChevron) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                painter = painterResource(R.drawable.mobile_ic_chevron_right_24),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Ei-klikattava arvorivi (otsikko vasemmalla, arvo oikealla). */
+@Composable
+private fun GroupRowInfo(title: String, value: String, leadingIconRes: Int? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leadingIconRes != null) RowLeadingIcon(leadingIconRes)
+        Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(12.dp))
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Kytkinrivi ryhmäkortissa (ei omaa korttia). */
+@Composable
+private fun GroupRowSwitch(
+    title: String,
+    subtitle: String? = null,
+    leadingIconRes: Int? = null,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leadingIconRes != null) RowLeadingIcon(leadingIconRes)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/** SharedPreferences-boolean-kytkin ryhmäkortissa (lukee/kirjoittaa avaimen itse). */
+@Composable
+private fun GroupPrefSwitchRow(
+    prefs: SharedPreferences,
+    key: String,
+    title: String,
+    subtitle: String? = null,
+    leadingIconRes: Int? = null,
+    default: Boolean,
+    onChange: ((Boolean) -> Unit)? = null,
+) {
+    var checked by remember { mutableStateOf(prefs.getBoolean(key, default)) }
+    GroupRowSwitch(title = title, subtitle = subtitle, leadingIconRes = leadingIconRes, checked = checked) {
+        checked = it
+        prefs.edit().putBoolean(key, it).apply()
+        onChange?.invoke(it)
+    }
+}
+
+// ===================== Jaetut rivikomponentit (myös muiden näkymien käytössä) =====================
 
 @Composable
 internal fun ClickableRow(
@@ -1036,30 +1272,6 @@ internal fun RowLeadingIcon(iconRes: Int) {
 }
 
 @Composable
-private fun InfoRow(title: String, value: String, leadingIconRes: Int? = null) {
-    ArkiCard(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (leadingIconRes != null) {
-                RowLeadingIcon(leadingIconRes)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 internal fun SwitchRow(
     title: String,
     subtitle: String? = null,
@@ -1095,78 +1307,30 @@ internal fun SwitchRow(
 }
 
 /**
- * Dynamic color -kytkin: brändipaletti (oletus) ↔ Material You. Vaihto recreatee Activityn,
- * jotta uusi väriteema otetaan käyttöön heti (myös etusivun Compose-Activity lukee arvon onResumessa).
- * Näytetään vain Android 12+:lla, koska dynaaminen paletti vaatii sen.
+ * Tietoja sovelluksesta (ABOUT-alasivu): nykyinen versio, päivitystarkistus (GitHub-julkaisut) ja
+ * GitHub-linkki. Jos uudempi versio löytyy, se voidaan ladata ja asentaa suoraan ([AppUpdater]).
  */
 @Composable
-private fun DynamicColorRow(prefs: android.content.SharedPreferences, context: Context) {
-    var checked by remember {
-        mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_DYNAMIC_COLOR, false))
-    }
-    SwitchRow(
-        title = "Käytä laitteen värejä",
-        subtitle = "Material You -värit taustakuvasta. Pois päältä: oma kirkas brändipaletti.",
-        leadingIconRes = R.drawable.mobile_ic_palette_24,
-        checked = checked,
-    ) {
-        checked = it
-        prefs.edit().putBoolean(MobileThemeController.KEY_DYNAMIC_COLOR, it).apply()
-        (context as? android.app.Activity)?.recreate()
-    }
-}
-
-/** Kytkinrivi joka lukee/kirjoittaa SharedPreferences-boolean-avaimen itse. */
-@Composable
-private fun PrefSwitchRow(
-    prefs: android.content.SharedPreferences,
-    key: String,
-    title: String,
-    subtitle: String? = null,
-    leadingIconRes: Int? = null,
-    default: Boolean,
-    onChange: ((Boolean) -> Unit)? = null,
-) {
-    var checked by remember { mutableStateOf(prefs.getBoolean(key, default)) }
-    SwitchRow(title = title, subtitle = subtitle, leadingIconRes = leadingIconRes, checked = checked) {
-        checked = it
-        prefs.edit().putBoolean(key, it).apply()
-        onChange?.invoke(it)
-    }
-}
-
-@Composable
-private fun RowDivider() {
-    // Ei enää erotinviivaa: kukin rivi on oma pyöristetty laatikko, väli tulee Columnin spacingista.
-}
-
-/**
- * Tietoja sovelluksesta: nykyinen versio, päivitystarkistus (GitHub-julkaisut) ja GitHub-linkki.
- * Jos uudempi versio löytyy, se voidaan ladata ja asentaa suoraan ([AppUpdater]).
- */
-@Composable
-private fun AppInfoSection(context: Context) {
+private fun AboutGroup(context: Context) {
     val current = remember { appVersion(context) }
     var status by remember { mutableStateOf<String?>(null) }
     var checking by remember { mutableStateOf(false) }
     var downloading by remember { mutableStateOf(false) }
     var update by remember { mutableStateOf<AppUpdater.ReleaseInfo?>(null) }
 
-    SectionHeader("Tietoja sovelluksesta", R.drawable.mobile_ic_info_24)
-    Spacer(Modifier.height(4.dp))
-    SettingsCard {
-        InfoRow(
+    GroupCard {
+        GroupRowInfo(
             title = "Sovelluksen versio",
             value = current,
             leadingIconRes = R.drawable.mobile_ic_info_24,
         )
-        RowDivider()
-        ClickableRow(
+        GroupDivider()
+        GroupRowClickable(
             title = if (checking) "Tarkistetaan päivityksiä…" else "Tarkista päivitykset",
             subtitle = status,
             leadingIconRes = R.drawable.mobile_ic_refresh_24,
         ) {
-            if (checking || downloading) return@ClickableRow
+            if (checking || downloading) return@GroupRowClickable
             checking = true
             status = null
             update = null
@@ -1182,13 +1346,13 @@ private fun AppInfoSection(context: Context) {
         }
         val avail = update
         if (avail?.apkUrl != null) {
-            RowDivider()
-            ClickableRow(
+            GroupDivider()
+            GroupRowClickable(
                 title = if (downloading) "Ladataan ja asennetaan…" else "Lataa ja asenna ${avail.versionName}",
                 subtitle = "Haetaan GitHub-julkaisusta. Asennukseen tarvitaan lupa asentaa tuntemattomista lähteistä.",
                 leadingIconRes = R.drawable.mobile_ic_download_24,
             ) {
-                if (downloading) return@ClickableRow
+                if (downloading) return@GroupRowClickable
                 downloading = true
                 AppUpdater.downloadAndInstall(context, avail.apkUrl) { msg ->
                     downloading = false
@@ -1196,8 +1360,8 @@ private fun AppInfoSection(context: Context) {
                 }
             }
         }
-        RowDivider()
-        ClickableRow(
+        GroupDivider()
+        GroupRowClickable(
             title = "GitHub – lähdekoodi ja julkaisut",
             subtitle = "github.com/jrs8205/Arkikeskus",
             leadingIconRes = R.drawable.mobile_ic_code_24,
@@ -1205,7 +1369,6 @@ private fun AppInfoSection(context: Context) {
             openUrl(context, AppUpdater.REPO_URL)
         }
     }
-    Spacer(Modifier.height(8.dp))
 }
 
 private fun openUrl(context: Context, url: String) {
