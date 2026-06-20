@@ -301,7 +301,9 @@ private class TransitState(private val appContext: Context) {
                 val fav = ArrayList<NearbyStop>()
                 for (fs in TransitFavorites.getStops(appContext)) {
                     try {
-                        DigitransitApi.stopDepartures(fs.gtfsId)?.let { fav.add(it) }
+                        // Suosikki voi olla pysäkki TAI asema (metro/juna) → asema-fallback.
+                        (DigitransitApi.stopDepartures(fs.gtfsId)
+                            ?: DigitransitApi.stationDepartures(fs.gtfsId))?.let { fav.add(it) }
                     } catch (ignored: Exception) {
                     }
                 }
@@ -1275,6 +1277,8 @@ private fun TransitFullDayOverlay(
     onDeparture: (Departure) -> Unit,
 ) {
     BackHandler(onBack = onClose)
+    val context = LocalContext.current
+    var fav by remember(stop) { mutableStateOf(TransitFavorites.isStopFav(context, stop.gtfsId)) }
     var rows by remember(stop) { mutableStateOf<List<FullDayRow>?>(null) }
     var status by remember(stop) { mutableStateOf("Haetaan koko päivän aikataulua…") }
     LaunchedEffect(stop) {
@@ -1327,6 +1331,26 @@ private fun TransitFullDayOverlay(
                     "Koko päivän aikataulu",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // Suosikkitähti: lisää/poista pysäkki suosikeista (näkyy Lähilähdöissä ja widgetin valinnassa).
+            IconButton(
+                onClick = {
+                    val label = if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name
+                    fav = TransitFavorites.toggleStopFav(context, stop.gtfsId, label)
+                    Toast.makeText(
+                        context,
+                        if (fav) "Pysäkki lisätty suosikkeihin" else "Pysäkki poistettu suosikeista",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    painterResource(if (fav) R.drawable.mobile_ic_star else R.drawable.mobile_ic_star_outline),
+                    contentDescription = if (fav) "Poista suosikeista" else "Lisää suosikiksi",
+                    tint = if (fav) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
