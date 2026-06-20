@@ -18,7 +18,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.view.View
 import org.jrs82.fsclock.ElectricityRepository
+import org.jrs82.fsclock.OpenMeteoData
+import org.jrs82.fsclock.OpenMeteoRepository
 import org.jrs82.fsclock.SettingsManager
+import org.jrs82.fsclock.WeatherCondition
 import org.jrs82.fsclock.WeatherIconView
 import org.jrs82.fsclock.WeatherRepository
 import org.jrs82.fsclock.WeatherTextFormatter
@@ -60,6 +63,18 @@ private fun fetchNearestStop(ctx: Context): NearbyStop? {
     return DigitransitApi.nearbyDepartures(lat, lon).firstOrNull()
 }
 
+/** Lähin Open-Meteo-tunti annettuun hetkeen (max 31 min toleranssi); null jos ei sovi. */
+private fun nearestOpenMeteoHour(om: OpenMeteoData?, nowMs: Long): OpenMeteoData.Hour? {
+    val hours = om?.hours ?: return null
+    var best: OpenMeteoData.Hour? = null
+    var bestDiff = Long.MAX_VALUE
+    for (h in hours) {
+        val diff = Math.abs(h.timestamp - nowMs)
+        if (diff < bestDiff) { bestDiff = diff; best = h }
+    }
+    return if (best == null || bestDiff > 31L * 60_000L) null else best
+}
+
 class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -71,19 +86,35 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
         // Saa + sahko vain jos vanhentunut (>25 min) -> ~30 min 15 min workerilla, akkua saastäen.
         val stale = 25L * 60_000L
         if (now - WidgetCache.weatherUpdatedAt(ctx) > stale) {
+            // MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME on package-private
+            // -> kaytamme suoraan avainmerkkijonoa. Sama paikka molemmille lahteille.
+            val place = (prefs.getString("mobile_auto_location_display_name", "")
+                ?: "").ifBlank { SettingsManager.get().homePlace }
             try {
                 val wd = WeatherRepository.get(ctx).fetchHome(WeatherCache.last, true)
                 WeatherCache.last = wd
-                // MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME on package-private
-                // -> kaytamme suoraan avainmerkkijonoa.
-                val place = (prefs.getString("mobile_auto_location_display_name", "")
-                    ?: "").ifBlank { SettingsManager.get().homePlace }
                 val condLabel = WeatherTextFormatter.label(ctx, wd.current.condition)
                 WidgetCache.setWeather(
                     ctx, place, wd.current.temperature, condLabel,
                     wd.current.windSpeed, wd.current.feelsLike, wd.current.precip1h, now,
                 )
             } catch (e: Exception) { /* sailyta vanha cache */ }
+            // Open-Meteo samalle paikalle (FMI:n rinnalle widgetiin); itsenainen FMI-hausta.
+            try {
+                val om = OpenMeteoRepository.get(ctx).fetch(place, true)
+                val h = nearestOpenMeteoHour(om, now)
+                if (h != null) {
+                    val c = h.condition ?: WeatherCondition.unknown()
+                    WidgetCache.setWeatherOpenMeteo(
+                        ctx,
+                        h.temperature ?: Double.NaN,
+                        h.windSpeed ?: Double.NaN,
+                        WeatherTextFormatter.label(ctx, c),
+                        c.type.name, c.intensity.name, c.isNight, c.isShower,
+                        now,
+                    )
+                }
+            } catch (e: Exception) { /* sailyta vanha OM-cache */ }
         }
         // Fix 5: Sääikoni piirretään JOKA kierroksella nykyisen WeatherCache.last-tilan ja
         // uiModen perusteella — näin teema-/värimoodinvaihdon jälkeen ikoni päivittyy heti.
@@ -106,6 +137,35 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             // Kuvanpiirto ei onnistu (esim. paalankausta off-main-thread) -> poistetaan vanha
             try { java.io.File(ctx.filesDir, "widget_weather_icon.png").delete() } catch (_: Exception) {}
         }
+        // Open-Meteon ikoni piirretaan joka kierroksella tallennetusta saatilasta (osina varastoitu)
+        // -> teema-/varimoodinvaihto paivittaa myos OM-ikonin heti, kuten FMI-ikonin.
+        try {
+            val omType = WidgetCache.weatherOmCondType(ctx)
+            val omFile = java.io.File(ctx.filesDir, "widget_weather_icon_om.png")
+            if (omType.isNotBlank() && WidgetCache.weatherOmUpdatedAt(ctx) > 0L) {
+                val c = WeatherCondition()
+                c.type = WeatherCondition.Type.valueOf(omType)
+                try {
+                    c.intensity = WeatherCondition.Intensity.valueOf(WidgetCache.weatherOmCondIntensity(ctx))
+                } catch (_: Exception) { /* tuntematon intensiteetti -> oletus NONE */ }
+                c.isNight = WidgetCache.weatherOmCondNight(ctx)
+                c.isShower = WidgetCache.weatherOmCondShower(ctx)
+                val sizePx = 96
+                val view = WeatherIconView(ctx)
+                view.setCondition(c)
+                val ms = View.MeasureSpec.makeMeasureSpec(sizePx, View.MeasureSpec.EXACTLY)
+                view.measure(ms, ms)
+                view.layout(0, 0, sizePx, sizePx)
+                val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+                view.draw(Canvas(bmp))
+                omFile.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 90, it) }
+                bmp.recycle()
+            } else {
+                try { omFile.delete() } catch (_: Exception) {}
+            }
+        } catch (ie: Exception) {
+            try { java.io.File(ctx.filesDir, "widget_weather_icon_om.png").delete() } catch (_: Exception) {}
+        }
         // Fix 4: Haetaan verkkodata vain jos yli 25 min vanha (e_fetch_at); vartti luetaan JOKA
         // kierroksella, jotta hinta vaihtuu 15 min välein ilman uutta verkkopyyntöä.
         if (now - WidgetCache.electricityFetchAt(ctx) > stale) {
@@ -119,6 +179,17 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             val repo = ElectricityRepository.get(ctx)
             val q = repo.currentQuarter()
             if (q != null) WidgetCache.setElectricity(ctx, q.sntPerKwh, now)
+            // Paivan halvin/kallein vartti (Helsingin aika) widgetille.
+            val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Europe/Helsinki"))
+            val today = repo.dayQuarters(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+            val cheapest = today.minByOrNull { it.sntPerKwh }
+            val dearest = today.maxByOrNull { it.sntPerKwh }
+            WidgetCache.setElectricityExtremes(
+                ctx,
+                cheapest?.sntPerKwh, cheapest?.timestamp,
+                dearest?.sntPerKwh, dearest?.timestamp,
+            )
         } catch (e: Exception) { /* sailyta vanha */ }
         // Fix 1: Askeleet joka kierros (paikallinen, halpa). Huomioidaan HC-opt-in, ja säilytetään
         // saman päivän paras arvo (ei korvata suurempaa pienemmällä tai nollalla).
@@ -168,7 +239,12 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                         when (mode) {
                             "FAVORITE" -> {
                                 val stopId = WidgetCache.departureStopId(ctx, awId)
-                                if (stopId.isNotBlank()) DigitransitApi.stopDepartures(stopId) else null
+                                // Suosikki voi olla pysakki TAI asema (metro/juna): jos pysakkihaku
+                                // palauttaa nullin, kokeillaan asemahakua -> suosikkiasemat toimivat.
+                                if (stopId.isNotBlank())
+                                    DigitransitApi.stopDepartures(stopId)
+                                        ?: DigitransitApi.stationDepartures(stopId)
+                                else null
                             }
                             "NEAREST" -> fetchNearestStop(ctx)
                             else -> null
@@ -180,7 +256,7 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                         }
                         val name = if (mode == "NEAREST") stop.name
                             else WidgetCache.departureStopName(ctx, awId).ifBlank { stop.name }
-                        WidgetCache.setDepartureData(ctx, awId, name,
+                        WidgetCache.setDepartureData(ctx, awId, name, stop.code ?: "",
                             WidgetFormat.encodeDepartures(lines), now)
                     } else {
                         // Fix B (loop-esto): jos haku epäonnistui eikä cachessa ole YHTÄÄN aiempaa
@@ -189,7 +265,7 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                         // EI ylikirjoiteta olemassa olevaa hyvää dataa ohimenevällä virheellä.
                         if (WidgetCache.departureUpdatedAt(ctx, awId) == 0L) {
                             val fallbackName = WidgetCache.departureStopName(ctx, awId)
-                            WidgetCache.setDepartureData(ctx, awId, fallbackName, "[]", now)
+                            WidgetCache.setDepartureData(ctx, awId, fallbackName, "", "[]", now)
                         }
                     }
                 } catch (e: Exception) { /* yksittainen widget ei kaada koko silmukkaa */ }

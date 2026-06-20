@@ -38,12 +38,63 @@ object WidgetCache {
     fun weatherPrecip(ctx: Context) = p(ctx).getString("w_precip", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun weatherUpdatedAt(ctx: Context) = p(ctx).getLong("w_at", 0L)
 
+    // --- Sää: Open-Meteo (näytetään FMI:n rinnalla). Säätila talletetaan osina, jotta
+    //     widget_weather_icon_om.png voidaan piirtää uudelleen joka kierroksella teemankestävästi. ---
+    fun setWeatherOpenMeteo(
+        ctx: Context,
+        tempC: Double,
+        windSpeed: Double,
+        conditionLabel: String,
+        condType: String,
+        condIntensity: String,
+        condNight: Boolean,
+        condShower: Boolean,
+        atMs: Long,
+    ) {
+        p(ctx).edit()
+            .putString("w_om_temp", tempC.toString())
+            .putString("w_om_wind", windSpeed.toString())
+            .putString("w_om_cond", conditionLabel)
+            .putString("w_om_ctype", condType)
+            .putString("w_om_cint", condIntensity)
+            .putBoolean("w_om_cnight", condNight)
+            .putBoolean("w_om_cshower", condShower)
+            .putLong("w_om_at", atMs)
+            .apply()
+    }
+    fun weatherOmTempC(ctx: Context) = p(ctx).getString("w_om_temp", "NaN")?.toDoubleOrNull() ?: Double.NaN
+    fun weatherOmWind(ctx: Context) = p(ctx).getString("w_om_wind", "NaN")?.toDoubleOrNull() ?: Double.NaN
+    fun weatherOmCondition(ctx: Context) = p(ctx).getString("w_om_cond", "") ?: ""
+    fun weatherOmCondType(ctx: Context) = p(ctx).getString("w_om_ctype", "") ?: ""
+    fun weatherOmCondIntensity(ctx: Context) = p(ctx).getString("w_om_cint", "") ?: ""
+    fun weatherOmCondNight(ctx: Context) = p(ctx).getBoolean("w_om_cnight", false)
+    fun weatherOmCondShower(ctx: Context) = p(ctx).getBoolean("w_om_cshower", false)
+    fun weatherOmUpdatedAt(ctx: Context) = p(ctx).getLong("w_om_at", 0L)
+
     // --- Pörssisähkö ---
     fun setElectricity(ctx: Context, snt: Double, atMs: Long) {
         p(ctx).edit().putString("e_snt", snt.toString()).putLong("e_at", atMs).apply()
     }
     fun electricitySnt(ctx: Context) = p(ctx).getString("e_snt", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun electricityUpdatedAt(ctx: Context) = p(ctx).getLong("e_at", 0L)
+
+    // --- Pörssisähkö: päivän halvin/kallein vartti (snt + varttialun aikaleima ms) ---
+    fun setElectricityExtremes(
+        ctx: Context,
+        minSnt: Double?, minAtMs: Long?,
+        maxSnt: Double?, maxAtMs: Long?,
+    ) {
+        p(ctx).edit()
+            .putString("e_min_snt", (minSnt ?: Double.NaN).toString())
+            .putLong("e_min_at", minAtMs ?: 0L)
+            .putString("e_max_snt", (maxSnt ?: Double.NaN).toString())
+            .putLong("e_max_at", maxAtMs ?: 0L)
+            .apply()
+    }
+    fun electricityMinSnt(ctx: Context) = p(ctx).getString("e_min_snt", "NaN")?.toDoubleOrNull() ?: Double.NaN
+    fun electricityMinAt(ctx: Context) = p(ctx).getLong("e_min_at", 0L)
+    fun electricityMaxSnt(ctx: Context) = p(ctx).getString("e_max_snt", "NaN")?.toDoubleOrNull() ?: Double.NaN
+    fun electricityMaxAt(ctx: Context) = p(ctx).getLong("e_max_at", 0L)
 
     // --- Askeleet ---
     fun setSteps(ctx: Context, steps: Int, goal: Int, atMs: Long) {
@@ -76,15 +127,16 @@ object WidgetCache {
     fun departureStopName(ctx: Context, id: Int) = p(ctx).getString("d_stopname_$id", "") ?: ""
     fun clearDeparture(ctx: Context, id: Int) {
         p(ctx).edit().remove("d_mode_$id").remove("d_stopid_$id").remove("d_stopname_$id")
-            .remove("d_label_$id").remove("d_json_$id").remove("d_at_$id").apply()
+            .remove("d_label_$id").remove("d_code_$id").remove("d_json_$id").remove("d_at_$id").apply()
     }
 
     // --- Lähtö-widgetin data (per appWidgetId) ---
-    fun setDepartureData(ctx: Context, id: Int, stopName: String, json: String, atMs: Long) {
-        p(ctx).edit().putString("d_label_$id", stopName).putString("d_json_$id", json)
-            .putLong("d_at_$id", atMs).apply()
+    fun setDepartureData(ctx: Context, id: Int, stopName: String, stopCode: String, json: String, atMs: Long) {
+        p(ctx).edit().putString("d_label_$id", stopName).putString("d_code_$id", stopCode)
+            .putString("d_json_$id", json).putLong("d_at_$id", atMs).apply()
     }
     fun departureStopLabel(ctx: Context, id: Int) = p(ctx).getString("d_label_$id", "") ?: ""
+    fun departureStopCode(ctx: Context, id: Int) = p(ctx).getString("d_code_$id", "") ?: ""
     fun departureJson(ctx: Context, id: Int) = p(ctx).getString("d_json_$id", "[]") ?: "[]"
     fun departureUpdatedAt(ctx: Context, id: Int) = p(ctx).getLong("d_at_$id", 0L)
 }
