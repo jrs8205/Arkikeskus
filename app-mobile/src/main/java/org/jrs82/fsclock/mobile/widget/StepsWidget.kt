@@ -37,7 +37,9 @@ private fun StepsContent(context: Context) {
     val steps = WidgetCache.steps(context)
     val goal = WidgetCache.stepsGoal(context)
     val pct = WidgetFormat.stepsPercent(steps, goal)
-    val stepsText = NumberFormat.getInstance(Locale("fi", "FI")).format(steps)
+    val fiFmt = NumberFormat.getInstance(Locale("fi", "FI"))
+    val stepsText = fiFmt.format(steps)
+    val goalText = fiFmt.format(goal)
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
             modifier = GlanceModifier.fillMaxSize()
@@ -74,7 +76,7 @@ private fun StepsContent(context: Context) {
                 backgroundColor = GlanceTheme.colors.onSurfaceVariant,
             )
             Text(
-                "$pct % · tavoite $goal",
+                "$pct % · tavoite $goalText",
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurfaceVariant,
                     fontSize = 12.sp,
