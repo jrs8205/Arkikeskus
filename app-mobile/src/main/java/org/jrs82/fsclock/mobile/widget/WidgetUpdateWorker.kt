@@ -1,6 +1,7 @@
 package org.jrs82.fsclock.mobile.widget
 
 import android.content.Context
+import android.location.LocationManager
 import androidx.preference.PreferenceManager
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -18,10 +19,38 @@ import org.jrs82.fsclock.ElectricityRepository
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.WeatherRepository
 import org.jrs82.fsclock.db.FsClockDb
+import org.jrs82.fsclock.mobile.DigitransitApi
+import org.jrs82.fsclock.mobile.NearbyStop
 import org.jrs82.fsclock.mobile.StepGoalNotifier
 import org.jrs82.fsclock.mobile.WeatherCache
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
+
+/**
+ * Etsii lahinta pysakkia kaytten ensin laitteen viimeista tunnettua sijaintia (GPS tai verkko),
+ * ja kayttaa kotikoordin. fallbackina jos sijaintilupa puuttuu tai sijainti ei ole saatavilla.
+ * Palauttaa null jos kumpikaan ei onnistu.
+ */
+private fun fetchNearestStop(ctx: Context): NearbyStop? {
+    val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+    val deviceLoc: android.location.Location? = try {
+        lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+            ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+    } catch (se: SecurityException) { null }
+
+    val lat: Double
+    val lon: Double
+    if (deviceLoc != null) {
+        lat = deviceLoc.latitude
+        lon = deviceLoc.longitude
+    } else {
+        val sm = SettingsManager.get()
+        if (!sm.hasHomeCoordinates()) return null
+        lat = sm.getHomeLatitude()
+        lon = sm.getHomeLongitude()
+    }
+    return DigitransitApi.nearbyDepartures(lat, lon).firstOrNull()
+}
 
 class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
@@ -65,10 +94,40 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             WidgetCache.setSteps(ctx, steps, StepGoalNotifier.goal(prefs), now)
         } catch (e: Exception) { /* sailyta vanha */ }
 
+        // Lahto-widgetit: hae kunkin asetetun widgetin pysakin lahdot.
+        try {
+            val mgr = androidx.glance.appwidget.GlanceAppWidgetManager(ctx)
+            val ids = mgr.getGlanceIds(DepartureWidget::class.java)
+            for (gid in ids) {
+                val awId = mgr.getAppWidgetId(gid)
+                val mode = WidgetCache.departureMode(ctx, awId)
+                val stop = try {
+                    when (mode) {
+                        "FAVORITE" -> {
+                            val stopId = WidgetCache.departureStopId(ctx, awId)
+                            if (stopId.isNotBlank()) DigitransitApi.stopDepartures(stopId) else null
+                        }
+                        "NEAREST" -> fetchNearestStop(ctx)
+                        else -> null
+                    }
+                } catch (e: Exception) { null }
+                if (stop != null) {
+                    val lines = stop.departures.take(3).map {
+                        WidgetFormat.DepartureLine(it.routeShortName, it.mode, it.departureEpochSec)
+                    }
+                    val name = if (mode == "NEAREST") stop.name
+                        else WidgetCache.departureStopName(ctx, awId).ifBlank { stop.name }
+                    WidgetCache.setDepartureData(ctx, awId, name,
+                        WidgetFormat.encodeDepartures(lines), now)
+                }
+            }
+        } catch (e: Exception) { }
+
         // Paivita Glance-widgetit uudella cachella.
         try { WeatherWidget().updateAll(ctx) } catch (e: Exception) { }
         try { ElectricityWidget().updateAll(ctx) } catch (e: Exception) { }
         try { StepsWidget().updateAll(ctx) } catch (e: Exception) { }
+        try { DepartureWidget().updateAll(ctx) } catch (e: Exception) { }
         Result.success()
     }
 

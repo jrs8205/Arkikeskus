@@ -4,24 +4,24 @@ package org.jrs82.fsclock.mobile;
  *  departureEpochSec = serviceDay + (realtime ? realtimeDeparture : scheduledDeparture).
  *  delaySeconds = realtimeDeparture - scheduledDeparture (positiivinen = myöhässä).
  *  trip/pattern/route-gtfsId:t mahdollistavat aikajanan ja suosikkilinjat. */
-final class Departure {
+public final class Departure {
 
-    final String routeShortName;
-    final String headsign;
-    final String mode;           // BUS, TRAM, RAIL, SUBWAY, FERRY…
-    final long departureEpochSec;
-    final int delaySeconds;
-    final boolean realtime;
-    final double distanceMeters;  // etäisyys pysäkille (peritään NearbyStopilta riviä varten)
-    final String stopName;
-    final String stopGtfsId;
-    final String tripGtfsId;
-    final String patternCode;
-    final String routeGtfsId;
-    final String patternFirstStop;
-    final String patternLastStop;
+    public final String routeShortName;
+    public final String headsign;
+    public final String mode;           // BUS, TRAM, RAIL, SUBWAY, FERRY…
+    public final long departureEpochSec;
+    public final int delaySeconds;
+    public final boolean realtime;
+    public final double distanceMeters;  // etäisyys pysäkille (peritään NearbyStopilta riviä varten)
+    public final String stopName;
+    public final String stopGtfsId;
+    public final String tripGtfsId;
+    public final String patternCode;
+    public final String routeGtfsId;
+    public final String patternFirstStop;
+    public final String patternLastStop;
 
-    Departure(String routeShortName, String headsign, String mode, long departureEpochSec,
+    public Departure(String routeShortName, String headsign, String mode, long departureEpochSec,
               int delaySeconds, boolean realtime, double distanceMeters, String stopName,
               String stopGtfsId, String tripGtfsId, String patternCode, String routeGtfsId,
               String patternFirstStop, String patternLastStop) {

@@ -22,7 +22,7 @@ import java.util.zip.GZIPInputStream;
  *  aikajana (pysäkit + ajoneuvon live-sijainti) ja yksittäisen pysäkin lähdöt.
  *  Aikalogiikka: lähtöajat ovat sekunteja päivän keskiyöstä (serviceDay) → epoch = serviceDay + dep.
  *  Verkkomalli: {@link TrafficNoticesClient} (HttpURLConnection + gzip + errorStream-drain). */
-final class DigitransitApi {
+public final class DigitransitApi {
 
     private static final String ENDPOINT = "https://api.digitransit.fi/routing/v2/hsl/gtfs/v1";
     private static final int TIMEOUT_MS = 9000;
@@ -112,7 +112,7 @@ final class DigitransitApi {
 
     // --- Lähimmät lähdöt ---
 
-    static List<NearbyStop> nearbyDepartures(double lat, double lon) throws Exception {
+    public static List<NearbyStop> nearbyDepartures(double lat, double lon) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("lat", lat);
         variables.put("lon", lon);
@@ -136,7 +136,7 @@ final class DigitransitApi {
 
     // --- Yksittäisen pysäkin lähdöt (suosikit) ---
 
-    static NearbyStop stopDepartures(String stopGtfsId) throws Exception {
+    public static NearbyStop stopDepartures(String stopGtfsId) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", stopGtfsId);
         JSONObject data = postQuery(STOP_QUERY, variables);
