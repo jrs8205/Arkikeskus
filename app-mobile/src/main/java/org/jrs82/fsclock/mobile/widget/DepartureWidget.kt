@@ -88,7 +88,7 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                     ),
                 )
             } else {
-                deps.take(3).forEach { d ->
+                deps.take(5).forEach { d ->
                     val min = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(d.epochSec, now))
                     Row(
                         modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp),

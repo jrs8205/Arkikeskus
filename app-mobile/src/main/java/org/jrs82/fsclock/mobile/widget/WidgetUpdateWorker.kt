@@ -251,7 +251,7 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                         }
                     } catch (e: Exception) { null }
                     if (stop != null) {
-                        val lines = stop.departures.take(3).map {
+                        val lines = stop.departures.take(5).map {
                             WidgetFormat.DepartureLine(it.routeShortName, it.mode, it.departureEpochSec)
                         }
                         val name = if (mode == "NEAREST") stop.name

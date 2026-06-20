@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -347,32 +348,18 @@ private class TransitState(private val appContext: Context) {
         }
     }
 
-    /** Haun pysäkki-/asematuloksen avaus: hae lähdöt ja näytä ne (vastaa onPlaceClick). */
+    /** Haun pysäkki-/asematuloksen avaus: suoraan pysäkin koko päivän näkymään (sis. suosikkitähti).
+     *  Overlay hakee lähdöt itse (stop/station-fallback). */
     fun openPlace(p: PlaceHit) {
         if (p.gtfsId.isNullOrEmpty()) {
             Toast.makeText(appContext, "Tälle kohteelle ei ole lähtötietoja.", Toast.LENGTH_SHORT).show()
             return
         }
-        transientStatus = "Haetaan lähtöjä: ${p.name}…"
-        val request = ++placeGeneration
-        searchIo.execute {
-            val ns = try {
-                if (p.station) DigitransitApi.stationDepartures(p.gtfsId) else DigitransitApi.stopDepartures(p.gtfsId)
-            } catch (e: Exception) {
-                null
-            }
-            ui.post {
-                if (disposed || request != placeGeneration) return@post
-                if (ns == null || ns.departures.isEmpty()) {
-                    transientStatus = "Ei tulevia lähtöjä: ${p.name}"
-                    return@post
-                }
-                searchRoutes = null
-                searchPlaces = null
-                selectedStop = ns
-                transientStatus = null
-            }
-        }
+        fullDayStop = NearbyStop(
+            p.gtfsId, p.name ?: "", p.code ?: "", "",
+            p.modes?.firstOrNull() ?: "", Double.NaN,
+            emptyList(), emptyList(),
+        )
     }
 
     fun bumpPlaceGeneration() {
@@ -1015,14 +1002,42 @@ private fun TransitPlaceRow(p: PlaceHit, state: TransitState) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (!p.locality.isNullOrEmpty()) {
-                    Text(
-                        p.locality,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                if (!p.locality.isNullOrEmpty() || !p.code.isNullOrEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (!p.locality.isNullOrEmpty()) {
+                            Text(
+                                p.locality,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                        }
+                        // Pysäkkikoodi pienessä reunustetussa laatikossa (kuten HSL).
+                        if (!p.code.isNullOrEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outline,
+                                        RoundedCornerShape(4.dp),
+                                    )
+                                    .padding(horizontal = 5.dp, vertical = 1.dp),
+                            ) {
+                                Text(
+                                    p.code,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                    }
                 }
             }
             if (!p.modes.isNullOrEmpty()) {
@@ -1349,8 +1364,8 @@ private fun TransitFullDayOverlay(
                 Icon(
                     painterResource(if (fav) R.drawable.mobile_ic_star else R.drawable.mobile_ic_star_outline),
                     contentDescription = if (fav) "Poista suosikeista" else "Lisää suosikiksi",
-                    tint = if (fav) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    // Sama keltainen kuin reittien tähdissä (drawablen oma väri).
+                    tint = Color.Unspecified,
                 )
             }
         }
