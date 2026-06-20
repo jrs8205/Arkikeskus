@@ -35,6 +35,21 @@ class WidgetFormatTest {
         assertEquals("18 °C", WidgetFormat.tempLabel(17.6))
         assertEquals("–", WidgetFormat.tempLabel(Double.NaN))
     }
+    /** cleanZero: arvot joilla |x| < 0.5 tulevat "0 °C", ei "-0 °C" tai "-1 °C". */
+    @Test fun tempLabel_cleanZero_noMinusZeroArtifact() {
+        // Positiiviset tapaukset
+        assertEquals("0 °C", WidgetFormat.tempLabel(0.0))
+        assertEquals("0 °C", WidgetFormat.tempLabel(-0.3))
+        assertEquals("0 °C", WidgetFormat.tempLabel(-0.49))
+        assertEquals("0 °C", WidgetFormat.tempLabel(0.49))
+        // Ei saa alkaa "-0"
+        assert(!WidgetFormat.tempLabel(-0.3).startsWith("-")) { "Ei saa tuottaa -0-artefaktia: ${WidgetFormat.tempLabel(-0.3)}" }
+        // Realistiset arvot toimivat oikein
+        assertEquals("-3 °C", WidgetFormat.tempLabel(-3.4))
+        assertEquals("-1 °C", WidgetFormat.tempLabel(-0.7))
+        assertEquals("1 °C", WidgetFormat.tempLabel(0.7))
+        assertEquals("–", WidgetFormat.tempLabel(Double.NaN))
+    }
     @Test fun clockLabel_formatsHHmm() {
         // 2026-06-20 10:11 Europe/Helsinki = 1750403460000 ms
         assertEquals("10.11", WidgetFormat.clockLabel(1750403460000L, ZoneId.of("Europe/Helsinki")))

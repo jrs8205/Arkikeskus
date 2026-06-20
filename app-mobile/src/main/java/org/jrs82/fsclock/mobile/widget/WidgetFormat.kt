@@ -38,8 +38,11 @@ object WidgetFormat {
 
     fun minutesLabel(minutes: Int): String = if (minutes <= 0) "nyt" else "$minutes min"
 
-    fun tempLabel(celsius: Double): String =
-        if (celsius.isNaN()) "–" else "${Math.round(celsius)} °C"
+    fun tempLabel(celsius: Double): String {
+        if (celsius.isNaN()) return "–"
+        val safe = if (Math.abs(celsius) < 0.5) 0.0 else celsius
+        return "${Math.round(safe)} °C"
+    }
 
     fun clockLabel(epochMs: Long, zone: ZoneId): String =
         HHMM.format(Instant.ofEpochMilli(epochMs).atZone(zone))
