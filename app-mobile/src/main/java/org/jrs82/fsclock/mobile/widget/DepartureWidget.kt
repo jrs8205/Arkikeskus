@@ -10,10 +10,13 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -164,9 +167,13 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                 }
             }
 
-            if (updated > 0) {
-                Spacer(GlanceModifier.height(10.dp))
-                Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+            // Alarivi: "Päivitetty" vasemmalla, refresh-nappi alaoikealla.
+            Spacer(GlanceModifier.height(10.dp))
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Vertical.CenterVertically,
+            ) {
+                if (updated > 0) {
                     Image(
                         provider = ImageProvider(R.drawable.mobile_ic_clock_24),
                         contentDescription = null,
@@ -180,8 +187,29 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                         maxLines = 1,
                     )
                 }
+                Spacer(GlanceModifier.defaultWeight())
+                // Päivitysnappi: ajaa workerin heti (hakee lähdöt uudelleen + piirtää widgetit).
+                Box(
+                    modifier = GlanceModifier.size(30.dp).cornerRadius(8.dp).background(WidgetColors.track)
+                        .clickable(actionRunCallback<DepartureRefreshAction>()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.mobile_ic_refresh_24),
+                        contentDescription = "Päivitä",
+                        colorFilter = ColorFilter.tint(WidgetColors.c1),
+                        modifier = GlanceModifier.size(18.dp),
+                    )
+                }
             }
         }
+    }
+}
+
+/** Refresh-napin toiminto: ajaa widget-workerin heti (hakee lähdöt uudelleen + updateAll). */
+class DepartureRefreshAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        WidgetUpdateWorker.refreshNow(context)
     }
 }
 
