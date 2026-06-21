@@ -56,7 +56,7 @@ object WidgetColors {
 
     // Viivat/raidat.
     val track = ColorProvider(day = Color(0x17101E2D), night = Color(0x1AFFFFFF))   // ~.09 / ~.10
-    val rowline = ColorProvider(day = Color(0x0F101E2D), night = Color(0x0EFFFFFF)) // ~.06 / ~.055
+    val rowline = ColorProvider(day = Color(0x29101E2D), night = Color(0x2EFFFFFF)) // ~.16 / ~.18
 
     // Saaikonien lisavarit: yo (kuu/puolipilvi-yo) + lumi (frost). Kaytetaan weatherIcon()-mappauksessa.
     val night = ColorProvider(day = Color(0xFF5B6CB8), night = Color(0xFF8FB7FF))

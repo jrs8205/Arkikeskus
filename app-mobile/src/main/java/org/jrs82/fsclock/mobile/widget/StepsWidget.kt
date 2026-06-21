@@ -109,14 +109,18 @@ private fun StepsContent(context: Context) {
                 )
             }
             Spacer(GlanceModifier.height(16.dp))
-            // 10 segmenttipalkkia (taytetyt = c2)
+            // 10 segmenttipalkkia (taytetyt = c2). HUOM: Glance-kontilla on max 10 LASTA -> EI eri
+            // Spacereita (10 boxia + 9 spaceria = 19 -> vain 5 renderoityisi). Vali: ulompi paino-Box
+            // jossa padding, sisempi varillinen Box. (Glancessa background tayttaa koko solun
+            // paddingista huolimatta -> tarvitaan sisempi box jonka leveytta ulomman padding tunkee.)
             Row(modifier = GlanceModifier.fillMaxWidth()) {
                 for (i in 0 until 10) {
-                    Box(
-                        modifier = GlanceModifier.defaultWeight().height(16.dp).cornerRadius(5.dp)
-                            .background(if (i < filled) WidgetColors.c2 else WidgetColors.track),
-                    ) {}
-                    if (i < 9) Spacer(GlanceModifier.width(5.dp))
+                    Box(modifier = GlanceModifier.defaultWeight().padding(horizontal = 2.5.dp)) {
+                        Box(
+                            modifier = GlanceModifier.fillMaxWidth().height(16.dp).cornerRadius(5.dp)
+                                .background(if (i < filled) WidgetColors.c2 else WidgetColors.track),
+                        ) {}
+                    }
                 }
             }
             Spacer(GlanceModifier.height(12.dp))
