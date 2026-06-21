@@ -18,29 +18,27 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.mobile.transitModeIconRes
 import java.time.ZoneId
 
 class DepartureWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
-        // Fix B (self-heal): widget on tässä kohtaa sidottu (bound), joten GlanceId on validi.
-        // Jos widget on konfiguroitu mutta sillä ei ole vielä yhtään dataa (d_at == 0),
-        // käynnistetään worker heti — se hakee lähdöt ja kutsuu updateAll, jolloin widget
-        // päivittyy ilman ylimääräistä käyttäjän toimintaa.
-        // Loop-esto: worker kirjoittaa tyhjän merkin (d_at != 0) myös epäonnistuneesta hausta
-        // kun dataa ei ole aiemmin ollut, joten tämä haara laukeaa vain KERRAN per widget.
+        // Self-heal: konfiguroitu mutta dataton widget -> kaynnista worker kerran (ks. vanha selitys).
         if (WidgetCache.departureMode(context, appWidgetId).isNotBlank() &&
             WidgetCache.departureUpdatedAt(context, appWidgetId) == 0L) {
             WidgetUpdateWorker.refreshNowForce(context)
@@ -56,77 +54,122 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
     val stop = when {
         rawName.isBlank() -> "Seuraava lähtö"
         code.isBlank() -> rawName
-        else -> "$rawName  $code"
+        else -> "$rawName $code"
     }
     val deps = WidgetFormat.decodeDepartures(WidgetCache.departureJson(context, appWidgetId))
     val now = System.currentTimeMillis() / 1000L
     val updated = WidgetCache.departureUpdatedAt(context, appWidgetId)
+
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
             modifier = GlanceModifier.fillMaxSize()
-                .background(GlanceTheme.colors.surface)
-                .cornerRadius(20.dp)
-                .padding(14.dp)
+                .background(ImageProvider(R.drawable.widget_card_bg))
+                .cornerRadius(26.dp)
+                .padding(20.dp)
                 .clickable(WidgetDeepLink.openSection(context, "TRANSIT")),
         ) {
             Text(
                 stop,
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
+                style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Bold),
                 maxLines = 1,
             )
+            Spacer(GlanceModifier.height(14.dp))
+
             if (deps.isEmpty()) {
                 Text(
-                    "Ei lähtöjä",
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 13.sp,
-                    ),
+                    "Ei lähtöjä juuri nyt",
+                    style = TextStyle(color = WidgetColors.text, fontSize = 14.sp, fontWeight = FontWeight.Medium),
                 )
             } else {
-                deps.take(5).forEach { d ->
-                    val min = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(d.epochSec, now))
+                // Hero: seuraava lahto
+                val first = deps.first()
+                val firstMin = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(first.epochSec, now))
+                Box(
+                    modifier = GlanceModifier.fillMaxWidth().cornerRadius(18.dp)
+                        .background(WidgetColors.c1Tint).padding(16.dp),
+                ) {
                     Row(
-                        modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp),
+                        modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Vertical.CenterVertically,
                     ) {
+                        Box(
+                            modifier = GlanceModifier.cornerRadius(11.dp).background(WidgetColors.c1)
+                                .height(42.dp).padding(horizontal = 14.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                first.line,
+                                style = TextStyle(color = WidgetColors.c1On, fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                            )
+                        }
+                        Spacer(GlanceModifier.width(14.dp))
+                        Column(modifier = GlanceModifier.defaultWeight()) {
+                            Text(
+                                "seuraava lähtö",
+                                style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                                maxLines = 1,
+                            )
+                            Text(
+                                firstMin,
+                                style = TextStyle(color = WidgetColors.c1, fontSize = 34.sp, fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                            )
+                        }
                         Image(
-                            provider = ImageProvider(transitModeIconRes(d.mode)),
+                            provider = ImageProvider(transitModeIconRes(first.mode)),
                             contentDescription = null,
-                            modifier = GlanceModifier.size(18.dp),
-                            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+                            colorFilter = ColorFilter.tint(WidgetColors.c1),
+                            modifier = GlanceModifier.size(36.dp),
                         )
-                        Spacer(GlanceModifier.width(4.dp))
+                    }
+                }
+                Spacer(GlanceModifier.height(8.dp))
+                // Loput lahdot
+                deps.drop(1).take(4).forEach { d ->
+                    val m = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(d.epochSec, now))
+                    Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(WidgetColors.rowline)) {}
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.Vertical.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = GlanceModifier.cornerRadius(8.dp).background(WidgetColors.c1TintRow)
+                                .height(27.dp).padding(horizontal = 9.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                d.line,
+                                style = TextStyle(color = WidgetColors.c1, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                            )
+                        }
+                        Spacer(GlanceModifier.defaultWeight())
                         Text(
-                            d.line,
-                            style = TextStyle(
-                                color = GlanceTheme.colors.primary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                            ),
-                        )
-                        Text(
-                            "  $min",
-                            style = TextStyle(
-                                color = GlanceTheme.colors.onSurface,
-                                fontSize = 14.sp,
-                            ),
+                            m,
+                            style = TextStyle(color = WidgetColors.strong, fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                            maxLines = 1,
                         )
                     }
                 }
             }
+
             if (updated > 0) {
-                Text(
-                    "päiv. ${WidgetFormat.clockLabel(updated, ZoneId.of("Europe/Helsinki"))}",
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 11.sp,
-                    ),
-                    modifier = GlanceModifier.padding(top = 4.dp),
-                )
+                Spacer(GlanceModifier.height(10.dp))
+                Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+                    Image(
+                        provider = ImageProvider(R.drawable.mobile_ic_clock_24),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(WidgetColors.dim),
+                        modifier = GlanceModifier.size(15.dp),
+                    )
+                    Spacer(GlanceModifier.width(6.dp))
+                    Text(
+                        "Päivitetty ${WidgetFormat.clockLabel(updated, ZoneId.of("Europe/Helsinki"))}",
+                        style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
