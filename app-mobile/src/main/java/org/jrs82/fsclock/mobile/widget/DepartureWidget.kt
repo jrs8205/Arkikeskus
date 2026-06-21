@@ -125,38 +125,41 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                     }
                 }
                 Spacer(GlanceModifier.height(8.dp))
-                // Loput lahdot
-                deps.drop(1).take(4).forEach { d ->
-                    val m = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(d.epochSec, now))
-                    Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(WidgetColors.rowline)) {}
-                    Row(
-                        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.Vertical.CenterVertically,
-                    ) {
-                        Image(
-                            provider = ImageProvider(transitModeIconRes(d.mode)),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(WidgetColors.transitMode(d.mode)),
-                            modifier = GlanceModifier.size(20.dp),
-                        )
-                        Spacer(GlanceModifier.width(10.dp))
-                        Box(
-                            modifier = GlanceModifier.cornerRadius(8.dp).background(WidgetColors.transitMode(d.mode))
-                                .height(27.dp).padding(horizontal = 9.dp),
-                            contentAlignment = Alignment.Center,
+                // Loput lahdot — oma Column, koska Glance-kontilla on max 10 LASTA ja paa-Column
+                // tayttyisi muuten (hero + 4×(viiva+rivi) + Paivitetty > 10 -> osa tippuisi).
+                Column(modifier = GlanceModifier.fillMaxWidth()) {
+                    deps.drop(1).take(4).forEach { d ->
+                        val m = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(d.epochSec, now))
+                        Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(WidgetColors.rowline)) {}
+                        Row(
+                            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.Vertical.CenterVertically,
                         ) {
+                            Image(
+                                provider = ImageProvider(transitModeIconRes(d.mode)),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(WidgetColors.transitMode(d.mode)),
+                                modifier = GlanceModifier.size(20.dp),
+                            )
+                            Spacer(GlanceModifier.width(10.dp))
+                            Box(
+                                modifier = GlanceModifier.cornerRadius(8.dp).background(WidgetColors.transitMode(d.mode))
+                                    .height(27.dp).padding(horizontal = 9.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    d.line,
+                                    style = TextStyle(color = WidgetColors.transitOnMode(d.mode), fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                                    maxLines = 1,
+                                )
+                            }
+                            Spacer(GlanceModifier.defaultWeight())
                             Text(
-                                d.line,
-                                style = TextStyle(color = WidgetColors.transitOnMode(d.mode), fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                                m,
+                                style = TextStyle(color = WidgetColors.strong, fontSize = 16.sp, fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }
-                        Spacer(GlanceModifier.defaultWeight())
-                        Text(
-                            m,
-                            style = TextStyle(color = WidgetColors.strong, fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                        )
                     }
                 }
             }
