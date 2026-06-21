@@ -38,6 +38,13 @@ object WidgetCache {
     fun weatherPrecip(ctx: Context) = p(ctx).getString("w_precip", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun weatherUpdatedAt(ctx: Context) = p(ctx).getLong("w_at", 0L)
 
+    // FMI nykytilan saatyyppi (WeatherCondition.Type.name) + yo-lippu, hero-ikonin valintaa varten.
+    fun setWeatherCond(ctx: Context, type: String, night: Boolean) {
+        p(ctx).edit().putString("w_ctype", type).putBoolean("w_cnight", night).apply()
+    }
+    fun weatherCondType(ctx: Context) = p(ctx).getString("w_ctype", "") ?: ""
+    fun weatherCondNight(ctx: Context) = p(ctx).getBoolean("w_cnight", false)
+
     // --- Sää: Open-Meteo (näytetään FMI:n rinnalla). Säätila talletetaan osina, jotta
     //     widget_weather_icon_om.png voidaan piirtää uudelleen joka kierroksella teemankestävästi. ---
     fun setWeatherOpenMeteo(
@@ -71,7 +78,7 @@ object WidgetCache {
     fun weatherOmCondShower(ctx: Context) = p(ctx).getBoolean("w_om_cshower", false)
     fun weatherOmUpdatedAt(ctx: Context) = p(ctx).getLong("w_om_at", 0L)
 
-    // --- Sää: koko päivän tuntilista (FMI + Open-Meteo), JSON-taulukko [{h,f,o}, …] ---
+    // --- Sää: seuraavan 24 h tuntilista (FMI + Open-Meteo), JSON [{h,f,o,fc,oc,night}, …] ---
     fun setWeatherHours(ctx: Context, json: String) {
         p(ctx).edit().putString("w_hours", json).apply()
     }

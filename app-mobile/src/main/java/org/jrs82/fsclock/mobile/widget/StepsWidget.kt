@@ -46,7 +46,9 @@ private fun StepsContent(context: Context) {
     val goal = WidgetCache.stepsGoal(context).coerceAtLeast(1)
     val pct = WidgetFormat.stepsPercent(steps, goal)
     val fiFmt = NumberFormat.getInstance(Locale("fi", "FI"))
-    val filled = (steps / 1000).coerceIn(0, 10) // joka palkki = 1000 askelta
+    // Dynaaminen palkitus: aina 10 palkkia, joka palkki = tavoite/10 (skaalautuu 7 t..20 t).
+    val perBar = (goal / 10).coerceAtLeast(1)
+    val filled = (steps / perBar).coerceIn(0, 10)
 
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
@@ -119,7 +121,7 @@ private fun StepsContent(context: Context) {
             }
             Spacer(GlanceModifier.height(12.dp))
             Text(
-                "Tavoite ${fiFmt.format(goal)} · joka palkki = 1 000",
+                "Tavoite ${fiFmt.format(goal)} · joka palkki = ${fiFmt.format(perBar)}",
                 style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Medium),
                 maxLines = 1,
             )
