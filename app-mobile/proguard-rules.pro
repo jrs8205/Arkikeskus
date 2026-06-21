@@ -51,6 +51,19 @@
 ## statesta → nimi ei saa muuttua eikä oletuskonstruktori kadota
 -keep class * extends androidx.fragment.app.Fragment { <init>(); }
 
+## Glance-kotinäyttöwidgetit (KRIITTINEN): R8 yhdisti aiemmin kaikki neljä lähes
+## identtistä GlanceAppWidget-alaluokkaa (Weather/Electricity/Steps/Departure) yhdeksi
+## luokaksi ($r8$classId-erottimella). Glance tunnistaa widgetin JA sen kotinäyttö-
+## instanssit GlanceAppWidget-alaluokan kautta (javaClass) → yhdistettynä
+## GlanceAppWidgetManager.getGlanceIds(X::class) palautti KAIKKIEN widgettien id:t, joten
+## esim. WeatherWidget().updateAll() piirsi sääsisällön JOKA widgettiin → "kaikki muuttui
+## sääksi" (2.16.0). Pidetään luokat erillisinä (estää horisontaalisen yhdistämisen).
+-keep class * extends androidx.glance.appwidget.GlanceAppWidget { *; }
+-keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver { *; }
+## ActionCallback (esim. DepartureRefreshAction) ratkaistaan nimellä actionRunCallbackissa
+## → ei saa yhdistää/uudelleennimetä.
+-keep class * extends androidx.glance.appwidget.action.ActionCallback { *; }
+
 ## Omat custom-View't (täydennys AAPT-sääntöihin; layout-XML inflatoi nimellä)
 -keep class org.jrs82.** extends android.view.View {
     public <init>(android.content.Context);
