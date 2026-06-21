@@ -67,7 +67,7 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
                 .padding(14.dp)
-                .clickable(WidgetDeepLink.openApp()),
+                .clickable(WidgetDeepLink.openSection(context, "TRANSIT")),
         ) {
             Text(
                 stop,

@@ -264,6 +264,9 @@ private val HomeSectionSaver = Saver<HomeSection, String>(
 @Composable
 fun ComposeMainScreen(
     externalSection: androidx.compose.runtime.MutableState<String?>? = null,
+    // Kutsutaan kun ulkoinen sektio (widget/ilmoitus) on navigoitu -> Activity tyhjentää launch-intentin,
+    // jottei relaunch/recreate toista deep-linkkiä. Oletus tyhjä (esikatselut/testit).
+    onSectionConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     // rememberSaveable → valittu sektio säilyy Activityn uudelleenluonnissa (esim. dynamic-color-/teemanvaihto),
@@ -408,6 +411,9 @@ fun ComposeMainScreen(
             menuOpen = false
             settingsOpen = false
         }
+        // Kuluta deep-link vasta TÄSSÄ (navigoinnin jälkeen): kylmän käynnistyksen relaunch ei näin
+        // hukkaa sektiota, ja launch-intent tyhjenee jottei myöhempi recreate bounssaa takaisin.
+        onSectionConsumed()
         externalSection.value = null
     }
 

@@ -62,7 +62,7 @@ private fun WeatherContent(context: Context) {
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
                 .padding(horizontal = 12.dp, vertical = 10.dp)
-                .clickable(WidgetDeepLink.openApp()),
+                .clickable(WidgetDeepLink.openSection(context, "FORECAST")),
             verticalAlignment = Alignment.Vertical.Top,
         ) {
             // Otsikkorivi: paikka + sarakeotsikot (FMI / Open-Meteo)
