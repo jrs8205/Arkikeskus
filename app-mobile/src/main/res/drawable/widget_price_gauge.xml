@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Porssisahko-mittari (vaalea): vaakagradientti pos -> warn -> neg (halpa -> kallis). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:startColor="#FF1F9D63"
+        android:centerColor="#FFC6881A"
+        android:endColor="#FFD4552E"
+        android:type="linear" />
+    <corners android:radius="99dp" />
+</shape>

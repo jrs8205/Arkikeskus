@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mittarin osoitin: valkoinen ympyra ohuella tummalla renkaalla (erottuu varikkaalla palkilla). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#FFFFFFFF" />
+    <stroke android:width="2dp" android:color="#40000000" />
+</shape>
