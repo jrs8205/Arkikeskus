@@ -41,8 +41,6 @@ object WidgetColors {
     // ArkikeskusTheme). c1 = sininen (FMI/bussit), c2 = vihrea (Open-Meteo/askeleet).
     val c1 = ColorProvider(day = Color(0xFF1B53C0), night = Color(0xFFB0C6FF))
     val c2 = ColorProvider(day = Color(0xFF1E7D43), night = Color(0xFF8FD89E))
-    // Teksti c1-taytetyn badgen paalla: vaalea teema = valkoinen, tumma = tumma teksti pastellilla.
-    val c1On = ColorProvider(day = Color(0xFFFFFFFF), night = Color(0xFF002A78))
 
     // Hintatasot (teemakohtaiset, kontrasti).
     val pos = ColorProvider(day = Color(0xFF1F9D63), night = Color(0xFF46CF8B))
@@ -63,19 +61,12 @@ object WidgetColors {
     val frost = ColorProvider(day = Color(0xFF0097B2), night = Color(0xFF4FD4E8))
 
     // Esilasketut sava-taustat (color-mix korvike). Brandiaksentit -> TEEMAKOHTAISET savyt.
-    val c1Tint = ColorProvider(day = Color(0x1F1B53C0), night = Color(0x1FB0C6FF))      // ~12 %
-    val c1TintRow = ColorProvider(day = Color(0x241B53C0), night = Color(0x24B0C6FF))   // ~14 % (bussilista-lappu)
     val c2TintIcon = ColorProvider(day = Color(0x291E7D43), night = Color(0x298FD89E))  // ~16 % (ikoni-chip)
     val c2TintChip = ColorProvider(day = Color(0x261E7D43), night = Color(0x268FD89E))  // ~15 % (prosenttilappu)
     val posTintIcon = ColorProvider(day = Color(0x291F9D63), night = Color(0x2946CF8B))
     val posTintChip = ColorProvider(day = Color(0x261F9D63), night = Color(0x2646CF8B))
     val warnTintChip = ColorProvider(day = Color(0x26C6881A), night = Color(0x26E8B23D))
     val negTintChip = ColorProvider(day = Color(0x26D4552E), night = Color(0x26E8704E))
-
-    // Sahkon liikennevalovarit (legacy; sailytetaan kunnes kaikki widgetit uusittu).
-    val cheap = ColorProvider(day = Color(0xFF1E7D32), night = Color(0xFF7FD894))
-    val normal = ColorProvider(day = Color(0xFF43474E), night = Color(0xFFC4C6D0))
-    val expensive = ColorProvider(day = Color(0xFFC12018), night = Color(0xFFFFB4AB))
 
     // --- HSL-kulkumuotovarit (Glance-turvalliset ColorProviderit) ---
     // Varit ovat teemariippumattomat (samat vaalea/tumma), vrt. res/values/mobile_colors.xml
