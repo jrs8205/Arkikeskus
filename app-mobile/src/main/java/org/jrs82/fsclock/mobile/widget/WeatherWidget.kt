@@ -208,7 +208,7 @@ private fun WxHalf(
     val (icon, iconColor) = weatherIcon(condType, night)
     Row(modifier = modifier, verticalAlignment = Alignment.Vertical.CenterVertically) {
         Text(
-            "klo $hour",
+            "klo %02d".format(hour),
             style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Medium),
             maxLines = 1,
         )

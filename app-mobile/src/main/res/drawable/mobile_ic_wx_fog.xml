@@ -7,8 +7,9 @@
         <path android:fillColor="@android:color/white"
             android:pathData="M19.35,10.04C18.67,6.59 15.64,4 12,4 9.11,4 6.6,5.64 5.35,8.04 2.34,8.36 0,10.91 0,14c0,3.31 2.69,6 6,6h13c2.76,0 5,-2.24 5,-5 0,-2.64 -2.05,-4.78 -4.65,-4.96z" />
     </group>
-    <path android:strokeColor="@android:color/white" android:strokeWidth="1.7"
-        android:strokeLineCap="round" android:pathData="M5.5,18.5H16" />
-    <path android:strokeColor="@android:color/white" android:strokeWidth="1.7"
-        android:strokeLineCap="round" android:pathData="M8.5,21.3H18.5" />
+    <!-- Sumuviivat filled-recteina (ei stroke) -> tinttautuu luotettavasti kaikilla API-tasoilla. -->
+    <path android:fillColor="@android:color/white"
+        android:pathData="M5.5,17.65 L16,17.65 Q16.85,17.65 16.85,18.5 Q16.85,19.35 16,19.35 L5.5,19.35 Q4.65,19.35 4.65,18.5 Q4.65,17.65 5.5,17.65 Z" />
+    <path android:fillColor="@android:color/white"
+        android:pathData="M8.5,20.45 L18.5,20.45 Q19.35,20.45 19.35,21.3 Q19.35,22.15 18.5,22.15 L8.5,22.15 Q7.65,22.15 7.65,21.3 Q7.65,20.45 8.5,20.45 Z" />
 </vector>
