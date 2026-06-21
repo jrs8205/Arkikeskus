@@ -14,6 +14,8 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.cornerRadius
+import androidx.glance.appwidget.lazy.LazyColumn
+import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
@@ -35,14 +37,25 @@ import org.jrs82.fsclock.R
 import java.time.Instant
 import java.time.ZoneId
 
-/** Yksi tunti: FMI- ja Open-Meteo-lampotila (NaN jos lahde ei anna kyseiselle tunnille). */
-private data class WxHour(val h: Int, val fmi: Double, val om: Double)
+/** Yksi tunti: FMI- ja Open-Meteo-lämpötila (NaN/tyhjä jos lähde ei anna kyseiselle tunnille) +
+ *  säätyyppi per lähde (WeatherCondition.Type.name) ikonia varten + yö-lippu. */
+private data class WxHour(
+    val h: Int,
+    val fmi: Double, val om: Double,
+    val fmiCond: String, val omCond: String,
+    val night: Boolean,
+)
 
 private fun parseWeatherHours(json: String): List<WxHour> = try {
     val arr = org.json.JSONArray(json)
     (0 until arr.length()).map {
         val o = arr.getJSONObject(it)
-        WxHour(o.optInt("h"), o.optDouble("f", Double.NaN), o.optDouble("o", Double.NaN))
+        WxHour(
+            o.optInt("h"),
+            o.optDouble("f", Double.NaN), o.optDouble("o", Double.NaN),
+            o.optString("fc", ""), o.optString("oc", ""),
+            o.optBoolean("night", false),
+        )
     }
 } catch (e: Exception) {
     emptyList()
@@ -54,19 +67,20 @@ private fun wxTemp(v: Double): String {
     return "${Math.round(s)}°"
 }
 
-/** Saatilan teksti -> (ikoni, vari). Avainsanat suomeksi (FMI/Open-Meteo labelit). */
-private fun weatherIcon(condLabel: String): Pair<Int, ColorProvider> {
-    val c = condLabel.lowercase()
-    return when {
-        c.contains("selke") || c.contains("aurin") || c.contains("clear") || c.contains("sunny") ->
-            R.drawable.mobile_ic_weather_24 to WidgetColors.warn
-        c.contains("sade") || c.contains("kuuro") || c.contains("tihku") || c.contains("ranta") ||
-            c.contains("räntä") || c.contains("rain") || c.contains("drizzle") || c.contains("ukkos") ->
-            R.drawable.mobile_ic_rain_24 to WidgetColors.c1
-        else -> // pilvinen / puolipilvinen / sumu / lumi / oletus
-            R.drawable.mobile_ic_wx_cloud to WidgetColors.dim
+/** Säätyyppi (WeatherCondition.Type.name) + yö -> (ikoni, väri). Tyyppipohjainen → ei riipu
+ *  käännöksistä eikä avainsanoista. */
+private fun weatherIcon(condType: String, isNight: Boolean): Pair<Int, ColorProvider> =
+    when (condType.uppercase()) {
+        "THUNDER" -> R.drawable.mobile_ic_wx_thunder to WidgetColors.warn
+        "SNOW", "SLEET" -> R.drawable.mobile_ic_wx_snow to WidgetColors.frost
+        "RAIN" -> R.drawable.mobile_ic_rain_24 to WidgetColors.c1
+        "FOG" -> R.drawable.mobile_ic_wx_fog to WidgetColors.dim
+        "CLEAR" -> if (isNight) R.drawable.mobile_ic_wx_clear_night to WidgetColors.night
+                   else R.drawable.mobile_ic_weather_24 to WidgetColors.warn
+        "PARTLY_CLOUDY" -> if (isNight) R.drawable.mobile_ic_wx_partly_night to WidgetColors.night
+                           else R.drawable.mobile_ic_wx_partly_day to WidgetColors.c1
+        else -> R.drawable.mobile_ic_wx_cloud to WidgetColors.dim // CLOUDY / UNKNOWN / oletus
     }
-}
 
 class WeatherWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -80,12 +94,16 @@ private fun WeatherContent(context: Context) {
     val fmiNow = WidgetCache.weatherTempC(context)
     val omNow = WidgetCache.weatherOmTempC(context)
     val heroTemp = if (fmiNow.isFinite()) fmiNow else omNow
-    val cond = WidgetCache.weatherCondition(context).ifBlank { WidgetCache.weatherOmCondition(context) }
-    val (iconRes, iconColor) = weatherIcon(cond)
+    // Hero-ikoni: FMI nykytilan tyyppi, fallback Open-Meteo (molemmat tallennettu type.name-muodossa).
+    val fmiType = WidgetCache.weatherCondType(context)
+    val condType = fmiType.ifBlank { WidgetCache.weatherOmCondType(context) }
+    val condNight = if (fmiType.isNotBlank()) WidgetCache.weatherCondNight(context)
+                    else WidgetCache.weatherOmCondNight(context)
+    val (iconRes, iconColor) = weatherIcon(condType, condNight)
     val atMs = WidgetCache.weatherUpdatedAt(context).takeIf { it > 0 } ?: WidgetCache.weatherOmUpdatedAt(context)
     val hourLabel = if (atMs > 0)
         " · klo " + Instant.ofEpochMilli(atMs).atZone(ZoneId.of("Europe/Helsinki")).hour else ""
-    val hours = parseWeatherHours(WidgetCache.weatherHoursJson(context)).take(6)
+    val hours = parseWeatherHours(WidgetCache.weatherHoursJson(context))
 
     GlanceTheme(colors = WidgetColors.providers) {
         Column(
@@ -111,7 +129,7 @@ private fun WeatherContent(context: Context) {
                 )
             }
             Spacer(GlanceModifier.height(14.dp))
-            // Iso sääikoni + nykylampotila
+            // Iso sääikoni + nykylämpötila (ei lähderivejä — vertailu on sarakkeissa alla)
             Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                 Image(
                     provider = ImageProvider(iconRes),
@@ -126,41 +144,87 @@ private fun WeatherContent(context: Context) {
                     maxLines = 1,
                 )
             }
-            Spacer(GlanceModifier.height(8.dp))
-            // Lahderivit
-            Row {
-                Text(
-                    "Open-M. ${wxTemp(omNow)}",
-                    style = TextStyle(color = WidgetColors.c2, fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                )
-                Spacer(GlanceModifier.width(14.dp))
-                Text(
-                    "Ilmatieteen laitos ${wxTemp(fmiNow)}",
-                    style = TextStyle(color = WidgetColors.c1, fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                )
-            }
             Spacer(GlanceModifier.height(16.dp))
             // Erotinviiva
             Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(WidgetColors.rowline)) {}
-            Spacer(GlanceModifier.height(16.dp))
-            // Tuntiennuste: 6 saraketta (FMI sininen, OM vihrea)
-            Row(modifier = GlanceModifier.fillMaxWidth()) {
-                hours.forEach { h ->
-                    Column(
-                        modifier = GlanceModifier.defaultWeight(),
-                        horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-                    ) {
-                        Text("${h.h}", style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium))
-                        Spacer(GlanceModifier.height(9.dp))
-                        Text(wxTemp(h.fmi), style = TextStyle(color = WidgetColors.c1, fontSize = 14.sp, fontWeight = FontWeight.Bold))
-                        Spacer(GlanceModifier.height(7.dp))
-                        Text(wxTemp(h.om), style = TextStyle(color = WidgetColors.c2, fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            Spacer(GlanceModifier.height(12.dp))
+            // Sarakeotsikot: Ilmatieteen laitos (c1) | Open-Meteo (c2)
+            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
+                ColumnHeader(GlanceModifier.defaultWeight(), "Ilmatieteen laitos", WidgetColors.c1)
+                ColumnHeader(GlanceModifier.defaultWeight(), "Open-Meteo", WidgetColors.c2)
+            }
+            Spacer(GlanceModifier.height(6.dp))
+            // Tuntiennuste: seuraavat 24 h, kaksi saraketta, vierittyy
+            if (hours.isEmpty()) {
+                Text(
+                    "Tuntiennustetta ei juuri nyt saatavilla",
+                    style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                    maxLines = 1,
+                )
+            } else {
+                LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                    items(hours, itemId = { it.h.toLong() }) { h ->
+                        Row(
+                            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 7.dp),
+                            verticalAlignment = Alignment.Vertical.CenterVertically,
+                        ) {
+                            WxHalf(GlanceModifier.defaultWeight(), h.h, h.fmi, h.fmiCond, h.night, WidgetColors.c1)
+                            Spacer(GlanceModifier.width(10.dp))
+                            Box(modifier = GlanceModifier.width(1.dp).height(22.dp).background(WidgetColors.rowline)) {}
+                            Spacer(GlanceModifier.width(10.dp))
+                            WxHalf(GlanceModifier.defaultWeight(), h.h, h.om, h.omCond, h.night, WidgetColors.c2)
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/** Sarakeotsikko: väripallo + lähteen nimi. */
+@Composable
+private fun ColumnHeader(modifier: GlanceModifier, title: String, color: ColorProvider) {
+    Row(modifier = modifier, verticalAlignment = Alignment.Vertical.CenterVertically) {
+        Box(modifier = GlanceModifier.size(8.dp).cornerRadius(4.dp).background(color)) {}
+        Spacer(GlanceModifier.width(6.dp))
+        Text(
+            title,
+            style = TextStyle(color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+            maxLines = 1,
+        )
+    }
+}
+
+/** Yksi tuntirivin puolikas: klo (vasen) + sääikoni + lämpötila (oikealla). */
+@Composable
+private fun WxHalf(
+    modifier: GlanceModifier,
+    hour: Int,
+    temp: Double,
+    condType: String,
+    night: Boolean,
+    tempColor: ColorProvider,
+) {
+    val (icon, iconColor) = weatherIcon(condType, night)
+    Row(modifier = modifier, verticalAlignment = Alignment.Vertical.CenterVertically) {
+        Text(
+            "klo $hour",
+            style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+            maxLines = 1,
+        )
+        Spacer(GlanceModifier.defaultWeight())
+        Image(
+            provider = ImageProvider(icon),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(iconColor),
+            modifier = GlanceModifier.size(19.dp),
+        )
+        Spacer(GlanceModifier.width(8.dp))
+        Text(
+            wxTemp(temp),
+            style = TextStyle(color = tempColor, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+            maxLines = 1,
+        )
     }
 }
 

@@ -86,20 +86,20 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                 val firstMin = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(first.epochSec, now))
                 Box(
                     modifier = GlanceModifier.fillMaxWidth().cornerRadius(18.dp)
-                        .background(WidgetColors.c1Tint).padding(16.dp),
+                        .background(WidgetColors.transitModeTint(first.mode)).padding(16.dp),
                 ) {
                     Row(
                         modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Vertical.CenterVertically,
                     ) {
                         Box(
-                            modifier = GlanceModifier.cornerRadius(11.dp).background(WidgetColors.c1)
+                            modifier = GlanceModifier.cornerRadius(11.dp).background(WidgetColors.transitMode(first.mode))
                                 .height(42.dp).padding(horizontal = 14.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 first.line,
-                                style = TextStyle(color = WidgetColors.c1On, fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                                style = TextStyle(color = WidgetColors.transitOnMode(first.mode), fontSize = 20.sp, fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }
@@ -112,14 +112,14 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                             )
                             Text(
                                 firstMin,
-                                style = TextStyle(color = WidgetColors.c1, fontSize = 34.sp, fontWeight = FontWeight.Bold),
+                                style = TextStyle(color = WidgetColors.transitMode(first.mode), fontSize = 34.sp, fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }
                         Image(
                             provider = ImageProvider(transitModeIconRes(first.mode)),
                             contentDescription = null,
-                            colorFilter = ColorFilter.tint(WidgetColors.c1),
+                            colorFilter = ColorFilter.tint(WidgetColors.transitMode(first.mode)),
                             modifier = GlanceModifier.size(36.dp),
                         )
                     }
@@ -133,14 +133,21 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                         modifier = GlanceModifier.fillMaxWidth().padding(vertical = 8.dp),
                         verticalAlignment = Alignment.Vertical.CenterVertically,
                     ) {
+                        Image(
+                            provider = ImageProvider(transitModeIconRes(d.mode)),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(WidgetColors.transitMode(d.mode)),
+                            modifier = GlanceModifier.size(20.dp),
+                        )
+                        Spacer(GlanceModifier.width(10.dp))
                         Box(
-                            modifier = GlanceModifier.cornerRadius(8.dp).background(WidgetColors.c1TintRow)
+                            modifier = GlanceModifier.cornerRadius(8.dp).background(WidgetColors.transitMode(d.mode))
                                 .height(27.dp).padding(horizontal = 9.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 d.line,
-                                style = TextStyle(color = WidgetColors.c1, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                                style = TextStyle(color = WidgetColors.transitOnMode(d.mode), fontSize = 14.sp, fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }

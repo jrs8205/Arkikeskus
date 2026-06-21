@@ -60,31 +60,39 @@ private fun fetchNearestStop(ctx: Context): NearbyStop? {
     return DigitransitApi.nearbyDepartures(lat, lon).firstOrNull()
 }
 
-/** Kokoaa tämän päivän (Helsingin aika) tuntikohtaiset FMI- ja Open-Meteo-lämpötilat ja tallentaa
- *  ne JSON-listana widgetin skrollattavaa tuntinäkymää varten ([{h,f,o}, …]). */
+/** Kokoaa seuraavat 24 tuntia (Helsingin aika, kuluvasta tunnista alkaen — myös keskiyön yli)
+ *  FMI- ja Open-Meteo-lähteistä ja tallentaa ne JSON-listana widgetin skrollattavaa kaksisarakkeista
+ *  tuntinäkymää varten ([{h,f,o,fc,oc,night}, …]). fc/oc = säätyyppi (WeatherCondition.Type.name) per
+ *  lähde, night = yö-lippu (ikonivalintaan). */
 private fun storeWeatherHours(ctx: Context, fmiHours: List<WeatherData.Hour>?, om: OpenMeteoData?) {
+    // Avain (kuukausi, päivä, tunti) yksilöi tunnin myös keskiyön yli ilman timestamp-yksikköoletuksia.
+    fun key(mon: Int, dom: Int, h: Int) = (mon * 100 + dom) * 100 + h
+    val fmiByKey = HashMap<Int, WeatherData.Hour>()
+    fmiHours?.forEach { fmiByKey[key(it.month, it.dayOfMonth, it.hour)] = it }
+    val omByKey = HashMap<Int, OpenMeteoData.Hour>()
+    om?.hours?.forEach { omByKey[key(it.month, it.dayOfMonth, it.hour)] = it }
+
     val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Europe/Helsinki"))
-    val dom = cal.get(Calendar.DAY_OF_MONTH)
-    val mon = cal.get(Calendar.MONTH) + 1
-    val fmiByHour = HashMap<Int, Double>()
-    fmiHours?.forEach { h ->
-        if (h.dayOfMonth == dom && h.month == mon && !h.temperature.isNaN()) fmiByHour[h.hour] = h.temperature
-    }
-    val omByHour = HashMap<Int, Double>()
-    om?.hours?.forEach { h ->
-        val t = h.temperature
-        if (h.dayOfMonth == dom && h.month == mon && t != null) omByHour[h.hour] = t
-    }
+    cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
     val arr = org.json.JSONArray()
-    for (hh in 0..23) {
-        val f = fmiByHour[hh]
-        val o = omByHour[hh]
-        if (f != null || o != null) {
+    repeat(24) {
+        val mon = cal.get(Calendar.MONTH) + 1
+        val dom = cal.get(Calendar.DAY_OF_MONTH)
+        val hh = cal.get(Calendar.HOUR_OF_DAY)
+        val f = fmiByKey[key(mon, dom, hh)]
+        val o = omByKey[key(mon, dom, hh)]
+        val fT = f?.temperature?.takeIf { !it.isNaN() }
+        val oT = o?.temperature
+        if (fT != null || oT != null) {
             val obj = org.json.JSONObject().put("h", hh)
-            if (f != null) obj.put("f", f)
-            if (o != null) obj.put("o", o)
+            if (fT != null) obj.put("f", fT)
+            if (oT != null) obj.put("o", oT)
+            f?.condition?.let { obj.put("fc", it.type.name) }
+            o?.condition?.let { obj.put("oc", it.type.name) }
+            obj.put("night", o?.condition?.isNight ?: f?.condition?.isNight ?: false)
             arr.put(obj)
         }
+        cal.add(Calendar.HOUR_OF_DAY, 1)
     }
     WidgetCache.setWeatherHours(ctx, arr.toString())
 }
@@ -123,6 +131,10 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                 WidgetCache.setWeather(
                     ctx, place, wd.current.temperature, condLabel,
                     wd.current.windSpeed, wd.current.feelsLike, wd.current.precip1h, now,
+                )
+                // Hero-ikonia varten: nykytilan tyyppi + yö (robustimpi kuin label-avainsanat).
+                WidgetCache.setWeatherCond(
+                    ctx, wd.current.condition.type.name, wd.current.condition.isNight,
                 )
             } catch (e: Exception) { /* sailyta vanha cache */ }
             // Open-Meteo samalle paikalle (FMI:n rinnalle widgetiin); itsenainen FMI-hausta.
