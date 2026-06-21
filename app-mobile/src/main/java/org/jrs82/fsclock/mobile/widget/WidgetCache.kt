@@ -9,33 +9,17 @@ object WidgetCache {
     private fun p(ctx: Context) =
         ctx.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    // --- Sää ---
-    fun setWeather(
-        ctx: Context,
-        place: String,
-        tempC: Double,
-        conditionLabel: String,
-        windSpeed: Double,
-        feelsLike: Double,
-        precip1h: Double,
-        atMs: Long,
-    ) {
+    // --- Sää (FMI). Vain widgetin lukemat kentät: paikka, lämpötila, päivitysaika
+    //     (+ nykytilan tyyppi/yö alla hero-ikonille). ---
+    fun setWeather(ctx: Context, place: String, tempC: Double, atMs: Long) {
         p(ctx).edit()
             .putString("w_place", place)
             .putString("w_temp", tempC.toString())
-            .putString("w_cond", conditionLabel)
-            .putString("w_wind", windSpeed.toString())
-            .putString("w_feels", feelsLike.toString())
-            .putString("w_precip", precip1h.toString())
             .putLong("w_at", atMs)
             .apply()
     }
     fun weatherPlace(ctx: Context) = p(ctx).getString("w_place", "") ?: ""
     fun weatherTempC(ctx: Context) = p(ctx).getString("w_temp", "NaN")?.toDoubleOrNull() ?: Double.NaN
-    fun weatherCondition(ctx: Context) = p(ctx).getString("w_cond", "") ?: ""
-    fun weatherWind(ctx: Context) = p(ctx).getString("w_wind", "NaN")?.toDoubleOrNull() ?: Double.NaN
-    fun weatherFeelsLike(ctx: Context) = p(ctx).getString("w_feels", "NaN")?.toDoubleOrNull() ?: Double.NaN
-    fun weatherPrecip(ctx: Context) = p(ctx).getString("w_precip", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun weatherUpdatedAt(ctx: Context) = p(ctx).getLong("w_at", 0L)
 
     // FMI nykytilan saatyyppi (WeatherCondition.Type.name) + yo-lippu, hero-ikonin valintaa varten.
@@ -45,37 +29,24 @@ object WidgetCache {
     fun weatherCondType(ctx: Context) = p(ctx).getString("w_ctype", "") ?: ""
     fun weatherCondNight(ctx: Context) = p(ctx).getBoolean("w_cnight", false)
 
-    // --- Sää: Open-Meteo (näytetään FMI:n rinnalla). Säätila talletetaan osina, jotta
-    //     widget_weather_icon_om.png voidaan piirtää uudelleen joka kierroksella teemankestävästi. ---
+    // --- Sää: Open-Meteo (FMI:n rinnalla). Vain widgetin lukemat: lämpötila, säätyyppi, yö, aika. ---
     fun setWeatherOpenMeteo(
         ctx: Context,
         tempC: Double,
-        windSpeed: Double,
-        conditionLabel: String,
         condType: String,
-        condIntensity: String,
         condNight: Boolean,
-        condShower: Boolean,
         atMs: Long,
     ) {
         p(ctx).edit()
             .putString("w_om_temp", tempC.toString())
-            .putString("w_om_wind", windSpeed.toString())
-            .putString("w_om_cond", conditionLabel)
             .putString("w_om_ctype", condType)
-            .putString("w_om_cint", condIntensity)
             .putBoolean("w_om_cnight", condNight)
-            .putBoolean("w_om_cshower", condShower)
             .putLong("w_om_at", atMs)
             .apply()
     }
     fun weatherOmTempC(ctx: Context) = p(ctx).getString("w_om_temp", "NaN")?.toDoubleOrNull() ?: Double.NaN
-    fun weatherOmWind(ctx: Context) = p(ctx).getString("w_om_wind", "NaN")?.toDoubleOrNull() ?: Double.NaN
-    fun weatherOmCondition(ctx: Context) = p(ctx).getString("w_om_cond", "") ?: ""
     fun weatherOmCondType(ctx: Context) = p(ctx).getString("w_om_ctype", "") ?: ""
-    fun weatherOmCondIntensity(ctx: Context) = p(ctx).getString("w_om_cint", "") ?: ""
     fun weatherOmCondNight(ctx: Context) = p(ctx).getBoolean("w_om_cnight", false)
-    fun weatherOmCondShower(ctx: Context) = p(ctx).getBoolean("w_om_cshower", false)
     fun weatherOmUpdatedAt(ctx: Context) = p(ctx).getLong("w_om_at", 0L)
 
     // --- Sää: seuraavan 24 h tuntilista (FMI + Open-Meteo), JSON [{h,f,o,fc,oc,night}, …] ---
