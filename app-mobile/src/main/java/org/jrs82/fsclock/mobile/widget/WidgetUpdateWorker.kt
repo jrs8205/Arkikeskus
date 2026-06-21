@@ -21,7 +21,6 @@ import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.WeatherCondition
 import org.jrs82.fsclock.WeatherData
 import org.jrs82.fsclock.WeatherRepository
-import org.jrs82.fsclock.WeatherTextFormatter
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.mobile.DigitransitApi
 import org.jrs82.fsclock.mobile.HealthConnectStepsBridge
@@ -127,11 +126,7 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             try {
                 val wd = WeatherRepository.get(ctx).fetchHome(WeatherCache.last, true)
                 WeatherCache.last = wd
-                val condLabel = WeatherTextFormatter.label(ctx, wd.current.condition)
-                WidgetCache.setWeather(
-                    ctx, place, wd.current.temperature, condLabel,
-                    wd.current.windSpeed, wd.current.feelsLike, wd.current.precip1h, now,
-                )
+                WidgetCache.setWeather(ctx, place, wd.current.temperature, now)
                 // Hero-ikonia varten: nykytilan tyyppi + yö (robustimpi kuin label-avainsanat).
                 WidgetCache.setWeatherCond(
                     ctx, wd.current.condition.type.name, wd.current.condition.isNight,
@@ -145,12 +140,7 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                 if (h != null) {
                     val c = h.condition ?: WeatherCondition.unknown()
                     WidgetCache.setWeatherOpenMeteo(
-                        ctx,
-                        h.temperature ?: Double.NaN,
-                        h.windSpeed ?: Double.NaN,
-                        WeatherTextFormatter.label(ctx, c),
-                        c.type.name, c.intensity.name, c.isNight, c.isShower,
-                        now,
+                        ctx, h.temperature ?: Double.NaN, c.type.name, c.isNight, now,
                     )
                 }
             } catch (e: Exception) { /* sailyta vanha OM-cache */ }
