@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.SettingsManager
+import org.jrs82.fsclock.mobile.widget.WidgetDeepLink
 
 /** Käynnistyskuvan minimikesto millisekunteina, jotta sen ehtii nähdä (muuten vilahtaa ohi).
  *  450 ms = logo ehtii näkyä, mutta avaus tuntuu selvästi nopeammalta kuin 900 ms:lla. */
@@ -56,15 +57,19 @@ class MobileComposeMainActivity : AppCompatActivity() {
         SettingsManager.get().init(applicationContext)
         appliedDynamicColor = MobileThemeController.dynamicColor(this)
         maybeAskInitialLocationPermission()
-        externalSection.value = intent?.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
+        // Widget-/ilmoitus-deep-link: sektio luetaan ENSISIJAISESTI data-URIsta (arkikeskus://widget/
+        // <sektio>) — se on PendingIntent-identiteetin osa ja toimitetaan luotettavasti — extra jää
+        // fallbackiksi. EI kuluteta tässä: kylmässä käynnistyksessä Activity relaunchaa (night mode /
+        // dynamic color) ENNEN kuin Compose ehtii navigoida, joten varhainen kulutus hukkaisi sektion
+        // -> etusivu. Kulutus tehdään vasta navigoinnin jälkeen (onSectionConsumed -> setIntent(tyhjä)),
+        // mikä myös estää myöhemmän teemanvaihto-"bouncen".
+        val widgetSection = resolveWidgetSection(intent)
+        externalSection.value =
+            widgetSection ?: intent?.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
         if (intent?.getBooleanExtra(Notifications.EXTRA_DISRUPTION_FAV, false) == true) {
             DisruptionNav.requestFocusFavorites()
+            intent?.removeExtra(Notifications.EXTRA_DISRUPTION_FAV)
         }
-        // Kuluta deep-link-extrat heti kun ne on luettu: muuten Activityn recreate (esim. teeman-/
-        // dynamic-color-vaihto) lukisi saman "avaa sektio" -ohjeen UUDELLEEN tallennetusta intentista
-        // ja veisi pois esim. asetuksista takaisin ilmoituksen avaamaan sektioon.
-        intent?.removeExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
-        intent?.removeExtra(Notifications.EXTRA_DISRUPTION_FAV)
         maybeRecoverWorkout()
         maybeImportWorkoutFile(intent)
         // Palautuksen jälkeinen vahvistus: prosessi käynnistettiin uudelleen → kerro käyttäjälle.
@@ -91,7 +96,12 @@ class MobileComposeMainActivity : AppCompatActivity() {
         }
         setContent {
             ArkikeskusTheme(dynamicColor = appliedDynamicColor) {
-                ComposeMainScreen(externalSection = externalSection)
+                ComposeMainScreen(
+                    externalSection = externalSection,
+                    // Sektioon navigoinnin jälkeen tyhjennetään launch-intent, jottei relaunch/recreate
+                    // toista deep-linkkiä (kylmän käynnistyksen sektio säilyy, mutta teemanvaihto ei bounssaa).
+                    onSectionConsumed = { setIntent(android.content.Intent()) },
+                )
             }
         }
     }
@@ -102,11 +112,12 @@ class MobileComposeMainActivity : AppCompatActivity() {
         if (intent.getBooleanExtra(Notifications.EXTRA_DISRUPTION_FAV, false)) {
             DisruptionNav.requestFocusFavorites()
         }
-        intent.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)?.let {
+        val widgetSection = resolveWidgetSection(intent)
+        (widgetSection ?: intent.getStringExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION))?.let {
             externalSection.value = it
         }
-        // Kuluta extrat (sama syy kuin onCreatessa): recreate ei saa toistaa deep-linkkiä.
-        intent.removeExtra(WorkoutTrackingService.EXTRA_OPEN_SECTION)
+        // EXTRA_OPEN_SECTION / data kulutetaan vasta navigoinnin jälkeen (onSectionConsumed). DISRUPTION_FAV
+        // on oma kertakäyttöinen ohjeensa -> kulutetaan heti.
         intent.removeExtra(Notifications.EXTRA_DISRUPTION_FAV)
         maybeImportWorkoutFile(intent)
     }
@@ -114,9 +125,20 @@ class MobileComposeMainActivity : AppCompatActivity() {
     /** Jaetun lenkkitiedoston (GPX/TCX) avaus toisesta sovelluksesta: ACTION_VIEW (esim.
      *  Tiedostot/Gmail) tai ACTION_SEND (jakovalikko) → tuonti "Jaettu lenkki" -merkinnällä
      *  ja Lenkki-sivun avaus. */
+    /** Widget-tapin data-URI ([WidgetDeepLink.SCHEME]://widget/<sektio>) -> HomeSection-enumin nimi,
+     *  tai null jos intent ei ole widget-deep-link. Itse HomeSection.valueOf tehdään ComposeMainScreenissä. */
+    private fun resolveWidgetSection(intent: android.content.Intent?): String? {
+        val data = intent?.data ?: return null
+        if (data.scheme != WidgetDeepLink.SCHEME) return null
+        return data.lastPathSegment?.takeIf { it.isNotBlank() }
+    }
+
     private fun maybeImportWorkoutFile(intent: android.content.Intent?) {
         val uri: android.net.Uri = when (intent?.action) {
-            android.content.Intent.ACTION_VIEW -> intent.data
+            // Widget-deep-link (arkikeskus://) EI ole tiedostotuonti -> ohitetaan, jotta ACTION_VIEW
+            // ei yritä avata sektio-URIa lenkkitiedostona.
+            android.content.Intent.ACTION_VIEW ->
+                intent.data?.takeIf { it.scheme != WidgetDeepLink.SCHEME }
             android.content.Intent.ACTION_SEND ->
                 if (android.os.Build.VERSION.SDK_INT >= 33) {
                     intent.getParcelableExtra(

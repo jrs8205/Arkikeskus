@@ -45,7 +45,7 @@ private fun StepsContent(context: Context) {
                 .background(GlanceTheme.colors.surface)
                 .cornerRadius(20.dp)
                 .padding(14.dp)
-                .clickable(WidgetDeepLink.openApp()),
+                .clickable(WidgetDeepLink.openSection(context, "STEPS")),
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
             Text(
