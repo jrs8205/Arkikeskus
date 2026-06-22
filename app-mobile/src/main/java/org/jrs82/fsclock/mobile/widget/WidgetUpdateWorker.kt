@@ -1,7 +1,6 @@
 package org.jrs82.fsclock.mobile.widget
 
 import android.content.Context
-import android.location.LocationManager
 import androidx.preference.PreferenceManager
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -24,6 +23,8 @@ import org.jrs82.fsclock.WeatherRepository
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.mobile.DigitransitApi
 import org.jrs82.fsclock.mobile.HealthConnectStepsBridge
+import org.jrs82.fsclock.mobile.maybeRefreshWidgetLocationPassive
+import org.jrs82.fsclock.mobile.passiveDeviceLocation
 import org.jrs82.fsclock.mobile.KEY_STEPS_USE_HC
 import org.jrs82.fsclock.mobile.NearbyStop
 import org.jrs82.fsclock.mobile.StepGoalNotifier
@@ -34,17 +35,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Etsii lahinta pysakkia kaytten ensin laitteen viimeista tunnettua sijaintia (GPS tai verkko),
- * ja kayttaa kotikoordin. fallbackina jos sijaintilupa puuttuu tai sijainti ei ole saatavilla.
- * Palauttaa null jos kumpikaan ei onnistu.
+ * Etsii lähintä pysäkkiä käyttäen passiivista, gatettua laitesijaintia ([passiveDeviceLocation]:
+ * fused-preferred, ikä ≤ 30 min, tarkkuus ≤ 2000 m — EI aktiivista hakua → taustaturvallinen) ja
+ * kotikoordinaatteja fallbackina (jotka sää-block päivittää tuoreesta sijainnista). null jos kumpikaan ei onnistu.
  */
 private fun fetchNearestStop(ctx: Context): NearbyStop? {
-    val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-    val deviceLoc: android.location.Location? = try {
-        lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-    } catch (se: SecurityException) { null }
-
+    val deviceLoc = passiveDeviceLocation(ctx)
     val lat: Double
     val lon: Double
     if (deviceLoc != null) {
@@ -113,16 +109,37 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val ctx = applicationContext
         SettingsManager.get().init(ctx) // idempotentti varmistus
+        // DEBUG-mittaus (vain .debug-build): logita last-known-sijaintien tuoreus + tarkkuus
+        // tiedostoon, jotta sijaintiportti ja -lähde valitaan kenttädatalla. Poista ennen julkaisua.
+        if (ctx.packageName.endsWith(".debug")) {
+            try { WidgetLocationMeasure.sample(ctx) } catch (e: Exception) { }
+        }
         val now = System.currentTimeMillis()
         val prefs = PreferenceManager.getDefaultSharedPreferences(ctx)
 
         // Saa + sahko vain jos vanhentunut (>25 min) -> ~30 min 15 min workerilla, akkua saastäen.
         val stale = 25L * 60_000L
-        if (now - WidgetCache.weatherUpdatedAt(ctx) > stale) {
-            // MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME on package-private
-            // -> kaytamme suoraan avainmerkkijonoa. Sama paikka molemmille lahteille.
-            val place = (prefs.getString("mobile_auto_location_display_name", "")
-                ?: "").ifBlank { SettingsManager.get().homePlace }
+        // Option 2a: passiivinen taustasijaintipäivitys — päivittää kotipaikan + näyttönimen jos liikuttu.
+        try { maybeRefreshWidgetLocationPassive(ctx) } catch (e: Exception) { }
+        // (KEY_AUTO_LOCATION_DISPLAY_NAME on package-private → suora avainmerkkijono; sama paikka molemmille lähteille.)
+        val place = (prefs.getString("mobile_auto_location_display_name", "")
+            ?: "").ifBlank { SettingsManager.get().homePlace }
+        // 1) Paikan NIMI päivittyy aina HALVALLA (ei verkkoa): kaupunginosa vaihtuu liikkuessa, mutta sää
+        //    tulee samalta viralliselta FMI-asemalta koko kaupungin alueella → säädataa ei tarvitse hakea.
+        if (!place.equals(WidgetCache.weatherPlace(ctx), ignoreCase = true)) WidgetCache.setWeatherPlace(ctx, place)
+        // 2) SÄÄDATA haetaan vain jos vanha (25 min) TAI siirrytty niin kauas (>8 km) että lähin virallinen
+        //    FMI-asema voi vaihtua (esim. Vantaa→Helsinki/Kaisaniemi). Sama asema → sama sää → ei turhia hakuja.
+        val smW = SettingsManager.get()
+        val movedFar = if (!smW.hasHomeCoordinates()) false else {
+            val lat = WidgetCache.weatherLat(ctx)
+            val lon = WidgetCache.weatherLon(ctx)
+            if (lat.isNaN() || lon.isNaN()) true else {
+                val res = FloatArray(1)
+                android.location.Location.distanceBetween(lat, lon, smW.homeLatitude, smW.homeLongitude, res)
+                res[0] > 8000f
+            }
+        }
+        if (movedFar || now - WidgetCache.weatherUpdatedAt(ctx) > stale) {
             try {
                 val wd = WeatherRepository.get(ctx).fetchHome(WeatherCache.last, true)
                 WeatherCache.last = wd
@@ -131,11 +148,18 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                 WidgetCache.setWeatherCond(
                     ctx, wd.current.condition.type.name, wd.current.condition.isNight,
                 )
+                // Tallenna haun koordinaatit etäisyysporttiin (seuraava haku vasta >8 km siirtymästä).
+                if (smW.hasHomeCoordinates()) WidgetCache.setWeatherLocation(ctx, smW.homeLatitude, smW.homeLongitude)
             } catch (e: Exception) { /* sailyta vanha cache */ }
-            // Open-Meteo samalle paikalle (FMI:n rinnalle widgetiin); itsenainen FMI-hausta.
+            // Open-Meteo samalle paikalle (FMI:n rinnalle widgetiin); itsenainen FMI-hausta. KOORDINAATEILLA
+            // kuten sovelluksen ennustesivu → ei nimiriippuvaista GeoPlace-resoluutiota (robustimpi taustalla).
+            val sm = SettingsManager.get()
+            val hasCoords = sm.hasHomeCoordinates()
             var om: OpenMeteoData? = null
             try {
-                om = OpenMeteoRepository.get(ctx).fetch(place, true)
+                om = if (hasCoords)
+                    OpenMeteoRepository.get(ctx).fetch(place, sm.homeLatitude, sm.homeLongitude, true)
+                else OpenMeteoRepository.get(ctx).fetch(place, true)
                 val h = nearestOpenMeteoHour(om, now)
                 if (h != null) {
                     val c = h.condition ?: WeatherCondition.unknown()
@@ -143,7 +167,13 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                         ctx, h.temperature ?: Double.NaN, c.type.name, c.isNight, now,
                     )
                 }
-            } catch (e: Exception) { /* sailyta vanha OM-cache */ }
+            } catch (e: Exception) {
+                // Hetkellinen verkko-/lähdevirhe EI saa pyyhkiä OM-saraketta tuntilistasta → viimeisin onnistunut.
+                om = try {
+                    if (hasCoords) OpenMeteoRepository.get(ctx).peek(place, sm.homeLatitude, sm.homeLongitude)
+                    else OpenMeteoRepository.get(ctx).peek(place)
+                } catch (e2: Exception) { null }
+            }
             // Koko paivan tuntilista (FMI + Open-Meteo) skrollattavaan saa-widgetiin.
             try {
                 storeWeatherHours(ctx, WeatherCache.last?.hours, om)

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.location.Location
 import android.location.LocationManager
+import org.jrs82.fsclock.mobile.widget.WidgetLocation
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
@@ -415,6 +416,50 @@ internal fun lastKnownLocation(context: Context): Location? {
 
 private fun hasGranted(context: Context, perm: String): Boolean =
     ContextCompat.checkSelfPermission(context, perm) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+// Widget-workerin passiivisen sijainnin portti (väljempi kuin etualan 10 min/1500 m: tausta lukee
+// harvemmin eikä hae aktiivisesti, joten hyväksytään hieman vanhempi fix ennen kuin pudotaan kotiin).
+private const val WIDGET_LOC_MAX_AGE_MS = 30L * 60_000L
+private const val WIDGET_LOC_MAX_ACCURACY_M = 2000f
+
+/** Passiivinen, gatettu laitesijainti widget-workerille (tausta). Lukee VAIN cachen viimeisimmät
+ *  tunnetut fixit (LocationManager GPS/NETWORK + Fused getLastLocation) — EI aktiivista hakua → ~0 akkua,
+ *  toimii taustalla ACCESS_BACKGROUND_LOCATIONin turvin. Valitsee tuoreimman fixin, jonka ikä ≤ 30 min ja
+ *  tarkkuus ≤ 2000 m ([WidgetLocation.choose]). null jos lupa puuttuu tai mikään ei kelpaa. */
+internal fun passiveDeviceLocation(context: Context): Location? {
+    if (!hasGranted(context, Manifest.permission.ACCESS_FINE_LOCATION) &&
+        !hasGranted(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+    ) {
+        return null
+    }
+    val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+    fun last(p: String): Location? = try {
+        lm?.getLastKnownLocation(p)
+    } catch (e: SecurityException) { null } catch (e: IllegalArgumentException) { null }
+    fun acc(l: Location): Float? = if (l.hasAccuracy()) l.accuracy else null
+    val pairs = listOfNotNull(
+        last(LocationManager.GPS_PROVIDER)?.let { WidgetLocation.Candidate("GPS", it.time, acc(it)) to it },
+        last(LocationManager.NETWORK_PROVIDER)?.let { WidgetLocation.Candidate("NET", it.time, acc(it)) to it },
+        fusedLastLocationBlocking(context)?.let { WidgetLocation.Candidate("FUSED", it.time, acc(it)) to it },
+    )
+    val chosen = WidgetLocation.choose(
+        pairs.map { it.first }, System.currentTimeMillis(),
+        WIDGET_LOC_MAX_AGE_MS, WIDGET_LOC_MAX_ACCURACY_M,
+    ) ?: return null
+    return pairs.first { it.first === chosen }.second
+}
+
+/** Fused getLastLocation = passiivinen cachen luku (taustaturvallinen, ei aktivoi GPS:ää) lyhyellä odotuksella. */
+private fun fusedLastLocationBlocking(context: Context): Location? = try {
+    val client = LocationServices.getFusedLocationProviderClient(context)
+    val latch = java.util.concurrent.CountDownLatch(1)
+    val holder = arrayOfNulls<Location>(1)
+    client.lastLocation
+        .addOnSuccessListener { holder[0] = it; latch.countDown() }
+        .addOnFailureListener { latch.countDown() }
+    latch.await(3, java.util.concurrent.TimeUnit.SECONDS)
+    holder[0]
+} catch (e: SecurityException) { null } catch (e: Exception) { null }
 
 /** Lähde-erittelyn nimi: sovelluksen nimi PackageManagerista jos asennettu, muuten paketinimi.
  *  Yleismaallinen — toimii mille tahansa HC:hen kirjoittavalle sovellukselle/laitemerkille.
