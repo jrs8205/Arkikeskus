@@ -17,6 +17,11 @@ import org.jrs82.fsclock.mobile.widget.WidgetDeepLink
  *  450 ms = logo ehtii näkyä, mutta avaus tuntuu selvästi nopeammalta kuin 900 ms:lla. */
 private const val SPLASH_MIN_MS = 450L
 
+/** Process-static throttle widget-workerin onResume-virkistykselle. Activity voi relaunchata
+ *  (night mode / dynamic color) → onResume laukeaa kahdesti; ei ajeta workeria turhaan tuplana.
+ *  Top-level (ei kenttä), jotta se säilyy Activityn uudelleenluonnin yli samassa prosessissa. */
+private var sLastWidgetRefreshMs = 0L
+
 /**
  * Sovelluksen pääruutu (launcher) — koko UI on Compose ([ComposeMainScreen]). Korvasi
  * View-pohjaisen MobileMainActivityn (poistettu Compose-migraation valmistuttua).
@@ -233,8 +238,13 @@ class MobileComposeMainActivity : AppCompatActivity() {
             return
         }
         maybeRunNotificationCheck()
-        // Paivita kotinäytön widgetit heti kun sovellus tulee etualalle.
-        org.jrs82.fsclock.mobile.widget.WidgetUpdateWorker.refreshNow(this)
+        // Paivita kotinäytön widgetit heti kun sovellus tulee etualalle. Throttle estää relaunchin
+        // (night mode/dynamic color) aiheuttaman tupla-onResumen turhan toisen virkistyksen.
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - sLastWidgetRefreshMs > 10_000L) {
+            sLastWidgetRefreshMs = nowMs
+            org.jrs82.fsclock.mobile.widget.WidgetUpdateWorker.refreshNow(this)
+        }
     }
 
     /**
