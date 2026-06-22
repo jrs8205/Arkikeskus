@@ -109,11 +109,6 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val ctx = applicationContext
         SettingsManager.get().init(ctx) // idempotentti varmistus
-        // DEBUG-mittaus (vain .debug-build): logita last-known-sijaintien tuoreus + tarkkuus
-        // tiedostoon, jotta sijaintiportti ja -lähde valitaan kenttädatalla. Poista ennen julkaisua.
-        if (ctx.packageName.endsWith(".debug")) {
-            try { WidgetLocationMeasure.sample(ctx) } catch (e: Exception) { }
-        }
         val now = System.currentTimeMillis()
         val prefs = PreferenceManager.getDefaultSharedPreferences(ctx)
 
