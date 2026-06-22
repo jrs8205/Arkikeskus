@@ -10,9 +10,12 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
@@ -110,11 +113,14 @@ private fun WeatherContent(context: Context) {
             modifier = GlanceModifier.fillMaxSize()
                 .background(ImageProvider(R.drawable.widget_card_bg))
                 .cornerRadius(26.dp)
-                .padding(20.dp)
-                .clickable(WidgetDeepLink.openSection(context, "FORECAST")),
+                .padding(20.dp),
         ) {
-            // Sijaintirivi
-            Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+            // Sijaintirivi — VAIN tämä yläreuna avaa sovelluksen (kuten WhatsApp); muu widget ei vie sovellukseen.
+            Row(
+                modifier = GlanceModifier.fillMaxWidth()
+                    .clickable(WidgetDeepLink.openSection(context, "FORECAST")),
+                verticalAlignment = Alignment.Vertical.CenterVertically,
+            ) {
                 Image(
                     provider = ImageProvider(R.drawable.mobile_ic_location_24),
                     contentDescription = null,
@@ -145,8 +151,27 @@ private fun WeatherContent(context: Context) {
                 )
             }
             Spacer(GlanceModifier.height(16.dp))
-            // Erotinviiva
-            Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(WidgetColors.rowline)) {}
+            // Erotinviiva + päivitysnappi oikealla (irti yläreunan "avaa sovellus" -alueesta → napautus
+            // ei vie vahingossa sovellukseen; nappi ajaa workerin heti).
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Vertical.CenterVertically,
+            ) {
+                Box(modifier = GlanceModifier.defaultWeight().height(1.dp).background(WidgetColors.rowline)) {}
+                Spacer(GlanceModifier.width(12.dp))
+                Box(
+                    modifier = GlanceModifier.size(30.dp).cornerRadius(8.dp).background(WidgetColors.track)
+                        .clickable(actionRunCallback<WeatherRefreshAction>()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.mobile_ic_refresh_24),
+                        contentDescription = "Päivitä",
+                        colorFilter = ColorFilter.tint(WidgetColors.c1),
+                        modifier = GlanceModifier.size(18.dp),
+                    )
+                }
+            }
             Spacer(GlanceModifier.height(12.dp))
             // Sarakeotsikot: Ilmatieteen laitos (c1) | Open-Meteo (c2)
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
@@ -225,6 +250,13 @@ private fun WxHalf(
             style = TextStyle(color = tempColor, fontSize = 14.sp, fontWeight = FontWeight.Bold),
             maxLines = 1,
         )
+    }
+}
+
+/** Sääwidgetin päivitysnappi: ajaa widget-workerin heti (passiivinen sijaintipäivitys + sään haku + updateAll). */
+class WeatherRefreshAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        WidgetUpdateWorker.refreshNow(context)
     }
 }
 

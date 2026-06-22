@@ -164,6 +164,43 @@ private fun hasLocationPermission(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+/**
+ * Widget-workerin (tausta) PASSIIVINEN kotipaikan päivitys: kuten [maybeRefreshDeviceLocation], mutta
+ * EI aktiivista sijaintihakua — käyttää vain [passiveDeviceLocation]ia (cachen viimeisin tunnettu) → ~0 akkua,
+ * toimii taustalla ACCESS_BACKGROUND_LOCATIONin turvin. Geokoodaa + päivittää kotipaikan VAIN jos siirrytty
+ * merkittävästi (> ~400 m), jottei MML-hakua tehdä turhaan joka workerilla. Palauttaa true jos data- tai
+ * näyttöpaikka muuttui (→ kutsuja voi pakottaa sään haun heti).
+ */
+internal suspend fun maybeRefreshWidgetLocationPassive(context: Context): Boolean {
+    val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    if (!prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true)) return false
+    if (!hasLocationPermission(context)) return false
+    val loc = passiveDeviceLocation(context) ?: return false
+    val sm = SettingsManager.get()
+    // Liikuttu liian vähän kotikoordinaateista → ei geokoodata/päivitetä (säästää verkon + cache-churnin).
+    // 150 m: tarpeeksi pieni että kaupunginosan vaihtuminen (esim. Raappavuoret↔Laajavuori) huomataan kuten
+    // sovelluksessa, mutta suodattaa paikallaan ollessa fix-jitterin (~15–100 m tarkkuus).
+    if (sm.hasHomeCoordinates()) {
+        val res = FloatArray(1)
+        android.location.Location.distanceBetween(sm.homeLatitude, sm.homeLongitude, loc.latitude, loc.longitude, res)
+        if (res[0] < 150f) return false
+    }
+    val place = withContext(Dispatchers.IO) {
+        try {
+            MmlGeocodingClient.reversePlace(loc.latitude, loc.longitude)
+        } catch (e: Exception) {
+            null
+        }
+    } ?: return false
+    val previousDataPlace = sm.homePlace.trim()
+    val previousDisplayPlace = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "")
+        ?.trim().orEmpty()
+    val placeChanged = !previousDataPlace.equals(place.dataPlace.trim(), ignoreCase = true) ||
+        !previousDisplayPlace.equals(place.displayPlace.trim(), ignoreCase = true)
+    chooseHomePlace(prefs, place.dataPlace, true, place.displayPlace, loc.latitude, loc.longitude)
+    return placeChanged
+}
+
 /** Etusivun yläreunan ilmoitus uudesta versiosta: Päivitä lataa + asentaa APK:n, Hylkää piilottaa version. */
 @Composable
 private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {

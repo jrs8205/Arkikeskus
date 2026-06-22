@@ -17,10 +17,14 @@
         android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Kotinäytön widgetit: passiivinen sijainnin luku taustaworkerissa (getLastKnownLocation/
+         fused-cache, EI aktiivista GPS-hakua → ~0 akkua), jotta sää-/lähilähtö-widgetit seuraavat
+         sijaintia myös sovelluksen ollessa kiinni. Tuotannossa käyttäjä valitsee "Salli aina". -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-    <!-- Lenkkiseuranta: foreground service (location) + ongoing-notifikaatio. Palvelu
-         käynnistetään aina etualalta → ACCESS_BACKGROUND_LOCATIONia EI tarvita. -->
+    <!-- Lenkkiseuranta: foreground service (location) + ongoing-notifikaatio, käynnistetään
+         aina etualalta (lenkki itse ei vaadi taustasijaintia). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

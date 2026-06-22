@@ -22,6 +22,19 @@ object WidgetCache {
     fun weatherTempC(ctx: Context) = p(ctx).getString("w_temp", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun weatherUpdatedAt(ctx: Context) = p(ctx).getLong("w_at", 0L)
 
+    /** Päivitä VAIN paikan nimi (label) ilman säädatan hakua — liikkuessa kaupunginosa vaihtuu, mutta sää
+     *  tulee samalta viralliselta FMI-asemalta koko kaupungin alueella, joten dataa ei haeta uudelleen. */
+    fun setWeatherPlace(ctx: Context, place: String) {
+        p(ctx).edit().putString("w_place", place).apply()
+    }
+    /** Viimeisimmän säähaun koordinaatit — etäisyysvertailuun (haetaan uudelleen vain kun on siirrytty
+     *  niin kauas että lähin virallinen FMI-asema voi vaihtua, esim. Vantaa→Helsinki). */
+    fun setWeatherLocation(ctx: Context, lat: Double, lon: Double) {
+        p(ctx).edit().putString("w_lat", lat.toString()).putString("w_lon", lon.toString()).apply()
+    }
+    fun weatherLat(ctx: Context) = p(ctx).getString("w_lat", "NaN")?.toDoubleOrNull() ?: Double.NaN
+    fun weatherLon(ctx: Context) = p(ctx).getString("w_lon", "NaN")?.toDoubleOrNull() ?: Double.NaN
+
     // FMI nykytilan saatyyppi (WeatherCondition.Type.name) + yo-lippu, hero-ikonin valintaa varten.
     fun setWeatherCond(ctx: Context, type: String, night: Boolean) {
         p(ctx).edit().putString("w_ctype", type).putBoolean("w_cnight", night).apply()

@@ -264,6 +264,21 @@ fun SettingsScreen(
     var autoLocation by remember {
         mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true))
     }
+    // Taustasijainti ("Salli aina"): kotinäytön widgetit voivat päivittää paikan myös sovelluksen ollessa
+    // kiinni vain jos tämä on myönnetty. Android vaatii erillisen pyynnön etualan luvan jälkeen.
+    var bgLocationGranted by remember {
+        mutableStateOf(hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION))
+    }
+    val bgLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        bgLocationGranted = hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        toast(
+            context,
+            if (bgLocationGranted) "Taustasijainti sallittu — widgetit päivittävät paikan myös taustalla."
+            else "Valitse sijainniksi \"Salli aina\", niin kotinäytön widgetit päivittyvät taustalla.",
+        )
+    }
     val locationPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
@@ -275,7 +290,13 @@ fun SettingsScreen(
             .remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
             .apply()
         autoLocation = precise
-        if (precise) resetAutoLocationThrottle()
+        if (precise) {
+            resetAutoLocationThrottle()
+            // Etualan lupa saatu → pyydä heti myös taustasijainti, jotta widgetit päivittyvät taustalla.
+            if (!hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+                bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+        }
         toast(
             context,
             if (precise) "Automaattinen sijainti on käytössä."
@@ -400,6 +421,17 @@ fun SettingsScreen(
                                     .remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
                                     .apply()
                                 autoLocation = false
+                            }
+                        }
+                        if (autoLocation && !bgLocationGranted) {
+                            GroupDivider()
+                            GroupRowClickable(
+                                title = "Widgetit taustalla",
+                                subtitle = "Salli sijainti \"aina\", jotta kotinäytön widgetit päivittävät paikan myös sovelluksen ollessa kiinni",
+                                leadingIconRes = R.drawable.mobile_ic_location_24,
+                                showChevron = true,
+                            ) {
+                                bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                             }
                         }
                         GroupDivider()
