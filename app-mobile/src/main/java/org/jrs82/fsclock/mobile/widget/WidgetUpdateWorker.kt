@@ -174,10 +174,14 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                     else OpenMeteoRepository.get(ctx).peek(place)
                 } catch (e2: Exception) { null }
             }
-            // Koko paivan tuntilista (FMI + Open-Meteo) skrollattavaan saa-widgetiin.
-            try {
-                storeWeatherHours(ctx, WeatherCache.last?.hours, om)
-            } catch (e: Exception) { /* sailyta vanha tuntilista */ }
+            // Koko paivan tuntilista (FMI + Open-Meteo). Paivitetaan VAIN jos OM-data saatiin → hetkellinen
+            // OM-hakuvirhe EI pyyhi koko OM-saraketta tuntilistasta (sailyy viimeisin onnistunut; hero-FMI
+            // paivittyy erikseen). Korjaa "OM-sarake katoaa liikkuessa" -bugin kun fetch+peek epaonnistuvat.
+            if (om?.hours?.isNotEmpty() == true) {
+                try {
+                    storeWeatherHours(ctx, WeatherCache.last?.hours, om)
+                } catch (e: Exception) { /* sailyta vanha tuntilista */ }
+            }
         }
         // Fix 4: Haetaan verkkodata vain jos yli 25 min vanha (e_fetch_at); vartti luetaan JOKA
         // kierroksella, jotta hinta vaihtuu 15 min välein ilman uutta verkkopyyntöä.
