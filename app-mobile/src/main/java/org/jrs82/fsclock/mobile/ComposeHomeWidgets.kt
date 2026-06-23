@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,7 +35,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -229,6 +233,15 @@ private fun filterHomeNews(prefs: SharedPreferences, fetched: List<ForeignArticl
     return hardFilterCategories(unread, cats, allTags.size)
 }
 
+/** Hiusviivaerotin korttien rivien väliin — selvästi näkyvä molemmissa teemoissa (outlineVariant 50 %). */
+@Composable
+private fun RowDivider() {
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        thickness = 1.dp,
+    )
+}
+
 @Composable
 internal fun HomeNewsCard(onOpenNews: () -> Unit) {
     val context = LocalContext.current
@@ -268,13 +281,17 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
         loading = false
     }
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Kotimaan uutiset", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                if (items.isNotEmpty()) {
-                    TextButton(onClick = onOpenNews) { Text("Kaikki") }
-                }
-            }
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_rss_24),
+                accent = ArkiTheme.colors.newsAccent,
+                title = "Kotimaan uutiset",
+                trailing = if (items.isNotEmpty()) {
+                    { TextButton(onClick = onOpenNews) { Text("Kaikki") } }
+                } else {
+                    null
+                },
+            )
             when {
                 loading -> Text(
                     "Haetaan uutisia…",
@@ -286,7 +303,10 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                else -> items.take(5).forEach { CompactForeignNewsRow(it) }
+                else -> items.take(5).forEach { a ->
+                    RowDivider()
+                    CompactForeignNewsRow(a)
+                }
             }
         }
     }
@@ -310,14 +330,14 @@ private fun CompactNewsRow(item: NewsItem) {
                 }
             },
             update = { ImageLoader.get().load(item.imageUrl, it, R.drawable.mobile_ic_news_placeholder) },
-            modifier = Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)),
+            modifier = Modifier.size(58.dp).clip(RoundedCornerShape(12.dp)),
         )
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -384,13 +404,17 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
         loading = false
     }
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Ulkomaan uutiset", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                if (items.isNotEmpty()) {
-                    TextButton(onClick = onOpenForeign) { Text("Kaikki") }
-                }
-            }
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_rss_24),
+                accent = ArkiTheme.colors.newsAccent,
+                title = "Ulkomaan uutiset",
+                trailing = if (items.isNotEmpty()) {
+                    { TextButton(onClick = onOpenForeign) { Text("Kaikki") } }
+                } else {
+                    null
+                },
+            )
             when {
                 loading -> Text(
                     "Haetaan uutisia…",
@@ -402,7 +426,10 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                else -> items.take(5).forEach { CompactForeignNewsRow(it) }
+                else -> items.take(5).forEach { a ->
+                    RowDivider()
+                    CompactForeignNewsRow(a)
+                }
             }
         }
     }
@@ -426,14 +453,14 @@ private fun CompactForeignNewsRow(a: ForeignArticle) {
                 }
             },
             update = { ImageLoader.get().load(a.imageUrl, it, R.drawable.mobile_ic_news_placeholder) },
-            modifier = Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)),
+            modifier = Modifier.size(58.dp).clip(RoundedCornerShape(12.dp)),
         )
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 a.titleFi,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -497,12 +524,11 @@ internal fun HomeNewsSourceCard(feedId: String) {
         }
     }
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                feed.name.ifEmpty { "Uutiset" },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = ArkiTheme.colors.newsAccent,
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_rss_24),
+                accent = ArkiTheme.colors.newsAccent,
+                title = feed.name.ifEmpty { "Uutiset" },
             )
             val list = items
             when {
@@ -516,7 +542,10 @@ internal fun HomeNewsSourceCard(feedId: String) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                else -> list.take(5).forEach { CompactNewsRow(it) }
+                else -> list.take(5).forEach { item ->
+                    RowDivider()
+                    CompactNewsRow(item)
+                }
             }
         }
     }
@@ -538,15 +567,19 @@ internal fun HomeWarningsCard() {
     }
     val warnings = remember(tick) { repo.getLatest() }
     if (warnings.isEmpty()) return
+    val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Säävaroitukset",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = ArkiTheme.colors.warning,
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_warning_24),
+                accent = arki.warning,
+                title = "Säävaroitukset",
+                trailing = { ArkiPill("${warnings.size} voimassa", arki.warning) },
             )
-            warnings.take(4).forEach { WarningRow(it) }
+            warnings.take(4).forEach { w ->
+                RowDivider()
+                WarningRow(w)
+            }
         }
     }
 }
@@ -634,18 +667,17 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
         }
     }
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Liikennetiedot",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (!notices.isNullOrEmpty()) {
-                    TextButton(onClick = onOpenTraffic) { Text("Kaikki") }
-                }
-            }
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_construction_24),
+                accent = ArkiTheme.colors.warning,
+                title = "Liikennetiedot",
+                trailing = if (!notices.isNullOrEmpty()) {
+                    { TextButton(onClick = onOpenTraffic) { Text("Kaikki") } }
+                } else {
+                    null
+                },
+            )
             val list = notices
             when {
                 list == null -> Text(
@@ -659,8 +691,12 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 else -> {
-                    list.take(3).forEach { CompactTrafficRow(it) }
+                    list.take(3).forEach { n ->
+                        RowDivider()
+                        CompactTrafficRow(n)
+                    }
                     if (list.size > 3) {
+                        RowDivider()
                         Text(
                             "+ ${list.size - 3} lisää",
                             style = MaterialTheme.typography.bodyMedium,
@@ -738,11 +774,13 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
         }
     }
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Lähilähdöt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                TextButton(onClick = onOpenTransit) { Text("Kaikki") }
-            }
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_bus_24),
+                accent = MaterialTheme.colorScheme.primary,
+                title = "Lähilähdöt",
+                trailing = { TextButton(onClick = onOpenTransit) { Text("Kaikki") } },
+            )
             val list = deps
             when {
                 list == null -> Text(
@@ -757,6 +795,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
                 )
                 else -> {
                     list.take(5).forEach { d ->
+                        RowDivider()
                         val key = departureKey(d)
                         DepartureRow(
                             d = d,
@@ -765,6 +804,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
                         )
                     }
                     if (list.size > 5) {
+                        RowDivider()
                         Text(
                             "+ ${list.size - 5} lähtöä lisää",
                             style = MaterialTheme.typography.bodyMedium,
@@ -795,14 +835,16 @@ private fun DepartureRow(d: Departure, expanded: Boolean, onToggle: () -> Unit) 
             Text(
                 if (d.routeShortName.isNullOrEmpty()) "?" else d.routeShortName,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .widthIn(min = 52.dp)
+                    .clip(RoundedCornerShape(9.dp))
                     .background(colorResource(transitModeColorRes(d.mode)))
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 color = transitOnModeColor(d.mode),
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     if (d.headsign.isNullOrEmpty()) "—" else d.headsign,
