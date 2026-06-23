@@ -99,6 +99,24 @@ public final class ElectricityRepository {
         return false;
     }
 
+    /** True jos välimuistissa on huomispäivän hinnat ILTAAN ASTI (vartti jonka tunti >= 20 Suomen
+     *  aikaa). Pelkkä CET-aikavyöhykkeen ~1 h aamuyön ylivuoto (huomisen 00:00–00:45, joka kuuluu
+     *  TÄMÄN päivän hintoihin) EI riitä. Kesä-/talviaika ei vaikuta: CET–Suomi-ero on aina 1 h, joten
+     *  ylivuoto on aina vain aamuyötä; q.hour lasketaan Europe/Helsinki-vyöhykkeellä (DST mukana). */
+    public synchronized boolean hasFullTomorrow() {
+        if (data == null) return false;
+        TimeZone hel = TimeZone.getTimeZone("Europe/Helsinki");
+        Calendar c = Calendar.getInstance(hel);
+        c.add(Calendar.DAY_OF_YEAR, 1);
+        int tomY = c.get(Calendar.YEAR);
+        int tomM = c.get(Calendar.MONTH) + 1;
+        int tomD = c.get(Calendar.DAY_OF_MONTH);
+        for (ElectricityData.Quarter q : data.quarters) {
+            if (q.year == tomY && q.month == tomM && q.dayOfMonth == tomD && q.hour >= 20) return true;
+        }
+        return false;
+    }
+
     /** Palauttaa tämän hetken vartin (nykyaika EET) tai null jos cache ei kata
      *  nykyhetkeä. Ei palauteta vanhentunutta varttia, jotta headerissa ei näy
      *  eilistä/yli-ikäistä hintaa verkko-ongelmien tai päivänvaihdon yli. */

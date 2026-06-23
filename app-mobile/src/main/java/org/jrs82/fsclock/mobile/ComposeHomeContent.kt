@@ -1213,11 +1213,13 @@ internal fun ElectricitySection() {
         }
         tick++
     }
-    // Kun Huomenna-välilehti avataan eikä huomisen hintoja ole vielä cachessa (mutta klo ≥14, jolloin
-    // NordPool-päivädata pitäisi olla julki ja sähköilmoituskin lähtenyt), pakota tuore haku OHI 55 min
-    // cachen — muuten sivu näyttäisi tyhjää vaikka palvelimella on jo huomisen hinnat (ja ilmoitus tuli).
+    // Kun Huomenna-välilehti avataan eikä huomisen TÄYTTÄ päivää ole vielä cachessa (mutta klo ≥14,
+    // jolloin NordPool-päivädata pitäisi olla julki), pakota tuore haku OHI 55 min cachen — muuten sivu
+    // näyttäisi tyhjää vaikka palvelimella on jo huomisen hinnat. HUOM: hasFullTomorrow() (ei hasTomorrow)
+    // koska CET-aikavyöhykkeen ~1 h aamuyön ylivuoto pitäisi hasTomorrow():n aina tosena → pakkohaku ei
+    // laukeaisi koskaan. hasFullTomorrow vaatii iltavartin → ohittaa ylivuodon (kesä/talvi-turvallinen).
     LaunchedEffect(dayOffset, refresh) {
-        if (dayOffset == 1 && !repo.hasTomorrow() &&
+        if (dayOffset == 1 && !repo.hasFullTomorrow() &&
             Calendar.getInstance(HELSINKI, FI).get(Calendar.HOUR_OF_DAY) >= 14
         ) {
             withContext(Dispatchers.IO) {
@@ -1274,7 +1276,9 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
     }
     val current = remember(tick, dayOffset) { if (dayOffset == 0) repo.currentQuarter() else null }
 
-    if (dayOffset == 1 && (quarters == null || quarters.size < 96)) {
+    // Näytä huomisen hinnat vasta kun koko päivä on iltaan asti (tunti ≥ 20) — pelkkä CET-ylivuoto
+    // (huomisen 00:00–00:45) ei riitä. Toimii myös DST-päivinä (92 / 100 varttia) toisin kuin kiinteä 96.
+    if (dayOffset == 1 && (quarters == null || quarters.none { it.hour >= 20 })) {
         Text(
             "Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.",
             style = MaterialTheme.typography.bodyMedium,
