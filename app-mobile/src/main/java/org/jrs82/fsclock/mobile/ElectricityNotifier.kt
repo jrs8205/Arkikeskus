@@ -68,6 +68,11 @@ object ElectricityNotifier {
         val tM = tomorrow.get(Calendar.MONTH) + 1
         val tD = tomorrow.get(Calendar.DAY_OF_MONTH)
         val tomorrowQs = data.quarters.filter { it.year == tY && it.month == tM && it.dayOfMonth == tD }
+        // Vaadi koko päivä ILTAAN ASTI (tunti >= 20 Suomen aikaa). Pelkkä CET-aikavyöhykkeen ~1 h
+        // aamuyön ylivuoto (huomisen 00:00–00:45 = TÄMÄN päivän CET-hintojen häntä, julkaistu eilen)
+        // EI ole vielä huomisen julkaisu → muuten ilmoitus laukeaisi joka päivä jo n. klo 14, ennen
+        // oikeiden hintojen julkaisua. Kesä/talvi ei vaikuta: ylivuoto on aina vain aamuyötä.
+        if (tomorrowQs.none { it.hour >= 20 }) return // täysi huomispäivä ei vielä julki
         val stats = summarize(tomorrowQs) ?: return // ei vielä julkaistu → yritä seuraavalla tunnilla
         android.util.Log.i(
             "ElectricityNotifier",
