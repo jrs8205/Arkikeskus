@@ -1213,6 +1213,19 @@ internal fun ElectricitySection() {
         }
         tick++
     }
+    // Kun Huomenna-välilehti avataan eikä huomisen hintoja ole vielä cachessa (mutta klo ≥14, jolloin
+    // NordPool-päivädata pitäisi olla julki ja sähköilmoituskin lähtenyt), pakota tuore haku OHI 55 min
+    // cachen — muuten sivu näyttäisi tyhjää vaikka palvelimella on jo huomisen hinnat (ja ilmoitus tuli).
+    LaunchedEffect(dayOffset, refresh) {
+        if (dayOffset == 1 && !repo.hasTomorrow() &&
+            Calendar.getInstance(HELSINKI, FI).get(Calendar.HOUR_OF_DAY) >= 14
+        ) {
+            withContext(Dispatchers.IO) {
+                try { repo.fetchNow() } catch (e: Exception) { }
+            }
+            tick++
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
