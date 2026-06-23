@@ -1616,9 +1616,10 @@ private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double,
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            String.format(FI, "%.2f", q.sntPerKwh),
-            fontSize = 11.sp,
+            String.format(FI, "%.3f", q.sntPerKwh),
+            fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
+            maxLines = 1,
             color = Color(0xFF080E12).copy(alpha = 0.78f),
         )
     }
