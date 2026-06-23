@@ -12,13 +12,18 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,11 +31,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,6 +54,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
@@ -65,6 +72,7 @@ import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.jrs82.fsclock.AlmanakkaClient
 import org.jrs82.fsclock.ElectricityData
 import org.jrs82.fsclock.ElectricityRepository
 import org.jrs82.fsclock.FinnishHolidays
@@ -226,6 +234,10 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
 // Itsenäiset etusivun widgetit: kukin hoitaa oman datansa, jotta ne voi renderöidä missä
 // järjestyksessä tahansa. Esityskerros (ClockBlock/HolidayCard/WeatherCard/…) on jaettu alla.
 
+// Nimipäivän prosessivälimuisti (almanakka-API): haetaan kerran/päivä, ei joka etusivun avauksella.
+private var sNameDayKey = -1
+private var sNameDay = ""
+
 @Composable
 private fun HomeClockWidget() {
     var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -235,7 +247,32 @@ private fun HomeClockWidget() {
             delay(1000L)
         }
     }
-    ClockBlock(nowMs)
+    // Päivän nimipäivät (Yliopiston almanakkatoimisto). Offline/virhe → tyhjä (pilli + maininta piiloon).
+    val dayMd = remember(nowMs / 3_600_000L) {
+        val c = Calendar.getInstance(HELSINKI, FI)
+        c.get(Calendar.MONTH) * 100 + c.get(Calendar.DAY_OF_MONTH)
+    }
+    var nameDay by remember { mutableStateOf(if (sNameDayKey == dayMd) sNameDay else "") }
+    LaunchedEffect(dayMd) {
+        if (sNameDayKey == dayMd && sNameDay.isNotEmpty()) {
+            nameDay = sNameDay
+            return@LaunchedEffect
+        }
+        val c = Calendar.getInstance(HELSINKI, FI)
+        val names = withContext(Dispatchers.IO) {
+            try {
+                AlmanakkaClient.fetchFinnishNames(c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
+            } catch (e: Exception) {
+                ""
+            }
+        }
+        if (names.isNotEmpty()) {
+            sNameDay = names
+            sNameDayKey = dayMd
+            nameDay = names
+        }
+    }
+    ClockBlock(nowMs, nameDay)
 }
 
 @Composable
@@ -260,27 +297,38 @@ private fun HomeHolidayWidget() {
             }
         }
     }
-    val flagLine = remember(dayKey) {
-        val f = nextOfficialFlagDay(Calendar.getInstance(HELSINKI, FI))
-        if (f != null) "${f.name} ${calDayMonth(f.cal)}" else ""
+    val flagEntry = remember(dayKey) {
+        val h = FinnishHolidays.nextFlagDay(Calendar.getInstance(HELSINKI, FI))
+        if (h != null) holidayEntryFromCal(h.name, flagCal(h.year, h.month - 1, h.day)) else null
     }
-    var holidayLine by remember(dayKey) { mutableStateOf("") }
+    var holidayEntry by remember(dayKey) { mutableStateOf<HolidayEntry?>(null) }
     LaunchedEffect(dayKey) {
-        holidayLine = withContext(Dispatchers.IO) {
+        holidayEntry = withContext(Dispatchers.IO) {
             try {
                 val ev = MobileHolidayProvider.next(Calendar.getInstance(HELSINKI, FI))
                 if (ev != null) {
-                    "${ev.name} ${formatIsoDayMonth(ev.date)}"
+                    val cal = isoToCal(ev.date)
+                    if (cal != null) holidayEntryFromCal(ev.name, cal)
+                    else HolidayEntry(ev.name, formatIsoDayMonth(ev.date), "")
                 } else {
                     val up = FinnishHolidays.upcoming(Calendar.getInstance(HELSINKI, FI), 1)
-                    if (up.isEmpty()) "" else "${up[0].name} ${up[0].day}.${up[0].month}."
+                    if (up.isEmpty()) {
+                        null
+                    } else {
+                        val now = Calendar.getInstance(HELSINKI, FI)
+                        var cal = flagCal(now.get(Calendar.YEAR), up[0].month - 1, up[0].day)
+                        if (dateKeyCal(cal) < dateKeyCal(now)) {
+                            cal = flagCal(now.get(Calendar.YEAR) + 1, up[0].month - 1, up[0].day)
+                        }
+                        holidayEntryFromCal(up[0].name, cal)
+                    }
                 }
             } catch (e: Exception) {
-                ""
+                null
             }
         }
     }
-    HolidayCard(holidayLine, flagLine)
+    HolidayCard(holidayEntry, flagEntry)
 }
 
 @Composable
@@ -297,11 +345,14 @@ private fun HomeWeatherWidget(prefs: SharedPreferences) {
         val weatherSeed = if (sHomeWeatherKey == weatherKey) sHomeWeather else null
         if (weatherSeed == null) weather = null
         val fresh = withContext(Dispatchers.IO) {
-            try {
+            val w = try {
                 WeatherRepository.get(context).fetchHome(weatherSeed, refresh > 0)
             } catch (e: Exception) {
                 null
             }
+            // OpenMeteo-fallback: täytä kosteus/pilvisyys jos FMI-livehavainnosta puuttuvat.
+            if (w != null) fillCurrentHumidityCloud(context, w, refresh > 0)
+            w
         }
         if (fresh != null) {
             WeatherCache.last = fresh
@@ -313,6 +364,25 @@ private fun HomeWeatherWidget(prefs: SharedPreferences) {
         }
     }
     WeatherCard(context, prefs, weather)
+}
+
+/** Täydentää nykyhetken kosteuden/pilvisyyden OpenMeteosta, jos FMI-livehavainnosta puuttuvat.
+ *  FMI ei aina sisällä niitä, eikä [WeatherData.Hour] kanna niitä → tavallinen ennustefallback ei riitä;
+ *  OpenMeteon tuntidatassa molemmat ovat. Täyttää VAIN tyhjät kentät → FMI:n omat arvot säilyvät. IO-säikeessä. */
+private fun fillCurrentHumidityCloud(context: Context, weather: WeatherData, forceNetwork: Boolean) {
+    val cur = weather.current
+    if (!cur.humidity.isNaN() && !cur.cloudCover.isNaN()) return
+    try {
+        val sm = SettingsManager.get()
+        if (!sm.hasHomeCoordinates()) return
+        val om = OpenMeteoRepository.get(context).fetch(sm.homePlace, sm.homeLatitude, sm.homeLongitude, forceNetwork)
+        val at = if (cur.timestamp > 0L) cur.timestamp else System.currentTimeMillis()
+        val h = bestOpenMeteoHourAt(om, at) ?: return
+        if (cur.humidity.isNaN()) h.humidity?.let { cur.humidity = it }
+        if (cur.cloudCover.isNaN()) h.cloudCover?.let { cur.cloudCover = it }
+    } catch (e: Exception) {
+        // jätetään ennalleen
+    }
 }
 
 @Composable
@@ -377,117 +447,196 @@ private fun rememberRuuviScanTick(ruuvi: RuuviRepository): Int {
 }
 
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ClockBlock(nowMs: Long) {
-    // Pehmeä brändigradientti (OSA B / B6): kaksi sinisen sävyä (käyttäjän toive).
+private fun ClockBlock(nowMs: Long, nameDay: String) {
+    // Pehmeä brändigradientti (OSA B / B6): kaksi sinisen sävyä, diagonaali. Aika vasemmalle + pillit.
     val cs = MaterialTheme.colorScheme
     val arki = ArkiTheme.colors
-    Box(
+    val cal = remember(nowMs / 60000L) { Calendar.getInstance(HELSINKI, FI).apply { timeInMillis = nowMs } }
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(22.dp))
-            .clip(RoundedCornerShape(22.dp))
+            .shadow(6.dp, RoundedCornerShape(26.dp))
+            .clip(RoundedCornerShape(26.dp))
             .background(
-                Brush.verticalGradient(
+                Brush.linearGradient(
                     listOf(arki.clockTop, arki.clockBottom),
                 ),
             )
-            .padding(vertical = 20.dp, horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
+            .padding(24.dp),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = formatClock(nowMs),
-                fontSize = 60.sp,
-                fontWeight = FontWeight.Bold,
-                color = cs.onPrimaryContainer,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                text = formatDate(nowMs),
-                style = MaterialTheme.typography.bodyLarge,
-                color = cs.onPrimaryContainer.copy(alpha = 0.82f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
+        Text(
+            text = formatClock(nowMs),
+            fontSize = 56.sp,
+            fontWeight = FontWeight.Bold,
+            color = cs.onPrimaryContainer,
+            letterSpacing = (-1.5).sp,
+        )
+        Spacer(Modifier.height(14.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ClockPill(weekdayEssive(cal), cs.onPrimaryContainer)
+            ClockPill(clockDate(cal), cs.onPrimaryContainer)
+            ClockPill("Viikko " + cal.get(Calendar.WEEK_OF_YEAR), cs.onPrimaryContainer)
+            if (nameDay.isNotEmpty()) {
+                ClockPill(nameDay, cs.onPrimaryContainer, painterResource(R.drawable.mobile_ic_cake_24))
+            }
         }
-    }
-}
-
-/** Kellon alle: seuraava pyhä + seuraava virallinen liputuspäivä omana siistinä korttina
- *  (label + arvo, ei vanhan UI:n leikkautuvaa pitkää keskitettyä rivitystä). */
-@Composable
-private fun HolidayCard(holidayLine: String, flagLine: String) {
-    if (holidayLine.isEmpty() && flagLine.isEmpty()) return
-    ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            if (holidayLine.isNotEmpty()) {
-                HolidayRow("Seuraava pyhä", holidayLine)
-            }
-            if (holidayLine.isNotEmpty() && flagLine.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-            }
-            if (flagLine.isNotEmpty()) {
-                HolidayRow("Seuraava liputuspäivä", flagLine)
-            }
+        if (nameDay.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Nimipäivät: Helsingin yliopiston almanakkatoimisto",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = cs.onPrimaryContainer.copy(alpha = 0.7f),
+            )
         }
     }
 }
 
 @Composable
-private fun HolidayRow(label: String, value: String) {
-    Column {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-    }
-}
-
-// Seuraava virallinen liputuspäivä — laskettu paikallisesti (replikoi MobileMainActivityn logiikan).
-private data class FlagDayInfo(val name: String, val cal: Calendar)
-
-private fun nextOfficialFlagDay(from: Calendar): FlagDayInfo? {
-    val fromKey = dateKeyCal(from)
-    var best: FlagDayInfo? = null
-    for (year in from.get(Calendar.YEAR)..from.get(Calendar.YEAR) + 1) {
-        for (d in officialFlagDays(year)) {
-            if (dateKeyCal(d.cal) < fromKey) continue
-            if (best == null || dateKeyCal(d.cal) < dateKeyCal(best.cal)) best = d
+private fun ClockPill(text: String, onColor: Color, icon: Painter? = null) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(onColor.copy(alpha = 0.12f))
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = onColor, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(6.dp))
         }
+        Text(text, color = onColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
-    return best
 }
 
-private fun officialFlagDays(year: Int): List<FlagDayInfo> = listOf(
-    FlagDayInfo("Kalevalan päivä, suomalaisen kulttuurin päivä", flagCal(year, Calendar.FEBRUARY, 28)),
-    FlagDayInfo("Vappu, suomalaisen työn päivä", flagCal(year, Calendar.MAY, 1)),
-    FlagDayInfo("Äitienpäivä", nthWeekday(year, Calendar.MAY, Calendar.SUNDAY, 2)),
-    FlagDayInfo("Puolustusvoimain lippujuhlan päivä", flagCal(year, Calendar.JUNE, 4)),
-    FlagDayInfo("Juhannuspäivä, Suomen lipun päivä", firstWeekdayOnOrAfter(year, Calendar.JUNE, 20, Calendar.SATURDAY)),
-    FlagDayInfo("Isänpäivä", nthWeekday(year, Calendar.NOVEMBER, Calendar.SUNDAY, 2)),
-    FlagDayInfo("Itsenäisyyspäivä", flagCal(year, Calendar.DECEMBER, 6)),
+private val WEEKDAY_ESSIVE_FI = arrayOf(
+    "Sunnuntaina", "Maanantaina", "Tiistaina", "Keskiviikkona", "Torstaina", "Perjantaina", "Lauantaina",
 )
+
+private fun weekdayEssive(c: Calendar): String =
+    WEEKDAY_ESSIVE_FI[(c.get(Calendar.DAY_OF_WEEK) - 1).coerceIn(0, 6)]
+
+private fun clockDate(c: Calendar): String =
+    "${c.get(Calendar.DAY_OF_MONTH)}.${c.get(Calendar.MONTH) + 1}.${c.get(Calendar.YEAR)}"
+
+/** Kellon alle: seuraava pyhä + seuraava virallinen liputuspäivä — kaksi rinnakkaista kohoavaa
+ *  mini-korttia (ikoni-chip + "N pv" -laskuri + label + nimi + pvm), kuten mockup (Etusivu A). */
+@Composable
+private fun HolidayCard(holiday: HolidayEntry?, flag: HolidayEntry?) {
+    if (holiday == null && flag == null) return
+    val cs = MaterialTheme.colorScheme
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (holiday != null) {
+                HolidayMini(
+                    painterResource(R.drawable.mobile_ic_celebration_24),
+                    cs.tertiary,
+                    "Seuraava pyhä",
+                    holiday,
+                    Modifier.weight(1f).fillMaxHeight(),
+                )
+            }
+            if (flag != null) {
+                HolidayMini(
+                    painterResource(R.drawable.mobile_ic_flag_24),
+                    cs.primary,
+                    "Seuraava liputuspäivä",
+                    flag,
+                    Modifier.weight(1f).fillMaxHeight(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HolidayMini(icon: Painter, accent: Color, label: String, entry: HolidayEntry, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(ArkiTheme.colors.tileSurface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(20.dp))
+            .padding(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            ArkiIconChip(icon, accent)
+            if (entry.daysLabel.isNotEmpty()) {
+                ArkiPill(entry.daysLabel, accent)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(
+            label.uppercase(FI),
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 0.5.sp,
+            color = cs.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            entry.name,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = cs.onSurface,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            entry.dateLabel,
+            style = MaterialTheme.typography.bodyMedium,
+            color = cs.onSurfaceVariant,
+        )
+    }
+}
+
+private data class HolidayEntry(val name: String, val dateLabel: String, val daysLabel: String)
+
+private val WEEKDAY_SHORT_FI = arrayOf("su", "ma", "ti", "ke", "to", "pe", "la")
+
+private fun shortWeekday(c: Calendar): String =
+    WEEKDAY_SHORT_FI[(c.get(Calendar.DAY_OF_WEEK) - 1).coerceIn(0, 6)]
+
+private fun daysUntilLabel(target: Calendar): String {
+    fun startOfDay(c: Calendar): Long = (c.clone() as Calendar).apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    val today = startOfDay(Calendar.getInstance(HELSINKI, FI))
+    val days = Math.round((startOfDay(target) - today) / 86_400_000.0).toInt()
+    return if (days <= 0) "tänään" else "$days pv"
+}
+
+private fun holidayEntryFromCal(name: String, cal: Calendar): HolidayEntry =
+    HolidayEntry(name, "${shortWeekday(cal)} ${calDayMonth(cal)}", daysUntilLabel(cal))
+
+private fun isoToCal(iso: String?): Calendar? {
+    if (iso == null || iso.length < 10) return null
+    return try {
+        flagCal(iso.substring(0, 4).toInt(), iso.substring(5, 7).toInt() - 1, iso.substring(8, 10).toInt())
+    } catch (e: Exception) {
+        null
+    }
+}
 
 private fun flagCal(year: Int, month: Int, day: Int): Calendar {
     val c = Calendar.getInstance(HELSINKI, FI)
     c.clear()
     c.set(year, month, day)
-    return c
-}
-
-private fun nthWeekday(year: Int, month: Int, weekday: Int, nth: Int): Calendar {
-    val c = flagCal(year, month, 1)
-    var seen = 0
-    while (c.get(Calendar.MONTH) == month) {
-        if (c.get(Calendar.DAY_OF_WEEK) == weekday && ++seen == nth) return c
-        c.add(Calendar.DAY_OF_MONTH, 1)
-    }
-    return flagCal(year, month, 1)
-}
-
-private fun firstWeekdayOnOrAfter(year: Int, month: Int, day: Int, weekday: Int): Calendar {
-    val c = flagCal(year, month, day)
-    while (c.get(Calendar.DAY_OF_WEEK) != weekday) c.add(Calendar.DAY_OF_MONTH, 1)
     return c
 }
 
@@ -515,70 +664,74 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
         GenericCard("Sää", "Säätietoja haetaan…")
         return
     }
+    val cs = MaterialTheme.colorScheme
     val arki = ArkiTheme.colors
-    ArkiCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = arki.weatherContainer,
-            contentColor = arki.onWeatherContainer,
-        ),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(displayPlace(prefs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            if (weather.fetchedAt > 0) {
-                Text(
-                    "Päivitetty klo " + hhmm(weather.fetchedAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = arki.onWeatherContainer.copy(alpha = 0.7f),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_location_24),
+                accent = arki.weatherAccent,
+                title = displayPlace(prefs),
+                subtitle = if (weather.fetchedAt > 0) "Päivitetty klo " + hhmm(weather.fetchedAt) else null,
+            )
+            Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AndroidView(
                     factory = { ctx -> WeatherIconView(ctx) },
                     update = { it.setCondition(c.condition) },
-                    modifier = Modifier.size(88.dp),
+                    modifier = Modifier.size(62.dp),
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(18.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         formatTemp(c.temperature),
-                        fontSize = 40.sp,
+                        fontSize = 50.sp,
                         fontWeight = FontWeight.Bold,
                         color = arki.weatherAccent,
+                        letterSpacing = (-1.5).sp,
                     )
                     Text(
                         WeatherTextFormatter.label(context, c.condition),
-                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.onSurfaceVariant,
                     )
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(18.dp))
             val nowForecast = nearestForecastHour(weather, System.currentTimeMillis())
             val wind = if (!c.windSpeed.isNaN()) c.windSpeed else nowForecast?.windSpeed ?: Double.NaN
             val rain = if (!c.precip1h.isNaN()) c.precip1h else nowForecast?.precipitation ?: Double.NaN
-            Row(modifier = Modifier.fillMaxWidth()) {
-                QuickStat(R.drawable.mobile_ic_thermometer_24, "Tuntuu kuin",
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                WeatherStatTile(R.drawable.mobile_ic_thermometer_24, "Tuntuu kuin",
                     if (c.feelsLike.isNaN()) "--" else formatTemp(c.feelsLike), arki.weatherSunny, Modifier.weight(1f))
-                QuickStat(R.drawable.mobile_ic_wind_24, "Tuuli",
-                    if (wind.isNaN()) "-- m/s" else one(wind) + " m/s", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
-                QuickStat(R.drawable.mobile_ic_rain_24, "Sade 1h",
+                WeatherStatTile(R.drawable.mobile_ic_wind_24, "Tuuli",
+                    if (wind.isNaN()) "-- m/s" else one(wind) + " m/s", cs.secondary, Modifier.weight(1f))
+                WeatherStatTile(R.drawable.mobile_ic_rain_24, "Sade 1h",
                     if (rain.isNaN()) "-- mm" else one(rain) + " mm", arki.weatherRain, Modifier.weight(1f))
             }
             val details = weatherDetailLines(c)
             if (details.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    details.joinToString("\n"),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = arki.onWeatherContainer.copy(alpha = 0.75f),
-                )
+                Spacer(Modifier.height(12.dp))
+                var di = 0
+                while (di < details.size) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DetailChip(details[di], Modifier.weight(1f))
+                        if (di + 1 < details.size) {
+                            DetailChip(details[di + 1], Modifier.weight(1f))
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    if (di + 2 < details.size) Spacer(Modifier.height(8.dp))
+                    di += 2
+                }
             }
             val hours = remainingHours(weather)
             if (hours.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
-                Text("Loppupäivän ennuste", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(18.dp))
+                Text("Loppupäivän ennuste", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = cs.onSurface)
+                Spacer(Modifier.height(10.dp))
                 Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
                     hours.forEach { h ->
                         HourChip(h)
@@ -591,26 +744,54 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
 }
 
 @Composable
-private fun QuickStat(iconRes: Int, label: String, value: String, tint: Color, modifier: Modifier) {
+private fun WeatherStatTile(iconRes: Int, label: String, value: String, accent: Color, modifier: Modifier) {
     Column(
-        modifier = modifier.padding(horizontal = 4.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(accent.copy(alpha = 0.13f))
+            .padding(vertical = 13.dp, horizontal = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             painterResource(iconRes),
             contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(26.dp),
+            tint = accent,
+            modifier = Modifier.size(19.dp),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            value,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
         )
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Text(
             label,
             fontSize = 11.sp,
-            color = LocalContentColor.current.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            maxLines = 1,
         )
     }
+}
+
+/** Sään lisätietolappu (esim. "Puuska 9,0 m/s") — kohoava mini-laatta, B-tyyli 2-sarakkeisessa ruudukossa. */
+@Composable
+private fun DetailChip(text: String, modifier: Modifier) {
+    Text(
+        text,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(ArkiTheme.colors.tileSurface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -618,8 +799,9 @@ private fun HourChip(h: WeatherData.Hour) {
     Column(
         modifier = Modifier
             .width(92.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clip(RoundedCornerShape(16.dp))
+            .background(ArkiTheme.colors.tileSurface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -657,36 +839,86 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val threshold = remember(tick, settingsRevision) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Pörssisähkö", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                if (onOpenElectricity != null) {
-                    TextButton(onClick = onOpenElectricity) { Text("Kaikki") }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
+        Column(modifier = Modifier.padding(20.dp)) {
+            val headerLevel = q?.let { priceLevel(it.sntPerKwh, threshold) }
+            val headerAccent = headerLevel?.let { priceAccent(it, arki) } ?: MaterialTheme.colorScheme.primary
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_bolt_24),
+                accent = headerAccent,
+                title = "Pörssisähkö",
+                trailing = if (onOpenElectricity != null) {
+                    { TextButton(onClick = onOpenElectricity) { Text("Kaikki") } }
+                } else {
+                    null
+                },
+            )
+            Spacer(Modifier.height(12.dp))
             if (q == null) {
                 Text("Nykyistä varttihintaa ei ole vielä saatavilla", style = MaterialTheme.typography.bodyLarge)
             } else {
+                val cs = MaterialTheme.colorScheme
                 val level = priceLevel(q.sntPerKwh, threshold)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PricePill(level)
-                    Spacer(Modifier.width(10.dp))
+                val accent = priceAccent(level, arki)
+                ArkiPill(
+                    text = priceLabel(level),
+                    accent = accent,
+                    leadingIcon = priceTrendIcon(level)?.let { painterResource(it) },
+                )
+                Spacer(Modifier.height(9.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        String.format(FI, "%.3f c/kWh", q.sntPerKwh),
-                        fontSize = 22.sp,
+                        String.format(FI, "%.3f", q.sntPerKwh),
+                        fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
-                        color = priceAccent(level, arki),
+                        color = accent,
+                        letterSpacing = (-0.5).sp,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "c/kWh",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = cs.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 5.dp),
                     )
                 }
-                Text(
-                    String.format(FI, "Nyt klo %02d:%02d", q.hour, q.minute),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painterResource(R.drawable.mobile_ic_clock_24),
+                        contentDescription = null,
+                        tint = cs.onSurfaceVariant,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        quarterRangeText(q),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+                val range = remember(tick) { todayElecRange(repo) }
+                val rmin = range.first
+                val rmax = range.second
+                if (rmin != null && rmax != null && rmax.sntPerKwh > rmin.sntPerKwh) {
+                    Spacer(Modifier.height(16.dp))
+                    PriceMeter(q.sntPerKwh, rmin.sntPerKwh, rmax.sntPerKwh, accent, arki)
+                    Spacer(Modifier.height(14.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MinMaxChip(
+                            R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, "Halvinta",
+                            String.format(FI, "%02d.%02d · %.3f", rmin.hour, rmin.minute, rmin.sntPerKwh),
+                            Modifier.weight(1f),
+                        )
+                        MinMaxChip(
+                            R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, "Kalleinta",
+                            String.format(FI, "%02d.%02d · %.3f", rmax.hour, rmax.minute, rmax.sntPerKwh),
+                            Modifier.weight(1f),
+                        )
+                    }
+                }
             }
             if (notice != null) {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(
                     notice,
                     style = MaterialTheme.typography.bodyMedium,
@@ -721,37 +953,104 @@ private fun priceAccent(level: PriceLevel, arki: ArkiColors): Color = when (leve
     PriceLevel.EXPENSIVE -> arki.priceExpensive
 }
 
+private fun priceLabel(level: PriceLevel): String = when (level) {
+    PriceLevel.CHEAP -> "Halpaa"
+    PriceLevel.NORMAL -> "Normaali"
+    PriceLevel.EXPENSIVE -> "Kallista"
+}
+
+private fun priceTrendIcon(level: PriceLevel): Int? = when (level) {
+    PriceLevel.CHEAP -> R.drawable.mobile_ic_arrow_down_24
+    PriceLevel.EXPENSIVE -> R.drawable.mobile_ic_arrow_up_24
+    PriceLevel.NORMAL -> null
+}
+
+/** Tämän päivän halvin/kallein vartti (liikennevalomittariin + halvin/kallein-lappuihin). */
+private fun todayElecRange(repo: ElectricityRepository): Pair<ElectricityData.Quarter?, ElectricityData.Quarter?> {
+    val cal = Calendar.getInstance(HELSINKI, FI)
+    val qs = repo.dayQuarters(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+    if (qs.isNullOrEmpty()) return null to null
+    return qs.minByOrNull { it.sntPerKwh } to qs.maxByOrNull { it.sntPerKwh }
+}
+
+private fun quarterRangeText(q: ElectricityData.Quarter): String {
+    val endTotal = q.hour * 60 + q.minute + 15
+    val eh = (endTotal / 60) % 24
+    val em = endTotal % 60
+    return String.format(FI, "Vartti klo %02d.%02d–%02d.%02d · seuraava %02d.%02d", q.hour, q.minute, eh, em, eh, em)
+}
+
+/** Liikennevalomittari: vihreä→keltainen→punainen liuku + valkoinen osoitin nykyhinnan kohdalla. */
 @Composable
-private fun PricePill(level: PriceLevel) {
-    val arki = ArkiTheme.colors
-    val bg: Color
-    val fg: Color
-    val label: String
-    when (level) {
-        PriceLevel.CHEAP -> { bg = arki.priceCheapContainer; fg = arki.onPriceCheapContainer; label = "Halpaa" }
-        PriceLevel.NORMAL -> { bg = arki.priceNormalContainer; fg = arki.onPriceNormalContainer; label = "Normaali" }
-        PriceLevel.EXPENSIVE -> { bg = arki.priceExpensiveContainer; fg = arki.onPriceExpensiveContainer; label = "Kallista" }
+private fun PriceMeter(current: Double, min: Double, max: Double, pointer: Color, arki: ArkiColors) {
+    val f = (((current - min) / (max - min)).toFloat()).coerceIn(0.02f, 0.98f)
+    Box(modifier = Modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.CenterStart) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Brush.horizontalGradient(listOf(arki.priceCheap, arki.priceNormal, arki.priceExpensive))),
+        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.weight(f))
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .border(3.dp, pointer, CircleShape),
+            )
+            Spacer(Modifier.weight(1f - f))
+        }
     }
-    Text(
-        label,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        color = fg,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Bold,
-    )
+}
+
+@Composable
+private fun MinMaxChip(iconRes: Int, accent: Color, label: String, value: String, modifier: Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(accent.copy(alpha = 0.12f))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(painterResource(iconRes), contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(7.dp))
+        Column {
+            Text(
+                label.uppercase(FI),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.4.sp,
+                color = cs.onSurfaceVariant,
+            )
+            Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = cs.onSurface)
+        }
+    }
 }
 
 @Composable
 private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: Int) {
     val settingsRevision = LocalHomeDataRevision.current
     val sensors = remember(tick, settingsRevision) { buildSensors(prefs, repo) }
+    val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Anturit", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(10.dp))
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_thermometer_24),
+                accent = arki.sensorWarm,
+                title = "Anturit",
+                trailing = {
+                    Text(
+                        "Ruuvi · nyt",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+            )
+            Spacer(Modifier.height(12.dp))
             if (sensors.isEmpty()) {
                 Text(
                     "Ei määritettyjä Ruuvi-antureita",
@@ -780,47 +1079,60 @@ private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: I
 @Composable
 private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
     val arki = ArkiTheme.colors
+    val cs = MaterialTheme.colorScheme
     val sample = entry.second
     val temp = sample?.temperatureC()
     val tempColor = arki.forTemperature(temp)
-    // Lämpötilan mukainen hento sävytys (B2: kylmä→lämmin). Ilman näytettä neutraali.
-    val tileBg = if (sample != null && temp != null) tempColor.copy(alpha = 0.14f)
-    else MaterialTheme.colorScheme.surfaceVariant
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(tileBg)
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .clip(RoundedCornerShape(18.dp))
+            .background(arki.tileSurface)
+            .border(1.dp, cs.outlineVariant, RoundedCornerShape(18.dp))
+            .padding(14.dp),
     ) {
         Text(
             entry.first,
-            fontSize = 15.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
+            color = cs.onSurface,
             maxLines = 1,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
+            overflow = TextOverflow.Ellipsis,
         )
         if (sample == null) {
             Spacer(Modifier.height(8.dp))
-            Text("odottaa", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("odottaa", fontSize = 14.sp, color = cs.onSurfaceVariant)
         } else {
             Spacer(Modifier.height(6.dp))
             val h = sample.humidityPct()
             Text(
-                if (temp == null) "--" else one(temp) + " °C",
-                fontSize = 26.sp,
+                if (temp == null) "--" else one(temp) + "°",
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = tempColor,
+                letterSpacing = (-0.3).sp,
             )
-            Text(
-                if (h == null) "kosteus --" else "kosteus " + Math.round(h) + " %",
-                fontSize = 14.sp,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Icon(
+                    painterResource(R.drawable.mobile_ic_droplet_24),
+                    contentDescription = null,
+                    tint = cs.primary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    if (h == null) "-- %" else Math.round(h).toString() + " %",
+                    fontSize = 12.sp,
+                    color = cs.onSurfaceVariant,
+                )
+            }
             Text(
                 ageText(sample.timestamp),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 3.dp),
             )
         }
     }
@@ -829,7 +1141,7 @@ private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
 @Composable
 private fun GenericCard(title: String, note: String) {
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -968,65 +1280,149 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
     }
     val min = quarters.minByOrNull { it.sntPerKwh }
     val max = quarters.maxByOrNull { it.sntPerKwh }
+    val dayMin = min?.sntPerKwh ?: 0.0
+    val dayMax = max?.sntPerKwh ?: 0.0
+    val cs = MaterialTheme.colorScheme
 
+    // HERO: tasopilli/"Huomenna" + iso hinta + halvin/kallein + lähde
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            if (dayOffset == 0 && current != null) {
-                val level = priceLevel(current.sntPerKwh, threshold)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PricePill(level)
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (dayOffset == 0 && current != null) {
+                    val level = priceLevel(current.sntPerKwh, threshold)
+                    ArkiPill(
+                        text = priceLabel(level),
+                        accent = priceAccent(level, arki),
+                        leadingIcon = priceTrendIcon(level)?.let { painterResource(it) },
+                    )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        String.format(FI, "Nyt klo %02d:%02d  %.3f c/kWh", current.hour, current.minute, current.sntPerKwh),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = priceAccent(level, arki),
+                        String.format(FI, "Nyt klo %02d:%02d", current.hour, current.minute),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        "Huomenna",
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(cs.primary.copy(alpha = 0.16f))
+                            .padding(horizontal = 13.dp, vertical = 7.dp),
+                        color = cs.primary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
                     )
                 }
-            } else {
+            }
+            Spacer(Modifier.height(12.dp))
+            val heroPrice = if (dayOffset == 0 && current != null) current.sntPerKwh
+            else quarters.map { it.sntPerKwh }.average()
+            val heroLevel = priceLevel(heroPrice, threshold)
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    if (dayOffset == 0) "Tänään" else "Huomenna",
-                    style = MaterialTheme.typography.titleMedium,
+                    String.format(FI, "%.3f", heroPrice),
+                    fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
+                    color = priceAccent(heroLevel, arki),
+                    letterSpacing = (-1.5).sp,
                 )
-            }
-            if (min != null) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    String.format(FI, "Halvinta klo %02d:%02d  %.3f c/kWh", min.hour, min.minute, min.sntPerKwh),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = arki.priceCheap,
+                    "c/kWh",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = cs.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp),
                 )
             }
-            if (max != null) {
-                Text(
-                    String.format(FI, "Kalleinta klo %02d:%02d  %.3f c/kWh", max.hour, max.minute, max.sntPerKwh),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = arki.priceExpensive,
-                )
+            if (min != null && max != null) {
+                Spacer(Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MinMaxChip(
+                        R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, "Halvinta",
+                        String.format(FI, "%02d.%02d · %.3f", min.hour, min.minute, min.sntPerKwh),
+                        Modifier.weight(1f),
+                    )
+                    MinMaxChip(
+                        R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, "Kalleinta",
+                        String.format(FI, "%02d.%02d · %.3f", max.hour, max.minute, max.sntPerKwh),
+                        Modifier.weight(1f),
+                    )
+                }
             }
-            if (data != null && data.fetchedAt > 0) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Päivitetty klo " + hhmm(data.fetchedAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Spacer(Modifier.height(14.dp))
+            val updated = if (data != null && data.fetchedAt > 0) "Päivitetty klo " + hhmm(data.fetchedAt) + " · " else ""
             Text(
-                "Lähde: Elering/Nord Pool. Hinnat ALV 0 %.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                updated + "Lähde: Elering/Nord Pool. Hinnat ALV 0 %.",
+                fontSize = 11.sp,
+                color = cs.onSurfaceVariant,
             )
         }
     }
-    Spacer(Modifier.height(12.dp))
+
+    // LEGENDA + nyt-osoitin (vain Tänään, kun kuluva vartti tunnetaan)
+    if (dayOffset == 0 && current != null && dayMax > dayMin) {
+        Spacer(Modifier.height(16.dp))
+        val nowN = (((current.sntPerKwh - dayMin) / (dayMax - dayMin)).toFloat()).coerceIn(0.02f, 0.98f)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Halpa", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+            Spacer(Modifier.width(10.dp))
+            Box(modifier = Modifier.weight(1f).height(15.dp), contentAlignment = Alignment.CenterStart) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Brush.horizontalGradient(listOf(arki.priceCheap, arki.priceNormal, arki.priceExpensive))),
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.weight(nowN))
+                    Box(
+                        modifier = Modifier
+                            .size(15.dp)
+                            .clip(CircleShape)
+                            .background(cs.surface)
+                            .border(3.dp, arki.priceCheap, CircleShape),
+                    )
+                    Spacer(Modifier.weight(1f - nowN))
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            Text("Kallis", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+        }
+    }
+
+    // LÄMPÖKARTTA: 24 tuntiriviä × 4 varttisolua (solun väri = hinnan taso)
+    Spacer(Modifier.height(if (dayOffset == 0 && current != null) 12.dp else 16.dp))
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            quarters.take(96).forEach { q ->
-                QuarterRow(q, isCurrent = current != null && q.timestamp == current.timestamp, threshold = threshold)
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                Text("klo", modifier = Modifier.width(24.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    listOf("15", "30", "45", "60").forEach {
+                        Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+                    }
+                }
+            }
+            HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.6f), thickness = 1.dp)
+            Spacer(Modifier.height(4.dp))
+            val byHour = quarters.groupBy { it.hour }
+            for (hh in 0..23) {
+                val hourQs = byHour[hh].orEmpty()
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
+                    Text(String.format(FI, "%02d", hh), modifier = Modifier.width(24.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+                    Spacer(Modifier.width(8.dp))
+                    Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        for (col in 0..3) {
+                            val q = hourQs.firstOrNull { it.minute == col * 15 }
+                            if (q != null) {
+                                HeatCell(q, dayMin, dayMax, current != null && q.timestamp == current.timestamp, Modifier.weight(1f))
+                            } else {
+                                Box(Modifier.weight(1f).height(30.dp))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1088,38 +1484,108 @@ private fun ElectricityCompare(context: Context, refresh: Int) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        else -> ArkiCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                r.forEach { CompareRowView(it) }
+        else -> {
+            val cs = MaterialTheme.colorScheme
+            val yearRow = r.firstOrNull { it.highlight && !it.isSection }
+            val sectionRow = r.firstOrNull { it.isSection }
+            val monthRows = r.filter { !it.isSection && !it.highlight }
+            val mMin = monthRows.minByOrNull { it.value }?.value ?: 0.0
+            val mMax = monthRows.maxByOrNull { it.value }?.value ?: 0.0
+            if (yearRow != null) {
+                ArkiCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.padding(18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            yearRow.label,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            String.format(FI, "%.3f", yearRow.value),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = cs.primary,
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text("c/kWh", fontSize = 12.sp, color = cs.onSurfaceVariant)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+            if (monthRows.isNotEmpty()) {
+                ArkiCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                        if (sectionRow != null) {
+                            Text(
+                                sectionRow.label.uppercase(FI),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                color = cs.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        monthRows.forEachIndexed { i, m ->
+                            if (i > 0) {
+                                HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.5f), thickness = 1.dp)
+                            }
+                            MonthRow(m, mMin, mMax)
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+/** Vertailun kuukausirivi: väripalkki (taso) + nimi + suhteellinen lämpöpalkki + keskihinta. */
 @Composable
-private fun CompareRowView(row: CompareRowData) {
-    if (row.isSection) {
-        Text(
-            row.label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 12.dp, bottom = 2.dp),
-        )
-        return
-    }
+private fun MonthRow(m: CompareRowData, mMin: Double, mMax: Double) {
+    val cs = MaterialTheme.colorScheme
+    val frac = if (mMax > mMin) (((m.value - mMin) / (mMax - mMin)).toFloat()).coerceIn(0.06f, 1f) else 0.5f
+    val heat = heatColor(m.value, mMin, mMax)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            row.label,
-            modifier = Modifier.weight(1f),
-            fontWeight = if (row.highlight) FontWeight.Bold else FontWeight.Normal,
+        Box(
+            Modifier.width(5.dp).height(30.dp).clip(RoundedCornerShape(50)).background(heat),
         )
+        Spacer(Modifier.width(12.dp))
         Text(
-            String.format(FI, "%.3f c/kWh", row.value),
-            color = if (row.highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            m.label,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
+            color = cs.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(10.dp))
+        Box(
+            modifier = Modifier
+                .width(72.dp)
+                .height(10.dp)
+                .clip(RoundedCornerShape(50))
+                .background(cs.outlineVariant.copy(alpha = 0.4f)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(frac)
+                    .clip(RoundedCornerShape(50))
+                    .background(heat),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            String.format(FI, "%.3f", m.value),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = cs.onSurface,
         )
     }
 }
@@ -1129,33 +1595,31 @@ private val MONTHS_FI_ELEC = arrayOf(
     "Heinäkuu", "Elokuu", "Syyskuu", "Lokakuu", "Marraskuu", "Joulukuu",
 )
 
+/** Jatkuva lämpökarttasävy päivän min–max-välillä: cheap → normal → expensive (tokeneista). */
 @Composable
-private fun QuarterRow(q: ElectricityData.Quarter, isCurrent: Boolean, threshold: Double) {
+private fun heatColor(price: Double, dayMin: Double, dayMax: Double): Color {
     val arki = ArkiTheme.colors
-    val level = priceLevel(q.sntPerKwh, threshold)
-    val accent = priceAccent(level, arki)
-    val weight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val n = if (dayMax > dayMin) (((price - dayMin) / (dayMax - dayMin)).toFloat()).coerceIn(0f, 1f) else 0f
+    return if (n < 0.5f) lerp(arki.priceCheap, arki.priceNormal, n / 0.5f)
+    else lerp(arki.priceNormal, arki.priceExpensive, (n - 0.5f) / 0.5f)
+}
+
+/** Lämpökarttasolu: tausta = vartin hintataso, teksti = varttihinta (tumma muste lukea kaikilla sävyillä). */
+@Composable
+private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double, isNow: Boolean, modifier: Modifier) {
+    Box(
+        modifier = modifier
+            .height(30.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(heatColor(q.sntPerKwh, dayMin, dayMax))
+            .then(if (isNow) Modifier.border(2.5.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(7.dp)) else Modifier),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .background(accent),
-        )
-        Spacer(Modifier.width(10.dp))
         Text(
-            String.format(FI, "%02d:%02d", q.hour, q.minute),
-            modifier = Modifier.width(64.dp),
-            color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified,
-            fontWeight = weight,
-        )
-        Text(
-            String.format(FI, "%.3f c/kWh", q.sntPerKwh),
-            color = accent,
-            fontWeight = weight,
+            String.format(FI, "%.2f", q.sntPerKwh),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF080E12).copy(alpha = 0.78f),
         )
     }
 }

@@ -153,6 +153,10 @@ data class ArkiColors(
     // Kello-gradientti (kaksi sinisen sävyä, OSA B / B6)
     val clockTop: Color,
     val clockBottom: Color,
+    // Mini-korttien (anturiruudut, pyhä-minit, sää-tuntiruudut) kohoava pinta — teema-tietoinen:
+    // vaalealla valkoinen, tummalla surfaceContainerHigh-tasoinen → erottuu/"kohoaa" kortin päällä
+    // molemmissa teemoissa (surfaceContainerLowest olisi tummalla tausta-alapuolinen → upottava).
+    val tileSurface: Color,
 ) {
     /** Lämpötilan (°C) mukainen anturiväri: lerp kylmästä lämpimään välillä -15…30 °C. */
     fun forTemperature(celsius: Double?): Color {
@@ -192,6 +196,7 @@ private val LightArki = ArkiColors(
     transitBus = Color(0xFF007AC9),
     clockTop = Color(0xFFBFD3FF),
     clockBottom = Color(0xFFDEE8FF),
+    tileSurface = Color(0xFFFFFFFF),
 )
 
 private val DarkArki = ArkiColors(
@@ -224,6 +229,7 @@ private val DarkArki = ArkiColors(
     transitBus = Color(0xFF4FA8E0),
     clockTop = Color(0xFF003C90),
     clockBottom = Color(0xFF0A4AA8),
+    tileSurface = Color(0xFF272A31),
 )
 
 private val LocalArkiColors = staticCompositionLocalOf { LightArki }

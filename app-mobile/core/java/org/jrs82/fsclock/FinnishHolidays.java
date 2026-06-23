@@ -183,17 +183,21 @@ public class FinnishHolidays {
         list.add(new Holiday("Kaatuneitten muistopäivä", year, 5, kaatuneet, EventType.FLAG_DAY));
         list.add(new Holiday("Puolustusvoimain lippujuhlan päivä",
                 year, 6, 4, EventType.FLAG_DAY));
-        int einoLeino = nthWeekdayOfMonth(year, Calendar.JULY, Calendar.SATURDAY, 2);
+        // Eino Leinon paiva = kiintea 6.7. (almanakkatoimiston virallinen vakiintunut liputuspaiva).
         list.add(new Holiday("Eino Leinon päivä, runon ja suven päivä",
-                year, 7, einoLeino, EventType.FLAG_DAY));
+                year, 7, 6, EventType.FLAG_DAY));
         int luonnonpaiva = lastWeekdayOfMonth(year, Calendar.AUGUST, Calendar.SATURDAY);
         list.add(new Holiday("Suomen luonnon päivä", year, 8, luonnonpaiva, EventType.FLAG_DAY));
+        list.add(new Holiday("Miina Sillanpään päivä, kansalaisvaikuttamisen päivä",
+                year, 10, 1, EventType.FLAG_DAY));
         list.add(new Holiday("Aleksis Kiven päivä, suomalaisen kirjallisuuden päivä",
                 year, 10, 10, EventType.FLAG_DAY));
         list.add(new Holiday("YK:n päivä", year, 10, 24, EventType.FLAG_DAY));
         list.add(new Holiday("Ruotsalaisuuden päivä, Kustaa Aadolfin päivä",
                 year, 11, 6, EventType.FLAG_DAY));
         list.add(new Holiday("Lapsen oikeuksien päivä", year, 11, 20, EventType.FLAG_DAY));
+        list.add(new Holiday("Jean Sibeliuksen päivä, suomalaisen musiikin päivä",
+                year, 12, 8, EventType.FLAG_DAY));
 
         return list;
     }
@@ -220,5 +224,14 @@ public class FinnishHolidays {
         });
         if (upcoming.size() > count) return upcoming.subList(0, count);
         return upcoming;
+    }
+
+    /** Seuraava liputuspaiva (FLAG_DAY) annetusta paivasta lukien (sama paiva sallittu).
+     *  Liputuspaivat ovat deterministisia (kiintea pvm + pari viikonpaivasaantoa) -> ei API:a tarvita. */
+    public static Holiday nextFlagDay(Calendar from) {
+        for (Holiday h : upcoming(from, 400)) {
+            if (h.type == EventType.FLAG_DAY) return h;
+        }
+        return null;
     }
 }
