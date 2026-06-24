@@ -153,6 +153,155 @@ object NewsProfile {
         return false
     }
 
+    // ---- mykistyssuodatin (mute): vapaat sanat (otsikko) + aihepaketit (topic-tagi + sanasto) ----
+    // Käyttäjän "verkkokauppa-tyylinen rajaa-pois" -suodatin. Piilottaa jutut KAIKISTA backend-
+    // uutisnäkymistä (Kotimaat/Ulkomaat + etusivun kortit). Asiakaspuolella, ei backendiä.
+    // Avaimet eivät ala "auto_backup_" → mukana varmuuskopiossa (BackupManager).
+    private const val KEY_MUTE_ENABLED = "news_mute_enabled"
+    private const val KEY_MUTE_WORDS = "news_mute_words"
+    private fun mutePackKey(id: String) = "news_mute_pack_$id"
+
+    /** Valmis aihepaketti: osuu jutun topic-tagiin (esim. sport) JA laajaan otsikkosanastoon →
+     *  saa kiinni myös ne aihejutut joiden otsikossa ei lue aiheen nimeä. */
+    data class MutePack(
+        val id: String,
+        val label: String,
+        val topicTags: Set<String>,
+        val keywords: Set<String>,
+    )
+
+    /** Aloituspaketit (helppo laajentaa). Sanastot pieninä kirjaimina (vertailu on case-insensitive). */
+    val MUTE_PACKS: List<MutePack> = listOf(
+        MutePack(
+            "urheilu", "Urheilu", setOf("sport"),
+            setOf(
+                "urheilu", "jääkiekko", "jalkapallo", "koripallo", "lentopallo", "salibandy",
+                "formula", "f1", "ralli", "hiihto", "yleisurheilu", "golf", "tennis", "ottelu",
+                "liiga", "mm-kisat", "olympia", "maajoukkue", "valmentaja", "maaottelu", "huuhkajat",
+            ),
+        ),
+        MutePack(
+            "politiikka", "Politiikka", emptySet(),
+            setOf(
+                "politiikka", "poliittinen", "hallitus", "eduskunta", "puolue", "ministeri",
+                "pääministeri", "presidentti", "vaalit", "kansanedustaja", "oppositio", "lakiesitys",
+                "budjettiriihi", "valtiovarain",
+            ),
+        ),
+        MutePack(
+            "viihde", "Viihde & julkkikset", setOf("entertainment"),
+            setOf(
+                "viihde", "julkkis", "juoru", "horoskooppi", "realitysarja", "tähti", "kuninkaallinen",
+                "missikisat", "tubettaja", "somettaja",
+            ),
+        ),
+        MutePack(
+            "talous", "Talous", emptySet(),
+            setOf(
+                "talous", "pörssi", "osake", "inflaatio", "korko", "konkurssi", "työttömyys",
+                "lakko", "osinko", "bruttokansantuote", "tulos",
+            ),
+        ),
+        MutePack(
+            "rikokset", "Rikokset & onnettomuudet", emptySet(),
+            setOf(
+                "poliisi", "rikos", "epäilty", "murha", "henkirikos", "pidätys", "käräjäoikeus",
+                "tuomio", "huumeet", "väkivalta", "onnettomuus", "kolari", "puukotus",
+            ),
+        ),
+    )
+
+    fun isMuteEnabled(prefs: SharedPreferences): Boolean = prefs.getBoolean(KEY_MUTE_ENABLED, true)
+    fun setMuteEnabled(prefs: SharedPreferences, on: Boolean) =
+        prefs.edit().putBoolean(KEY_MUTE_ENABLED, on).apply()
+
+    /** Mykistyssanat (alkuperäisessä kirjoitusasussa näytettäväksi; vertailu tehdään case-insensitive). */
+    fun muteWords(prefs: SharedPreferences): List<String> {
+        val out = ArrayList<String>()
+        try {
+            val arr = JSONArray(prefs.getString(KEY_MUTE_WORDS, "[]"))
+            for (i in 0 until arr.length()) {
+                val w = arr.optString(i).trim()
+                if (w.isNotEmpty()) out.add(w)
+            }
+        } catch (e: Exception) { /* rikkonainen → tyhjä */ }
+        return out
+    }
+
+    private fun saveMuteWords(prefs: SharedPreferences, words: List<String>) {
+        val arr = JSONArray()
+        for (w in words) arr.put(w)
+        prefs.edit().putString(KEY_MUTE_WORDS, arr.toString()).apply()
+    }
+
+    /** Lisää sana (trim + duplikaattisuoja case-insensitive). Palauttaa true jos lisättiin. */
+    fun addMuteWord(prefs: SharedPreferences, word: String): Boolean {
+        val w = word.trim()
+        if (w.isEmpty()) return false
+        val cur = muteWords(prefs)
+        if (cur.any { it.equals(w, ignoreCase = true) }) return false
+        saveMuteWords(prefs, cur + w)
+        return true
+    }
+
+    fun removeMuteWord(prefs: SharedPreferences, word: String) {
+        val cur = muteWords(prefs)
+        val next = cur.filterNot { it.equals(word, ignoreCase = true) }
+        if (next.size != cur.size) saveMuteWords(prefs, next)
+    }
+
+    fun isPackActive(prefs: SharedPreferences, id: String): Boolean =
+        prefs.getBoolean(mutePackKey(id), false)
+
+    fun setPackActive(prefs: SharedPreferences, id: String, on: Boolean) =
+        prefs.edit().putBoolean(mutePackKey(id), on).apply()
+
+    fun activePacks(prefs: SharedPreferences): List<MutePack> =
+        MUTE_PACKS.filter { isPackActive(prefs, it.id) }
+
+    /** Osuuko otsikkoon jokin sana (case-insensitive, osittainen). Pure. */
+    fun isTitleMuted(title: String, words: Collection<String>): Boolean {
+        if (title.isBlank() || words.isEmpty()) return false
+        val t = title.lowercase()
+        for (w in words) {
+            val lw = w.trim().lowercase()
+            if (lw.isNotEmpty() && t.contains(lw)) return true
+        }
+        return false
+    }
+
+    /** Mykistyykö juttu: aktiivisen paketin topic-tagi ∈ jutun aiheet, TAI mykistyssana/paketin
+     *  sanasto osuu otsikkoon (suomennettu tai alkuperäinen). Pure. */
+    fun isArticleMuted(a: ForeignArticle, words: Collection<String>, packs: List<MutePack>): Boolean {
+        if (packs.isNotEmpty()) {
+            val tags = a.topics.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            for (p in packs) if (p.topicTags.isNotEmpty() && tags.any { it in p.topicTags }) return true
+        }
+        val all = HashSet<String>(words)
+        for (p in packs) all.addAll(p.keywords)
+        if (all.isEmpty()) return false
+        if (isTitleMuted(a.titleFi, all)) return true
+        if (a.titleOrig.isNotBlank() && a.titleOrig != a.titleFi && isTitleMuted(a.titleOrig, all)) return true
+        return false
+    }
+
+    /** Suodattaa mykistetyt jutut. Kytkin pois / ei sanoja+paketteja → palauttaa listan sellaisenaan. */
+    fun applyMute(prefs: SharedPreferences, items: List<ForeignArticle>): List<ForeignArticle> {
+        if (!isMuteEnabled(prefs)) return items
+        val words = muteWords(prefs)
+        val packs = activePacks(prefs)
+        if (words.isEmpty() && packs.isEmpty()) return items
+        return items.filterNot { isArticleMuted(it, words, packs) }
+    }
+
+    /** Montako juttua suodatin piilottaisi annetusta listasta (statusriviä varten). */
+    fun mutedCount(prefs: SharedPreferences, items: List<ForeignArticle>): Int =
+        items.size - applyMute(prefs, items).size
+
+    /** Onko suodattimessa yhtään aktiivista ehtoa (sana tai paketti) — ikonin korostus + badge. */
+    fun hasActiveMute(prefs: SharedPreferences): Boolean =
+        isMuteEnabled(prefs) && (muteWords(prefs).isNotEmpty() || activePacks(prefs).isNotEmpty())
+
     // ---- luetut-historia (Ulkomaat): piilota luetut syötteistä + "Luetut"-välilehti ----
     // JSON-lista uusin-luettu-ensin, katto 100 (vanhin tippuu). Koko jutun metadata talletetaan,
     // jotta luettu näkyy "Luetut"-listassa vaikka olisi kiertynyt pois API-syötteestä. Avain ei

@@ -224,13 +224,15 @@ internal fun hardFilterCategories(
         items
     }
 
-/** Hakee etusivun uutiskortille näytettävän listan: piilota luetut, sitten kategorioiden hard-filter. */
+/** Hakee etusivun uutiskortille näytettävän listan: piilota luetut, kategorioiden hard-filter, mute-suodatin. */
 private fun filterHomeNews(prefs: SharedPreferences, fetched: List<ForeignArticle>): List<ForeignArticle> {
     val read = NewsProfile.readUrls(prefs)
     val unread = if (read.isEmpty()) fetched else fetched.filterNot { it.url in read }
     val allTags = FOREIGN_CATEGORY_TAGS.map { it.first }
     val cats = NewsProfile.visibleCats(prefs, allTags)
-    return hardFilterCategories(unread, cats, allTags.size)
+    val filtered = hardFilterCategories(unread, cats, allTags.size)
+    // Mykistyssuodatin (käyttäjän mute-sanat + aihepaketit) — sama kuin Kotimaat/Ulkomaat-näkymissä.
+    return NewsProfile.applyMute(prefs, filtered)
 }
 
 /** Hiusviivaerotin korttien rivien väliin — selvästi näkyvä molemmissa teemoissa (outlineVariant 50 %). */
