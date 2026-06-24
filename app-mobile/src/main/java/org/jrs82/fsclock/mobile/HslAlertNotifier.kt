@@ -66,7 +66,7 @@ object HslAlertNotifier {
         val favStops = TransitFavorites.getStops(context)
             .mapNotNull { it.name.takeIf { s -> s.isNotEmpty() } }.toSet()
         if (favLines.isEmpty() && favStops.isEmpty()) return
-        val alerts = try { DigitransitApi.serviceAlerts() } catch (e: Exception) { return }
+        val alerts = try { DigitransitApi.serviceAlerts(TransitRegion.HSL) } catch (e: Exception) { return }
         val nowSec = System.currentTimeMillis() / 1000L
         val result = selectNewAlerts(alerts, favLines, favStops, loadSeen(prefs), nowSec)
         android.util.Log.i(

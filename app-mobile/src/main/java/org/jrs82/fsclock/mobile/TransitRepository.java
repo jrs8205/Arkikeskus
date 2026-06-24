@@ -16,23 +16,26 @@ final class TransitRepository {
     private List<NearbyStop> cached;
     private long cachedAt;
     private double cachedLat, cachedLon;
+    private TransitRegion cachedRegion;
 
     private TransitRepository() {}
 
-    List<NearbyStop> fetch(double lat, double lon) throws Exception {
+    List<NearbyStop> fetch(double lat, double lon, TransitRegion region) throws Exception {
         synchronized (this) {
-            if (cached != null && System.currentTimeMillis() - cachedAt < CACHE_MS
+            if (cached != null && cachedRegion == region
+                    && System.currentTimeMillis() - cachedAt < CACHE_MS
                     && haversineMeters(lat, lon, cachedLat, cachedLon) < CACHE_DIST_M) {
                 // Puolustuskopio: kutsuja voi lajitella/suodattaa listaa rikkomatta välimuistia.
                 return new ArrayList<>(cached);
             }
         }
-        List<NearbyStop> fresh = DigitransitApi.nearbyDepartures(lat, lon);
+        List<NearbyStop> fresh = DigitransitApi.nearbyDepartures(lat, lon, region);
         synchronized (this) {
             cached = fresh;
             cachedAt = System.currentTimeMillis();
             cachedLat = lat;
             cachedLon = lon;
+            cachedRegion = region;
         }
         return new ArrayList<>(fresh);
     }

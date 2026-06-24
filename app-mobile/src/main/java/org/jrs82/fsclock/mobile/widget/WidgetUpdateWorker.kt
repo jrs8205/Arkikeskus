@@ -22,6 +22,7 @@ import org.jrs82.fsclock.WeatherData
 import org.jrs82.fsclock.WeatherRepository
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.mobile.DigitransitApi
+import org.jrs82.fsclock.mobile.TransitRegion
 import org.jrs82.fsclock.mobile.HealthConnectStepsBridge
 import org.jrs82.fsclock.mobile.maybeRefreshWidgetLocationPassive
 import org.jrs82.fsclock.mobile.passiveDeviceLocation
@@ -52,7 +53,7 @@ private fun fetchNearestStop(ctx: Context): NearbyStop? {
         lat = sm.getHomeLatitude()
         lon = sm.getHomeLongitude()
     }
-    return DigitransitApi.nearbyDepartures(lat, lon).firstOrNull()
+    return DigitransitApi.nearbyDepartures(lat, lon, TransitRegion.HSL).firstOrNull()
 }
 
 /** Kokoaa seuraavat 24 tuntia (Helsingin aika, kuluvasta tunnista alkaen — myös keskiyön yli)
@@ -254,8 +255,8 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                                 // Suosikki voi olla pysakki TAI asema (metro/juna): jos pysakkihaku
                                 // palauttaa nullin, kokeillaan asemahakua -> suosikkiasemat toimivat.
                                 if (stopId.isNotBlank())
-                                    DigitransitApi.stopDepartures(stopId)
-                                        ?: DigitransitApi.stationDepartures(stopId)
+                                    DigitransitApi.stopDepartures(stopId, TransitRegion.HSL)
+                                        ?: DigitransitApi.stationDepartures(stopId, TransitRegion.HSL)
                                 else null
                             }
                             "NEAREST" -> fetchNearestStop(ctx)
