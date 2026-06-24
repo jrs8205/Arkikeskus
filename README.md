@@ -63,10 +63,10 @@ HSL:n reittiopas (pääkaupunkiseutu) ja Tampereen **Nysse** samassa näkymäss�
 ### 📰 Uutiset, GPS ja askelmittari
 | | | |
 |:---:|:---:|:---:|
-| ![Uutiset](screenshots/uutiset.png) | ![GPS-nopeusmittari](screenshots/gps-nopeus.png) | ![Askelmittari](screenshots/askeleet_1.png) |
-| Uutiset | GPS-nopeusmittari | Askelmittari |
-| ![Askelmittari](screenshots/askeleet_2.png) | | |
-| Askelmittari | | |
+| ![Uutiset](screenshots/uutiset.png) | ![Uutissuodatin](screenshots/uutissuodatin.png) | ![GPS-nopeusmittari](screenshots/gps-nopeus.png) |
+| Uutiset | Uutissuodatin – mykistä sanat ja aiheet | GPS-nopeusmittari |
+| ![Askelmittari](screenshots/askeleet_1.png) | ![Askelmittari](screenshots/askeleet_2.png) | |
+| Askelmittari | Askelmittari | |
 
 ### 📱 Puhelimen tiedot ja asetukset
 | | | |
