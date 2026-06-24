@@ -1,6 +1,6 @@
 # Arkikeskus
 
-**Suomalaiseen kotiin tehty Android-kojelauta:** kello, sää, pörssisähkö, joukkoliikenne, liikennetiedot, kelikamerat, anturit, askelmittari ja uutiset — kaikki yhdellä säädettävällä etusivulla.
+**Suomalaiseen kotiin tehty Android-kojelauta:** kello, sää, pörssisähkö, joukkoliikenne (HSL ja Tampereen Nysse), liikennetiedot, kelikamerat, anturit, askelmittari ja uutiset — kaikki yhdellä säädettävällä etusivulla.
 
 **🌐 Verkkosivu: [arkikeskus.com](https://arkikeskus.com)**
 
@@ -28,26 +28,29 @@ Vaatii **Android 11 (API 30)** tai uudemman. APK on tarkoitettu ARM-laitteille (
 ## 📱 Kuvakaappauksia
 
 ### 🏠 Etusivu
-| | | |
-|:---:|:---:|:---:|
-| ![Etusivu](screenshots/etusivu_1.png) | ![Etusivu](screenshots/etusivu_2.png) | ![Etusivu](screenshots/etusivu_3.png) |
-| Kojelauta | Kortteja | Lisää kortteja |
+| | |
+|:---:|:---:|
+| ![Etusivu](screenshots/etusivu-kello.png) | ![Etusivu](screenshots/etusivu-kortit.png) |
+| Kello, nimipäivät & sää | Pyhät, pörssisähkö & varoitukset |
 
 ### 🌤️ Sää, pörssisähkö ja anturit
 | | | |
 |:---:|:---:|:---:|
-| ![Sää-ennuste](screenshots/saa-ennuste.png) | ![Pörssisähkö](screenshots/porssisahko_1.png) | ![Pörssisähkö](screenshots/porssisahko_2.png) |
-| Sää-ennuste | Pörssisähkö | Pörssisähkö |
-| ![Pörssisähkö](screenshots/porssisahko_3.png) | ![Anturit](screenshots/anturit.png) | ![Paikkakunnat](screenshots/paikkakunnat_suosikit.png) |
-| Pörssisähkö | Anturit | Paikkakunnat & suosikit |
+| ![Sää-ennuste](screenshots/saa-ennuste.png) | ![Pörssisähkö – tänään](screenshots/porssisahko-tanaan.png) | ![Pörssisähkö – huomenna](screenshots/porssisahko-huomenna.png) |
+| Sää-ennuste | Pörssisähkö – tänään | Pörssisähkö – huomenna |
+| ![Pörssisähkö – vertailu](screenshots/porssisahko-vertailu.png) | ![Anturit](screenshots/anturit.png) | ![Paikkakunnat](screenshots/paikkakunnat_suosikit.png) |
+| Pörssisähkö – vertailu | Anturit | Paikkakunnat & suosikit |
 
-### 🚌 Joukkoliikenne (HSL)
+### 🚌 Joukkoliikenne — HSL ja Tampere (Nysse)
+
+HSL:n reittiopas (pääkaupunkiseutu) ja Tampereen **Nysse** samassa näkymässä: lähilähdöt, reittihaku, koko päivän aikataulut, linjat, häiriöt ja bussien live-sijainti. Alue valitaan ylhäältä (HSL / Tampere) tai automaattisesti sijainnin mukaan.
+
 | | | |
 |:---:|:---:|:---:|
-| ![Lähilähdöt](screenshots/lahilahdot_1.png) | ![Lähilähdöt](screenshots/lahilahdot_2.png) | ![Reittihaku](screenshots/reittihaku_1.png) |
-| Lähilähdöt | Lähilähdöt | Reittihaku |
-| ![Reittihaku](screenshots/reittihaku_2.png) | | |
-| Reittihaku | | |
+| ![Lähilähdöt HSL](screenshots/lahilahdot_1.png) | ![Reittihaku HSL](screenshots/reittihaku_1.png) | ![Tampere – lähilähdöt (Nysse)](screenshots/tampere-lahilahdot.png) |
+| Lähilähdöt (HSL) | Reittihaku (HSL) | Tampere – lähilähdöt (Nysse) |
+| ![Tampere – reittihaku](screenshots/tampere-reittihaku.png) | ![Tampere – häiriöt](screenshots/tampere-hairiot.png) | ![HSL / Tampere -valinta](screenshots/valikko-joukkoliikenne.png) |
+| Tampere – reittihaku kartalla | Tampere – häiriöt | HSL / Tampere -valinta |
 
 ### 🚦 Liikennetiedot ja kelikamerat
 | | | |
@@ -87,20 +90,20 @@ Jokaisen kortin voi **piilottaa ja järjestää raahaamalla** (Asetukset → Etu
 - ⚠️ **Säävaroitukset** — näkyy vain kun voimassa olevia varoituksia on
 - 🌡️ **Anturit** — Ruuvi-antureiden lämpötila ja kosteus
 - 🚦 **Liikennetiedot** — lähimmät tiedotteet
-- 📰 **Uutiset** — uusimmat otsikot kuvineen, sekä omat per-lähde-uutiskortit
-- 🚌 **Lähilähdöt** — lähimmät HSL-lähdöt; napautus avaa koko reitin ja bussin live-sijainnin
+- 📰 **Uutiset** — uusimmat otsikot kuvineen, uutissuodatin (mykistä aiheita ja sanoja) sekä omat per-lähde-uutiskortit
+- 🚌 **Lähilähdöt** — lähimmät HSL- tai Nysse-lähdöt; napautus avaa koko reitin ja bussin live-sijainnin
 
 ### Kaikki toiminnot
 - **Sää-ennuste:** FMI ja Open-Meteo rinnakkain, 7 päivää tunti tunnilta
 - **Paikkakunnat:** ennakoiva paikkahaku, suosikit ja automaattinen laitteen sijainti
 - **Pörssisähkö:** Tänään / Huomenna / Vertailu (kk- ja vuosikeskiarvot), hinnat ALV 0 %
-- **Joukkoliikenne (HSL):** lähilähdöt ja reittihaku (Mistä → Minne)
+- **Joukkoliikenne (HSL ja Tampere):** HSL:n reittiopas ja Tampereen Nysse — lähilähdöt, reittihaku (Mistä → Minne), koko päivän aikataulut, linjat ja häiriöt; alue valitaan tai tunnistuu sijainnista
 - **Kelikamerat:** kartta lähimmistä kameroista
 - **Liikennetiedot:** onnettomuudet, tietyöt, painorajoitukset, tiedotteet, ruuhkat
 - **GPS-nopeusmittari**
 - **Askelmittari:** Health Connect, kalorit, historia ja HTML-vienti
 - **Puhelimen tiedot:** akku, verkko, SIM, laitteisto, muisti, näyttö, anturit
-- **Uutiset:** 10 valmista lähdettä + omat RSS-syötteet
+- **Uutiset:** 10 valmista lähdettä + omat RSS-syötteet + uutissuodatin (mykistetyt sanat ja aihepaketit)
 - **Teemat:** vaalea ja tumma + valinnainen dynaaminen väritys (Material You, Android 12+)
 - **Itsepäivitys:** tarkistaa uudet versiot ja lataa & asentaa suoraan
 
@@ -151,7 +154,7 @@ Kaikki ovat ilmaisia; MML ja Digitransit vaativat oman kehittäjäavaimen:
 - **Open-Meteo** — vertailuennuste
 - **Elering / Nord Pool** — 15 minuutin pörssisähkön hinnat
 - **Digitraffic** — liikennetiedotteet ja kelikamerat
-- **Digitransit (HSL)** — joukkoliikenteen lähdöt ja reittihaku
+- **Digitransit (HSL ja Waltti / Tampere–Nysse)** — joukkoliikenteen lähdöt ja reittihaku
 - **Maanmittauslaitos (MML)** — paikkahaku, geokoodaus, taustakartta
 
 ---
