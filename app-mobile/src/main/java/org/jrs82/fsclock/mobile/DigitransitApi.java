@@ -24,7 +24,6 @@ import java.util.zip.GZIPInputStream;
  *  Verkkomalli: {@link TrafficNoticesClient} (HttpURLConnection + gzip + errorStream-drain). */
 public final class DigitransitApi {
 
-    private static final String ENDPOINT = "https://api.digitransit.fi/routing/v2/hsl/gtfs/v1";
     private static final int TIMEOUT_MS = 9000;
 
     // Yhteinen lähtökenttäjoukko (nearest + stop). "... on Stop" pakollinen nearestissa.
@@ -36,11 +35,6 @@ public final class DigitransitApi {
     private static final String ALERT_FIELDS =
             "alertHeaderText alertDescriptionText alertSeverityLevel alertEffect"
             + " effectiveStartDate effectiveEndDate";
-
-    // Koko HSL-syötteen häiriöt ("Häiriöt ja muutokset" -sivu) — linja/pysäkki mukaan.
-    private static final String SERVICE_ALERTS_QUERY =
-            "{ alerts(feeds:[\"HSL\"]) { " + ALERT_FIELDS
-            + " route { shortName mode } stop { name } } }";
 
     private static final String NEAREST_QUERY =
             "query Nearest($lat: Float!, $lon: Float!) {"
@@ -115,11 +109,11 @@ public final class DigitransitApi {
 
     // --- Lähimmät lähdöt ---
 
-    public static List<NearbyStop> nearbyDepartures(double lat, double lon) throws Exception {
+    public static List<NearbyStop> nearbyDepartures(double lat, double lon, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("lat", lat);
         variables.put("lon", lon);
-        JSONObject data = postQuery(NEAREST_QUERY, variables);
+        JSONObject data = postQuery(NEAREST_QUERY, variables, region);
         JSONObject nearest = data == null ? null : data.optJSONObject("nearest");
         JSONArray edges = nearest == null ? null : nearest.optJSONArray("edges");
         List<NearbyStop> out = new ArrayList<>();
@@ -139,10 +133,10 @@ public final class DigitransitApi {
 
     // --- Yksittäisen pysäkin lähdöt (suosikit) ---
 
-    public static NearbyStop stopDepartures(String stopGtfsId) throws Exception {
+    public static NearbyStop stopDepartures(String stopGtfsId, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", stopGtfsId);
-        JSONObject data = postQuery(STOP_QUERY, variables);
+        JSONObject data = postQuery(STOP_QUERY, variables, region);
         JSONObject stop = data == null ? null : data.optJSONObject("stop");
         if (stop == null) return null;
         return parseStop(stop, Double.NaN);
@@ -151,10 +145,10 @@ public final class DigitransitApi {
     // --- Aseman lähdöt (station aggregoi laiturit; moodi tulee per lähtö trip.route.mode:sta) ---
 
     // public: lähtö-widgetin worker (alipaketti .widget) tarvitsee tämän suosikkiaseman lähtöihin.
-    public static NearbyStop stationDepartures(String stationGtfsId) throws Exception {
+    public static NearbyStop stationDepartures(String stationGtfsId, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", stationGtfsId);
-        JSONObject data = postQuery(STATION_QUERY, variables);
+        JSONObject data = postQuery(STATION_QUERY, variables, region);
         JSONObject station = data == null ? null : data.optJSONObject("station");
         if (station == null) return null;
         return parseStop(station, Double.NaN);
@@ -162,19 +156,19 @@ public final class DigitransitApi {
 
     // --- Koko päivän aikataulu (timeRange 24 h, jopa 100 lähtöä) ---
 
-    static NearbyStop stopDeparturesFullDay(String stopGtfsId) throws Exception {
+    static NearbyStop stopDeparturesFullDay(String stopGtfsId, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", stopGtfsId);
-        JSONObject data = postQuery(STOP_FULLDAY_QUERY, variables);
+        JSONObject data = postQuery(STOP_FULLDAY_QUERY, variables, region);
         JSONObject stop = data == null ? null : data.optJSONObject("stop");
         if (stop == null) return null;
         return parseStop(stop, Double.NaN);
     }
 
-    static NearbyStop stationDeparturesFullDay(String stationGtfsId) throws Exception {
+    static NearbyStop stationDeparturesFullDay(String stationGtfsId, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", stationGtfsId);
-        JSONObject data = postQuery(STATION_FULLDAY_QUERY, variables);
+        JSONObject data = postQuery(STATION_FULLDAY_QUERY, variables, region);
         JSONObject station = data == null ? null : data.optJSONObject("station");
         if (station == null) return null;
         return parseStop(station, Double.NaN);
@@ -184,8 +178,10 @@ public final class DigitransitApi {
 
     /** Koko HSL-syötteen aktiiviset häiriöt linja-/pysäkkitietoineen. Poistaa tarkat tuplat
      *  (sama otsikko+kuvaus+linja+pysäkki) ja järjestää: vakavin ensin, sitten uusin alkamisaika. */
-    static List<TransitAlert> serviceAlerts() throws Exception {
-        JSONObject data = postQuery(SERVICE_ALERTS_QUERY, new JSONObject());
+    static List<TransitAlert> serviceAlerts(TransitRegion region) throws Exception {
+        String serviceAlertsQuery = "{ alerts(feeds:[\"" + region.alertFeed + "\"]) { " + ALERT_FIELDS
+                + " route { shortName mode } stop { name } } }";
+        JSONObject data = postQuery(serviceAlertsQuery, new JSONObject(), region);
         JSONArray arr = data == null ? null : data.optJSONArray("alerts");
         List<TransitAlert> out = new ArrayList<>();
         if (arr == null) return out;
@@ -305,10 +301,10 @@ public final class DigitransitApi {
 
     // --- Linjahaku ---
 
-    static List<RouteHit> searchRoutes(String name) throws Exception {
+    static List<RouteHit> searchRoutes(String name, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("name", name);
-        JSONObject data = postQuery(ROUTES_QUERY, variables);
+        JSONObject data = postQuery(ROUTES_QUERY, variables, region);
         JSONArray routes = data == null ? null : data.optJSONArray("routes");
         List<RouteHit> out = new ArrayList<>();
         if (routes == null) return out;
@@ -327,21 +323,22 @@ public final class DigitransitApi {
 
     // --- Paikkahaku: HSL-pysäkit ja -asemat moodeineen (ennakoiva, sources=gtfshsl) ---
 
-    static List<PlaceHit> searchPlaces(String text, double lat, double lon) throws Exception {
-        List<PlaceHit> out = geocodeHslPlaces(GEOCODE_URL, text, lat, lon);
+    static List<PlaceHit> searchPlaces(String text, double lat, double lon, TransitRegion region) throws Exception {
+        List<PlaceHit> out = geocodeStopPlaces(GEOCODE_URL, text, lat, lon, region);
         // Autocomplete ei löydä pysäkkikoodeja (esim. "V1701") → fallback /search-endpointtiin.
         if (out.isEmpty()) {
-            out = geocodeHslPlaces(GEOCODE_SEARCH_URL, text, lat, lon);
+            out = geocodeStopPlaces(GEOCODE_SEARCH_URL, text, lat, lon, region);
         }
         return out;
     }
 
-    private static List<PlaceHit> geocodeHslPlaces(String baseUrl, String text, double lat, double lon)
+    private static List<PlaceHit> geocodeStopPlaces(String baseUrl, String text, double lat, double lon,
+                                                    TransitRegion region)
             throws Exception {
         double flat = Double.isNaN(lat) ? 60.17 : lat;
         double flon = Double.isNaN(lon) ? 24.94 : lon;
         String url = baseUrl + "?text=" + URLEncoder.encode(text, "UTF-8")
-                + "&lang=fi&size=10&sources=gtfshsl"
+                + "&lang=fi&size=10&sources=" + region.geocodeSources
                 + "&focus.point.lat=" + flat + "&focus.point.lon=" + flon;
         String raw = httpGet(url);
         JSONArray features = new JSONObject(raw).optJSONArray("features");
@@ -417,9 +414,9 @@ public final class DigitransitApi {
 
     /** Geokoodaus reittihaun Mistä/Minne-valintaan: oletuslähteet (paikat, osoitteet, POI:t,
      *  pysäkit) koordinaatteineen. Eri kuin {@link #searchPlaces} (joka rajaa gtfshsl-pysäkkeihin). */
-    static List<GeoPlace> geocodePlaces(String text, double lat, double lon) throws Exception {
-        double flat = Double.isNaN(lat) ? 60.17 : lat;
-        double flon = Double.isNaN(lon) ? 24.94 : lon;
+    static List<GeoPlace> geocodePlaces(String text, double lat, double lon, TransitRegion region) throws Exception {
+        double flat = Double.isNaN(lat) ? region.focusLat : lat;
+        double flon = Double.isNaN(lon) ? region.focusLon : lon;
         String url = GEOCODE_URL + "?text=" + URLEncoder.encode(text, "UTF-8")
                 + "&lang=fi&size=8"
                 + "&focus.point.lat=" + flat + "&focus.point.lon=" + flon;
@@ -448,15 +445,16 @@ public final class DigitransitApi {
     /** Matkasuunnittelu A→B (planConnection). dateTimeIso = ISO-aika offsetilla; arriveBy=true →
      *  "perillä viimeistään", false → "lähde aikaisintaan". Palauttaa reittiehdotukset. */
     static List<Itinerary> planRoutes(double fromLat, double fromLon, double toLat, double toLon,
-                                      String dateTimeIso, boolean arriveBy, int first) throws Exception {
-        return planRoutes(fromLat, fromLon, toLat, toLon, dateTimeIso, arriveBy, first, null);
+                                      String dateTimeIso, boolean arriveBy, int first,
+                                      TransitRegion region) throws Exception {
+        return planRoutes(fromLat, fromLon, toLat, toLon, dateTimeIso, arriveBy, first, null, region);
     }
 
     /** transitMode = null/tyhjä → kaikki kulkuvälineet; muuten esim. BUS/RAIL/TRAM/SUBWAY/FERRY
      *  (planConnectionin modes-argumentti rajaa joukkoliikenneosuudet tähän moodiin). */
     static List<Itinerary> planRoutes(double fromLat, double fromLon, double toLat, double toLon,
                                       String dateTimeIso, boolean arriveBy, int first,
-                                      String transitMode) throws Exception {
+                                      String transitMode, TransitRegion region) throws Exception {
         String dtField = arriveBy ? "latestArrival" : "earliestDeparture";
         String modes = (transitMode == null || transitMode.isEmpty())
                 ? "" : "modes:{transit:{transit:[{mode:" + transitMode + "}]}},";
@@ -470,7 +468,7 @@ public final class DigitransitApi {
                 + "route{shortName alerts{" + ALERT_FIELDS + "}} "
                 + "trip{tripHeadsign gtfsId pattern{code}} stopCalls{stopLocation{... on Stop{lat lon}}}"
                 + " legGeometry{points}}}}}}";
-        JSONObject data = postQuery(q, new JSONObject());
+        JSONObject data = postQuery(q, new JSONObject(), region);
         List<Itinerary> out = new ArrayList<>();
         JSONObject pc = data == null ? null : data.optJSONObject("planConnection");
         JSONArray edges = pc == null ? null : pc.optJSONArray("edges");
@@ -538,13 +536,13 @@ public final class DigitransitApi {
 
     /** Etsii vuorolla (tripGtfsId) tällä hetkellä liikkeellä olevan ajoneuvon vehicleId:n
      *  ("HSL:oper/veh") MQTT-livetilausta varten, tai "" jos vuoro ei ole liikkeellä. */
-    static String vehicleForTrip(String patternCode, String tripGtfsId) throws Exception {
+    static String vehicleForTrip(String patternCode, String tripGtfsId, TransitRegion region) throws Exception {
         if (patternCode == null || patternCode.isEmpty() || tripGtfsId == null || tripGtfsId.isEmpty()) return "";
         JSONObject variables = new JSONObject();
         variables.put("pat", patternCode);
         JSONObject data = postQuery(
                 "query VT($pat: String!) { pattern(id: $pat) {"
-                + " vehiclePositions { vehicleId trip { gtfsId } } } }", variables);
+                + " vehiclePositions { vehicleId trip { gtfsId } } } }", variables, region);
         JSONObject pattern = data == null ? null : data.optJSONObject("pattern");
         JSONArray vps = pattern == null ? null : pattern.optJSONArray("vehiclePositions");
         if (vps == null) return "";
@@ -581,12 +579,12 @@ public final class DigitransitApi {
 
     // --- Vuoron aikajana + ajoneuvon live-sijainti ---
 
-    static TripTimeline tripTimeline(String tripGtfsId, String patternCode, String boardStopGtfsId)
-            throws Exception {
+    static TripTimeline tripTimeline(String tripGtfsId, String patternCode, String boardStopGtfsId,
+            TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("trip", tripGtfsId == null ? "" : tripGtfsId);
         variables.put("pat", patternCode == null ? "" : patternCode);
-        JSONObject data = postQuery(TIMELINE_QUERY, variables);
+        JSONObject data = postQuery(TIMELINE_QUERY, variables, region);
         if (data == null) return null;
         JSONObject trip = data.optJSONObject("trip");
         if (trip == null) return null;
@@ -661,10 +659,10 @@ public final class DigitransitApi {
 
     // --- Linjanäkymä: suunnat + suunnan aikataulu (seuraava lähtö per pysäkki) + live-ajoneuvot ---
 
-    static RoutePatterns routePatterns(String routeGtfsId) throws Exception {
+    static RoutePatterns routePatterns(String routeGtfsId, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", routeGtfsId);
-        JSONObject data = postQuery(ROUTE_PATTERNS_QUERY, variables);
+        JSONObject data = postQuery(ROUTE_PATTERNS_QUERY, variables, region);
         JSONObject route = data == null ? null : data.optJSONObject("route");
         if (route == null) return null;
         List<RoutePatterns.Pat> pats = new ArrayList<>();
@@ -692,11 +690,11 @@ public final class DigitransitApi {
                 route.optString("longName", ""), route.optString("mode", ""), pats, alerts);
     }
 
-    static TripTimeline patternTimetable(String patternCode, String routeShortName, String mode)
-            throws Exception {
+    static TripTimeline patternTimetable(String patternCode, String routeShortName, String mode,
+            TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("id", patternCode);
-        JSONObject data = postQuery(PATTERN_TIMETABLE_QUERY, variables);
+        JSONObject data = postQuery(PATTERN_TIMETABLE_QUERY, variables, region);
         JSONObject pattern = data == null ? null : data.optJSONObject("pattern");
         if (pattern == null) return null;
         String headsign = pattern.optString("headsign", "");
@@ -754,11 +752,11 @@ public final class DigitransitApi {
 
     // --- HTTP ---
 
-    private static JSONObject postQuery(String query, JSONObject variables) throws Exception {
+    private static JSONObject postQuery(String query, JSONObject variables, TransitRegion region) throws Exception {
         JSONObject body = new JSONObject();
         body.put("query", query);
         body.put("variables", variables);
-        String raw = httpPost(body.toString());
+        String raw = httpPost(body.toString(), region);
         JSONObject root = new JSONObject(raw);
         JSONArray errors = root.optJSONArray("errors");
         if (errors != null && errors.length() > 0) {
@@ -769,12 +767,12 @@ public final class DigitransitApi {
         return root.optJSONObject("data");
     }
 
-    private static String httpPost(String jsonBody) throws Exception {
+    private static String httpPost(String jsonBody, TransitRegion region) throws Exception {
         // Ilman avainta Digitransit vastaa 401/403 → epää heti selkeällä virheellä (kutsujat ottavat kiinni).
         if (BuildConfig.DIGITRANSIT_KEY == null || BuildConfig.DIGITRANSIT_KEY.trim().isEmpty()) {
             throw new IOException("Digitransit-avain puuttuu");
         }
-        HttpURLConnection conn = (HttpURLConnection) new URL(ENDPOINT).openConnection();
+        HttpURLConnection conn = (HttpURLConnection) new URL(region.endpoint).openConnection();
         conn.setConnectTimeout(TIMEOUT_MS);
         conn.setReadTimeout(TIMEOUT_MS);
         conn.setRequestMethod("POST");

@@ -364,7 +364,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (q.length() < 2 || q.equals(MY_LOCATION)) return;
         searchIo.execute(() -> {
             List<GeoPlace> res;
-            try { res = DigitransitApi.geocodePlaces(q, gpsLat, gpsLon); }
+            try { res = DigitransitApi.geocodePlaces(q, gpsLat, gpsLon, planRegion()); }
             catch (Exception e) { res = new ArrayList<>(); }
             final List<GeoPlace> r = res;
             ui.post(() -> {
@@ -617,6 +617,20 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         }
     }
 
+    /** Reittihaun alue = jaettu valinta Lähilähtöjen kanssa (SharedPreferences "transit_region"). */
+    private TransitRegion planRegion() {
+        android.content.Context c = getContext();
+        if (c == null) return TransitRegion.HSL;
+        return TransitRegion.fromKey(
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(c)
+                        .getString("transit_region", null));
+    }
+
+    /** Alue gtfsId-prefiksistä (live-ajoneuvon haku oikealta reitittimeltä). */
+    private static TransitRegion regionForId(String id) {
+        return (id != null && id.startsWith("tampere:")) ? TransitRegion.TAMPERE : TransitRegion.HSL;
+    }
+
     private void runPlan(long request, double fromLat, double fromLon, double toLat, double toLon) {
         showStatus("Haetaan reittejä…");
         adapter.submit(new ArrayList<>());
@@ -624,12 +638,13 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         final boolean arr = arriveBy;
         final String mode = planTransitMode;
         final boolean directOnly = planDirectOnly;
+        final TransitRegion region = planRegion();
         searchIo.execute(() -> {
             List<Itinerary> res;
             try {
                 // Vain suorat -tilassa haetaan isompi joukko, jotta suodatuksen jälkeenkin jää ehdotuksia.
                 res = DigitransitApi.planRoutes(fromLat, fromLon, toLat, toLon, iso, arr,
-                        directOnly ? 10 : 5, mode.isEmpty() ? null : mode);
+                        directOnly ? 10 : 5, mode.isEmpty() ? null : mode, region);
             }
             catch (Exception e) { res = null; }
             final List<Itinerary> r = res;
@@ -1150,7 +1165,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             final Map<String, String> iconByVid = new HashMap<>();
             for (Leg leg : transitLegs) {
                 String vid;
-                try { vid = DigitransitApi.vehicleForTrip(leg.patternCode, leg.tripGtfsId); }
+                try { vid = DigitransitApi.vehicleForTrip(leg.patternCode, leg.tripGtfsId, regionForId(leg.tripGtfsId)); }
                 catch (Exception e) { vid = ""; }
                 if (vid == null || vid.isEmpty() || colorByVid.containsKey(vid)) continue;
                 vehicleIds.add(vid);

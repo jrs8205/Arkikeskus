@@ -682,7 +682,7 @@ private fun DrawerContent(
             DrawerItem(HomeSection.TRAFFIC_CONGESTION, current, onSelect)
             DrawerItem(HomeSection.ROAD_CAMERAS, current, onSelect)
 
-            DrawerHeader("Joukkoliikenne (HSL)", R.drawable.mobile_ic_bus_24)
+            DrawerHeader("Joukkoliikenne (HSL/Tampere)", R.drawable.mobile_ic_bus_24)
             DrawerItem(HomeSection.TRANSIT, current, onSelect)
             DrawerItem(HomeSection.ROUTE_PLANNER, current, onSelect)
             DrawerItem(HomeSection.HSL_DISRUPTIONS, current, onSelect)

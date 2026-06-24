@@ -761,7 +761,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
         }
         val result = withContext(Dispatchers.IO) {
             try {
-                val stops = TransitRepository.get().fetch(ref[0], ref[1])
+                val stops = TransitRepository.get().fetch(ref[0], ref[1], TransitRegion.HSL)
                 stops.flatMap { it.departures }.sortedBy { it.departureEpochSec }
             } catch (e: Exception) {
                 null
@@ -888,7 +888,7 @@ private fun TripTimelineInline(d: Departure) {
         loading = true
         val tl = withContext(Dispatchers.IO) {
             try {
-                DigitransitApi.tripTimeline(d.tripGtfsId, d.patternCode, d.stopGtfsId)
+                DigitransitApi.tripTimeline(d.tripGtfsId, d.patternCode, d.stopGtfsId, TransitRegion.HSL)
             } catch (e: Exception) {
                 null
             }

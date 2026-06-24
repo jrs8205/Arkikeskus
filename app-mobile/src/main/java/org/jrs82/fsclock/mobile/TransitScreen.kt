@@ -103,6 +103,8 @@ import java.util.concurrent.Executors
 private const val TRANSIT_AUTO_REFRESH_MS = 25_000L
 private const val TRANSIT_SEARCH_DEBOUNCE_MS = 280L
 private const val KEY_TRANSIT_MODE_FILTER = "transit_mode_filter"
+private const val KEY_TRANSIT_REGION = "transit_region"
+private const val KEY_TRANSIT_REGION_EXPLICIT = "transit_region_explicit"
 private const val LOC_FALLBACK_MAX_AGE_MS = 2L * 60_000L
 private const val LOC_FALLBACK_MAX_ACCURACY_M = 250f
 private const val MAX_PER_STOP = 5
@@ -180,6 +182,47 @@ private class TransitState(private val appContext: Context) {
         modeFilter = mode
         androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext).edit()
             .putString(KEY_TRANSIT_MODE_FILTER, mode ?: "").apply()
+    }
+
+    // Joukkoliikennealue (HSL / Tampere). Ohjaa lähilähtöjä, hakua ja reittihakua. Valinta muistetaan;
+    // ilman valintaa ensioletus määräytyy sijainnista (maybeAutoRegion). Avatut kohteet (suosikit/
+    // pysäkit/linjat/vuorot) haetaan gtfsId:n perusteella oikealta reitittimeltä (regionForGtfsId).
+    var region by mutableStateOf(
+        TransitRegion.fromKey(
+            androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext)
+                .getString(KEY_TRANSIT_REGION, null),
+        ),
+    )
+        private set
+    private var regionExplicit =
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext)
+            .getBoolean(KEY_TRANSIT_REGION_EXPLICIT, false)
+
+    /** Käyttäjän manuaalinen aluevalinta — muistetaan, ei GPS-overridea; nollaa alueriippuvaisen tilan. */
+    fun updateRegion(r: TransitRegion) {
+        if (region == r && regionExplicit) return
+        region = r
+        regionExplicit = true
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext).edit()
+            .putString(KEY_TRANSIT_REGION, r.name)
+            .putBoolean(KEY_TRANSIT_REGION_EXPLICIT, true)
+            .apply()
+        lastStops = emptyList(); favStops = emptyList()
+        searchRoutes = null; searchPlaces = null; selectedStop = null; query = ""
+        refresh()
+    }
+
+    /** GPS-pohjainen ensioletus (vain jos käyttäjä ei ole valinnut aluetta). Kirjoittaa prefsin, jotta
+     *  irralliset detalji-/häiriönäkymät näkevät alueen, muttei explicit-lippua. */
+    private fun maybeAutoRegion(lat: Double, lon: Double) {
+        if (regionExplicit) return
+        val auto = TransitRegion.forLocation(lat, lon)
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(appContext).edit()
+            .putString(KEY_TRANSIT_REGION, auto.name).apply()
+        if (auto != region) {
+            region = auto
+            lastStops = emptyList(); favStops = emptyList()
+        }
     }
 
     var lastLat = Double.NaN
@@ -298,15 +341,19 @@ private class TransitState(private val appContext: Context) {
         lastLat = lat
         lastLon = lon
         if (disposed) return
+        maybeAutoRegion(lat, lon)
+        val r = region
         io.execute {
             try {
-                val stops = TransitRepository.get().fetch(lat, lon)
+                val stops = TransitRepository.get().fetch(lat, lon, r)
                 val fav = ArrayList<NearbyStop>()
                 for (fs in TransitFavorites.getStops(appContext)) {
                     try {
                         // Suosikki voi olla pysäkki TAI asema (metro/juna) → asema-fallback.
-                        (DigitransitApi.stopDepartures(fs.gtfsId)
-                            ?: DigitransitApi.stationDepartures(fs.gtfsId))?.let { fav.add(it) }
+                        // Alue suosikin gtfsId:stä (HSL- ja Tampere-suosikit voivat olla samassa listassa).
+                        val fr = regionForGtfsId(fs.gtfsId)
+                        (DigitransitApi.stopDepartures(fs.gtfsId, fr)
+                            ?: DigitransitApi.stationDepartures(fs.gtfsId, fr))?.let { fav.add(it) }
                     } catch (ignored: Exception) {
                     }
                 }
@@ -333,11 +380,12 @@ private class TransitState(private val appContext: Context) {
     fun runLiveSearch(q: String) {
         if (disposed) return
         searchIo.execute {
-            val routes = try { DigitransitApi.searchRoutes(q) } catch (e: Exception) { ArrayList() }
+            val r = region
+            val routes = try { DigitransitApi.searchRoutes(q, r) } catch (e: Exception) { ArrayList() }
             // Yksi merkki (esim. junalinjat A/P/I/K/T/E/L/U) → vain linjahaku; paikkahaku (geokoodaus)
             // vaatii ≥2 merkkiä ettei se tuota roskatuloksia.
             val places = if (q.length >= 2) {
-                try { DigitransitApi.searchPlaces(q, lastLat, lastLon) } catch (e: Exception) { ArrayList() }
+                try { DigitransitApi.searchPlaces(q, lastLat, lastLon, r) } catch (e: Exception) { ArrayList() }
             } else {
                 ArrayList()
             }
@@ -468,6 +516,18 @@ private class TransitState(private val appContext: Context) {
 
 // ===================== Apurit (portattu TransitFragmentista) =====================
 
+/** Alue gtfsId-prefiksistä: "tampere:..." → TAMPERE, muuten HSL. Avatut kohteet (suosikit, pysäkit,
+ *  linjat, vuorot) haetaan oikealta reitittimeltä riippumatta valitusta alueesta. */
+private fun regionForGtfsId(id: String?): TransitRegion =
+    if (id != null && id.startsWith("tampere:")) TransitRegion.TAMPERE else TransitRegion.HSL
+
+/** Valittu alue SharedPreferenceista — irrallisille detalji-/häiriönäkymille, joilla ei ole TransitStatea. */
+private fun currentRegion(ctx: Context): TransitRegion =
+    TransitRegion.fromKey(
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
+            .getString(KEY_TRANSIT_REGION, null),
+    )
+
 private fun headerModeOf(s: NearbyStop): String {
     if (!s.vehicleMode.isNullOrEmpty()) return s.vehicleMode
     for (d in s.departures) {
@@ -562,6 +622,23 @@ private fun metersBetweenPts(lat1: Double, lon1: Double, lat2: Double, lon2: Dou
 
 // ===================== Päänäkymä =====================
 
+/** Aluevalitsin (HSL / Tampere): segmentoidut sirut. */
+@Composable
+private fun RegionSelectorRow(selected: TransitRegion, onSelect: (TransitRegion) -> Unit) {
+    Row(
+        modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TransitRegion.values().forEach { r ->
+            FilterChip(
+                selected = r == selected,
+                onClick = { onSelect(r) },
+                label = { Text(r.label) },
+            )
+        }
+    }
+}
+
 @Composable
 internal fun TransitScreen() {
     val context = LocalContext.current
@@ -639,6 +716,7 @@ internal fun TransitScreen() {
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
+            RegionSelectorRow(selected = state.region) { state.updateRegion(it) }
             SearchTextField(
                 value = state.query,
                 onValueChange = { q ->
@@ -1439,8 +1517,9 @@ private fun TransitFullDayOverlay(
         val ns = withContext(Dispatchers.IO) {
             try {
                 // stop(id) palauttaa nullin asema-id:lle → fallback station(id):iin.
-                DigitransitApi.stopDeparturesFullDay(stop.gtfsId)
-                    ?: DigitransitApi.stationDeparturesFullDay(stop.gtfsId)
+                val r = regionForGtfsId(stop.gtfsId)
+                DigitransitApi.stopDeparturesFullDay(stop.gtfsId, r)
+                    ?: DigitransitApi.stationDeparturesFullDay(stop.gtfsId, r)
             } catch (e: Exception) {
                 null
             }
@@ -1707,7 +1786,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
     LaunchedEffect(detail) {
         if (detail !is TransitDetail.Route) return@LaunchedEffect
         val rp = withContext(Dispatchers.IO) {
-            try { DigitransitApi.routePatterns(detail.routeGtfsId) } catch (e: Exception) { null }
+            try { DigitransitApi.routePatterns(detail.routeGtfsId, regionForGtfsId(detail.routeGtfsId)) } catch (e: Exception) { null }
         }
         if (rp == null || rp.patterns.isEmpty()) {
             banner = "Linjan tietoja ei saatu."
@@ -1728,10 +1807,12 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     try {
                         when (detail) {
                             is TransitDetail.Trip ->
-                                DigitransitApi.tripTimeline(detail.tripGtfsId, detail.patternCode, detail.boardStop)
+                                DigitransitApi.tripTimeline(detail.tripGtfsId, detail.patternCode, detail.boardStop,
+                                    regionForGtfsId(detail.tripGtfsId))
                             is TransitDetail.Route ->
                                 DigitransitApi.patternTimetable(
                                     routePatterns!!.patterns[patternIdx].code, detail.shortName, detail.mode,
+                                    regionForGtfsId(detail.routeGtfsId),
                                 )
                         }
                     } catch (e: Exception) {
@@ -2051,16 +2132,19 @@ internal fun HslDisruptionsScreen() {
     var activeOnly by remember { mutableStateOf(true) }
     var dialogFor by remember { mutableStateOf<TransitAlert?>(null) }
     val context = LocalContext.current
+    // Alue (HSL / Tampere) — oma valinta häiriösivulla; oletus = Lähilähtöjen valinta. Helsingissä
+    // asuva ei tarvitse Tampereen häiriöitä eikä toisin päin → ei sekoiteta samaan listaan.
+    var region by remember { mutableStateOf(currentRegion(context)) }
     val favLines = remember { TransitFavorites.getLines(context).map { it.shortName }.filter { it.isNotEmpty() }.toSet() }
     val favStops = remember { TransitFavorites.getStops(context).map { it.name }.filter { it.isNotEmpty() }.toSet() }
     val hasFavorites = favLines.isNotEmpty() || favStops.isNotEmpty()
     // Ilmoituksesta avattaessa (HSL-suosikkihäiriö): näytä heti vain suosikkien häiriöt.
     var favoritesOnly by remember { mutableStateOf(DisruptionNav.consumeFocusFavorites() && hasFavorites) }
 
-    LaunchedEffect(refreshTick) {
+    LaunchedEffect(refreshTick, region) {
         if (all == null) status = "Haetaan häiriöitä…"
         val result = withContext(Dispatchers.IO) {
-            try { DigitransitApi.serviceAlerts() } catch (e: Exception) { null }
+            try { DigitransitApi.serviceAlerts(region) } catch (e: Exception) { null }
         }
         if (result == null) {
             if (all == null) status = "Häiriöiden haku epäonnistui. Kokeile Päivitä-nappia."
@@ -2090,6 +2174,8 @@ internal fun HslDisruptionsScreen() {
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
         )
+        // Alue vaihtuu → nollaa lista, jotta vanhan alueen häiriöt eivät jää näkyviin haun ajaksi.
+        RegionSelectorRow(selected = region) { region = it; all = null }
         SearchTextField(
             value = query,
             onValueChange = { query = it },
