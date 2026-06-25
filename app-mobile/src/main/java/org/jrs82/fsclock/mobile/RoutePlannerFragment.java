@@ -628,7 +628,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     /** Alue gtfsId-prefiksistä (live-ajoneuvon haku oikealta reitittimeltä). */
     private static TransitRegion regionForId(String id) {
-        return (id != null && id.startsWith("tampere:")) ? TransitRegion.TAMPERE : TransitRegion.HSL;
+        return TransitRegion.forGtfsId(id);
     }
 
     private void runPlan(long request, double fromLat, double fromLon, double toLat, double toLon) {

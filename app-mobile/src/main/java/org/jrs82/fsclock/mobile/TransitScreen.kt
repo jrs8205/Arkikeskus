@@ -518,8 +518,7 @@ private class TransitState(private val appContext: Context) {
 
 /** Alue gtfsId-prefiksistä: "tampere:..." → TAMPERE, muuten HSL. Avatut kohteet (suosikit, pysäkit,
  *  linjat, vuorot) haetaan oikealta reitittimeltä riippumatta valitusta alueesta. */
-private fun regionForGtfsId(id: String?): TransitRegion =
-    if (id != null && id.startsWith("tampere:")) TransitRegion.TAMPERE else TransitRegion.HSL
+private fun regionForGtfsId(id: String?): TransitRegion = TransitRegion.forGtfsId(id)
 
 /** Valittu alue SharedPreferenceista — irrallisille detalji-/häiriönäkymille, joilla ei ole TransitStatea. */
 private fun currentRegion(ctx: Context): TransitRegion =
@@ -1741,9 +1740,13 @@ private class LiveTracking(val tl: TripTimeline) {
     }
 }
 
-private fun tripBannerText(tl: TripTimeline, mode: String): String {
+internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegion): String {
     val word = transitModeWord(mode)
-    if (tl.vehicleStopIndices.isEmpty()) return "Ei live-sijaintia — vuoro ei ole vielä liikkeellä."
+    if (tl.vehicleStopIndices.isEmpty()) {
+        // Waltti/Tampere ei tarjoa GraphQL-live-sijaintia → älä väitä vuoron olevan liikkumatta.
+        return if (region.liveVehiclePositions) "Ei live-sijaintia — vuoro ei ole vielä liikkeellä."
+        else "Live-sijainti ei ole saatavilla tällä alueella — ajat ovat aikataulun mukaiset."
+    }
     val relIdx = tl.vehicleStopIndices[0]
     val approaching = tl.vehicleIncoming
     val at = if (relIdx >= 0 && relIdx < tl.stops.size) tl.stops[relIdx].name ?: "" else ""
@@ -1761,9 +1764,14 @@ private fun tripBannerText(tl: TripTimeline, mode: String): String {
     return word + (if (approaching) " on matkalla pysäkille " else " on pysäkillä ") + at + "."
 }
 
-private fun routeBannerText(tl: TripTimeline): String {
+internal fun routeBannerText(tl: TripTimeline, region: TransitRegion): String {
     val c = tl.vehicleStopIndices.size
-    if (c == 0) return "Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat."
+    if (c == 0) {
+        // Waltti/Tampere ei tarjoa GraphQL-live-sijaintia → älä väitä ettei vuoroja liiku.
+        return if (region.liveVehiclePositions)
+            "Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat."
+        else "Live-sijainti ei ole saatavilla tällä alueella — alla reitti ja seuraavat lähtöajat."
+    }
     return c.toString() + (if (c == 1) " vuoro liikkeellä" else " vuoroa liikkeellä") +
         " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä."
 }
@@ -1823,7 +1831,14 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     banner = if (isRoute) "Linjan aikataulua ei saatu." else "Vuoron tietoja ei saatu."
                 } else {
                     timeline = tl
-                    banner = if (isRoute) routeBannerText(tl) else tripBannerText(tl, detail.mode)
+                    val bannerRegion = regionForGtfsId(
+                        when (detail) {
+                            is TransitDetail.Trip -> detail.tripGtfsId
+                            is TransitDetail.Route -> detail.routeGtfsId
+                        }
+                    )
+                    banner = if (isRoute) routeBannerText(tl, bannerRegion)
+                    else tripBannerText(tl, detail.mode, bannerRegion)
                     liveHolder.value = if (!isRoute && tl.boardStopIndex >= 0 &&
                         !tl.vehicleId.isNullOrEmpty() && tl.shape.size >= 2
                     ) {
