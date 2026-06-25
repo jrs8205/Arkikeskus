@@ -761,7 +761,10 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
         }
         val result = withContext(Dispatchers.IO) {
             try {
-                val stops = TransitRepository.get().fetch(ref[0], ref[1], TransitRegion.HSL)
+                // Alue laitteen/kotipaikan sijainnista (Tampereen seutu → Nysse, muuten HSL), jottei
+                // Tampereella oleva käyttäjä saa tyhjää HSL-hakua koordinaateillaan.
+                val stops = TransitRepository.get()
+                    .fetch(ref[0], ref[1], TransitRegion.forLocation(ref[0], ref[1]))
                 stops.flatMap { it.departures }.sortedBy { it.departureEpochSec }
             } catch (e: Exception) {
                 null
@@ -888,7 +891,8 @@ private fun TripTimelineInline(d: Departure) {
         loading = true
         val tl = withContext(Dispatchers.IO) {
             try {
-                DigitransitApi.tripTimeline(d.tripGtfsId, d.patternCode, d.stopGtfsId, TransitRegion.HSL)
+                DigitransitApi.tripTimeline(d.tripGtfsId, d.patternCode, d.stopGtfsId,
+                    TransitRegion.forGtfsId(d.tripGtfsId))
             } catch (e: Exception) {
                 null
             }

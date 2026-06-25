@@ -141,4 +141,50 @@ class TransitFeaturesTest {
         assertEquals(1, active.size)
         assertEquals("2", active[0].routeShortName)
     }
+
+    // --- Aluekohtainen live-sijainti (Waltti/Tampere EI tarjoa GraphQL vehiclePositions -kenttää,
+    //     vain HSL → live-sijainti GraphQL:n kautta vain HSL-alueella). ---
+
+    @Test
+    fun `forGtfsId tunnistaa alueen gtfsId-prefiksista`() {
+        assertEquals(TransitRegion.TAMPERE, TransitRegion.forGtfsId("tampere:0015"))
+        assertEquals(TransitRegion.HSL, TransitRegion.forGtfsId("HSL:1234"))
+        assertEquals(TransitRegion.HSL, TransitRegion.forGtfsId(null))
+        assertEquals(TransitRegion.HSL, TransitRegion.forGtfsId(""))
+    }
+
+    @Test
+    fun `live-vehiclePositions tosi vain HSL-alueella`() {
+        assertTrue(TransitRegion.HSL.liveVehiclePositions)
+        assertFalse(TransitRegion.TAMPERE.liveVehiclePositions)
+    }
+
+    private fun emptyTimeline() =
+        TripTimeline("4", "Hiedanranta", "BUS", emptyList(), emptyList(), -1, false)
+
+    @Test
+    fun `tripBannerText HSL ilman ajoneuvoa kertoo ettei vuoro ole viela liikkeella`() {
+        val msg = tripBannerText(emptyTimeline(), "BUS", TransitRegion.HSL)
+        assertTrue(msg.contains("ei ole vielä liikkeellä"))
+    }
+
+    @Test
+    fun `tripBannerText Tampere ilman ajoneuvoa EI vaita ettei vuoro liiku`() {
+        val msg = tripBannerText(emptyTimeline(), "BUS", TransitRegion.TAMPERE)
+        assertFalse(msg.contains("ei ole vielä liikkeellä"))
+        assertTrue(msg.contains("ei ole saatavilla"))
+    }
+
+    @Test
+    fun `routeBannerText Tampere ilman ajoneuvoja EI vaita ettei vuoroja liiku`() {
+        val msg = routeBannerText(emptyTimeline(), TransitRegion.TAMPERE)
+        assertFalse(msg.contains("Ei liikkeellä olevia vuoroja"))
+        assertTrue(msg.contains("ei ole saatavilla"))
+    }
+
+    @Test
+    fun `routeBannerText HSL ilman ajoneuvoja sailyttaa nykyviestin`() {
+        val msg = routeBannerText(emptyTimeline(), TransitRegion.HSL)
+        assertTrue(msg.contains("Ei liikkeellä olevia vuoroja"))
+    }
 }
