@@ -53,7 +53,8 @@ private fun fetchNearestStop(ctx: Context): NearbyStop? {
         lat = sm.getHomeLatitude()
         lon = sm.getHomeLongitude()
     }
-    return DigitransitApi.nearbyDepartures(lat, lon, TransitRegion.HSL).firstOrNull()
+    // Alue sijainnista (Tampere-bbox → Nysse, muuten HSL) — kuten etusivun Lähilähdöt-kortti.
+    return DigitransitApi.nearbyDepartures(lat, lon, TransitRegion.forLocation(lat, lon)).firstOrNull()
 }
 
 /** Kokoaa seuraavat 24 tuntia (Helsingin aika, kuluvasta tunnista alkaen — myös keskiyön yli)
@@ -254,10 +255,14 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
                                 val stopId = WidgetCache.departureStopId(ctx, awId)
                                 // Suosikki voi olla pysakki TAI asema (metro/juna): jos pysakkihaku
                                 // palauttaa nullin, kokeillaan asemahakua -> suosikkiasemat toimivat.
-                                if (stopId.isNotBlank())
-                                    DigitransitApi.stopDepartures(stopId, TransitRegion.HSL)
-                                        ?: DigitransitApi.stationDepartures(stopId, TransitRegion.HSL)
-                                else null
+                                if (stopId.isNotBlank()) {
+                                    // Alue suosikin gtfsId-prefiksistä ("tampere:" → Nysse) — suosikit globaaleja.
+                                    val region = TransitRegion.forGtfsId(stopId)
+                                    DigitransitApi.stopDepartures(stopId, region)
+                                        ?: DigitransitApi.stationDepartures(stopId, region)
+                                } else {
+                                    null
+                                }
                             }
                             "NEAREST" -> fetchNearestStop(ctx)
                             else -> null

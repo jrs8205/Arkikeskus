@@ -9,8 +9,8 @@ package org.jrs82.fsclock.mobile;
  * suoralla avaintestillä (waltti-reititin: feeds → "tampere"; stopsByRadius + geocoding sources=gtfstampere).
  */
 public enum TransitRegion {
-    HSL("https://api.digitransit.fi/routing/v2/hsl/gtfs/v1", "gtfshsl", "HSL", "HSL", 60.17, 24.94, true),
-    TAMPERE("https://api.digitransit.fi/routing/v2/waltti/gtfs/v1", "gtfstampere", "tampere", "Tampere", 61.498, 23.761, false);
+    HSL("https://api.digitransit.fi/routing/v2/hsl/gtfs/v1", "gtfshsl", "HSL", "HSL", 60.17, 24.94, true, false),
+    TAMPERE("https://api.digitransit.fi/routing/v2/waltti/gtfs/v1", "gtfstampere", "tampere", "Tampere", 61.498, 23.761, false, true);
 
     /** Reititin-endpoint (GraphQL POST). */
     public final String endpoint;
@@ -31,9 +31,16 @@ public enum TransitRegion {
      * vuoron olevan liikkumatta. (Tampereen MQTT-live on mahdollinen myöhempi laajennus.)
      */
     public final boolean liveVehiclePositions;
+    /**
+     * Tarjoaako tämän alueen live-sijainnit Digitransitin MQTT-brokerista (GTFS-RT protobuf, topic
+     * {@code /gtfsrt/vp/<feed>/…}). Tampere/Nysse kyllä (Waltti ei anna GraphQL-livea, vain MQTT);
+     * HSL ei käytä tätä erikoispolkua (live tulee GraphQL:n {@code vehiclePositions}-kentästä +
+     * HFP-MQTT vehicleId:llä). Käytetään vuoronäkymän live-seurantaan {@link TampereMqttClient}:llä.
+     */
+    public final boolean liveViaMqtt;
 
     TransitRegion(String endpoint, String geocodeSources, String alertFeed, String label,
-                  double focusLat, double focusLon, boolean liveVehiclePositions) {
+                  double focusLat, double focusLon, boolean liveVehiclePositions, boolean liveViaMqtt) {
         this.endpoint = endpoint;
         this.geocodeSources = geocodeSources;
         this.alertFeed = alertFeed;
@@ -41,6 +48,7 @@ public enum TransitRegion {
         this.focusLat = focusLat;
         this.focusLon = focusLon;
         this.liveVehiclePositions = liveVehiclePositions;
+        this.liveViaMqtt = liveViaMqtt;
     }
 
     /** SharedPreferences-tunnisteesta alueeksi; tuntematon/null → HSL (oletus). */

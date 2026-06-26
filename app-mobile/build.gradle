@@ -31,8 +31,8 @@ android {
         applicationId 'org.jrs82.arkikeskus'
         minSdk 30
         targetSdk 35
-        versionCode 78
-        versionName '2.20.0-mobile'
+        versionCode 79
+        versionName '2.21.0-mobile'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
         buildConfigField "String", "YLE_APP_ID", "\"${yleAppId}\""
@@ -162,6 +162,10 @@ dependencies {
     implementation 'org.maplibre.gl:android-sdk:11.13.5'
     // HSL HFP -live-ajoneuvosijainnit (MQTT over TLS). minSdk 30 → ei android-retrofix-tarvetta.
     implementation 'com.hivemq:hivemq-mqtt-client:1.3.14'
+    // Tampere/Nysse GTFS-RT live-ajoneuvosijainnit (Digitransit MQTT, protobuf-payload).
+    // MobilityData-ylläpitämä bindings (generoitu paketti yhä com.google.transit.realtime.*);
+    // vetää com.google.protobuf:protobuf-javan → R8-keepit proguard-rules.pro:ssa.
+    implementation 'org.mobilitydata:gtfs-realtime-bindings:0.0.8'
     implementation 'androidx.health.connect:connect-client:1.1.0'
     // Automaattinen päivittäinen varmuuskopio (AutoBackupWorker)
     implementation 'androidx.work:work-runtime-ktx:2.9.1'

@@ -12,8 +12,14 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -37,6 +43,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -58,6 +65,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -1689,6 +1699,15 @@ private fun FullDayDepRow(d: Departure, onClick: (Departure) -> Unit) {
 
 // ===================== Detaljioverlay: vuoron aikajana / linjanäkymä =====================
 
+/** Yhden VP-päivityksen rakenteellinen ETA: etäisyys nousupysäkkiin reittiä pitkin, ohitustila,
+ *  nousupysäkin lähtöaika. ETA-kortti renderöi tästä; banneriteksti muotoillaan tästä [liveBannerText]:llä. */
+private class LiveEta(
+    val toBoardMeters: Double,   // etäisyys nousupysäkkiin (m); negatiivinen jos jo ohitettu
+    val passed: Boolean,         // bussi ohittanut nousupysäkin (toBoard < -30)
+    val boardEpochSec: Long,     // nousupysäkin lähtöaika (0 jos tuntematon)
+    val gps: Boolean,            // sijainti aitoa GPS:ää (ei "arvio")
+)
+
 /** Live-MQTT-projektion tila (vastaa TransitFragmentin liveCum/liveStopDist/liveStopVertex/liveLastAlong). */
 private class LiveTracking(val tl: TripTimeline) {
     val cum: DoubleArray = RouteProjection.cumulative(tl.shape)
@@ -1696,8 +1715,8 @@ private class LiveTracking(val tl: TripTimeline) {
     val stopDist: DoubleArray = RouteProjection.stopDistances(tl.shape, cum, tl.stops, stopVertex)
     var lastAlong = Double.NaN
 
-    /** VP-päivitys → uusi banneriteksti tai null jos päivitys hylätään (sama suodatus kuin View). */
-    fun bannerFor(mode: String, lat: Double, lon: Double, loc: String?, tsi: Long): String? {
+    /** VP-päivitys → rakenteellinen ETA tai null jos päivitys hylätään (sama suodatus kuin ennen). */
+    fun etaFor(lat: Double, lon: Double, loc: String?, tsi: Long): LiveEta? {
         if (!lat.isFinite() || !lon.isFinite() || lat < -90 || lat > 90 || lon < -180 || lon > 180) return null
         val nowSec = System.currentTimeMillis() / 1000L
         if (tsi > 0 && (tsi < nowSec - 60 || tsi > nowSec + 30)) return null
@@ -1723,29 +1742,45 @@ private class LiveTracking(val tl: TripTimeline) {
         if (lastAlong.isFinite() && pr[0] + 30 < lastAlong) return null
         lastAlong = if (lastAlong.isFinite()) maxOf(lastAlong, pr[0]) else pr[0]
         val toBoard = stopDist[board] - lastAlong
-        val word = transitModeWord(mode)
-        val src = if ("GPS".equals(loc, ignoreCase = true)) "" else " (arvio)"
-        if (toBoard < -30) return "$word on jo ohittanut pysäkkisi$src."
-        val boardEpoch = tl.stops[board].depEpochSec
-        var eta = ""
-        if (boardEpoch > 0) {
-            val secs = boardEpoch - System.currentTimeMillis() / 1000L
-            eta = if (secs in 0 until 3600) {
-                " (saapuu ~klo ${liveClockText(boardEpoch)}, ~${maxOf(1, Math.round(secs / 60.0))} min)"
-            } else {
-                " (saapuu ~klo ${liveClockText(boardEpoch)})"
-            }
-        }
-        return "$word ~${formatMetersFi(maxOf(0.0, toBoard))} ennen pysäkkiäsi$eta$src."
+        return LiveEta(toBoard, toBoard < -30, tl.stops[board].depEpochSec,
+            "GPS".equals(loc, ignoreCase = true))
     }
+
+    /** VP-päivitys → banneriteksti (entinen muotoilu säilytetty) tai null jos hylätään. */
+    fun bannerFor(mode: String, lat: Double, lon: Double, loc: String?, tsi: Long): String? {
+        val e = etaFor(lat, lon, loc, tsi) ?: return null
+        return liveBannerText(mode, e)
+    }
+}
+
+/** [LiveEta] → sama banneriteksti kuin ennen (kuvausrivi varatilana + vanha tekstipolku). */
+private fun liveBannerText(mode: String, e: LiveEta): String {
+    val word = transitModeWord(mode)
+    val src = if (e.gps) "" else " (arvio)"
+    if (e.passed) return "$word on jo ohittanut pysäkkisi$src."
+    var eta = ""
+    if (e.boardEpochSec > 0) {
+        val secs = e.boardEpochSec - System.currentTimeMillis() / 1000L
+        eta = if (secs in 0 until 3600) {
+            " (saapuu ~klo ${liveClockText(e.boardEpochSec)}, ~${maxOf(1, Math.round(secs / 60.0))} min)"
+        } else {
+            " (saapuu ~klo ${liveClockText(e.boardEpochSec)})"
+        }
+    }
+    return "$word ~${formatMetersFi(maxOf(0.0, e.toBoardMeters))} ennen pysäkkiäsi$eta$src."
 }
 
 internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegion): String {
     val word = transitModeWord(mode)
     if (tl.vehicleStopIndices.isEmpty()) {
-        // Waltti/Tampere ei tarjoa GraphQL-live-sijaintia → älä väitä vuoron olevan liikkumatta.
-        return if (region.liveVehiclePositions) "Ei live-sijaintia — vuoro ei ole vielä liikkeellä."
-        else "Live-sijainti ei ole saatavilla tällä alueella — ajat ovat aikataulun mukaiset."
+        // HSL: GraphQL on auktoriteetti → tyhjä = vuoro ei liikkeellä. Tampere: live tulee MQTT:stä
+        // (tämä GraphQL-pohjainen teksti on vain varatila kunnes MQTT-overlay täyttää bannerin) →
+        // neutraali "haetaan", ei valhetta. Muut alueet: ei live-sijaintia lainkaan.
+        return when {
+            region.liveVehiclePositions -> "Ei live-sijaintia — vuoro ei ole vielä liikkeellä."
+            region.liveViaMqtt -> "Haetaan live-sijaintia…"
+            else -> "Live-sijainti ei ole saatavilla tällä alueella — ajat ovat aikataulun mukaiset."
+        }
     }
     val relIdx = tl.vehicleStopIndices[0]
     val approaching = tl.vehicleIncoming
@@ -1776,6 +1811,205 @@ internal fun routeBannerText(tl: TripTimeline, region: TransitRegion): String {
         " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä."
 }
 
+/** Vuoronäkymän yläosa (UI-spec-A, löyhästi sovellettu): app bar (linja + lähtö→määränpää, EI
+ *  takaisin-nuolta — järjestelmän paluuele riittää) + ETA-kortti. Iso saapumisaika nousupysäkin
+ *  lähtöajasta; sykkivä live-piste + etäisyys kun GPS-dataa on; degradoituu (kortti aina). Kaikki
+ *  nykyiset bannerin tilat säilyvät kortin kuvausrivinä. Adaptoituu vaaleaan/tummaan teemaan. */
+@Composable
+private fun TripEtaHeader(
+    detail: TransitDetail.Trip,
+    tl: TripTimeline?,
+    liveEta: LiveEta?,
+    bannerText: String,
+) {
+    val dark = isSystemInDarkTheme()
+    val accent = if (dark) Color(0xFF2F7EF0) else Color(0xFF1565C0)
+    val cardBrush = if (dark) {
+        Brush.linearGradient(listOf(Color(0xFF15233B), Color(0xFF101722)))
+    } else {
+        Brush.linearGradient(listOf(Color(0xFFE7F0FE), Color(0xFFF6F9FF)))
+    }
+    val cardBorder = accent.copy(alpha = 0.35f)
+    val labelColor = if (dark) Color(0xFF7FB0FF) else accent
+    val bigColor = if (dark) Color.White else Color(0xFF0B1F3A)
+    val midColor = if (dark) Color(0xFFCDD2DA) else Color(0xFF42474E)
+    val dimColor = if (dark) Color(0xFF9AA0A8) else Color(0xFF6B7079)
+
+    val boardStop = tl?.stops?.getOrNull(tl.boardStopIndex)
+    val boardEpoch = boardStop?.depEpochSec ?: 0L
+    val minutes = if (boardEpoch > 0) {
+        ((boardEpoch - System.currentTimeMillis() / 1000L) / 60L).toInt()
+    } else {
+        null
+    }
+    val klo = if (boardEpoch > 0) liveClockText(boardEpoch) else null
+    // Headsign on Tampereella muotoa "Lähtö → Määränpää", HSL:llä pelkkä määränpää. Jaetaan
+    // himmeäksi lähtöriviksi + korostetuksi määränpääksi; HSL:llä lähtö = reitin ensimmäinen pysäkki.
+    val arrowIdx = detail.headsign.indexOf('→')
+    val originText = if (arrowIdx >= 0) {
+        detail.headsign.substring(0, arrowIdx).trim()
+    } else {
+        (tl?.stops?.firstOrNull()?.name) ?: ""
+    }
+    val destText = if (arrowIdx >= 0) detail.headsign.substring(arrowIdx + 1).trim() else detail.headsign
+    val boardName = (boardStop?.name) ?: ""
+    val passed = liveEta?.passed == true
+    val live = liveEta != null && !liveEta.passed
+    val distanceText = if (live && liveEta != null) formatMetersFi(maxOf(0.0, liveEta.toBoardMeters)) else null
+    // Kuvausrivi (kaikki bannerin tilat säilyvät) näytetään kun ei "siistissä" live-tilassa.
+    val showDescriptive = liveEta == null || passed
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // App bar (ei takaisin-nuolta).
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .height(32.dp)
+                    .defaultMinSize(minWidth = 42.dp)
+                    .background(transitModeColor(detail.mode), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    detail.shortName.ifEmpty { "?" },
+                    color = transitOnModeColor(detail.mode),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                if (originText.isNotBlank()) {
+                    Text(
+                        "${originText.uppercase(Locale.getDefault())} →",
+                        color = dimColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.3.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    destText,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        // ETA-kortti.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 14.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(cardBrush)
+                .border(1.dp, cardBorder, RoundedCornerShape(18.dp))
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (passed) "OHITTANUT PYSÄKKISI" else "SAAPUU PYSÄKILLESI",
+                        color = labelColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.4.sp,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    if (!passed && minutes != null && minutes in 0..180) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text("≈", color = dimColor, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.width(6.dp))
+                            Text("$minutes", color = bigColor, fontSize = 40.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(6.dp))
+                            Text("min", color = midColor, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                            if (klo != null) {
+                                Spacer(Modifier.width(8.dp))
+                                Text("·", color = dimColor, fontSize = 20.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("klo", color = dimColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Spacer(Modifier.width(4.dp))
+                                Text(klo, color = midColor, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    } else if (klo != null) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text("klo", color = dimColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.width(6.dp))
+                            Text(klo, color = bigColor, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                if (live) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        PulsingLiveDot(accent)
+                        if (distanceText != null) {
+                            Text(distanceText, color = dimColor, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+            if (boardName.isNotBlank()) {
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(labelColor))
+                    Spacer(Modifier.width(8.dp))
+                    Text(boardName, color = midColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+            if (showDescriptive) {
+                Spacer(Modifier.height(12.dp))
+                Text(bannerText, color = dimColor, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+        }
+    }
+}
+
+/** Sykkivä live-piste: staattinen piste + laajeneva/häipyvä rengas (1.8 s loop). */
+@Composable
+private fun PulsingLiveDot(color: Color) {
+    val transition = rememberInfiniteTransition(label = "livedot")
+    val scale by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 2.4f,
+        animationSpec = infiniteRepeatable(animation = tween(1800), repeatMode = RepeatMode.Restart),
+        label = "scale",
+    )
+    val pulseAlpha by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(animation = tween(1800), repeatMode = RepeatMode.Restart),
+        label = "alpha",
+    )
+    Box(modifier = Modifier.size(13.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .size(13.dp)
+                .scale(scale)
+                .alpha(pulseAlpha)
+                .clip(CircleShape)
+                .background(color),
+        )
+        Box(modifier = Modifier.size(13.dp).clip(CircleShape).background(color))
+    }
+}
+
 @Composable
 private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -1789,6 +2023,13 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
     }
     val liveHolder = remember(detail) { mutableStateOf<LiveTracking?>(null) }
     var detailAlert by remember(detail) { mutableStateOf<TransitAlert?>(null) }
+    // Tampereen MQTT-live (Waltti ei anna GraphQL-livea): overlay GraphQL-pohjaisen tilan päälle.
+    // liveBanner ohittaa GraphQL-bannerin kun MQTT-dataa on; liveStopIndex korostaa oikean pysäkin.
+    var liveBanner by remember(detail) { mutableStateOf<String?>(null) }
+    var liveStopIndex by remember(detail) { mutableIntStateOf(-1) }
+    var liveIncoming by remember(detail) { mutableStateOf(false) }
+    // Rakenteellinen live-ETA (HSL + Tampere): ETA-kortin iso luku/etäisyys/sykkivä piste.
+    var liveEta by remember(detail) { mutableStateOf<LiveEta?>(null) }
 
     // Linjanäkymä: hae suunnat kerran (vastaa openRoute-iota).
     LaunchedEffect(detail) {
@@ -1839,8 +2080,11 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     )
                     banner = if (isRoute) routeBannerText(tl, bannerRegion)
                     else tripBannerText(tl, detail.mode, bannerRegion)
-                    liveHolder.value = if (!isRoute && tl.boardStopIndex >= 0 &&
-                        !tl.vehicleId.isNullOrEmpty() && tl.shape.size >= 2
+                    // HSL: vaatii GraphQL:stä saadun vehicleId:n (HFP-MQTT-tilausta varten).
+                    // Tampere (liveViaMqtt): vehicleId on aina tyhjä → riittää reittimuoto + nousupysäkki,
+                    // live-GPS tulee TampereMqttClientilta route-topicista.
+                    liveHolder.value = if (!isRoute && tl.boardStopIndex >= 0 && tl.shape.size >= 2 &&
+                        (!tl.vehicleId.isNullOrEmpty() || bannerRegion.liveViaMqtt)
                     ) {
                         LiveTracking(tl)
                     } else {
@@ -1876,8 +2120,43 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             client.subscribeVehicle(liveVehicleId) { lat, lon, _, _, loc, _, tsi ->
                 main.post {
                     val holder = liveHolder.value ?: return@post
-                    val text = holder.bannerFor(detail.mode, lat, lon, loc, tsi)
-                    if (text != null) banner = text
+                    val e = holder.etaFor(lat, lon, loc, tsi) ?: return@post
+                    liveEta = e
+                    banner = liveBannerText(detail.mode, e)
+                }
+            }
+            onDispose { client.disconnect() }
+        }
+    }
+
+    // Tampereen MQTT-livetilaus (Waltti ei anna GraphQL-livea): vain vuoronäkymälle Tampere-alueella,
+    // vain etualalla. Tilaa reitin (patternCode) vp-virran ja suodattaa tämän vuoron ajoneuvon →
+    // päivittää banner-overlayn (GPS-projektio, sama bannerFor kuin HSL) + aikajanan pysäkkikorostuksen.
+    val tampereTrip = detail as? TransitDetail.Trip
+    val tampereTrackKey = if (tampereTrip != null && liveHolder.value != null &&
+        regionForGtfsId(tampereTrip.tripGtfsId).liveViaMqtt
+    ) tampereTrip.tripGtfsId else null
+    DisposableEffect(tampereTrackKey, resumed) {
+        if (tampereTrackKey == null || !resumed || tampereTrip == null) {
+            onDispose { }
+        } else {
+            val client = TampereMqttClient()
+            val main = Handler(Looper.getMainLooper())
+            val mode = tampereTrip.mode
+            val tripId = tampereTrip.tripGtfsId.removePrefix("tampere:")
+            client.subscribe(tampereTrip.patternCode, tripId) { lat, lon, _, incoming, stopId, _, tsi ->
+                main.post {
+                    val holder = liveHolder.value ?: return@post
+                    val e = holder.etaFor(lat, lon, "GPS", tsi)
+                    if (e != null) {
+                        liveEta = e
+                        liveBanner = liveBannerText(mode, e)
+                    }
+                    val idx = holder.tl.stops.indexOfFirst { it.gtfsId == "tampere:$stopId" }
+                    if (idx >= 0) {
+                        liveStopIndex = idx
+                        liveIncoming = incoming
+                    }
                 }
             }
             onDispose { client.disconnect() }
@@ -1890,75 +2169,80 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        // Header: takaisin + linjabadge + määränpää + suunnanvaihto.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(start = 4.dp, end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    painterResource(R.drawable.mobile_ic_arrow_back),
-                    contentDescription = "Takaisin",
-                )
-            }
-            Box(
+        if (detail is TransitDetail.Trip) {
+            // Vuoronäkymä: uusi yläosa = ETA-kortti (UI-spec-A). Ei takaisin-nuolta — järjestelmän
+            // paluuele/-nappi (BackHandler) sulkee. Kaikki bannerin tilat säilyvät kortin kuvausrivinä.
+            TripEtaHeader(detail, tl, liveEta, liveBanner ?: banner)
+        } else {
+            // Linjanäkymä: entinen header + tekstipalkki ennallaan.
+            Row(
                 modifier = Modifier
-                    .padding(start = 2.dp)
-                    .height(32.dp)
-                    .widthIn(min = 42.dp)
-                    .background(transitModeColor(detail.mode), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(start = 4.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        painterResource(R.drawable.mobile_ic_arrow_back),
+                        contentDescription = "Takaisin",
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(start = 2.dp)
+                        .height(32.dp)
+                        .widthIn(min = 42.dp)
+                        .background(transitModeColor(detail.mode), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        detail.shortName.ifEmpty { "?" },
+                        color = transitOnModeColor(detail.mode),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                val dest = when (detail) {
+                    is TransitDetail.Trip -> detail.headsign
+                    is TransitDetail.Route ->
+                        routePatterns?.patterns?.getOrNull(patternIdx)?.directionLabel()
+                            ?: detail.preferredHeadsign
+                }
                 Text(
-                    detail.shortName.ifEmpty { "?" },
-                    color = transitOnModeColor(detail.mode),
-                    fontSize = 15.sp,
+                    dest,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 10.dp),
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            }
-            val dest = when (detail) {
-                is TransitDetail.Trip -> detail.headsign
-                is TransitDetail.Route ->
-                    routePatterns?.patterns?.getOrNull(patternIdx)?.directionLabel()
-                        ?: detail.preferredHeadsign
-            }
-            Text(
-                dest,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 10.dp),
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val rp = routePatterns
-            if (detail is TransitDetail.Route && rp != null && rp.patterns.size > 1) {
-                TextButton(onClick = {
-                    patternIdx = (patternIdx + 1) % rp.patterns.size
-                    timeline = null
-                    banner = "Haetaan aikataulua…"
-                }) {
-                    Text("Valitse suunta", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                val rp = routePatterns
+                if (detail is TransitDetail.Route && rp != null && rp.patterns.size > 1) {
+                    TextButton(onClick = {
+                        patternIdx = (patternIdx + 1) % rp.patterns.size
+                        timeline = null
+                        banner = "Haetaan aikataulua…"
+                    }) {
+                        Text("Valitse suunta", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
+            Text(
+                liveBanner ?: banner,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .padding(14.dp),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 21.sp,
+            )
         }
-        // Banneri ("Bussi on N pysäkin päässä…" / live-MQTT-teksti).
-        Text(
-            banner,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .padding(14.dp),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 21.sp,
-        )
         // Linjan häiriötiedotteet (vain linjanäkymässä; vakavin ensin).
         val routeAlerts = routePatterns?.alerts
         if (detail is TransitDetail.Route && !routeAlerts.isNullOrEmpty()) {
@@ -1973,11 +2257,14 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             }
         }
         // Aikajana.
-        val vehicles = remember(tl) { tl?.vehicleStopIndices?.toSet() ?: emptySet() }
-        val passedBefore = if (tl != null && detail is TransitDetail.Trip && tl.vehicleStopIndices.size == 1) {
-            tl.vehicleStopIndices[0]
-        } else {
-            -1
+        // Tampere: live-pysäkki tulee MQTT:stä (liveStopIndex); HSL: GraphQL:n vehicleStopIndices.
+        val vehicles = if (liveStopIndex >= 0) setOf(liveStopIndex)
+            else (tl?.vehicleStopIndices?.toSet() ?: emptySet())
+        val passedBefore = when {
+            liveStopIndex >= 0 -> liveStopIndex
+            tl != null && detail is TransitDetail.Trip && tl.vehicleStopIndices.size == 1 ->
+                tl.vehicleStopIndices[0]
+            else -> -1
         }
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -1992,7 +2279,8 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     isVehicle = vehicles.contains(i),
                     isBoard = i == (tl?.boardStopIndex ?: -1),
                     passed = passedBefore >= 0 && i < passedBefore,
-                    approaching = tl?.vehicleIncoming == true && detail is TransitDetail.Trip,
+                    approaching = if (liveStopIndex >= 0) liveIncoming
+                        else tl?.vehicleIncoming == true && detail is TransitDetail.Trip,
                     mode = detail.mode,
                 )
             }

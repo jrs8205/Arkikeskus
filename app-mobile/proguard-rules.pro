@@ -34,6 +34,14 @@
 -dontwarn com.oracle.svm.core.annotate.**
 -dontwarn reactor.blockhound.**
 
+## Tampere/Nysse GTFS-RT (Digitransit MQTT, protobuf-payload). protobuf-java käyttää
+## reflektiota (GeneratedMessageV3-kenttäaccessorit) → pidetään generoidut viestiluokat
+## JA protobuf-runtime kokonaan, muuten parseFrom hajoaa R8:n jälkeen (vrt. Glance/R8-opit:
+## testaa AINA allekirjoitetulla release-APK:lla). -dontwarn com.google.protobuf.** on jo yllä.
+-keep class com.google.transit.realtime.** { *; }
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.transit.realtime.**
+
 ## Room-entiteetit (sarakemäppäys ei saa hajota; annotaatiopohjaiset yleensä OK,
 ## mutta pidetään varmuuden vuoksi: RuuviSampleEntity, DailyStepsEntity, DailyStat, WeatherSample)
 -keep @androidx.room.Entity class * { *; }
