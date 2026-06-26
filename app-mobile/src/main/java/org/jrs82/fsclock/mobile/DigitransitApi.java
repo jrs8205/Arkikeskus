@@ -45,9 +45,6 @@ public final class DigitransitApi {
             + " alerts { " + ALERT_FIELDS + " }"
             + " stoptimesWithoutPatterns(numberOfDepartures: 5) { " + STOPTIME_FIELDS + " } } } } } } }";
 
-    private static final String ROUTES_QUERY =
-            "query Routes($name: String!) { routes(name: $name) {"
-            + " gtfsId shortName longName mode } }";
 
     private static final String TIMELINE_QUERY =
             "query TL($trip: String!, $pat: String!) {"
@@ -304,7 +301,12 @@ public final class DigitransitApi {
     static List<RouteHit> searchRoutes(String name, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
         variables.put("name", name);
-        JSONObject data = postQuery(ROUTES_QUERY, variables, region);
+        // Suodata haku alueen feediin: Waltti-reititin (Tampere) kattaa monta kaupunkia, joten ilman
+        // feeds-suodatinta haku palauttaisi muidenkin kaupunkien reittejä, joiden patternit eivät
+        // resolvoidu Tampere-alueella ("Linjan tietoja ei saatu"). HSL-reititin on jo HSL-only.
+        String q = "query Routes($name: String!) { routes(name: $name, feeds:[\"" + region.alertFeed
+                + "\"]) { gtfsId shortName longName mode } }";
+        JSONObject data = postQuery(q, variables, region);
         JSONArray routes = data == null ? null : data.optJSONArray("routes");
         List<RouteHit> out = new ArrayList<>();
         if (routes == null) return out;

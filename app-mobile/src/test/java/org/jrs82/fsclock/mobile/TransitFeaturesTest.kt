@@ -186,10 +186,13 @@ class TransitFeaturesTest {
     }
 
     @Test
-    fun `routeBannerText Tampere ilman ajoneuvoja EI vaita ettei vuoroja liiku`() {
+    fun `routeBannerText Tampere ilman ajoneuvoja hakee live-sijaintia MQTT-polulla`() {
+        // Tampereen linjanäkymässä on nyt MQTT-live (B3) → kun GraphQL-dataa ei ole, neutraali
+        // "haetaan" eikä valhe "ei ole saatavilla" (live ON saatavilla) tai "ei vuoroja liikkeellä".
         val msg = routeBannerText(emptyTimeline(), TransitRegion.TAMPERE)
         assertFalse(msg.contains("Ei liikkeellä olevia vuoroja"))
-        assertTrue(msg.contains("ei ole saatavilla"))
+        assertFalse(msg.contains("ei ole saatavilla"))
+        assertTrue(msg.contains("Haetaan"))
     }
 
     @Test
