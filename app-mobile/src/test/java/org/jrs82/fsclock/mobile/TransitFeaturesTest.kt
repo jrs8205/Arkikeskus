@@ -159,6 +159,13 @@ class TransitFeaturesTest {
         assertFalse(TransitRegion.TAMPERE.liveVehiclePositions)
     }
 
+    @Test
+    fun `liveViaMqtt tosi vain Tampereella`() {
+        // Tampere: live MQTT GTFS-RT:stä; HSL: live GraphQL:stä, ei MQTT-erikoispolkua.
+        assertTrue(TransitRegion.TAMPERE.liveViaMqtt)
+        assertFalse(TransitRegion.HSL.liveViaMqtt)
+    }
+
     private fun emptyTimeline() =
         TripTimeline("4", "Hiedanranta", "BUS", emptyList(), emptyList(), -1, false)
 
@@ -169,10 +176,13 @@ class TransitFeaturesTest {
     }
 
     @Test
-    fun `tripBannerText Tampere ilman ajoneuvoa EI vaita ettei vuoro liiku`() {
+    fun `tripBannerText Tampere ilman ajoneuvoa hakee live-sijaintia MQTT-polulla`() {
+        // Tampereella trip-näkymässä on nyt MQTT-live → kun GraphQL-dataa ei ole, neutraali
+        // "haetaan" eikä valhe "ei ole saatavilla" (live ON saatavilla) tai "ei ole vielä liikkeellä".
         val msg = tripBannerText(emptyTimeline(), "BUS", TransitRegion.TAMPERE)
         assertFalse(msg.contains("ei ole vielä liikkeellä"))
-        assertTrue(msg.contains("ei ole saatavilla"))
+        assertFalse(msg.contains("ei ole saatavilla"))
+        assertTrue(msg.contains("Haetaan"))
     }
 
     @Test
