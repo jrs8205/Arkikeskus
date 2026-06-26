@@ -6,32 +6,58 @@ import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 /** Tampereen/Nyssen GTFS-RT live-ajoneuvosijainnit Digitransitin MQTT-brokerista
- *  (mqtt.digitransit.fi:8883, TLS, ei avainta). Tilaa yhden reitin+suunnan vp-virran ja suodattaa
- *  callbackissa annetun vuoron (tripId) ajoneuvon. Payload = protobuf GTFS-RT (vrt. {@link HslMqttClient},
- *  joka käyttää HSL:n JSON-HFP:tä) → parsinta {@link TampereVehicleParser}:lla. Callback tulee
- *  MQTT-säikeestä → kutsuja vastaa UI-säikeelle siirrosta (kuten HSL-polulla).
+ *  (mqtt.digitransit.fi:8883, TLS, ei avainta). Tilaa reitin+suunnan vp-virran. Vuoronäkymä
+ *  ({@link #subscribe}) suodattaa yhden vuoron (tripId); linjanäkymä ({@link #subscribeRoute})
+ *  välittää kaikki reitin vuorot (monivuorokorostus, kuten HSL GraphQL:n vehiclePositions).
+ *  Payload = protobuf GTFS-RT (vrt. {@link HslMqttClient} = HSL:n JSON-HFP) → parsinta
+ *  {@link TampereVehicleParser}:lla. Callback tulee MQTT-säikeestä → kutsuja vastaa UI-säikeelle siirrosta.
  *
  *  <p>Topic-suodatin ja kenttämappays varmistettu live-datalla 26.6.2026; ks. {@code PLAN_tampere_mqtt_live.md}. */
 final class TampereMqttClient {
 
-    /** Suodatetun vuoron ajoneuvon päivitys. lat/lon/bearing NaN ja stopSequence -1 jos puuttuu;
-     *  incoming = lähestyy pysäkkiä (ei STOPPED_AT); tsi = GTFS-RT timestamp (unix s, 0 jos puuttuu). */
+    /** Suodatetun vuoron ajoneuvon päivitys (vuoronäkymä). lat/lon/bearing NaN ja stopSequence -1 jos
+     *  puuttuu; incoming = lähestyy pysäkkiä (ei STOPPED_AT); tsi = GTFS-RT timestamp (unix s, 0 jos puuttuu). */
     interface Listener {
         void onVehicle(double lat, double lon, double bearing, boolean incoming,
+                       String stopId, int stopSequence, long tsi);
+    }
+
+    /** Kuten {@link Listener}, mutta ilman trip-suodatusta: callback per ajoneuvo (kaikki reitin vuorot),
+     *  tripId mukana jotta kutsuja osaa eritellä vuorot (linjanäkymän monivuorokorostus). */
+    interface RouteListener {
+        void onVehicle(String tripId, double lat, double lon, double bearing, boolean incoming,
                        String stopId, int stopSequence, long tsi);
     }
 
     private final AtomicLong generation = new AtomicLong();
     private volatile Mqtt3AsyncClient client;
 
-    /** Tilaa patternin (reitti+suunta) vp-virran ja välittää vain tripId:tä vastaavan ajoneuvon.
-     *  Sulkee mahdollisen edellisen yhteyden ensin (yksi yhteys per avattu aikajana). */
+    /** Tilaa patternin (reitti+suunta) vp-virran ja välittää vain tripId:tä vastaavan ajoneuvon. */
     void subscribe(String patternCode, String tripId, Listener listener) {
+        if (tripId == null || tripId.isEmpty() || listener == null) {
+            disconnect();
+            return;
+        }
+        connect(topicForPattern(patternCode), payload -> handle(payload, tripId, listener));
+    }
+
+    /** Tilaa patternin (reitti+suunta) vp-virran ja välittää KAIKKI vuorot (ei trip-suodatusta). */
+    void subscribeRoute(String patternCode, RouteListener listener) {
+        if (listener == null) {
+            disconnect();
+            return;
+        }
+        connect(topicForPattern(patternCode), payload -> handleRoute(payload, listener));
+    }
+
+    /** Sulkee edellisen yhteyden, avaa uuden TLS-yhteyden brokeriin ja tilaa topicin. onPayload
+     *  kutsutaan jokaisesta viestistä vain niin kauan kuin tämä tilaus on yhä voimassa (generation-token). */
+    private void connect(String topic, Consumer<byte[]> onPayload) {
         disconnect();
-        final String topic = topicForPattern(patternCode);
-        if (topic == null || tripId == null || tripId.isEmpty() || listener == null) return;
+        if (topic == null || onPayload == null) return;
         final long token = generation.incrementAndGet();
         final Mqtt3AsyncClient c = MqttClient.builder()
                 .useMqttVersion3()
@@ -55,7 +81,7 @@ final class TampereMqttClient {
                     .qos(MqttQos.AT_MOST_ONCE)
                     .callback(pub -> {
                         if (generation.get() == token && client == c) {
-                            handle(pub.getPayloadAsBytes(), tripId, listener);
+                            onPayload.accept(pub.getPayloadAsBytes());
                         }
                     })
                     .send()
@@ -74,6 +100,15 @@ final class TampereMqttClient {
                 l.onVehicle(vp.lat, vp.lon, vp.bearing, vp.incoming, vp.stopId, vp.stopSequence,
                         vp.timestampSec);
                 return;
+            }
+        }
+    }
+
+    private static void handleRoute(byte[] payload, RouteListener l) {
+        for (TampereVehicleParser.Vp vp : TampereVehicleParser.parse(payload)) {
+            if (vp.tripId != null && !vp.tripId.isEmpty()) {
+                l.onVehicle(vp.tripId, vp.lat, vp.lon, vp.bearing, vp.incoming, vp.stopId,
+                        vp.stopSequence, vp.timestampSec);
             }
         }
     }

@@ -1802,10 +1802,13 @@ internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegio
 internal fun routeBannerText(tl: TripTimeline, region: TransitRegion): String {
     val c = tl.vehicleStopIndices.size
     if (c == 0) {
-        // Waltti/Tampere ei tarjoa GraphQL-live-sijaintia → älä väitä ettei vuoroja liiku.
-        return if (region.liveVehiclePositions)
-            "Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat."
-        else "Live-sijainti ei ole saatavilla tällä alueella — alla reitti ja seuraavat lähtöajat."
+        // HSL: GraphQL auktoriteetti. Tampere: live tulee MQTT:stä (tämä on varatila kunnes MQTT-overlay
+        // päivittää bannerin live-vuorojen määrällä) → neutraali "haetaan". Muut: ei livea.
+        return when {
+            region.liveVehiclePositions -> "Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat."
+            region.liveViaMqtt -> "Haetaan live-sijaintia — alla reitti ja seuraavat lähtöajat."
+            else -> "Live-sijainti ei ole saatavilla tällä alueella — alla reitti ja seuraavat lähtöajat."
+        }
     }
     return c.toString() + (if (c == 1) " vuoro liikkeellä" else " vuoroa liikkeellä") +
         " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä."
@@ -2030,6 +2033,12 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
     var liveIncoming by remember(detail) { mutableStateOf(false) }
     // Rakenteellinen live-ETA (HSL + Tampere): ETA-kortin iso luku/etäisyys/sykkivä piste.
     var liveEta by remember(detail) { mutableStateOf<LiveEta?>(null) }
+    // Linjanäkymän Tampere-MQTT-live (B3): tripId → (pysäkki-indeksi, viimeksi nähty ms). Useampi
+    // vuoro yhtä aikaa korostettuna; vanhenee 90 s (vrt. HSL GraphQL-vehiclePositions). Nollautuu suuntaa
+    // vaihdettaessa (patternIdx). Kerätään mappiin jotta sama vuoro päivittyy eikä kerry duplikaatteja.
+    var liveRouteStops by remember(detail, patternIdx) {
+        mutableStateOf<Map<String, Pair<Int, Long>>>(emptyMap())
+    }
 
     // Linjanäkymä: hae suunnat kerran (vastaa openRoute-iota).
     LaunchedEffect(detail) {
@@ -2163,6 +2172,43 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
         }
     }
 
+    // Tampereen MQTT-live LINJANÄKYMÄLLE (B3): tilaa valitun suunnan vp-virta ja korosta KAIKKI
+    // liikkeellä olevat vuorot aikajanalla (kuten HSL:n GraphQL-vehiclePositions). Vain etualalla;
+    // re-tilaus suuntaa vaihdettaessa (avain = patternin code), katkeaa overlayn sulkeutuessa.
+    val tampereRoute = detail as? TransitDetail.Route
+    val routeTrackKey = if (tampereRoute != null && routePatterns != null &&
+        regionForGtfsId(tampereRoute.routeGtfsId).liveViaMqtt
+    ) {
+        routePatterns?.patterns?.getOrNull(patternIdx)?.code
+    } else {
+        null
+    }
+    DisposableEffect(routeTrackKey, resumed) {
+        if (routeTrackKey == null || !resumed) {
+            onDispose { }
+        } else {
+            liveBanner = null // nollaa edellisen suunnan laskuri; uusi tilaus täyttää
+            val client = TampereMqttClient()
+            val main = Handler(Looper.getMainLooper())
+            client.subscribeRoute(routeTrackKey) { tripId, _, _, _, _, stopId, _, _ ->
+                main.post {
+                    val t = timeline ?: return@post
+                    val idx = t.stops.indexOfFirst { it.gtfsId == "tampere:$stopId" }
+                    if (idx >= 0) {
+                        liveRouteStops = liveRouteStops + (tripId to (idx to System.currentTimeMillis()))
+                        val active = liveRouteStops.values.count {
+                            System.currentTimeMillis() - it.second < 90_000L
+                        }
+                        liveBanner = "$active " +
+                            (if (active == 1) "vuoro liikkeellä" else "vuoroa liikkeellä") +
+                            " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä."
+                    }
+                }
+            }
+            onDispose { client.disconnect() }
+        }
+    }
+
     val tl = timeline
     Column(
         modifier = Modifier
@@ -2257,9 +2303,19 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             }
         }
         // Aikajana.
-        // Tampere: live-pysäkki tulee MQTT:stä (liveStopIndex); HSL: GraphQL:n vehicleStopIndices.
-        val vehicles = if (liveStopIndex >= 0) setOf(liveStopIndex)
-            else (tl?.vehicleStopIndices?.toSet() ?: emptySet())
+        // Korostettavat pysäkit: vuoronäkymä Tampere = liveStopIndex (yksi); linjanäkymä Tampere =
+        // liveRouteStops (kaikki tuoreet vuorot, vanhenee 90 s); muuten HSL:n GraphQL-vehicleStopIndices.
+        val routeLiveSet = if (detail is TransitDetail.Route) {
+            val now = System.currentTimeMillis()
+            liveRouteStops.values.asSequence().filter { now - it.second < 90_000L }.map { it.first }.toSet()
+        } else {
+            emptySet()
+        }
+        val vehicles = when {
+            liveStopIndex >= 0 -> setOf(liveStopIndex)
+            routeLiveSet.isNotEmpty() -> routeLiveSet
+            else -> tl?.vehicleStopIndices?.toSet() ?: emptySet()
+        }
         val passedBefore = when {
             liveStopIndex >= 0 -> liveStopIndex
             tl != null && detail is TransitDetail.Trip && tl.vehicleStopIndices.size == 1 ->
