@@ -108,6 +108,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
     lint {
         abortOnError false
     }

@@ -66,6 +66,8 @@ public class WarningsClient {
             String status = alert.optString("status", "");
             if (!"Actual".equalsIgnoreCase(status)) continue;
             String identifier = alert.optString("identifier", "");
+            String msgType = alert.optString("msgType", "");
+            if ("Cancel".equalsIgnoreCase(msgType)) continue;
 
             JSONArray infos = alert.optJSONArray("info");
             if (infos == null) continue;
@@ -86,14 +88,17 @@ public class WarningsClient {
             if (onset > 0L && onset > cutoff) continue;
 
             WeatherWarning.Level level = WeatherWarning.Level.UNKNOWN;
+            WeatherWarning.AwarenessType awarenessType = WeatherWarning.AwarenessType.UNKNOWN;
             JSONArray params = info.optJSONArray("parameter");
             if (params != null) {
                 for (int k = 0; k < params.length(); k++) {
                     JSONObject p = params.optJSONObject(k);
                     if (p == null) continue;
-                    if ("awareness_level".equalsIgnoreCase(p.optString("valueName", ""))) {
+                    String name = p.optString("valueName", "");
+                    if ("awareness_level".equalsIgnoreCase(name)) {
                         level = WeatherWarning.Level.fromAwareness(p.optString("value", ""));
-                        break;
+                    } else if ("awareness_type".equalsIgnoreCase(name)) {
+                        awarenessType = WeatherWarning.AwarenessType.fromParam(p.optString("value", ""));
                     }
                 }
             }
@@ -125,6 +130,12 @@ public class WarningsClient {
             String event = info.optString("event", "");
             String areaStr = areas.toString();
             boolean marine = WeatherWarning.detectMarine(event, areaStr, emmaIds);
+            long effective = parseIso(iso, info.optString("effective", null));
+            String severity = info.optString("severity", "");
+            String certainty = info.optString("certainty", "");
+            String urgency = info.optString("urgency", "");
+            String senderName = info.optString("senderName", "");
+            String web = info.optString("web", "");
 
             WeatherWarning w = new WeatherWarning(
                     event,
@@ -134,7 +145,14 @@ public class WarningsClient {
                     expires,
                     level,
                     identifier,
-                    marine);
+                    marine,
+                    awarenessType,
+                    severity,
+                    certainty,
+                    urgency,
+                    effective,
+                    senderName,
+                    web);
             out.add(w);
         }
         Log.d(TAG, "Parsed " + out.size() + " active fi-FI warnings");
