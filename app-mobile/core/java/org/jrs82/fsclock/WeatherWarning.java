@@ -36,6 +36,49 @@ public class WeatherWarning {
         }
     }
 
+    public enum AwarenessType {
+        WIND(1, "Tuuli"),
+        SNOW_ICE(2, "Lumi/jää"),
+        THUNDERSTORM(3, "Ukkonen"),
+        FOG(4, "Sumu"),
+        HIGH_TEMPERATURE(5, "Helle"),
+        LOW_TEMPERATURE(6, "Pakkanen"),
+        COASTAL(7, "Rannikko"),
+        FOREST_FIRE(8, "Maastopalo"),
+        AVALANCHE(9, "Lumivyöry"),
+        RAIN(10, "Sade"),
+        FLOOD(11, "Tulva"),
+        UNKNOWN(0, "");
+
+        public final int code;
+        public final String fiName;
+        AwarenessType(int code, String fiName) { this.code = code; this.fiName = fiName; }
+
+        /** Parsii MeteoAlarmin awareness_type-stringin, esim. "8; forest-fire". */
+        public static AwarenessType fromParam(String raw) {
+            if (raw == null) return UNKNOWN;
+            String s = raw.trim().toLowerCase(Locale.ROOT);
+            if (s.isEmpty()) return UNKNOWN;
+            String head = s.split(";")[0].trim();
+            try {
+                int code = Integer.parseInt(head);
+                for (AwarenessType t : values()) if (t.code == code && t != UNKNOWN) return t;
+            } catch (NumberFormatException ignored) { }
+            if (s.contains("wind")) return WIND;
+            if (s.contains("snow") || s.contains("ice")) return SNOW_ICE;
+            if (s.contains("thunder")) return THUNDERSTORM;
+            if (s.contains("fog")) return FOG;
+            if (s.contains("forest") || s.contains("fire")) return FOREST_FIRE;
+            if (s.contains("rain")) return RAIN;
+            if (s.contains("flood")) return FLOOD;
+            if (s.contains("high-temp")) return HIGH_TEMPERATURE;
+            if (s.contains("low-temp")) return LOW_TEMPERATURE;
+            if (s.contains("coastal")) return COASTAL;
+            if (s.contains("avalanche")) return AVALANCHE;
+            return UNKNOWN;
+        }
+    }
+
     public final String event;
     public final String description;
     public final String areaDesc;
@@ -45,10 +88,27 @@ public class WeatherWarning {
     public final String identifier;
     /** true jos varoitus koskee veneilijöitä tai merialueita (lajitellaan listan loppuun). */
     public final boolean marine;
+    /** Ilmiötyyppi (MeteoAlarm awareness_type) → ikonivalinta UI:ssa. */
+    public final AwarenessType awarenessType;
+    /** CAP-vakavuus raakana (Minor/Moderate/Severe/Extreme). */
+    public final String severity;
+    /** CAP-varmuus raakana (Observed/Likely/Possible/Unlikely). */
+    public final String certainty;
+    /** CAP-kiireellisyys raakana (Immediate/Expected/Future/Past). */
+    public final String urgency;
+    /** Julkaisuhetki (effective) millisekunteina, 0 jos ei tiedossa. */
+    public final long effectiveMs;
+    /** Lähettäjän nimi, esim. "Ilmatieteen laitos". */
+    public final String senderName;
+    /** Linkki lisätietoihin (FMI:n varoitussivu). */
+    public final String web;
 
+    /** Täysi konstruktori (WarningsClient käyttää tätä). */
     public WeatherWarning(String event, String description, String areaDesc,
                            long onsetMs, long expiresMs, Level level, String identifier,
-                           boolean marine) {
+                           boolean marine, AwarenessType awarenessType, String severity,
+                           String certainty, String urgency, long effectiveMs,
+                           String senderName, String web) {
         this.event = event == null ? "" : event;
         this.description = description == null ? "" : description;
         this.areaDesc = areaDesc == null ? "" : areaDesc;
@@ -57,6 +117,21 @@ public class WeatherWarning {
         this.level = level == null ? Level.UNKNOWN : level;
         this.identifier = identifier == null ? "" : identifier;
         this.marine = marine;
+        this.awarenessType = awarenessType == null ? AwarenessType.UNKNOWN : awarenessType;
+        this.severity = severity == null ? "" : severity;
+        this.certainty = certainty == null ? "" : certainty;
+        this.urgency = urgency == null ? "" : urgency;
+        this.effectiveMs = effectiveMs;
+        this.senderName = senderName == null ? "" : senderName;
+        this.web = web == null ? "" : web;
+    }
+
+    /** Taaksepäin yhteensopiva konstruktori (etusivun kortti + olemassa olevat testit). */
+    public WeatherWarning(String event, String description, String areaDesc,
+                           long onsetMs, long expiresMs, Level level, String identifier,
+                           boolean marine) {
+        this(event, description, areaDesc, onsetMs, expiresMs, level, identifier, marine,
+             AwarenessType.UNKNOWN, "", "", "", 0L, "", "");
     }
 
     public static boolean detectMarine(String event, String areaDesc, java.util.List<String> emmaIds) {
