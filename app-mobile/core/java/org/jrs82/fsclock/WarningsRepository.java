@@ -69,19 +69,21 @@ public class WarningsRepository {
         inFlight = true;
         io.execute(() -> {
             try {
-                List<WeatherWarning> list = client.fetch();
+                List<WeatherWarning> base = client.fetch();
+                sortBySeverityThenOnset(base);
+                latest = base;
+                lastFetchAt = System.currentTimeMillis();
+                Log.d(TAG, "Refreshed: " + base.size() + " warnings");
+                notifyListeners();
                 try {
                     List<FmiWarningDetail> details = detailsClient.fetch();
-                    list = new ArrayList<>(WarningEnricher.enrich(list, details));
+                    List<WeatherWarning> enriched = new ArrayList<>(WarningEnricher.enrich(base, details));
+                    sortBySeverityThenOnset(enriched);
+                    latest = enriched;
+                    Log.d(TAG, "Enriched with FMI details");
+                    notifyListeners();
                 } catch (Exception e) {
-                    Log.w(TAG, "FMI details fetch failed (näytetään ilman rikastusta): " + e.getMessage());
-                }
-                sortBySeverityThenOnset(list);
-                latest = list;
-                lastFetchAt = System.currentTimeMillis();
-                Log.d(TAG, "Refreshed: " + list.size() + " warnings");
-                for (Listener l : listeners) {
-                    try { l.onWarningsChanged(latest); } catch (Exception ignored) {}
+                    Log.w(TAG, "FMI details fetch failed (näytetään ilman rikastusta): " + e.toString());
                 }
             } catch (Exception e) {
                 Log.w(TAG, "Warnings fetch failed: " + e.getMessage());
@@ -89,6 +91,12 @@ public class WarningsRepository {
                 inFlight = false;
             }
         });
+    }
+
+    private void notifyListeners() {
+        for (Listener l : listeners) {
+            try { l.onWarningsChanged(latest); } catch (Exception ignored) {}
+        }
     }
 
     private static void sortBySeverityThenOnset(List<WeatherWarning> list) {

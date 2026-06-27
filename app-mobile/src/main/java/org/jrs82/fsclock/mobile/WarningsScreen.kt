@@ -64,10 +64,10 @@ internal fun WarningsSection() {
     val homePlace = remember(tick) { SettingsManager.get().homePlace ?: "" }
     val homeRegion = remember(homePlace) { FinnishRegions.regionForPlace(homePlace) }
     val shown = remember(all, scopeOwn, homePlace, homeRegion) {
-        if (scopeOwn && homePlace.isNotBlank()) {
-            all.filter { WeatherWarningNotifier.areaMatchesHome(it.areaDesc, homePlace, homeRegion) }
-        } else {
-            all
+        when {
+            !scopeOwn -> all
+            homePlace.isBlank() -> emptyList()
+            else -> all.filter { WeatherWarningNotifier.areaMatchesHome(it.areaDesc, homePlace, homeRegion) }
         }
     }
 

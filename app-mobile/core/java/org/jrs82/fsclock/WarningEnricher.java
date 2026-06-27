@@ -14,25 +14,22 @@ public final class WarningEnricher {
         List<WeatherWarning> out = new ArrayList<>(warnings.size());
         for (WeatherWarning w : warnings) {
             List<String> contexts = contextsFor(w);
-            int bestProb = -1;
-            double bestPhysVal = Double.NaN;
-            String bestPhysText = "";
-            String bestText = "";
+            // HUOM: yhdistys tyypin + aikaikkunan perusteella koko maan featureista (ei maakuntakohtainen).
+            // Valitaan YKSI edustava feature → todennäköisyys, fyysinen arvo ja teksti tulevat samasta
+            // lähteestä (yhtenäiset luvut, ei eri maakuntien sekoitusta). Edustavin = suurin fyysinen arvo,
+            // tasapelissä suurin todennäköisyys, sitten pisin teksti.
+            FmiWarningDetail best = null;
             for (FmiWarningDetail d : details) {
                 if (!contexts.contains(d.context)) continue;
                 if (!overlaps(d.fromMs, d.untilMs, w.onsetMs, w.expiresMs)) continue;
-                if (d.probabilityPct > bestProb) bestProb = d.probabilityPct;
-                // suurin fyysinen arvo edustaa (esim. korkein lämpötila/puuska)
-                if (!Double.isNaN(d.physicalValue)
-                        && (Double.isNaN(bestPhysVal) || d.physicalValue > bestPhysVal)) {
-                    bestPhysVal = d.physicalValue;
-                    bestPhysText = d.physicalText;
-                }
-                // pisin info_fi = rikkain teksti
-                if (d.detailText.length() > bestText.length()) bestText = d.detailText;
+                if (best == null || isMoreRepresentative(d, best)) best = d;
             }
-            WarningDetails wd = new WarningDetails(bestProb, bestPhysText, bestText);
-            out.add(wd.hasAny() ? w.withDetails(wd) : w);
+            if (best != null) {
+                WarningDetails wd = new WarningDetails(best.probabilityPct, best.physicalText, best.detailText);
+                out.add(wd.hasAny() ? w.withDetails(wd) : w);
+            } else {
+                out.add(w);
+            }
         }
         return out;
     }
@@ -49,6 +46,15 @@ public final class WarningEnricher {
             case WIND: return Arrays.asList("wind");
             default: return java.util.Collections.emptyList();
         }
+    }
+
+    /** a edustavampi kuin b: suurempi fyysinen arvo (NaN = pienin), sitten suurempi todennäköisyys, sitten pidempi teksti. */
+    static boolean isMoreRepresentative(FmiWarningDetail a, FmiWarningDetail b) {
+        double av = Double.isNaN(a.physicalValue) ? Double.NEGATIVE_INFINITY : a.physicalValue;
+        double bv = Double.isNaN(b.physicalValue) ? Double.NEGATIVE_INFINITY : b.physicalValue;
+        if (av != bv) return av > bv;
+        if (a.probabilityPct != b.probabilityPct) return a.probabilityPct > b.probabilityPct;
+        return a.detailText.length() > b.detailText.length();
     }
 
     /** Aikaikkunoiden leikkaus; 0/tuntematon kohdellaan sallivasti (avoin reuna). */

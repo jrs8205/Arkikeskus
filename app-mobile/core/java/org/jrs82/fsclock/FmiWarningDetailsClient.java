@@ -105,8 +105,8 @@ public class FmiWarningDetailsClient {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("&#(\\d+);").matcher(r);
         StringBuffer sb = new StringBuffer();
         while (m.find()) {
-            try { m.appendReplacement(sb, String.valueOf((char) Integer.parseInt(m.group(1)))); }
-            catch (Exception e) { m.appendReplacement(sb, m.group(0)); }
+            try { m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(String.valueOf((char) Integer.parseInt(m.group(1))))); }
+            catch (Exception e) { m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(m.group(0))); }
         }
         m.appendTail(sb);
         // &amp; viimeisenä jottei tuplapurkua
