@@ -34,6 +34,7 @@ public class WarningsRepository {
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final WarningsClient client = new WarningsClient();
+    private final FmiWarningDetailsClient detailsClient = new FmiWarningDetailsClient();
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
 
     private volatile List<WeatherWarning> latest = Collections.emptyList();
@@ -69,6 +70,12 @@ public class WarningsRepository {
         io.execute(() -> {
             try {
                 List<WeatherWarning> list = client.fetch();
+                try {
+                    List<FmiWarningDetail> details = detailsClient.fetch();
+                    list = new ArrayList<>(WarningEnricher.enrich(list, details));
+                } catch (Exception e) {
+                    Log.w(TAG, "FMI details fetch failed (näytetään ilman rikastusta): " + e.getMessage());
+                }
                 sortBySeverityThenOnset(list);
                 latest = list;
                 lastFetchAt = System.currentTimeMillis();
