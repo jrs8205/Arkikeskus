@@ -56,7 +56,7 @@ internal fun warningsFor(all: List<WeatherWarning>, day: DayOption, region: Stri
 
 private fun mergeGroup(group: List<WeatherWarning>, region: String?): WeatherWarning {
     // edustava = suurin todennäköisyys, sitten pisin fyysinen teksti
-    val rep = group.maxWith(compareBy({ it.details.probabilityPct }, { it.details.physicalText.length }))
+    val rep = group.maxWith(compareBy({ it.details.probabilityPct }, { it.details.physicalText.length }))!!
     val area = region ?: group.map { it.areaDesc }.filter { it.isNotEmpty() }.distinct()
         .sortedBy { FmiCounties.indexOf(it).let { i -> if (i < 0) Int.MAX_VALUE else i } }
         .joinToString(", ")
