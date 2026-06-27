@@ -102,13 +102,15 @@ public class WeatherWarning {
     public final String senderName;
     /** Linkki lisätietoihin (FMI:n varoitussivu). */
     public final String web;
+    /** FMI GeoServer -rikastus (todennäköisyys, fyysinen arvo, pidempi teksti). Oletus EMPTY. */
+    public final WarningDetails details;
 
-    /** Täysi konstruktori (WarningsClient käyttää tätä). */
+    /** Täysi konstruktori. */
     public WeatherWarning(String event, String description, String areaDesc,
                            long onsetMs, long expiresMs, Level level, String identifier,
                            boolean marine, AwarenessType awarenessType, String severity,
                            String certainty, String urgency, long effectiveMs,
-                           String senderName, String web) {
+                           String senderName, String web, WarningDetails details) {
         this.event = event == null ? "" : event;
         this.description = description == null ? "" : description;
         this.areaDesc = areaDesc == null ? "" : areaDesc;
@@ -124,6 +126,18 @@ public class WeatherWarning {
         this.effectiveMs = effectiveMs;
         this.senderName = senderName == null ? "" : senderName;
         this.web = web == null ? "" : web;
+        this.details = details == null ? WarningDetails.EMPTY : details;
+    }
+
+    /** 15-arg (ilman detailsia) — WarningsClientin rakentama, rikastus tehdään myöhemmin withDetailsilla. */
+    public WeatherWarning(String event, String description, String areaDesc,
+                           long onsetMs, long expiresMs, Level level, String identifier,
+                           boolean marine, AwarenessType awarenessType, String severity,
+                           String certainty, String urgency, long effectiveMs,
+                           String senderName, String web) {
+        this(event, description, areaDesc, onsetMs, expiresMs, level, identifier, marine,
+             awarenessType, severity, certainty, urgency, effectiveMs, senderName, web,
+             WarningDetails.EMPTY);
     }
 
     /** Taaksepäin yhteensopiva konstruktori (etusivun kortti + olemassa olevat testit). */
@@ -132,6 +146,13 @@ public class WeatherWarning {
                            boolean marine) {
         this(event, description, areaDesc, onsetMs, expiresMs, level, identifier, marine,
              AwarenessType.UNKNOWN, "", "", "", 0L, "", "");
+    }
+
+    /** Palauttaa kopion samoilla kentillä mutta annetuilla FMI-lisätiedoilla. */
+    public WeatherWarning withDetails(WarningDetails d) {
+        return new WeatherWarning(event, description, areaDesc, onsetMs, expiresMs, level,
+                identifier, marine, awarenessType, severity, certainty, urgency, effectiveMs,
+                senderName, web, d);
     }
 
     public static boolean detectMarine(String event, String areaDesc, java.util.List<String> emmaIds) {
