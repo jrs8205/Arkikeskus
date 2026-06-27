@@ -213,7 +213,7 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                                 HomeWidget.HOLIDAY.id -> HomeHolidayWidget()
                                 HomeWidget.WEATHER.id -> HomeWeatherWidget(prefs)
                                 HomeWidget.ELECTRICITY.id -> HomeElectricityWidget(prefs, onOpenElectricity = { onOpenSection(HomeSection.ELECTRICITY) })
-                                HomeWidget.WARNINGS.id -> HomeWarningsCard()
+                                HomeWidget.WARNINGS.id -> HomeWarningsCard(onOpenWarnings = { onOpenSection(HomeSection.WEATHER_WARNINGS) })
                                 HomeWidget.SENSORS.id -> HomeSensorsWidget(prefs)
                                 HomeWidget.TRAFFIC.id -> HomeTrafficCard(onOpenTraffic = { onOpenSection(HomeSection.TRAFFIC_INCIDENTS) })
                                 HomeWidget.NEWS.id -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })

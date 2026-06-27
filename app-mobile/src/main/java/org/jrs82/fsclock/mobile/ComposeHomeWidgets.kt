@@ -557,7 +557,7 @@ internal fun HomeNewsSourceCard(feedId: String) {
 
 /** Säävaroitukset etusivulla — näkyy vain kun voimassa olevia varoituksia on (kuten 1.15.1). */
 @Composable
-internal fun HomeWarningsCard() {
+internal fun HomeWarningsCard(onOpenWarnings: () -> Unit) {
     val repo = remember { WarningsRepository.get() }
     var tick by remember { mutableStateOf(0) }
     DisposableEffect(Unit) {
@@ -576,7 +576,8 @@ internal fun HomeWarningsCard() {
                 icon = painterResource(R.drawable.mobile_ic_warning_24),
                 accent = arki.warning,
                 title = "Säävaroitukset",
-                trailing = { ArkiPill("${warnings.size} voimassa", arki.warning) },
+                subtitle = "${warnings.size} voimassa",
+                trailing = { TextButton(onClick = onOpenWarnings) { Text("Kaikki") } },
             )
             warnings.take(4).forEach { w ->
                 RowDivider()
