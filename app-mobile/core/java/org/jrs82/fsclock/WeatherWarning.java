@@ -7,6 +7,7 @@ import java.util.Locale;
 public class WeatherWarning {
 
     public enum Level {
+        GREEN(0xFF3FA34D, "Vihreä"),
         YELLOW(0xFFE6C32E, "Keltainen"),
         ORANGE(0xFFE89B2C, "Oranssi"),
         RED(0xFFD0413B, "Punainen"),
@@ -23,6 +24,17 @@ public class WeatherWarning {
             if (low.contains("red")) return RED;
             if (low.contains("orange")) return ORANGE;
             if (low.contains("yellow")) return YELLOW;
+            return UNKNOWN;
+        }
+
+        /** FMI GeoServerin severity "level-N" → taso. */
+        public static Level fromFmiSeverity(String raw) {
+            if (raw == null) return UNKNOWN;
+            String low = raw.trim().toLowerCase(Locale.ROOT);
+            if (low.contains("level-4") || low.equals("4")) return RED;
+            if (low.contains("level-3") || low.equals("3")) return ORANGE;
+            if (low.contains("level-2") || low.equals("2")) return YELLOW;
+            if (low.contains("level-1") || low.equals("1")) return GREEN;
             return UNKNOWN;
         }
 
@@ -48,6 +60,7 @@ public class WeatherWarning {
         AVALANCHE(9, "Lumivyöry"),
         RAIN(10, "Sade"),
         FLOOD(11, "Tulva"),
+        UV(12, "UV"),
         UNKNOWN(0, "");
 
         public final int code;
@@ -75,6 +88,7 @@ public class WeatherWarning {
             if (s.contains("low-temp")) return LOW_TEMPERATURE;
             if (s.contains("coastal")) return COASTAL;
             if (s.contains("avalanche")) return AVALANCHE;
+            if (s.contains("uv")) return UV;
             return UNKNOWN;
         }
     }
