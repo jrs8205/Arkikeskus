@@ -12,8 +12,8 @@ class FmiWarningFilterTest {
         WeatherWarning(type.fiName, "kuvaus", area, on, ex, level, "id-$area-$type", false,
             type, "", "", "", 0L, "FMI", "")
 
-    // 2026-06-27 00:00 Helsinki = 1750978800000; käytä kiinteitä ms-arvoja
-    private val day0 = 1_750_978_800_000L          // 27.6. 00:00 EEST
+    // 2025-06-27 00:00 EEST (Helsinki) = 1750971600000; käytä kiinteitä ms-arvoja
+    private val day0 = 1_750_971_600_000L          // 27.6. 00:00 EEST
     private val dayMs = 24L * 60 * 60 * 1000
 
     @Test fun fiveDaysFromNow() {
@@ -22,6 +22,8 @@ class FmiWarningFilterTest {
         assertEquals("Tänään", days[0].label)
         assertEquals("Huomenna", days[1].label)
         assertTrue(days[2].label.isNotEmpty())
+        assertEquals(day0, days[0].startMs)
+        assertEquals(day0 + dayMs, days[0].endMs)
     }
 
     @Test fun overlapDetectsActiveDay() {
@@ -55,5 +57,19 @@ class FmiWarningFilterTest {
     @Test fun emptyWhenNoneOnDay() {
         val all = listOf(w(WeatherWarning.AwarenessType.RAIN, "Uusimaa", day0 + 3*dayMs, day0 + 4*dayMs))
         assertEquals(0, warningsFor(all, DayOption("Tänään", day0, day0 + dayMs), null).size)
+    }
+
+    @Test fun mergeUsesMaxLevelAndUnionTime() {
+        val all = listOf(
+            w(WeatherWarning.AwarenessType.RAIN, "Uusimaa", day0, day0 + dayMs,
+              level = WeatherWarning.Level.YELLOW),
+            w(WeatherWarning.AwarenessType.RAIN, "Pirkanmaa", day0 + 2 * 3600_000L, day0 + 2 * dayMs,
+              level = WeatherWarning.Level.ORANGE),
+        )
+        val out = warningsFor(all, DayOption("Tänään", day0, day0 + dayMs), null)
+        assertEquals(1, out.size)
+        assertEquals(WeatherWarning.Level.ORANGE, out[0].level)   // max rank
+        assertEquals(day0, out[0].onsetMs)                        // min onset
+        assertEquals(day0 + 2 * dayMs, out[0].expiresMs)          // max expires
     }
 }
