@@ -20,7 +20,7 @@ internal fun awarenessIconRes(type: AwarenessType): Int = when (type) {
     AwarenessType.SNOW_ICE, AwarenessType.LOW_TEMPERATURE -> R.drawable.mobile_ic_wx_snow
     AwarenessType.RAIN, AwarenessType.FLOOD -> R.drawable.mobile_ic_rain_24
     AwarenessType.FOG -> R.drawable.mobile_ic_wx_fog
-    AwarenessType.HIGH_TEMPERATURE -> R.drawable.mobile_ic_wx_hot
+    AwarenessType.HIGH_TEMPERATURE, AwarenessType.UV -> R.drawable.mobile_ic_wx_hot
     AwarenessType.FOREST_FIRE -> R.drawable.mobile_ic_wx_fire
     else -> R.drawable.mobile_ic_warning_24
 }
