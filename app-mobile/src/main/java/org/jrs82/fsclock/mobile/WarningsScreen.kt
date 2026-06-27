@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,8 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,85 +39,91 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
+import org.jrs82.fsclock.FmiCounties
+import org.jrs82.fsclock.FmiWarningsRepository
 import org.jrs82.fsclock.SettingsManager
-import org.jrs82.fsclock.WarningsRepository
 import org.jrs82.fsclock.WeatherWarning
 
-private const val KEY_WARNINGS_SCOPE_OWN = "warnings_scope_own"
+private const val KEY_WARN5_REGION = "warn5_region"
 
-/** "Sää" → Säävaroitukset: skrollattava sivu, joka näyttää kaikki MeteoAlarm/FMI-varoituskentät.
- *  Oma alue / Koko Suomi -valitsin suodattaa samaa repo-välimuistia (ei lisähakuja). */
+/** "Sää" → Säävaroitukset: FMI:n 5 vrk -näkymä. Valitse päivä (ylärivi) + maakunta (pudotusvalikko),
+ *  näytä valitun päivän + maakunnan varoitukset (Koko Suomi = kaikki maakunnat koottuna). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun WarningsSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
-    val arki = ArkiTheme.colors
-    val repo = remember { WarningsRepository.get() }
+    val repo = remember { FmiWarningsRepository.get() }
 
     var tick by remember { mutableStateOf(0) }
     DisposableEffect(Unit) {
         val main = Handler(Looper.getMainLooper())
-        val l = WarningsRepository.Listener { main.post { tick++ } }
-        repo.addListener(l) // kutsuu heti nykyisellä listalla
+        val l = FmiWarningsRepository.Listener { main.post { tick++ } }
+        repo.addListener(l)
         repo.refreshIfStale()
         onDispose { repo.removeListener(l) }
     }
     LaunchedEffect(refresh) { if (refresh > 0) repo.refreshNow() }
 
-    var scopeOwn by remember { mutableStateOf(prefs.getBoolean(KEY_WARNINGS_SCOPE_OWN, true)) }
     val all = remember(tick) { repo.getLatest() }
-    val homePlace = remember(tick) { SettingsManager.get().homePlace ?: "" }
-    val homeRegion = remember(homePlace) { FinnishRegions.regionForPlace(homePlace) }
-    val shown = remember(all, scopeOwn, homePlace, homeRegion) {
-        when {
-            !scopeOwn -> all
-            homePlace.isBlank() -> emptyList()
-            else -> all.filter { WeatherWarningNotifier.areaMatchesHome(it.areaDesc, homePlace, homeRegion) }
-        }
+    val days = remember(tick) { daysFrom(System.currentTimeMillis()) }
+    var dayIndex by remember { mutableStateOf(0) }
+
+    // maakuntavaihtoehdot: "Koko Suomi" + 19 maakuntaa
+    val regions = remember { listOf("Koko Suomi") + FmiCounties.ALL_REGIONS }
+    val homeRegion = remember { FinnishRegions.regionForPlace(SettingsManager.get().homePlace) }
+    var region by remember {
+        val saved = prefs.getString(KEY_WARN5_REGION, null)
+        val initial = saved?.takeIf { it in regions } ?: homeRegion?.takeIf { it in regions } ?: "Koko Suomi"
+        mutableStateOf(initial)
+    }
+    var menuOpen by remember { mutableStateOf(false) }
+
+    val day = days.getOrNull(dayIndex) ?: days.first()
+    val shown = remember(all, dayIndex, region, tick) {
+        warningsFor(all, day, if (region == "Koko Suomi") null else region)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(12.dp))
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "Säävaroitukset",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
-            if (shown.isNotEmpty()) ArkiPill("${shown.size} voimassa", arki.warning)
+        Text("Säävaroitukset", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(10.dp))
+        // Päivärivi
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            days.forEachIndexed { i, d ->
+                FilterChip(selected = i == dayIndex, onClick = { dayIndex = i }, label = { Text(d.label) })
+            }
         }
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = scopeOwn,
-                onClick = { scopeOwn = true; prefs.edit().putBoolean(KEY_WARNINGS_SCOPE_OWN, true).apply() },
-                label = { Text("Oma alue") },
+        // Maakunta-pudotusvalikko
+        ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = it }) {
+            OutlinedTextField(
+                value = region, onValueChange = {}, readOnly = true,
+                label = { Text("Alue") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuOpen) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
             )
-            FilterChip(
-                selected = !scopeOwn,
-                onClick = { scopeOwn = false; prefs.edit().putBoolean(KEY_WARNINGS_SCOPE_OWN, false).apply() },
-                label = { Text("Koko Suomi") },
-            )
+            ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                regions.forEach { r ->
+                    DropdownMenuItem(text = { Text(r) }, onClick = {
+                        region = r; menuOpen = false
+                        prefs.edit().putString(KEY_WARN5_REGION, r).apply()
+                    })
+                }
+            }
         }
         Spacer(Modifier.height(12.dp))
         if (shown.isEmpty()) {
-            val msg = when {
-                scopeOwn && homePlace.isBlank() ->
-                    "Aseta kotipaikka asetuksissa nähdäksesi oman alueesi varoitukset."
-                scopeOwn -> "Ei voimassa olevia varoituksia alueellasi ($homePlace)."
-                else -> "Ei voimassa olevia säävaroituksia Suomessa."
-            }
-            Text(msg, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Ei varoituksia — $region, ${day.label.lowercase()}.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(shown, key = { it.identifier.ifEmpty { it.event + it.areaDesc + it.onsetMs } }) { w ->
-                    WarningCard(context, w)
-                }
+            LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(shown, key = { it.event + it.areaDesc + it.onsetMs }) { w -> WarningCard(context, w) }
                 item { Spacer(Modifier.height(8.dp)) }
             }
         }
