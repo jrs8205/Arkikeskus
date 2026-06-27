@@ -60,7 +60,7 @@ public class WeatherWarning {
         AVALANCHE(9, "Lumivyöry"),
         RAIN(10, "Sade"),
         FLOOD(11, "Tulva"),
-        UV(12, "UV"),
+        UV(90, "UV"),
         UNKNOWN(0, "");
 
         public final int code;
