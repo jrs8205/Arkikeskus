@@ -70,8 +70,8 @@ public class FmiWarningDetailsClient {
             String unit = p.optString("physical_unit", "");
             String physicalText = formatPhysical(pv, unit);
             String detailText = decodeEntities(p.optString("info_fi", ""));
-            long from = parseIso(p.optString("effective_from", null));
-            long until = parseIso(p.optString("effective_until", null));
+            long from = parseIsoUtc(p.optString("effective_from", null));
+            long until = parseIsoUtc(p.optString("effective_until", null));
             out.add(new FmiWarningDetail(context, from, until, prob, pv, physicalText, detailText));
         }
         Log.d(TAG, "Parsed " + out.size() + " FMI warning details");
@@ -113,7 +113,7 @@ public class FmiWarningDetailsClient {
         return sb.toString().replace("&amp;", "&");
     }
 
-    private static long parseIso(String s) {
+    static long parseIsoUtc(String s) {
         if (s == null || s.isEmpty()) return 0L;
         String[] patterns = { "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX" };
         for (String pat : patterns) {
