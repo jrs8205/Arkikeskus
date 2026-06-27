@@ -152,9 +152,24 @@ private fun WarningCard(context: Context, w: WeatherWarning) {
                 Spacer(Modifier.height(10.dp))
                 Text(period, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             }
-            if (w.description.isNotEmpty()) {
+            val bodyText = if (w.details.detailText.length > w.description.length)
+                w.details.detailText else w.description
+            if (bodyText.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
-                Text(w.description, style = MaterialTheme.typography.bodyMedium)
+                Text(bodyText, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (w.details.probabilityPct >= 0 || w.details.physicalText.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                val highlight = buildList {
+                    if (w.details.physicalText.isNotEmpty()) add(w.details.physicalText)
+                    if (w.details.probabilityPct >= 0) add("Todennäköisyys ${w.details.probabilityPct} %")
+                }.joinToString("  ·  ")
+                Text(
+                    highlight,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ArkiTheme.colors.weatherAccent,
+                )
             }
             val meta = listOf(
                 severityFi(w.severity).let { if (it.isNotEmpty()) "Vakavuus: $it" else "" },
