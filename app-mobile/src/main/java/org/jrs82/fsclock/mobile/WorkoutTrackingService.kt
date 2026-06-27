@@ -139,45 +139,50 @@ class WorkoutTrackingService : Service() {
             }
             return START_NOT_STICKY
         }
-        when (action) {
-            ACTION_START -> {
-                val type = intent?.getIntExtra(EXTRA_TYPE, WorkoutEntity.TYPE_WALK)
-                    ?: WorkoutEntity.TYPE_WALK
-                try {
-                    WorkoutTracker.start(this, type)
-                } catch (e: Exception) {
-                    finishService()
-                    return START_NOT_STICKY
+        // Kanta-operaatiot (start/recover/stop tekevät blokkaavia Room .get() -kutsuja) pois
+        // pääsäikeeltä → "workout-tracking"-HandlerThreadille, samalle säikeelle jolla sijainti-/
+        // askel-callbackit ja tick jo ajetaan (ks. startListening/schedule). Estää pääsäikeen ANR-
+        // riskin. FGS on jo promotoitu yllä pääsäikeellä, joten promotoinnin deadline ei kärsi.
+        handler?.post {
+            when (action) {
+                ACTION_START -> {
+                    val type = intent?.getIntExtra(EXTRA_TYPE, WorkoutEntity.TYPE_WALK)
+                        ?: WorkoutEntity.TYPE_WALK
+                    try {
+                        WorkoutTracker.start(this, type)
+                    } catch (e: Exception) {
+                        finishService()
+                        return@post
+                    }
+                    startListening()
+                    schedule()
                 }
-                startListening()
-                schedule()
-            }
-            ACTION_RECOVER -> {
-                val recovered = try { WorkoutTracker.recover(this) } catch (e: Exception) { false }
-                if (!recovered) {
-                    finishService()
-                    return START_NOT_STICKY
+                ACTION_RECOVER -> {
+                    val recovered = try { WorkoutTracker.recover(this) } catch (e: Exception) { false }
+                    if (!recovered) {
+                        finishService()
+                        return@post
+                    }
+                    if (WorkoutTracker.state.value.phase == WorkoutTracker.Phase.ACTIVE) startListening()
+                    schedule()
                 }
-                if (WorkoutTracker.state.value.phase == WorkoutTracker.Phase.ACTIVE) startListening()
-                schedule()
-            }
-            ACTION_PAUSE -> {
-                WorkoutTracker.pause(this)
-                stopListening()
-                updateNotification()
-            }
-            ACTION_RESUME -> {
-                WorkoutTracker.resume(this)
-                startListening()
-                updateNotification()
-            }
-            ACTION_STOP -> {
-                WorkoutTracker.stop(this, auto = false)
-                onWorkoutEnded(auto = false)
-                return START_NOT_STICKY
+                ACTION_PAUSE -> {
+                    WorkoutTracker.pause(this)
+                    stopListening()
+                    updateNotification()
+                }
+                ACTION_RESUME -> {
+                    WorkoutTracker.resume(this)
+                    startListening()
+                    updateNotification()
+                }
+                ACTION_STOP -> {
+                    WorkoutTracker.stop(this, auto = false)
+                    onWorkoutEnded(auto = false)
+                }
             }
         }
-        return START_STICKY
+        return if (action == ACTION_STOP) START_NOT_STICKY else START_STICKY
     }
 
     override fun onDestroy() {

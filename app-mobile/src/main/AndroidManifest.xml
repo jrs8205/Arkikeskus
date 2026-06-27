@@ -94,14 +94,19 @@
             android:name="org.jrs82.fsclock.mobile.DepartureReminderReceiver"
             android:exported="false" />
 
-        <!-- Lähtömuistutusten uudelleenasetus laitteen uudelleenkäynnistyksen / sovelluspäivityksen
-             jälkeen. BOOT_COMPLETED + MY_PACKAGE_REPLACED ovat suojattuja järjestelmäbroadcasteja. -->
+        <!-- Lähtömuistutusten uudelleenasetus laitteen uudelleenkäynnistyksen / sovelluspäivityksen /
+             kellon tai aikavyöhykkeen muutoksen jälkeen (AlarmManager tyhjentää/siirtää hälytykset
+             näissä). Kaikki neljä ovat suojattuja järjestelmäbroadcasteja, jotka toimitetaan
+             manifest-receiverille (TIME_SET/TIMEZONE_CHANGED EIVÄT kuulu O+ implisiittisten
+             broadcastien rajoitusten piiriin). Receiverin onReceive käsittelee jo kaikki neljä. -->
         <receiver
             android:name="org.jrs82.fsclock.mobile.DepartureBootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
 
