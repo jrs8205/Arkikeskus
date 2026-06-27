@@ -268,6 +268,7 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
 enum class HomeSection(val title: String) {
     HOME("Arkikeskus"),
     FORECAST("Sää-ennuste 7vrk"),
+    WEATHER_WARNINGS("Säävaroitukset"),
     PLACES("Paikkakunnat"),
     SENSORS("Anturit"),
     TRAFFIC_ACCIDENTS("Onnettomuudet"),
@@ -583,6 +584,7 @@ fun ComposeMainScreen(
                         HomeDashboard(onOpenSection = { section = it })
                     }
                     HomeSection.FORECAST -> ForecastSection()
+                    HomeSection.WEATHER_WARNINGS -> WarningsSection()
                     HomeSection.PLACES -> PlacesSection(onPlaceChosen = { section = HomeSection.HOME })
                     HomeSection.STEPS -> StepsSection()
                     HomeSection.WORKOUT -> WorkoutScreen()
@@ -671,6 +673,7 @@ private fun DrawerContent(
             // säähän liittyvät, liikenne, joukkoliikenne ja loput "Muut"-otsikon alle.
             DrawerHeader("Sää", R.drawable.mobile_ic_weather_24)
             DrawerItem(HomeSection.FORECAST, current, onSelect)
+            DrawerItem(HomeSection.WEATHER_WARNINGS, current, onSelect)
             DrawerItem(HomeSection.PLACES, current, onSelect)
             DrawerItem(HomeSection.SENSORS, current, onSelect)
 
