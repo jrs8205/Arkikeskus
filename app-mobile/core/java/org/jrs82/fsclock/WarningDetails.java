@@ -2,7 +2,7 @@ package org.jrs82.fsclock;
 
 /** FMI GeoServeristä yhdistetty lisätieto yhteen varoitukseen: toteutumis-todennäköisyys,
  *  konkreettinen fyysinen arvo ja FMI:n (joskus pidempi) kuvausteksti. Muuttumaton. */
-public class WarningDetails {
+public final class WarningDetails {
 
     public static final WarningDetails EMPTY = new WarningDetails(-1, "", "");
 

@@ -15,7 +15,7 @@ class WarningEnricherTest {
                     ptext: String, text: String) =
         FmiWarningDetail(ctx, from, until, prob, pv, ptext, text)
 
-    @Test fun matchesByTypeAndTime_aggregatesMaxProbAndLongestText() {
+    @Test fun matchesByTypeAndTime_picksRepresentativeFeatureCoherently() {
         val w = warn("Hellevaroitus", WeatherWarning.AwarenessType.HIGH_TEMPERATURE, 1000L, 5000L)
         val details = listOf(
             det("hot-weather", 1000L, 5000L, 30, 26.0, "Lämpötila jopa 26 °C", "lyhyt fmi"),
@@ -27,6 +27,19 @@ class WarningEnricherTest {
         assertEquals(40, out[0].details.probabilityPct)
         assertEquals("Lämpötila jopa 27 °C", out[0].details.physicalText)  // suurin arvo
         assertEquals("pidempi fmi teksti tähän", out[0].details.detailText) // pisin
+    }
+
+    @Test fun coherentFields_probComesFromHighestPhysicalFeature() {
+        val w = warn("Hellevaroitus", WeatherWarning.AwarenessType.HIGH_TEMPERATURE, 1000L, 5000L)
+        val details = listOf(
+            // korkein todennäköisyys mutta MATALAMPI lämpötila
+            det("hot-weather", 1000L, 5000L, 90, 25.0, "Lämpötila jopa 25 °C", "a"),
+            // edustavin: korkein lämpötila 28 → sen prob 40 pitää näkyä (ei 90)
+            det("hot-weather", 1000L, 5000L, 40, 28.0, "Lämpötila jopa 28 °C", "b"),
+        )
+        val out = WarningEnricher.enrich(listOf(w), details)
+        assertEquals("Lämpötila jopa 28 °C", out[0].details.physicalText)
+        assertEquals(40, out[0].details.probabilityPct)   // SAMASTA featuresta kuin lämpötila, ei 90
     }
 
     @Test fun noMatchKeepsEmptyDetails() {
