@@ -105,14 +105,14 @@ object WeatherWarningNotifier {
                 context, Notifications.CHANNEL_WEATHER, Notifications.NOTIF_ID_WEATHER,
                 "Säävaroitus: ${w.event}$lvl",
                 if (w.description.isNotEmpty()) w.description else w.areaDesc,
-                null,
+                "WEATHER_WARNINGS",
             )
         } else {
             Notifications.post(
                 context, Notifications.CHANNEL_WEATHER, Notifications.NOTIF_ID_WEATHER,
                 "Säävaroituksia paikkakunnalla $homePlace",
                 "${toNotify.size} voimassa olevaa säävaroitusta. Avaa nähdäksesi.",
-                null,
+                "WEATHER_WARNINGS",
             )
         }
     }
