@@ -19,4 +19,16 @@ class WeatherWarningLevel5dTest {
     @Test fun uvType() {
         assertEquals("UV", WeatherWarning.AwarenessType.UV.fiName)
     }
+    @Test fun rainFloodCode12NotUv() {
+        // MeteoAlarm code 12 = "rain-flood" → must NOT resolve to UV (collision regression)
+        assertEquals(WeatherWarning.AwarenessType.RAIN,
+            WeatherWarning.AwarenessType.fromParam("12; rain-flood"))
+    }
+    @Test fun uvKeywordResolvesUv() {
+        assertEquals(WeatherWarning.AwarenessType.UV,
+            WeatherWarning.AwarenessType.fromParam("uv-note"))
+    }
+    @Test fun uvCodeIs90() {
+        assertEquals(90, WeatherWarning.AwarenessType.UV.code)
+    }
 }
