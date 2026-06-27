@@ -12,8 +12,10 @@ import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -47,7 +49,15 @@ object HealthConnectStepsBridge {
     // Valinnainen: sallii HC-luvun TAUSTATYÖSSÄ (askeltavoite-ilmoitus). Mukana lupaPYYNNÖISSÄ, EI
     // lupatarkistuksissa (hasPermission) — ilman taustalukulupaa HC-lähde toimii silti etualalla.
     private const val READ_BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
-    private val scope = CoroutineScope(Dispatchers.Main)
+    // SupervisorJob: yhden lapsi-coroutinen poikkeus (esim. kutsujan callbackin) EI peruuta koko
+    // skooppia → askel-/kalorisynkka ei kuole pysyvästi koko prosessin eliniäksi. CoroutineException-
+    // Handler nielee+lokittaa käsittelemättömän poikkeuksen (esim. cb.onResult heittää) → ei kaadu.
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main +
+            CoroutineExceptionHandler { _, e ->
+                android.util.Log.w("HealthConnectStepsBridge", "HC-skooppivirhe niellään", e)
+            },
+    )
 
     fun interface BoolCallback { fun onResult(value: Boolean) }
     fun interface StepsCallback { fun onResult(steps: Long) }

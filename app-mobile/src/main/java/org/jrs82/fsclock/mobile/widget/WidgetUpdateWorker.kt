@@ -11,8 +11,11 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.glance.appwidget.updateAll
+import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jrs82.fsclock.ElectricityRepository
 import org.jrs82.fsclock.OpenMeteoData
 import org.jrs82.fsclock.OpenMeteoRepository
@@ -31,9 +34,7 @@ import org.jrs82.fsclock.mobile.NearbyStop
 import org.jrs82.fsclock.mobile.StepGoalNotifier
 import org.jrs82.fsclock.mobile.WeatherCache
 import java.util.Calendar
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Etsii lähintä pysäkkiä käyttäen passiivista, gatettua laitesijaintia ([passiveDeviceLocation]:
@@ -214,15 +215,13 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             val roomSteps = FsClockDb.get(ctx).dailyStepsDao().stepsForDay(dayKey) ?: 0
             val useHc = prefs.getBoolean(KEY_STEPS_USE_HC, false)
             val hcSteps: Long = if (useHc) {
-                val latch = CountDownLatch(1)
-                val result = AtomicLong(-1L)
-                HealthConnectStepsBridge.todaySteps(ctx) { s ->
-                    result.set(s)
-                    latch.countDown()
-                }
-                try {
-                    if (latch.await(8, TimeUnit.SECONDS)) result.get() else -1L
-                } catch (ie: InterruptedException) { -1L }
+                // Suspendoiva odotus (ei säie-estoa): CoroutineWorkerin IO-coroutine suspendoituu kunnes
+                // HC-callback (Main) resumeoi; 8 s timeout → -1L. isActive-vartija estää late-resume-kaadon.
+                withTimeoutOrNull(8_000L) {
+                    suspendCancellableCoroutine<Long> { cont ->
+                        HealthConnectStepsBridge.todaySteps(ctx) { s -> if (cont.isActive) cont.resume(s) }
+                    }
+                } ?: -1L
             } else -1L
             val best: Int = when {
                 useHc && hcSteps >= 0L -> maxOf(roomSteps, hcSteps.toInt())
