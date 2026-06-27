@@ -3,7 +3,9 @@ package org.jrs82.fsclock.mobile
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
+import org.jrs82.fsclock.FmiWarningDetailsClient
 import org.jrs82.fsclock.SettingsManager
+import org.jrs82.fsclock.WarningEnricher
 import org.jrs82.fsclock.WarningsClient
 import org.jrs82.fsclock.WeatherWarning
 import org.json.JSONArray
@@ -22,6 +24,15 @@ object WeatherWarningNotifier {
     const val KEY_ENABLED = "notify_weather_warnings"
     private const val KEY_SEEN = "notify_weather_seen"
     private const val SEEN_CAP = 100
+
+    /** Ilmoituksen sisältö: FMI:n pidempi teksti jos rikkaampi, muuten MeteoAlarm-kuvaus/alue. */
+    private fun bestText(w: WeatherWarning): String {
+        val fmi = w.details.detailText
+        val base = if (w.description.isNotEmpty()) w.description else w.areaDesc
+        val body = if (fmi.length > base.length) fmi else base
+        val prob = if (w.details.probabilityPct >= 0) " (todennäköisyys ${w.details.probabilityPct} %)" else ""
+        return body + prob
+    }
 
     /** Varoituksen identiteettiavain (MeteoAlarm tarjoaa vakaan identifierin). */
     fun warningKey(w: WeatherWarning): String =
@@ -87,7 +98,12 @@ object WeatherWarningNotifier {
         val homePlace = SettingsManager.get().homePlace ?: ""
         if (homePlace.isBlank()) return
         val homeRegion = FinnishRegions.regionForPlace(homePlace)
-        val warnings = try { WarningsClient().fetch() } catch (e: Exception) { return }
+        val raw = try { WarningsClient().fetch() } catch (e: Exception) { return }
+        val warnings = try {
+            WarningEnricher.enrich(raw, FmiWarningDetailsClient().fetch())
+        } catch (e: Exception) {
+            raw
+        }
         val result = selectNewWarnings(warnings, homePlace, homeRegion, loadSeen(prefs))
         android.util.Log.i(
             "WeatherWarningNotifier",
@@ -104,7 +120,7 @@ object WeatherWarningNotifier {
             Notifications.post(
                 context, Notifications.CHANNEL_WEATHER, Notifications.NOTIF_ID_WEATHER,
                 "Säävaroitus: ${w.event}$lvl",
-                if (w.description.isNotEmpty()) w.description else w.areaDesc,
+                bestText(w),
                 "WEATHER_WARNINGS",
             )
         } else {
