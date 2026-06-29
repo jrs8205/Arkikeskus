@@ -224,7 +224,7 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                         val baggage = when {
                             !f.belt.isNullOrBlank() -> "Hihna ${f.belt}" +
                                 (beltStatusFi?.let { " — $it" } ?: "") +
-                                (f.baggageArea?.let { " (alue $it)" } ?: "")
+                                (f.baggageArea?.let { "\n(alue $it)" } ?: "")
                             !f.baggageArea.isNullOrBlank() -> "Alue ${f.baggageArea}"
                             else -> null
                         }
