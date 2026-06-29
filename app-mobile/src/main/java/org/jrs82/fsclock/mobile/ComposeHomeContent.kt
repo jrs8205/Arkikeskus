@@ -219,6 +219,7 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                                 HomeWidget.NEWS.id -> HomeNewsCard(onOpenNews = { onOpenSection(HomeSection.NEWS) })
                                 HomeWidget.NEWS_FOREIGN.id -> HomeForeignNewsCard(onOpenForeign = { onOpenSection(HomeSection.NEWS_FOREIGN) })
                                 HomeWidget.TRANSIT.id -> HomeTransitCard(onOpenTransit = { onOpenSection(HomeSection.TRANSIT) })
+                                HomeWidget.FLIGHTS.id -> HomeFlightsCard(onOpenFlights = { onOpenSection(HomeSection.FLIGHTS) })
                                 else -> if (id.startsWith(HOME_NEWS_FEED_PREFIX)) {
                                     HomeNewsSourceCard(id.substring(HOME_NEWS_FEED_PREFIX.length))
                                 }
