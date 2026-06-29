@@ -290,6 +290,7 @@ enum class HomeSection(val title: String) {
     TELETEXT("Teksti-TV"),
     TV_GUIDE("TV-ohjelmat"),
     DEVICE_INFO("Puhelimen tiedot"),
+    FLIGHTS("Lennot"),
 }
 
 /** Sektion talletus Activityn uudelleenluontiin (rememberSaveable): enum → nimi → enum. */
@@ -585,6 +586,7 @@ fun ComposeMainScreen(
                     }
                     HomeSection.FORECAST -> ForecastSection()
                     HomeSection.WEATHER_WARNINGS -> WarningsSection()
+                    HomeSection.FLIGHTS -> FlightsSection()
                     HomeSection.PLACES -> PlacesSection(onPlaceChosen = { section = HomeSection.HOME })
                     HomeSection.STEPS -> StepsSection()
                     HomeSection.WORKOUT -> WorkoutScreen()
@@ -707,6 +709,7 @@ private fun DrawerContent(
             DrawerHeader("Muut", R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
             DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
+            DrawerItem(HomeSection.FLIGHTS, current, onSelect)
             // Asetukset siirretty alapalkkiin (ratas oikeassa reunassa) — löydettävyys.
 
             Spacer(Modifier.height(16.dp))
