@@ -105,6 +105,7 @@ enum class HomeWidget(val id: String, val title: String, val defaultVisible: Boo
     NEWS("news", "Kotimaan uutiset", true),
     NEWS_FOREIGN("news_foreign", "Ulkomaan uutiset", true),
     TRANSIT("transit", "Lähilähdöt", true),
+    FLIGHTS("flights", "Lennot", true),
 }
 
 // Julkisia, jotta View-pohjainen MobileWidgetOrderActivity (raahausjärjestely) lukee/kirjoittaa samat avaimet.
@@ -1019,5 +1020,72 @@ private fun relAge(timestamp: Long): String {
         ageMin < 1L -> "nyt"
         ageMin < 60L -> "$ageMin min sitten"
         else -> "${ageMin / 60L} h sitten"
+    }
+}
+
+// ===================== Lennot-kortti (etusivulle) =====================
+
+/** Etusivun lentokortti: seuraavat lähtevät HEL:stä. Jakaa FlightsRepositoryn (ei omaa hakua). */
+@Composable
+internal fun HomeFlightsCard(onOpenFlights: () -> Unit) {
+    var tick by remember { mutableStateOf(0) }
+    DisposableEffect(Unit) {
+        val main = Handler(Looper.getMainLooper())
+        val l = FlightsRepository.Listener { main.post { tick++ } }
+        FlightsRepository.addListener(l)
+        FlightsRepository.refreshIfStale()
+        onDispose { FlightsRepository.removeListener(l) }
+    }
+    val data = remember(tick) { FlightsRepository.getLatest() }
+    val arki = ArkiTheme.colors
+    val next = remember(data, tick) {
+        FlightsFilter.board(data, "HEL", FlightDir.DEP)
+            .filter { FlightDisplay.category(it) != FlightStatusCat.COMPLETED }
+            .take(3)
+    }
+    if (data != null && next.isEmpty()) return // ei näytetä tyhjää korttia
+    ArkiCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            ArkiCardHeader(
+                icon = painterResource(R.drawable.mobile_ic_flight_24),
+                accent = arki.weatherAccent,
+                title = "Lennot",
+                subtitle = "Helsinki-Vantaa · lähtevät",
+                trailing = { TextButton(onClick = onOpenFlights) { Text("Kaikki") } },
+            )
+            if (data == null) {
+                Text("Ladataan…", modifier = Modifier.padding(top = 10.dp),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                next.forEach { f ->
+                    RowDivider()
+                    HomeFlightRow(f)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeFlightRow(f: Flight) {
+    val timeFmt = remember {
+        java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getTimeZone("Europe/Helsinki")
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(timeFmt.format(java.util.Date(f.effectiveMs)), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(f.flightNo, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            val place = if (f.city.isNotBlank()) f.city else f.otherAirport
+            Text(place, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (f.status.isNotBlank()) {
+            Text(f.status, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
