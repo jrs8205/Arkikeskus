@@ -1,6 +1,7 @@
 package org.jrs82.fsclock.mobile
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -181,7 +184,7 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                if (f.status.isNotBlank()) ArkiPill(f.status, color)
+                if (f.status.isNotBlank()) FlightStatusPill(f.status, cat)
             }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -223,6 +226,27 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FlightStatusPill(status: String, cat: FlightStatusCat) {
+    val bg: Color
+    val fg: Color
+    when (cat) {
+        FlightStatusCat.ATTENTION -> { bg = Color(0xFF2E7D32); fg = Color.White }      // vihreä = Portille/Koneeseen
+        FlightStatusCat.DELAYED -> { bg = Color(0xFFD32F2F); fg = Color.White }         // punainen = Arvioitu aika/Myöhässä
+        FlightStatusCat.CANCELLED -> { bg = Color(0xFFB71C1C); fg = Color.White }       // tumma punainen = Peruttu
+        FlightStatusCat.COMPLETED -> { bg = MaterialTheme.colorScheme.surfaceVariant; fg = MaterialTheme.colorScheme.onSurfaceVariant }
+        FlightStatusCat.ON_TIME -> { bg = MaterialTheme.colorScheme.surfaceVariant; fg = MaterialTheme.colorScheme.onSurfaceVariant }
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .padding(horizontal = 11.dp, vertical = 6.dp),
+    ) {
+        Text(status, color = fg, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
     }
 }
 

@@ -15,5 +15,9 @@ class FlightDisplayTest {
         // 10 min myöhässä, ei lopputilaa
         assertEquals(FlightStatusCat.DELAYED, FlightDisplay.category(f("Arvioitu", 0, 600_000)))
         assertEquals(FlightStatusCat.ON_TIME, FlightDisplay.category(f("Aikataulussa", 0, null)))
+        assertEquals(FlightStatusCat.ATTENTION, FlightDisplay.category(f("Portille", 0, null)))
+        assertEquals(FlightStatusCat.DELAYED, FlightDisplay.category(f("Arvioitu aika", 0, null)))
+        assertEquals(FlightStatusCat.DELAYED, FlightDisplay.category(f("Myöhässä", 0, null)))
+        assertEquals(FlightStatusCat.ATTENTION, FlightDisplay.category(f("Viimeinen kutsu", 0, null)))
     }
 }
