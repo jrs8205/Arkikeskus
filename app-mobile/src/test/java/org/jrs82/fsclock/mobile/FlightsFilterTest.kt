@@ -1,0 +1,33 @@
+package org.jrs82.fsclock.mobile
+
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class FlightsFilterTest {
+    private fun f(dir: FlightDir, apt: String, fno: String, sch: Long, cs: List<String> = emptyList()) =
+        Flight(dir, apt, fno, sch, null, null, "", "", "X", "X", null, null, null, null, null, cs)
+
+    private val data = FlightsData(
+        updatedMs = 0L,
+        dep = listOf(f(FlightDir.DEP, "HEL", "AY1731", 300), f(FlightDir.DEP, "HEL", "AY100", 100), f(FlightDir.DEP, "OUL", "AY500", 200)),
+        arr = listOf(f(FlightDir.ARR, "HEL", "AY432", 150, cs = listOf("JL6877"))),
+    )
+
+    @Test fun boardSuodattaaKentanJaSuunnanJaJarjestaa() {
+        val r = FlightsFilter.board(data, "HEL", FlightDir.DEP)
+        assertEquals(listOf("AY100", "AY1731"), r.map { it.flightNo }) // nouseva sch
+    }
+
+    @Test fun searchKattaaKaikkiKentatJaSuunnatJaCodeshare() {
+        assertEquals(1, FlightsFilter.search(data, "AY500").size)       // toinen kenttä
+        assertEquals("AY432", FlightsFilter.search(data, "ay 432")[0].flightNo) // ci + välilyönti
+        assertEquals("AY432", FlightsFilter.search(data, "JL6877")[0].flightNo) // codeshare
+        assertEquals(0, FlightsFilter.search(data, "").size)
+    }
+
+    @Test fun airportsWithCountsLaskee() {
+        val c = FlightsFilter.airportsWithCounts(data)
+        assertEquals(3, c["HEL"])  // 2 dep + 1 arr
+        assertEquals(1, c["OUL"])
+    }
+}
