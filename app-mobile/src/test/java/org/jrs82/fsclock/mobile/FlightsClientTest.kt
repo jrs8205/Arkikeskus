@@ -15,7 +15,7 @@ class FlightsClientTest {
                  "chk":"2 / 207","ac":"321","cs":["AY123","QF8238"],"gatePrev":"18","via":["Lissabon"],"acreg":"OHLZH","callsign":"FIN36M","cgate":null,"cboard":"2026-06-29T05:30:00Z","cfinal":null,"cclosed":null}],
          "arr":[{"apt":"OUL","fno":"AY432","sch":"2026-06-29T05:40:00Z",
                  "est":null,"act":"2026-06-29T05:40:00Z","scode":"LAN","st":"Laskeutunut",
-                 "apt2":"HEL","city":"Helsinki","gate":null,"stand":"22","belt":"2A",
+                 "apt2":"HEL","city":"Helsinki","gate":null,"stand":"22","area":"2A","belt":"6","beltStatus":"not-started","terminal":"2",
                  "chk":null,"ac":"E90","cs":[]}]}
     """.trimIndent()
 
@@ -39,7 +39,10 @@ class FlightsClientTest {
         assertEquals(d.estimatedMs, d.effectiveMs)
         val a = data.arr[0]
         assertEquals(FlightDir.ARR, a.dir)
-        assertEquals("2A", a.belt)
+        assertEquals("2A", a.baggageArea)
+        assertEquals("6", a.belt)
+        assertEquals("not-started", a.beltStatus)
+        assertEquals("2", a.terminal)
         assertNull(a.gate)
         // act asetettu -> effective = act
         assertEquals(a.actualMs, a.effectiveMs)

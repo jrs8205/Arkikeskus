@@ -80,7 +80,7 @@ object FlightsClient {
                     city = str(f, "city") ?: "",
                     gate = str(f, "gate"),
                     stand = str(f, "stand"),
-                    belt = str(f, "belt"),
+                    baggageArea = str(f, "area"),
                     checkin = str(f, "chk"),
                     aircraft = str(f, "ac"),
                     codeshares = cs,
@@ -92,6 +92,9 @@ object FlightsClient {
                     callBoardingMs = isoToMs(str(f, "cboard")),
                     callFinalMs = isoToMs(str(f, "cfinal")),
                     callClosedMs = isoToMs(str(f, "cclosed")),
+                    belt = str(f, "belt"),
+                    beltStatus = str(f, "beltStatus"),
+                    terminal = str(f, "terminal"),
                 ),
             )
         }

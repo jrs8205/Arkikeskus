@@ -140,12 +140,19 @@ internal fun FlightsSection() {
                 }
             }
         }
-        Text(
-            "Tiedot: Finavia",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 6.dp),
-        )
+        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+            Text(
+                "Tiedot: Finavia",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Lähtevien ja saapuvien lentojen tiedot toimitetaan ainoastaan matkustajamukavuuden parantamiseksi. Aikatauluissa voi esiintyä muutoksia, jotka eivät ilmene toimitetuista tiedoista. Lähtöportti- ja tuloaulatiedot sekä reaaliaikaiset lähtö- ja tuloajat on aina tarkistettava lentoaseman aikataulumonitoreista.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+        }
     }
 }
 
@@ -206,8 +213,25 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                         if (!f.gatePrev.isNullOrBlank() && f.gatePrev != f.gate) "$it  (ennen ${f.gatePrev})" else it
                     }
                     DetailRow("Portti", gateVal)
-                    DetailRow(if (f.dir == FlightDir.ARR) "Matkalaukka-alue" else "Lähtöselvitys",
-                        if (f.dir == FlightDir.ARR) f.belt else f.checkin)
+                    DetailRow("Terminaali", f.terminal)
+                    if (f.dir == FlightDir.ARR) {
+                        val beltStatusFi = when (f.beltStatus) {
+                            "not-started" -> "Ei vielä alkanut"
+                            "started" -> "Käynnissä"
+                            "completed" -> "Päättynyt"
+                            else -> null
+                        }
+                        val baggage = when {
+                            !f.belt.isNullOrBlank() -> "Hihna ${f.belt}" +
+                                (beltStatusFi?.let { " — $it" } ?: "") +
+                                (f.baggageArea?.let { " (alue $it)" } ?: "")
+                            !f.baggageArea.isNullOrBlank() -> "Alue ${f.baggageArea}"
+                            else -> null
+                        }
+                        DetailRow("Matkalaukat", baggage)
+                    } else {
+                        DetailRow("Lähtöselvitys", f.checkin)
+                    }
                     DetailRow("Asemapaikka", f.stand)
                     DetailRow("Reitin jatko", f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
                     DetailRow("Kone", f.aircraft?.let { ac -> if (!f.aircraftReg.isNullOrBlank()) "$ac · ${f.aircraftReg}" else ac })
