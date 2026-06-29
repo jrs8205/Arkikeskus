@@ -3,11 +3,13 @@ package org.jrs82.fsclock.mobile
 /** Paikalliset suodatus-/hakufunktiot Worker-dataan (ei lisähakuja). Puhdas → yksikkötestattava. */
 object FlightsFilter {
 
-    /** Valitun kentän + suunnan lennot, järjestettynä paras-tiedossa-oleva-aika nousevasti. */
-    fun board(data: FlightsData?, airport: String, dir: FlightDir): List<Flight> {
+    /** Valitun kentän + suunnan lennot, järjestettynä paras-tiedossa-oleva-aika nousevasti.
+     *  Piilottaa selvästi menneet (effective-aika yli 30 min sitten) → taulu alkaa nyt-hetkestä. */
+    fun board(data: FlightsData?, airport: String, dir: FlightDir, nowMs: Long = System.currentTimeMillis()): List<Flight> {
         if (data == null) return emptyList()
         val src = if (dir == FlightDir.ARR) data.arr else data.dep
-        return src.filter { it.airport.equals(airport, ignoreCase = true) }
+        val cutoff = nowMs - 30 * 60_000L
+        return src.filter { it.airport.equals(airport, ignoreCase = true) && it.effectiveMs >= cutoff }
             .sortedBy { it.effectiveMs }
     }
 
