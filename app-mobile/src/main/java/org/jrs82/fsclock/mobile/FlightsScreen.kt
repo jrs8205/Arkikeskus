@@ -235,7 +235,7 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                         }
                         DetailRow("Matkalaukat", baggage)
                     } else {
-                        DetailRow("Lähtöselvitys", f.checkin)
+                        DetailRow("Lähtöselvitystiski", f.checkin)
                     }
                     DetailRow("Reitin jatko", f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
                     DetailRow("Kone", f.aircraft?.let { ac -> if (!f.aircraftReg.isNullOrBlank()) "$ac · ${f.aircraftReg}" else ac })
