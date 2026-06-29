@@ -14,8 +14,19 @@ class FlightsFilterTest {
     )
 
     @Test fun boardSuodattaaKentanJaSuunnanJaJarjestaa() {
-        val r = FlightsFilter.board(data, "HEL", FlightDir.DEP)
+        val r = FlightsFilter.board(data, "HEL", FlightDir.DEP, 0L)
         assertEquals(listOf("AY100", "AY1731"), r.map { it.flightNo }) // nouseva sch
+    }
+
+    @Test fun boardPiilottaaSelvastiMenneet() {
+        val now = 1_000_000_000_000L
+        val d = FlightsData(0L, arr = emptyList(), dep = listOf(
+            f(FlightDir.DEP, "HEL", "OLD", now - 60 * 60_000L),    // 60 min sitten -> piiloon
+            f(FlightDir.DEP, "HEL", "RECENT", now - 10 * 60_000L), // 10 min sitten -> näkyy
+            f(FlightDir.DEP, "HEL", "SOON", now + 30 * 60_000L),   // tuleva -> näkyy
+        ))
+        val r = FlightsFilter.board(d, "HEL", FlightDir.DEP, now)
+        assertEquals(listOf("RECENT", "SOON"), r.map { it.flightNo })
     }
 
     @Test fun searchKattaaKaikkiKentatJaSuunnatJaCodeshare() {

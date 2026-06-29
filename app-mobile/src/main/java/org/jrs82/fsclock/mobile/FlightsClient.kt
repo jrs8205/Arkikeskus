@@ -87,7 +87,7 @@ object FlightsClient {
         return out
     }
 
-    /** JSON-null tai "null"-merkkijono → null; muuten trimmattu arvo (tyhjä → null). */
+    /** JSON-null → null; muuten trimmattu arvo (tyhjä → null). */
     private fun str(o: JSONObject, key: String): String? {
         if (o.isNull(key)) return null
         val s = o.optString(key, "")

@@ -1,6 +1,7 @@
 package org.jrs82.fsclock.mobile
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -79,7 +80,12 @@ internal fun FlightsSection() {
             Text("Lennot", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             val updated = data?.updatedMs ?: 0L
             if (updated > 0L) {
-                Text("Päivitetty ${timeHm(updated)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val stale = System.currentTimeMillis() - updated > 5 * 60_000L
+                Text(
+                    "Päivitetty ${timeHm(updated)}" + if (stale) " · ei tuore" else "",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (stale) Color(0xFFE08A00) else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             IconButton(onClick = { FlightsRepository.refreshNow() }) {
                 Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = "Päivitä")
@@ -114,22 +120,26 @@ internal fun FlightsSection() {
             Text("Haku kattaa koko Suomen", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(12.dp))
-        when {
-            data == null -> Text("Ladataan lentoja…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            list.isEmpty() -> Text(
-                if (query.isNotBlank()) "Ei osumia haulle \"$query\"."
-                else "Ei lentoja — ${FinaviaAirports.name(airport)}, ${if (dir == FlightDir.DEP) "lähtevät" else "saapuvat"}.",
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            else -> LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(list, key = { it.dir.name + it.airport + it.flightNo + it.scheduledMs }) { fl -> FlightCard(fl, showAirport = query.isNotBlank()) }
-                item {
-                    Spacer(Modifier.height(4.dp))
-                    Text("Tiedot: Finavia", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(8.dp))
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                data == null -> Text("Ladataan lentoja…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                list.isEmpty() -> Text(
+                    if (query.isNotBlank()) "Ei osumia haulle \"$query\"."
+                    else "Ei lentoja — ${FinaviaAirports.name(airport)}, ${if (dir == FlightDir.DEP) "lähtevät" else "saapuvat"}.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(list, key = { it.dir.name + it.airport + it.flightNo + it.scheduledMs }) { fl -> FlightCard(fl, showAirport = query.isNotBlank()) }
+                    item { Spacer(Modifier.height(8.dp)) }
                 }
             }
         }
+        Text(
+            "Tiedot: Finavia",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 6.dp),
+        )
     }
 }
 
