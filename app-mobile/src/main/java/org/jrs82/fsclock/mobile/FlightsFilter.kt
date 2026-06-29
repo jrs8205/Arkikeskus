@@ -3,14 +3,16 @@ package org.jrs82.fsclock.mobile
 /** Paikalliset suodatus-/hakufunktiot Worker-dataan (ei lisähakuja). Puhdas → yksikkötestattava. */
 object FlightsFilter {
 
-    /** Valitun kentän + suunnan lennot, järjestettynä paras-tiedossa-oleva-aika nousevasti.
-     *  Piilottaa selvästi menneet (effective-aika yli 30 min sitten) → taulu alkaa nyt-hetkestä. */
+    /** Valitun kentän + suunnan lennot, järjestettynä AIKATAULUN mukaan nousevasti (kuten Finavia:
+     *  myöhästynyt lento pysyy aikataulupaikassaan, arvioitu aika näkyy erikseen). Piilottaa
+     *  selvästi menneet (effective-aika yli 30 min sitten) → taulu alkaa nyt-hetkestä, mutta
+     *  myöhästynyt mutta vielä saapumaton/lähtemätön lento pysyy (effective tulevaisuudessa). */
     fun board(data: FlightsData?, airport: String, dir: FlightDir, nowMs: Long = System.currentTimeMillis()): List<Flight> {
         if (data == null) return emptyList()
         val src = if (dir == FlightDir.ARR) data.arr else data.dep
         val cutoff = nowMs - 30 * 60_000L
         return src.filter { it.airport.equals(airport, ignoreCase = true) && it.effectiveMs >= cutoff }
-            .sortedBy { it.effectiveMs }
+            .sortedBy { it.scheduledMs }
     }
 
     /** Lentonumerohaku koko Suomesta (kaikki kentät + molemmat suunnat); osuma fno- tai codeshare-numeroon. */

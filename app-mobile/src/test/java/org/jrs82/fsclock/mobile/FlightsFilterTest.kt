@@ -29,6 +29,16 @@ class FlightsFilterTest {
         assertEquals(listOf("RECENT", "SOON"), r.map { it.flightNo })
     }
 
+    @Test fun boardJarjestaaAikataulunMukaanEiArvionMukaan() {
+        // DELAYED: aikataulu aikaisin (100), arvio myöhään (10000); ONTIME: aikataulu myöhemmin (200).
+        val delayed = Flight(FlightDir.DEP, "HEL", "DELAYED", 100L, 10_000L, null, "", "", "X", "X", null, null, null, null, null, emptyList())
+        val ontime = Flight(FlightDir.DEP, "HEL", "ONTIME", 200L, null, null, "", "", "X", "X", null, null, null, null, null, emptyList())
+        val d = FlightsData(0L, arr = emptyList(), dep = listOf(ontime, delayed))
+        val r = FlightsFilter.board(d, "HEL", FlightDir.DEP, 0L)
+        // Aikataulun mukaan: DELAYED (100) ennen ONTIMEa (200), vaikka DELAYED:n arvio (10000) on myöhemmin.
+        assertEquals(listOf("DELAYED", "ONTIME"), r.map { it.flightNo })
+    }
+
     @Test fun searchKattaaKaikkiKentatJaSuunnatJaCodeshare() {
         assertEquals(1, FlightsFilter.search(data, "AY500").size)       // toinen kenttä
         assertEquals("AY432", FlightsFilter.search(data, "ay 432")[0].flightNo) // ci + välilyönti
