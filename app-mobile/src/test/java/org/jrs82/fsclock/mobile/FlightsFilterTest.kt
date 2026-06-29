@@ -18,15 +18,17 @@ class FlightsFilterTest {
         assertEquals(listOf("AY100", "AY1731"), r.map { it.flightNo }) // nouseva sch
     }
 
-    @Test fun boardPiilottaaSelvastiMenneet() {
+    @Test fun boardPiilottaaVanhatSaapuneetMuttaPitaaMyohastyneet() {
         val now = 1_000_000_000_000L
+        fun done(fno: String, sch: Long, act: Long) =
+            Flight(FlightDir.DEP, "HEL", fno, sch, null, act, "", "", "X", "X", null, null, null, null, null, emptyList())
         val d = FlightsData(0L, arr = emptyList(), dep = listOf(
-            f(FlightDir.DEP, "HEL", "OLD", now - 60 * 60_000L),    // 60 min sitten -> piiloon
-            f(FlightDir.DEP, "HEL", "RECENT", now - 10 * 60_000L), // 10 min sitten -> näkyy
-            f(FlightDir.DEP, "HEL", "SOON", now + 30 * 60_000L),   // tuleva -> näkyy
+            done("OLD_DONE", now - 120 * 60_000L, now - 90 * 60_000L),  // lähtenyt 90 min sitten -> piiloon
+            done("RECENT_DONE", now - 20 * 60_000L, now - 10 * 60_000L), // lähtenyt 10 min sitten -> näkyy
+            f(FlightDir.DEP, "HEL", "PENDING", now - 70 * 60_000L),      // myöhässä, ei lähtenyt -> näkyy aina
         ))
         val r = FlightsFilter.board(d, "HEL", FlightDir.DEP, now)
-        assertEquals(listOf("RECENT", "SOON"), r.map { it.flightNo })
+        assertEquals(listOf("PENDING", "RECENT_DONE"), r.map { it.flightNo })
     }
 
     @Test fun boardJarjestaaAikataulunMukaanEiArvionMukaan() {
