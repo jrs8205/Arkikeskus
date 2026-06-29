@@ -20,6 +20,14 @@ data class Flight(
     val checkin: String?,       // vain dep
     val aircraft: String?,
     val codeshares: List<String>,
+    val gatePrev: String? = null,
+    val via: List<String> = emptyList(),
+    val aircraftReg: String? = null,
+    val callsign: String? = null,
+    val callGateMs: Long? = null,
+    val callBoardingMs: Long? = null,
+    val callFinalMs: Long? = null,
+    val callClosedMs: Long? = null,
 ) {
     /** Paras tiedossa oleva aika: toteutunut → arvio → aikataulu. */
     val effectiveMs: Long get() = actualMs ?: estimatedMs ?: scheduledMs

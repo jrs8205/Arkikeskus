@@ -1,6 +1,7 @@
 package org.jrs82.fsclock.mobile
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,7 +12,7 @@ class FlightsClientTest {
          "dep":[{"apt":"HEL","fno":"AY1731","sch":"2026-06-29T05:55:00Z",
                  "est":"2026-06-29T06:10:00Z","act":null,"scode":"SCH","st":"Aikataulussa",
                  "apt2":"FNC","city":"Funchal","gate":"28","stand":"28","belt":null,
-                 "chk":"2 / 207","ac":"321","cs":["AY123","QF8238"]}],
+                 "chk":"2 / 207","ac":"321","cs":["AY123","QF8238"],"gatePrev":"18","via":["Lissabon"],"acreg":"OHLZH","callsign":"FIN36M","cgate":null,"cboard":"2026-06-29T05:30:00Z","cfinal":null,"cclosed":null}],
          "arr":[{"apt":"OUL","fno":"AY432","sch":"2026-06-29T05:40:00Z",
                  "est":null,"act":"2026-06-29T05:40:00Z","scode":"LAN","st":"Laskeutunut",
                  "apt2":"HEL","city":"Helsinki","gate":null,"stand":"22","belt":"2A",
@@ -27,6 +28,11 @@ class FlightsClientTest {
         assertEquals(FlightDir.DEP, d.dir)
         assertEquals("Funchal", d.city)
         assertEquals(listOf("AY123", "QF8238"), d.codeshares)
+        assertEquals("18", d.gatePrev)
+        assertEquals(listOf("Lissabon"), d.via)
+        assertEquals("OHLZH", d.aircraftReg)
+        assertEquals("FIN36M", d.callsign)
+        assertNotNull(d.callBoardingMs)
         assertNull(d.actualMs)
         // est 06:10 vs sch 05:55 -> 15 min myöhässä, effective = est
         assertEquals(15L, d.delayMin)
