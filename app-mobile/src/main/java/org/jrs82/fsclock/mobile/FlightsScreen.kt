@@ -217,7 +217,7 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                     if (f.dir == FlightDir.ARR) {
                         val beltStatusFi = when (f.beltStatus) {
                             "not-started" -> "Ei vielä alkanut"
-                            "started" -> "Käynnissä"
+                            "started" -> "Alkanut"
                             "completed" -> "Päättynyt"
                             else -> null
                         }
