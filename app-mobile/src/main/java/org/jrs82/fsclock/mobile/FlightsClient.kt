@@ -63,6 +63,9 @@ object FlightsClient {
             val csArr = f.optJSONArray("cs")
             val cs = if (csArr == null) emptyList() else (0 until csArr.length())
                 .mapNotNull { j -> csArr.optString(j, "").takeIf { it.isNotBlank() } }
+            val viaArr = f.optJSONArray("via")
+            val via = if (viaArr == null) emptyList() else (0 until viaArr.length())
+                .mapNotNull { j -> viaArr.optString(j, "").takeIf { it.isNotBlank() } }
             out.add(
                 Flight(
                     dir = dir,
@@ -81,6 +84,14 @@ object FlightsClient {
                     checkin = str(f, "chk"),
                     aircraft = str(f, "ac"),
                     codeshares = cs,
+                    gatePrev = str(f, "gatePrev"),
+                    via = via,
+                    aircraftReg = str(f, "acreg"),
+                    callsign = str(f, "callsign"),
+                    callGateMs = isoToMs(str(f, "cgate")),
+                    callBoardingMs = isoToMs(str(f, "cboard")),
+                    callFinalMs = isoToMs(str(f, "cfinal")),
+                    callClosedMs = isoToMs(str(f, "cclosed")),
                 ),
             )
         }

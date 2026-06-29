@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.DropdownMenuItem
@@ -145,17 +148,17 @@ internal fun FlightsSection() {
 
 @Composable
 private fun FlightCard(f: Flight, showAirport: Boolean) {
-    val arki = ArkiTheme.colors
+    var expanded by remember(f.dir, f.flightNo, f.scheduledMs) { mutableStateOf(false) }
     val cat = FlightDisplay.category(f)
     val color = when (cat) {
         FlightStatusCat.CANCELLED -> Color(0xFFD32F2F)
         FlightStatusCat.DELAYED -> Color(0xFFE08A00)
-        FlightStatusCat.ATTENTION -> arki.weatherAccent
+        FlightStatusCat.ATTENTION -> ArkiTheme.colors.weatherAccent
         FlightStatusCat.COMPLETED -> MaterialTheme.colorScheme.onSurfaceVariant
         FlightStatusCat.ON_TIME -> MaterialTheme.colorScheme.primary
     }
     val dimmed = cat == FlightStatusCat.COMPLETED
-    ArkiCard(modifier = Modifier.fillMaxWidth()) {
+    ArkiCard(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(18.dp).alpha(if (dimmed) 0.6f else 1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column {
@@ -180,21 +183,55 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                 }
                 if (f.status.isNotBlank()) ArkiPill(f.status, color)
             }
-            val details = buildList {
-                f.gate?.let { add("Portti $it") }
-                f.belt?.let { add("Hihna $it") }
-                f.checkin?.let { add("Lähtöselvitys $it") }
-                f.stand?.let { add("Asemapaikka $it") }
-                f.aircraft?.let { add("Kone $it") }
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (expanded) "Piilota tiedot" else "Lisätiedot",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Icon(
+                    painterResource(R.drawable.mobile_ic_chevron_down_24),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp).rotate(if (expanded) 180f else 0f),
+                )
             }
-            if (details.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                Text(details.joinToString("  ·  "), style = MaterialTheme.typography.bodyMedium)
-            }
-            if (f.codeshares.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text("Myös: ${f.codeshares.joinToString(", ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(top = 6.dp)) {
+                    val gateVal = f.gate?.let {
+                        if (!f.gatePrev.isNullOrBlank() && f.gatePrev != f.gate) "$it  (ennen ${f.gatePrev})" else it
+                    }
+                    DetailRow("Portti", gateVal)
+                    DetailRow(if (f.dir == FlightDir.ARR) "Matkalaukkahihna" else "Lähtöselvitys",
+                        if (f.dir == FlightDir.ARR) f.belt else f.checkin)
+                    DetailRow("Asemapaikka", f.stand)
+                    DetailRow("Reitin jatko", f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
+                    DetailRow("Kone", f.aircraft?.let { ac -> if (!f.aircraftReg.isNullOrBlank()) "$ac · ${f.aircraftReg}" else ac })
+                    DetailRow("Kutsutunnus", f.callsign)
+                    val calls = listOfNotNull(
+                        f.callGateMs?.let { "Portille ${timeHm(it)}" },
+                        f.callBoardingMs?.let { "Koneeseen ${timeHm(it)}" },
+                        f.callFinalMs?.let { "Viim. kuulutus ${timeHm(it)}" },
+                        f.callClosedMs?.let { "Suljettu ${timeHm(it)}" },
+                    )
+                    DetailRow("Kuulutukset", calls.takeIf { it.isNotEmpty() }?.joinToString("  ·  "))
+                    DetailRow("Aikataulu", timeHm(f.scheduledMs))
+                    DetailRow("Arvio", f.estimatedMs?.let { timeHm(it) })
+                    DetailRow("Toteutunut", f.actualMs?.let { timeHm(it) })
+                    DetailRow("Codeshare", f.codeshares.takeIf { it.isNotEmpty() }?.joinToString(", "))
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String?) {
+    if (value.isNullOrBlank()) return
+    Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(132.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
     }
 }
