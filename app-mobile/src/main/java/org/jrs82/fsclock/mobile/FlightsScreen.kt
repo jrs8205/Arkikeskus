@@ -206,7 +206,7 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                         if (!f.gatePrev.isNullOrBlank() && f.gatePrev != f.gate) "$it  (ennen ${f.gatePrev})" else it
                     }
                     DetailRow("Portti", gateVal)
-                    DetailRow(if (f.dir == FlightDir.ARR) "Matkalaukkahihna" else "Lähtöselvitys",
+                    DetailRow(if (f.dir == FlightDir.ARR) "Matkalaukka-alue" else "Lähtöselvitys",
                         if (f.dir == FlightDir.ARR) f.belt else f.checkin)
                     DetailRow("Asemapaikka", f.stand)
                     DetailRow("Reitin jatko", f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
