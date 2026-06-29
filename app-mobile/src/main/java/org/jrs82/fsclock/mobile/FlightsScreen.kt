@@ -97,6 +97,11 @@ internal fun FlightsSection() {
                 Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = "Päivitä")
             }
         }
+        Text(
+            "Päivittyy automaattisesti minuutin välein",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(Modifier.height(6.dp))
         if (query.isBlank()) {
             ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = it }) {
@@ -232,10 +237,8 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                     } else {
                         DetailRow("Lähtöselvitys", f.checkin)
                     }
-                    DetailRow("Asemapaikka", f.stand)
                     DetailRow("Reitin jatko", f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
                     DetailRow("Kone", f.aircraft?.let { ac -> if (!f.aircraftReg.isNullOrBlank()) "$ac · ${f.aircraftReg}" else ac })
-                    DetailRow("Kutsutunnus", f.callsign)
                     val calls = listOfNotNull(
                         f.callGateMs?.let { "Portille ${timeHm(it)}" },
                         f.callBoardingMs?.let { "Koneeseen ${timeHm(it)}" },
