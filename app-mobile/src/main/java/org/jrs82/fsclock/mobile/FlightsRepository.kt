@@ -37,7 +37,10 @@ object FlightsRepository {
         io.execute {
             try {
                 val data = FlightsClient.fetch()
-                if (data != null) {
+                // Älä ylikirjoita hyvää dataa tyhjällä: Finavia-katkoksessa worker voi palauttaa
+                // tyhjän {dep:[],arr:[]} (200). Säilytä edellinen taulu; hyväksy tyhjä vain jos
+                // mitään ei vielä ole (ensilataus).
+                if (data != null && (data.dep.isNotEmpty() || data.arr.isNotEmpty() || latest == null)) {
                     latest = data
                     lastFetchAt = System.currentTimeMillis()
                     Log.d(TAG, "Refreshed: ${data.dep.size} dep / ${data.arr.size} arr")
