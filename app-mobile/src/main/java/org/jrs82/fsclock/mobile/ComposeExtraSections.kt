@@ -330,9 +330,12 @@ private fun formatDistanceFi(meters: Double): String = when {
     else -> String.format(FI_X, "%.1f km", meters / 1000.0)
 }
 
+// Jaettu formatter (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
+private val DMY_HM_X = SimpleDateFormat("d.M.yyyy HH:mm", FI_X)
+
 private fun trafficValidity(n: TrafficNotice): String {
     if (n.startTimeMs <= 0L && n.endTimeMs <= 0L) return ""
-    val dt = SimpleDateFormat("d.M.yyyy HH:mm", FI_X)
+    val dt = DMY_HM_X
     return when {
         n.startTimeMs <= 0L -> "voimassa asti " + dt.format(Date(n.endTimeMs))
         n.endTimeMs <= 0L -> "alkaen " + dt.format(Date(n.startTimeMs))

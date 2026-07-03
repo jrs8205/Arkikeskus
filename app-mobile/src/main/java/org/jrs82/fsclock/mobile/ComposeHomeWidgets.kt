@@ -65,6 +65,9 @@ import java.util.TimeZone
 
 private val FI_W = Locale("fi", "FI")
 private val HELSINKI_W: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
+// Jaetut formatterit (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
+private val HM_W = SimpleDateFormat("HH:mm", FI_W).apply { timeZone = HELSINKI_W }
+private val DM_HM_W = SimpleDateFormat("d.M. HH:mm", FI_W).apply { timeZone = HELSINKI_W }
 
 // Etusivun UUTISKORTTIEN PROSESSITASON välimuisti: uutiset säilyvät kun siirrytään sivulta toiselle
 // (ei "katoa ja lataudu uudelleen" joka kerta), ja haetaan uudelleen vain sovelluksen avauksessa
@@ -627,8 +630,7 @@ private fun WarningRow(w: WeatherWarning) {
 
 private fun warningValidity(w: WeatherWarning): String {
     if (w.onsetMs <= 0L && w.expiresMs <= 0L) return ""
-    val dt = SimpleDateFormat("d.M. HH:mm", FI_W)
-    dt.timeZone = HELSINKI_W
+    val dt = DM_HM_W
     return when {
         w.onsetMs <= 0L -> "voimassa asti " + dt.format(Date(w.expiresMs))
         w.expiresMs <= 0L -> "alkaen " + dt.format(Date(w.onsetMs))
@@ -971,9 +973,7 @@ private fun departureKey(d: Departure): String =
 
 private fun stopTimeText(epochSec: Long): String {
     if (epochSec <= 0L) return ""
-    val f = SimpleDateFormat("HH:mm", FI_W)
-    f.timeZone = HELSINKI_W
-    return f.format(Date(epochSec * 1000L))
+    return HM_W.format(Date(epochSec * 1000L))
 }
 
 // ===================== Apurit =====================
@@ -1009,9 +1009,7 @@ private fun departureTimeText(d: Departure): String {
     if (diff <= 30) return "nyt"
     val min = diff / 60L
     if (min < 60) return "$min min"
-    val f = SimpleDateFormat("HH:mm", FI_W)
-    f.timeZone = HELSINKI_W
-    return f.format(Date(d.departureEpochSec * 1000L))
+    return HM_W.format(Date(d.departureEpochSec * 1000L))
 }
 
 private fun relAge(timestamp: Long): String {
