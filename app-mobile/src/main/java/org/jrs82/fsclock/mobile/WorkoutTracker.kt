@@ -133,6 +133,12 @@ object WorkoutTracker {
         }
         entity = w
         resetRuntime()
+        // Askel-baseline (stepBaselineCum/lastCumSeen) on kannassa yhä pätevä samalla bootilla.
+        // Ilman tätä ensimmäinen anturitapahtuma osuisi !stepSeen-haaraan ja nollaisi baselinen
+        // commitoimatta kertynyttä väliä (lastCumSeen − stepBaselineCum) → lenkin askeleet
+        // putoaisivat. Reboot katkon aikana tunnistuu yhä onStepCountissa
+        // (cumulative < lastCumSeen → commit-haara).
+        stepSeen = w.lastCumSeen > 0f
         val pts = io.submit<List<WorkoutPointEntity>> { d.pointsFor(w.id) }.get()
         val sps = io.submit<List<WorkoutSplitEntity>> { d.splitsFor(w.id) }.get()
         segment = (pts.lastOrNull()?.segment ?: 0) + 1
@@ -182,9 +188,13 @@ object WorkoutTracker {
     fun stop(context: Context, auto: Boolean, endAtMs: Long = System.currentTimeMillis()) {
         val w = entity ?: return
         if (mutableState.value.phase == Phase.IDLE) return
-        if (mutableState.value.phase == Phase.ACTIVE) accrueMovingTime(w)
-        if (auto) {
-            // Automaattipysäytys: älä laske paikallaanolohäntää (lastMovement→nyt) kestoon.
+        val wasActive = mutableState.value.phase == Phase.ACTIVE
+        if (wasActive) accrueMovingTime(w)
+        if (auto && wasActive) {
+            // Automaattipysäytys ACTIVE-tilasta: accrue lisäsi juuri paikallaanolohännän
+            // (lastMovement→nyt) kestoon → vähennetään se pois. PAUSED-tilasta (pause-katto)
+            // kestoa EI kerry tauolla, joten häntää ei ole — vähennys söisi aitoa liikeaikaa
+            // (pahimmillaan koko keston nollaan).
             val idleTail = System.currentTimeMillis() - endAtMs
             if (idleTail > 0) w.movingTimeMs = (w.movingTimeMs - idleTail).coerceAtLeast(0)
         }
