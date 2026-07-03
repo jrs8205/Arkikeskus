@@ -954,10 +954,15 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                     confirmDelete = false
                     Thread {
                         try {
-                            val dao = FsClockDb.get(context).workoutDao()
-                            dao.deletePointsFor(workoutId)
-                            dao.deleteSplitsFor(workoutId)
-                            dao.deleteWorkout(workoutId)
+                            val db = FsClockDb.get(context)
+                            val dao = db.workoutDao()
+                            // Yksi transaktio: keskeytys ei jätä osittaista poistoa (esim.
+                            // lenkkiä ilman pisteitä) — sama malli kuin BackupManager.restore.
+                            db.runInTransaction(Runnable {
+                                dao.deletePointsFor(workoutId)
+                                dao.deleteSplitsFor(workoutId)
+                                dao.deleteWorkout(workoutId)
+                            })
                         } catch (e: Exception) { }
                     }.start()
                     onClose()
