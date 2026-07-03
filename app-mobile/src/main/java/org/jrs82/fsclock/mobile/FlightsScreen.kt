@@ -48,11 +48,12 @@ import android.os.Looper
 import kotlinx.coroutines.delay
 import org.jrs82.fsclock.R
 
-private fun timeHm(ms: Long): String {
-    val fmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-    fmt.timeZone = java.util.TimeZone.getTimeZone("Europe/Helsinki")
-    return fmt.format(java.util.Date(ms))
+// Jaettu formatter (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
+private val FLIGHT_HM = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).apply {
+    timeZone = java.util.TimeZone.getTimeZone("Europe/Helsinki")
 }
+
+private fun timeHm(ms: Long): String = FLIGHT_HM.format(java.util.Date(ms))
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable

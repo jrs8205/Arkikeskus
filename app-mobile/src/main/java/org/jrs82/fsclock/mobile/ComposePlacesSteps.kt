@@ -1538,10 +1538,10 @@ private fun mapToRows(
 
 private fun formatStepsNum(steps: Long): String = String.format(Locale.US, "%,d", steps).replace(',', ' ')
 
-private fun hhmmPs(ms: Long): String {
-    val f = java.text.SimpleDateFormat("HH:mm", FI_PS)
-    return f.format(java.util.Date(ms))
-}
+// Jaettu formatter (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
+private val HM_PS = java.text.SimpleDateFormat("HH:mm", FI_PS)
+
+private fun hhmmPs(ms: Long): String = HM_PS.format(java.util.Date(ms))
 
 private fun numText(v: Int): String = if (v > 0) v.toString() else ""
 

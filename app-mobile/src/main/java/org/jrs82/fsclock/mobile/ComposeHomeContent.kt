@@ -104,6 +104,11 @@ import java.util.TimeZone
 
 private val FI = Locale("fi", "FI")
 private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
+// Jaetut formatterit (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
+private val EEE_DM_HC = SimpleDateFormat("EEE d.M.", FI).apply { timeZone = HELSINKI }
+private val HMS_HC = SimpleDateFormat("HH:mm:ss", FI).apply { timeZone = HELSINKI }
+private val HM_HC = SimpleDateFormat("HH:mm", FI).apply { timeZone = HELSINKI }
+private val EEEE_DMY_HC = SimpleDateFormat("EEEE d.M.yyyy", FI).apply { timeZone = HELSINKI }
 
 /** Etusivun sisääntuloanimaatio soitetaan vain KERRAN prosessin aikana, ei joka kerta kun
  *  etusivulle palataan. Aiemmin slide-animaatio toistui joka paluulla → "koko sivu hyppäsi". */
@@ -2101,9 +2106,7 @@ private fun dayLabel(key: Int): String {
     val c = Calendar.getInstance(HELSINKI, FI)
     c.clear()
     c.set(year, month - 1, day)
-    val f = SimpleDateFormat("EEE d.M.", FI)
-    f.timeZone = HELSINKI
-    var label = f.format(c.time)
+    var label = EEE_DM_HC.format(c.time)
     if (label.isNotEmpty()) label = label.substring(0, 1).uppercase(FI) + label.substring(1)
     return label
 }
@@ -2285,22 +2288,12 @@ private fun ageText(timestamp: Long): String {
     }
 }
 
-private fun formatClock(ms: Long): String {
-    val f = SimpleDateFormat("HH:mm:ss", FI)
-    f.timeZone = HELSINKI
-    return f.format(Date(ms))
-}
+private fun formatClock(ms: Long): String = HMS_HC.format(Date(ms))
 
-private fun hhmm(ms: Long): String {
-    val f = SimpleDateFormat("HH:mm", FI)
-    f.timeZone = HELSINKI
-    return f.format(Date(ms))
-}
+private fun hhmm(ms: Long): String = HM_HC.format(Date(ms))
 
 private fun formatDate(ms: Long): String {
-    val f = SimpleDateFormat("EEEE d.M.yyyy", FI)
-    f.timeZone = HELSINKI
-    var d = f.format(Date(ms))
+    var d = EEEE_DMY_HC.format(Date(ms))
     if (d.isNotEmpty()) d = d.substring(0, 1).uppercase(FI) + d.substring(1)
     val cal = Calendar.getInstance(HELSINKI, FI)
     cal.timeInMillis = ms
