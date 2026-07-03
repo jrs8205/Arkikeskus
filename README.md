@@ -23,6 +23,16 @@
 
 Vaatii **Android 11 (API 30)** tai uudemman. APK on tarkoitettu ARM-laitteille (`arm64-v8a` / `armeabi-v7a`).
 
+### Automaattiset päivitykset Obtainiumilla
+
+Haluatko sovelluskauppamaisen kokemuksen automaattisilla päivityksillä? Asenna [**Obtainium**](https://github.com/ImranR98/Obtainium) ja lisää tämä repo sovelluslähteeksi:
+
+```
+https://github.com/jrs8205/Arkikeskus
+```
+
+Obtainium seuraa Releases-sivua ja päivittää Arkikeskuksen puolestasi. (Vaihtoehto sovelluksen sisäiselle itsepäivitykselle.)
+
 ---
 
 ## 📱 Kuvakaappauksia
