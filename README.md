@@ -5,7 +5,7 @@
 **🌐 Verkkosivu: [arkikeskus.com](https://arkikeskus.com)**
 
 [![Verkkosivu](https://img.shields.io/badge/🌐%20Verkkosivu-arkikeskus.com-1B45C0)](https://arkikeskus.com)
-[![Downloads](https://img.shields.io/github/downloads/jrs8205/Arkikeskus/total)](https://github.com/jrs8205/Arkikeskus/releases)
+[![Lataukset](https://img.shields.io/github/downloads/jrs8205/Arkikeskus/total?label=Lataukset)](https://github.com/jrs8205/Arkikeskus/releases)
 
 > ## ✅ Varmennettu kehittäjä
 >
