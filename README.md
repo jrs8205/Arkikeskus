@@ -5,6 +5,7 @@
 **🌐 Verkkosivu: [arkikeskus.com](https://arkikeskus.com)**
 
 [![Verkkosivu](https://img.shields.io/badge/🌐%20Verkkosivu-arkikeskus.com-1B45C0)](https://arkikeskus.com)
+[![Downloads](https://img.shields.io/github/downloads/jrs8205/Arkikeskus/total)](https://github.com/jrs8205/Arkikeskus/releases)
 
 > ## ✅ Varmennettu kehittäjä
 >
@@ -22,16 +23,6 @@
 > ⚠️ **Päivität vanhasta versiosta (≤ 2.0.0)?** Sovelluksen tunnus vaihtui versiossa 2.1.0, joten uusi versio **ei** päivity vanhan päälle automaattisesti: **poista** vanha Arkikeskus ja **asenna** uusi. Asetukset eivät siirry; askelhistoria säilyy Health Connectin kautta.
 
 Vaatii **Android 11 (API 30)** tai uudemman. APK on tarkoitettu ARM-laitteille (`arm64-v8a` / `armeabi-v7a`).
-
-### Automaattiset päivitykset Obtainiumilla
-
-Haluatko sovelluskauppamaisen kokemuksen automaattisilla päivityksillä? Asenna [**Obtainium**](https://github.com/ImranR98/Obtainium) ja lisää tämä repo sovelluslähteeksi:
-
-```
-https://github.com/jrs8205/Arkikeskus
-```
-
-Obtainium seuraa Releases-sivua ja päivittää Arkikeskuksen puolestasi. (Vaihtoehto sovelluksen sisäiselle itsepäivitykselle.)
 
 ---
 
