@@ -104,9 +104,24 @@ public class FmiClient {
         applyCurrentCondition(data);
 
         data.fetchedAt = nowMs;
+        // Havaintokysely ei sisällä säteilyä — lainataan lähimmän ennustetunnin
+        // RadiationGlobal tuntuu kuin -kaavan auringonpaistekorjausta varten.
+        if (Double.isNaN(data.current.radiationGlobal) && !data.hours.isEmpty()) {
+            WeatherData.Hour nearest = null;
+            long best = Long.MAX_VALUE;
+            for (WeatherData.Hour h : data.hours) {
+                long d = Math.abs(h.timestamp - nowMs);
+                if (d < best) { best = d; nearest = h; }
+            }
+            if (nearest != null && best <= 90L * 60_000L
+                    && !Double.isNaN(nearest.radiationGlobal)) {
+                data.current.radiationGlobal = nearest.radiationGlobal;
+            }
+        }
         if (!Double.isNaN(data.current.temperature)) {
             data.current.feelsLike = WeatherData.computeFeelsLike(
-                    data.current.temperature, data.current.windSpeed, data.current.humidity);
+                    data.current.temperature, data.current.windSpeed,
+                    data.current.humidity, data.current.radiationGlobal);
         }
         return data;
     }
