@@ -81,7 +81,7 @@ public class FmiClient {
             String fcUrl = BASE + "?service=WFS&version=2.0.0&request=getFeature"
                     + "&storedquery_id=fmi::forecast::edited::weather::scandinavia::point::simple"
                     + forecastLocationParam
-                    + "&parameters=Temperature,Precipitation1h,WindSpeedMS,WindGust,RadiationGlobal,SmartSymbol,WeatherSymbol3"
+                    + "&parameters=Temperature,Precipitation1h,WindSpeedMS,WindGust,Humidity,RadiationGlobal,SmartSymbol,WeatherSymbol3"
                     + "&timestep=60"
                     + "&starttime=" + iso.format(now)
                     + "&endtime=" + iso.format(fcEnd);
@@ -104,9 +104,28 @@ public class FmiClient {
         applyCurrentCondition(data);
 
         data.fetchedAt = nowMs;
+        // Havaintokysely ei sisällä säteilyä — lainataan lähimmän ennustetunnin
+        // RadiationGlobal tuntuu kuin -kaavan auringonpaistekorjausta varten.
+        // Laina pidetään paikallisena: current.radiationGlobal jää havaintoarvoksi
+        // (NaN), ettei ennustepohjainen arvo päädy tietokantaan havaintona
+        // (sama erottelu kuin observedWawa vs. weatherSymbol).
+        double feelsRadiation = data.current.radiationGlobal;
+        if (Double.isNaN(feelsRadiation) && !data.hours.isEmpty()) {
+            WeatherData.Hour nearest = null;
+            long best = Long.MAX_VALUE;
+            for (WeatherData.Hour h : data.hours) {
+                long d = Math.abs(h.timestamp - nowMs);
+                if (d < best) { best = d; nearest = h; }
+            }
+            if (nearest != null && best <= 90L * 60_000L
+                    && !Double.isNaN(nearest.radiationGlobal)) {
+                feelsRadiation = nearest.radiationGlobal;
+            }
+        }
         if (!Double.isNaN(data.current.temperature)) {
             data.current.feelsLike = WeatherData.computeFeelsLike(
-                    data.current.temperature, data.current.windSpeed, data.current.humidity);
+                    data.current.temperature, data.current.windSpeed,
+                    data.current.humidity, feelsRadiation);
         }
         return data;
     }
@@ -217,6 +236,7 @@ public class FmiClient {
             v = m.get("Precipitation1h"); if (v != null && !v.isNaN()) h.precipitation = v;
             v = m.get("WindSpeedMS"); if (v != null && !v.isNaN()) h.windSpeed = v;
             v = m.get("WindGust"); if (v != null && !v.isNaN()) h.windGust = v;
+            v = m.get("Humidity"); if (v != null && !v.isNaN()) h.humidity = v;
             v = m.get("RadiationGlobal"); if (v != null && !v.isNaN()) h.radiationGlobal = v;
 
             Integer smartSymbol = null;

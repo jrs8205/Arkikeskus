@@ -30,7 +30,11 @@ public class WeatherData {
         public double precipitation = Double.NaN;
         public double windSpeed = Double.NaN;
         public double windGust = Double.NaN;
+        public double humidity = Double.NaN;
         public double radiationGlobal = Double.NaN;
+        /** MET Norwayn myöhemmät päivät ovat 6 h -lohkoja: precipitation on silloin
+         *  lohkon summa, ei tuntiarvo. FMI/OM-tunneilla aina 1. */
+        public int blockHours = 1;
         public WeatherCondition condition = WeatherCondition.unknown();
     }
 
@@ -48,24 +52,36 @@ public class WeatherData {
         return Math.abs(v) < 0.5 ? 0.0 : v;
     }
 
-    public static double computeFeelsLike(double tC, double windMs, double humidity) {
+    /** FMI:n virallinen "tuntuu kuin" (smartmet-library-newbase, FmiFeelsLikeTemperature):
+     *  oma tuulisovite + Summer Simmer -lämpöindeksi + valinnainen säteilykorjaus.
+     *  Toisin kuin aiempi wind chill / heat index -pari, tämä vaikuttaa myös
+     *  välilämpötiloissa (10–27 °C), joten arvo eroaa mitatusta aina kun tuulee.
+     *  Puuttuva tuuli käsitellään tyynenä (kaava palauttaa silloin tasan tC:n)
+     *  ja puuttuva kosteus/säteily ohittaa kyseisen termin. */
+    public static double computeFeelsLike(double tC, double windMs, double humidity,
+                                          double radiation) {
         if (Double.isNaN(tC)) return Double.NaN;
-        if (tC <= 10.0 && !Double.isNaN(windMs) && windMs > 1.4) {
-            // Wind chill (Environment Canada)
-            double v = Math.pow(windMs * 3.6, 0.16);
-            return 13.12 + 0.6215 * tC - 11.37 * v + 0.3965 * tC * v;
+        double wind = (Double.isNaN(windMs) || windMs < 0.0) ? 0.0 : windMs;
+        double a = 15.0;   // sovitus: vastaa kanadalaista wind chilliä T=0:ssa
+        double t0 = 37.0;  // hyytävyyskäyrä vaakasuora tässä lämpötilassa
+        double chill = a + (1 - a / t0) * tC
+                + a / t0 * Math.pow(wind + 1, 0.16) * (tC - t0);
+        double heat = summerSimmerIndex(humidity, tC);
+        double feels = tC + (chill - tC) + (heat - tC);
+        if (!Double.isNaN(radiation) && radiation >= 0.0) {
+            double absorption = 0.07; // rad=800 tyynellä → +4 °C, rad=50 → 0 °C
+            feels += 0.7 * absorption * radiation / (wind + 10) - 0.25;
         }
-        if (tC >= 26.7 && !Double.isNaN(humidity) && humidity > 40.0) {
-            // Heat index (Steadman, lyhenne)
-            double T = tC * 9.0 / 5.0 + 32.0;
-            double R = humidity;
-            double hi = -42.379 + 2.04901523 * T + 10.14333127 * R
-                    - 0.22475541 * T * R - 0.00683783 * T * T
-                    - 0.05481717 * R * R + 0.00122874 * T * T * R
-                    + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
-            return (hi - 32.0) * 5.0 / 9.0;
-        }
-        return tC;
+        return feels;
+    }
+
+    /** Summer Simmer Index FMI:n käyttämässä muodossa (rh-referenssi 50 %). */
+    private static double summerSimmerIndex(double rh, double t) {
+        if (t <= 14.5 || Double.isNaN(rh)) return t;
+        final double RH_REF = 0.5;
+        double r = rh / 100.0;
+        return (1.8 * t - 0.55 * (1 - r) * (1.8 * t - 26) - 0.55 * (1 - RH_REF) * 26)
+                / (1.8 * (1 - 0.55 * (1 - RH_REF)));
     }
 
     public static String windDirToCompass(double deg) {
