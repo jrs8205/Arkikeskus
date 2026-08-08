@@ -235,6 +235,9 @@ class HomeDataController(activityCtx: Context) {
                 if (!isCurrent(run) || weatherCacheKey(SettingsManager.get()) != key) return@executeCurrent
                 fmiCache = wd
                 fmiCacheKey = key
+                // Asetussivun "Viimeisin sääpäivitys" — legacy-ClockController oli
+                // ainoa kirjoittaja, joten arvo jäätyi Compose-UI:ssa ikuisesti.
+                sm.setLastSuccessfulFmiUpdate(wd.fetchedAt)
                 val fc = buildForecast()
                 update(run) { it.copy(fmi = snapshotToUi(WeatherSnapshot.fromFmi(wd.current, place, wd.fetchedAt)), forecast = fc) }
             } catch (e: Exception) { Log.w(TAG, "fmi", e) }
@@ -248,10 +251,17 @@ class HomeDataController(activityCtx: Context) {
                 val h = nearestHour(om)
                 val fc = buildForecast()
                 update(run) { it.copy(
-                    om = if (h != null) snapshotToUi(WeatherSnapshot.fromOpenMeteo(h, place, om.fetchedAt)) else it.om,
+                    om = if (h != null) snapshotToUi(WeatherSnapshot.fromOpenMeteo(h, place, om.fetchedAt)) else null,
                     forecast = fc
                 ) }
-            } catch (e: Exception) { Log.w(TAG, "om", e) }
+            } catch (e: Exception) {
+                Log.w(TAG, "om", e)
+                // Pitkässä katkossa lähin cache-tunti ei enää osu ±30 min sisään —
+                // tyhjennetään OM-lohko ettei jäätynyt lukema näytä tuoreelta.
+                if (weatherCacheKey(SettingsManager.get()) == key && nearestHour(omCache) == null) {
+                    update(run) { it.copy(om = null) }
+                }
+            }
         }
     }
 
@@ -409,7 +419,9 @@ class HomeDataController(activityCtx: Context) {
         if (tomorrow != null && tomorrow.quarters.size < MIN_PUBLISHED_QUARTERS) tomorrow = null
         var nowSnt: Float? = null
         today?.quarters?.forEach { if (it.isNow) nowSnt = it.snt }
-        update { it.copy(elToday = today, elTomorrow = tomorrow, priceSnt = nowSnt ?: it.priceSnt) }
+        // priceSnt saa tyhjentyä kun kuluvalle vartille ei ole dataa — vanhaan hintaan
+        // jääminen näyttäisi katkon aikana eilisen hinnan normaalin näköisenä.
+        update { it.copy(elToday = today, elTomorrow = tomorrow, priceSnt = nowSnt) }
     }
 
     private fun buildDayPrices(label: String, data: ElectricityData, day: Calendar, nowMs: Long): DayPricesUi? {
