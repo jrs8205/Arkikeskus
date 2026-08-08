@@ -341,6 +341,40 @@ public class WeatherCondition {
         return c;
     }
 
+    // ============================================================
+    // MET Norway symbol_code → Type (Locationforecast 2.0)
+    // esim. "heavyrainshowers_night", "partlycloudy_day", "clearsky"
+    // ============================================================
+    public static WeatherCondition fromMetSymbol(String symbolCode) {
+        WeatherCondition c = new WeatherCondition();
+        if (symbolCode == null || symbolCode.isEmpty()) {
+            c.type = Type.UNKNOWN;
+            return c;
+        }
+        String s = symbolCode.toLowerCase(java.util.Locale.ROOT);
+        int us = s.indexOf('_');
+        String variant = us >= 0 ? s.substring(us + 1) : "";
+        c.isNight = variant.equals("night");
+        String base = us >= 0 ? s.substring(0, us) : s;
+
+        c.isShower = base.contains("showers");
+        if (base.startsWith("light")) c.intensity = Intensity.LIGHT;
+        else if (base.startsWith("heavy")) c.intensity = Intensity.HEAVY;
+        else c.intensity = Intensity.MODERATE;
+
+        // Järjestyksellä on väliä: "partlycloudy" sisältää myös "cloudy".
+        if (base.contains("thunder")) c.type = Type.THUNDER;
+        else if (base.contains("sleet")) c.type = Type.SLEET;
+        else if (base.contains("snow")) c.type = Type.SNOW;
+        else if (base.contains("rain")) c.type = Type.RAIN;
+        else if (base.contains("fog")) { c.type = Type.FOG; c.intensity = Intensity.LIGHT; }
+        else if (base.contains("clearsky")) { c.type = Type.CLEAR; c.intensity = Intensity.NONE; }
+        else if (base.contains("fair") || base.contains("partlycloudy")) { c.type = Type.PARTLY_CLOUDY; c.intensity = Intensity.NONE; }
+        else if (base.contains("cloudy")) { c.type = Type.CLOUDY; c.intensity = Intensity.NONE; }
+        else { c.type = Type.UNKNOWN; c.intensity = Intensity.NONE; }
+        return c;
+    }
+
     /** Päättele sää lämpötilasta, sateesta ja pilvisyydestä, kun symbolia ei ole. */
     public static WeatherCondition inferFromValues(double temperatureC, double precipitation1h,
                                                     double totalCloudCoverPct, boolean night) {

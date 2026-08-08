@@ -76,6 +76,7 @@ import org.jrs82.fsclock.AlmanakkaClient
 import org.jrs82.fsclock.ElectricityData
 import org.jrs82.fsclock.ElectricityRepository
 import org.jrs82.fsclock.FinnishHolidays
+import org.jrs82.fsclock.MetNorwayRepository
 import org.jrs82.fsclock.OpenMeteoData
 import org.jrs82.fsclock.OpenMeteoRepository
 import org.jrs82.fsclock.R
@@ -119,6 +120,8 @@ private var sForecastWeatherKey: String? = null
 private var sForecastWeather: WeatherData? = null
 private var sForecastOpenMeteoKey: String? = null
 private var sForecastOpenMeteo: OpenMeteoData? = null
+private var sForecastMetKey: String? = null
+private var sForecastMet: WeatherData? = null
 // Sähkövertailun (Vertailu-välilehti) prosessivälimuisti: keskiarvot ovat kalliita laskea (vuosi-/
 // kuukausiaggregaatit) → ei lasketa uudelleen joka välilehtivaihdossa, vain kun refresh muuttuu.
 private var sElectricityCompareTick = -1
@@ -702,6 +705,14 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
                         fontWeight = FontWeight.Bold,
                         color = cs.onSurfaceVariant,
                     )
+                    if (!c.feelsLike.isNaN()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Tuntuu kuin " + formatTemp(c.feelsLike),
+                            fontSize = 14.sp,
+                            color = cs.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -709,8 +720,6 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
             val wind = if (!c.windSpeed.isNaN()) c.windSpeed else nowForecast?.windSpeed ?: Double.NaN
             val rain = if (!c.precip1h.isNaN()) c.precip1h else nowForecast?.precipitation ?: Double.NaN
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                WeatherStatTile(R.drawable.mobile_ic_thermometer_24, "Tuntuu kuin",
-                    if (c.feelsLike.isNaN()) "--" else formatTemp(c.feelsLike), arki.weatherSunny, Modifier.weight(1f))
                 WeatherStatTile(R.drawable.mobile_ic_wind_24, "Tuuli",
                     if (wind.isNaN()) "-- m/s" else one(wind) + " m/s", cs.secondary, Modifier.weight(1f))
                 WeatherStatTile(R.drawable.mobile_ic_rain_24, "Sade 1h",
@@ -1678,9 +1687,13 @@ internal fun ForecastSection() {
     val openMeteoSeed = remember(forecastKey) {
         if (sForecastOpenMeteoKey == forecastKey) sForecastOpenMeteo else null
     }
+    val metSeed = remember(forecastKey) {
+        if (sForecastMetKey == forecastKey) sForecastMet else null
+    }
     // Seedataan vain samalla paikka- ja koordinaattiavaimella haettu data.
     var weather by remember(forecastKey) { mutableStateOf(weatherSeed) }
     var openMeteo by remember(forecastKey) { mutableStateOf(openMeteoSeed) }
+    var met by remember(forecastKey) { mutableStateOf(metSeed) }
     LaunchedEffect(refresh, forecastKey) {
         val forceNetwork = refresh > 0
         val weatherCache = weather
@@ -1721,6 +1734,29 @@ internal fun ForecastSection() {
             sForecastOpenMeteo = om
             openMeteo = om
         }
+        // MET Norway vaatii koordinaatit — ilman niitä kolmas rivi jää pois.
+        val forceMet = forceNetwork || sForecastMetKey != forecastKey
+        val m = withContext(Dispatchers.IO) {
+            try {
+                if (coordinates != null) {
+                    MetNorwayRepository.get(context).fetch(
+                        place,
+                        coordinates.first,
+                        coordinates.second,
+                        forceMet,
+                    )
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                metSeed
+            }
+        }
+        if (m != null) {
+            sForecastMetKey = forecastKey
+            sForecastMet = m
+            met = m
+        }
     }
 
     val w = weather
@@ -1759,7 +1795,11 @@ internal fun ForecastSection() {
                 Text("Tälle päivälle ei löytynyt tuntirivejä.", style = MaterialTheme.typography.bodyMedium)
             } else {
                 rows.forEach { h ->
-                    ForecastRow(context, h, bestOpenMeteoHourAt(openMeteo, h.timestamp))
+                    ForecastRow(
+                        context, h,
+                        bestOpenMeteoHourAt(openMeteo, h.timestamp),
+                        bestMetHourAt(met, h.timestamp),
+                    )
                 }
             }
         }
@@ -1781,7 +1821,7 @@ private fun DayTab(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData.Hour?) {
+private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData.Hour?, met: WeatherData.Hour?) {
     ArkiCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(hhmm(h.timestamp), fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -1802,10 +1842,19 @@ private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
+            // MET kattaa tunneittain vain ~2,5 vrk ja sen jälkeen 6 h -lohkot →
+            // rivi näytetään vain kun tunnille osuu dataa, ei "ei saatavilla" -tekstiä.
+            if (met != null) {
+                ProviderRow(
+                    "MET Norway", met.condition, formatTemp(met.temperature),
+                    WeatherTextFormatter.shortLabel(context, met.condition), metForecastStats(met),
+                )
+            }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProviderRow(source: String, condition: WeatherCondition, temp: String, label: String, stats: List<ForecastStat>) {
     Row(
@@ -1822,11 +1871,11 @@ private fun ProviderRow(source: String, condition: WeatherCondition, temp: Strin
             Text("$source  $temp  $label", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             if (stats.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                    stats.forEachIndexed { i, s ->
-                        if (i > 0) Spacer(Modifier.width(14.dp))
-                        StatChip(s)
-                    }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    stats.forEach { s -> StatChip(s) }
                 }
             }
         }
@@ -2125,6 +2174,20 @@ private fun bestOpenMeteoHourAt(om: OpenMeteoData?, timestamp: Long): OpenMeteoD
     return if (best == null || bestDiff > 31L * 60_000L) null else best
 }
 
+private fun bestMetHourAt(met: WeatherData?, timestamp: Long): WeatherData.Hour? {
+    val hours = met?.hours ?: return null
+    var best: WeatherData.Hour? = null
+    var bestDiff = Long.MAX_VALUE
+    for (h in hours) {
+        val diff = Math.abs(h.timestamp - timestamp)
+        if (diff < bestDiff) {
+            bestDiff = diff
+            best = h
+        }
+    }
+    return if (best == null || bestDiff > 31L * 60_000L) null else best
+}
+
 private enum class StatKind { RAIN, WIND, GUST, HUMIDITY }
 
 private data class ForecastStat(val kind: StatKind, val icon: Int, val value: String)
@@ -2142,6 +2205,22 @@ private fun fmiForecastStats(h: WeatherData.Hour): List<ForecastStat> {
     if (!h.precipitation.isNaN()) out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, one(h.precipitation) + " mm"))
     if (!h.windSpeed.isNaN()) out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(h.windSpeed) + " m/s"))
     if (!h.windGust.isNaN()) out.add(ForecastStat(StatKind.GUST, R.drawable.mobile_ic_wind_24, "puuska " + one(h.windGust) + " m/s"))
+    if (!h.humidity.isNaN()) out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, Math.round(h.humidity).toString() + " %"))
+    return out
+}
+
+private fun metForecastStats(h: WeatherData.Hour): List<ForecastStat> {
+    val out = ArrayList<ForecastStat>()
+    if (!h.precipitation.isNaN()) {
+        val value = if (h.blockHours > 1) {
+            one(h.precipitation) + " mm/" + h.blockHours + " h"
+        } else {
+            one(h.precipitation) + " mm"
+        }
+        out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, value))
+    }
+    if (!h.windSpeed.isNaN()) out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(h.windSpeed) + " m/s"))
+    if (!h.humidity.isNaN()) out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, Math.round(h.humidity).toString() + " %"))
     return out
 }
 

@@ -481,6 +481,7 @@ fun ComposeMainScreen(
                         // (muuten Koti + Valikko palaisivat yhtä aikaa).
                         selected = section == HomeSection.HOME && !menuOpen && !settingsOpen,
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             section = HomeSection.HOME
                             menuOpen = false
                             settingsOpen = false
@@ -517,6 +518,7 @@ fun ComposeMainScreen(
                     NavigationBarItem(
                         selected = menuOpen,
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             menuOpen = !menuOpen
                             settingsOpen = false
                         },
@@ -531,6 +533,7 @@ fun ComposeMainScreen(
                     NavigationBarItem(
                         selected = settingsOpen,
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             menuOpen = false
                             when {
                                 !settingsOpen -> {
