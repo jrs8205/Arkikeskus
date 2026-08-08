@@ -353,7 +353,7 @@ private fun WeatherBlock(
 private fun WxRows(w: WeatherUi?, s: Scale) {
     Column(verticalArrangement = Arrangement.spacedBy(s.dh(0.9f))) {
         Row(horizontalArrangement = Arrangement.spacedBy(s.dw(2.4f))) {
-            MetricCell("feels", "Tuntuu", fiUnit(w?.feels, 0, "°"), s, Modifier.weight(1f))
+            MetricCell("feels", "Tuntuu kuin", fiUnit(w?.feels, 0, "°"), s, Modifier.weight(1f))
             MetricCell("wind", "Tuuli", fiUnit(w?.wind, 0, " m/s"), s, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(s.dw(2.4f))) {

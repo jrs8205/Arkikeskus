@@ -144,7 +144,8 @@ public final class FmiRepository {
             c.condition = cached.current.condition;
         }
         if (!Double.isNaN(c.temperature)) {
-            c.feelsLike = WeatherData.computeFeelsLike(c.temperature, c.windSpeed, c.humidity);
+            c.feelsLike = WeatherData.computeFeelsLike(
+                    c.temperature, c.windSpeed, c.humidity, c.radiationGlobal);
         }
         return out;
     }
