@@ -467,6 +467,7 @@ private fun DatabaseSection(sm: SettingsManager, s: Scale, onOpenHistory: () -> 
     var retention by remember { mutableStateOf(sm.retentionDays) }
     var retentionOpen by remember { mutableStateOf(false) }
     var clearOpen by remember { mutableStateOf(false) }
+    var clearing by remember { mutableStateOf(false) }
     var exportStatus by remember { mutableStateOf<String?>(null) }
     var exporting by remember { mutableStateOf(false) }
 
@@ -558,13 +559,22 @@ private fun DatabaseSection(sm: SettingsManager, s: Scale, onOpenHistory: () -> 
             confirmButton = {
                 TextButton(enabled = confirmed, onClick = {
                     clearOpen = false
-                    Thread {
-                        try { HistoryRepository.get(ctx.applicationContext).clearAll() } catch (_: Exception) {}
-                    }.start()
-                    dbReload++
+                    clearing = true
                 }) { Text("Tyhjennä") }
             },
             dismissButton = { TextButton(onClick = { clearOpen = false }) { Text("Peruuta") } }
         )
+    }
+
+    if (clearing) {
+        LaunchedEffect(Unit) {
+            // dbReload vasta tyhjennyksen valmistuttua — irrallinen Thread hävisi
+            // kilpailun ja Tietokanta-rivi jäi näyttämään vanhaa määrää/kokoa.
+            withContext(Dispatchers.IO) {
+                try { HistoryRepository.get(ctx.applicationContext).clearAll() } catch (_: Exception) {}
+            }
+            clearing = false
+            dbReload++
+        }
     }
 }

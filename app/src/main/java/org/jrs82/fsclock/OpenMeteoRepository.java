@@ -63,9 +63,21 @@ public final class OpenMeteoRepository {
         GeoPlace place = resolvePlace(placeName);
         OpenMeteoData data = new OpenMeteoClient(place).fetch();
         synchronized (cache) {
+            sweepExpiredLocked(now);
             cache.put(key, new CacheEntry(data));
         }
         return data;
+    }
+
+    /** Sweep ennen insertointia, jotta cache ei kasva rajattomasti pitkän
+     *  käyttöajan aikana (sama B5-korjaus kuin FmiRepository.browseCache). */
+    private void sweepExpiredLocked(long now) {
+        java.util.Iterator<Map.Entry<String, CacheEntry>> it = cache.entrySet().iterator();
+        while (it.hasNext()) {
+            if ((now - it.next().getValue().data.fetchedAt) >= CACHE_TTL_MS) {
+                it.remove();
+            }
+        }
     }
 
     /** Hae ennuste EKSPLISIITTISILLÄ koordinaateilla. Mobiilin etusivu käyttää tätä, jottei
@@ -93,6 +105,7 @@ public final class OpenMeteoRepository {
         }
         OpenMeteoData data = new OpenMeteoClient(GeoPlace.custom(name, latitude, longitude)).fetch();
         synchronized (cache) {
+            sweepExpiredLocked(now);
             cache.put(key, new CacheEntry(data));
         }
         return data;
