@@ -194,6 +194,14 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             val repo = ElectricityRepository.get(ctx)
             val q = repo.currentQuarter()
             if (q != null) WidgetCache.setElectricity(ctx, q.sntPerKwh, now)
+            // Koko tiedossa oleva varttilista (kuluvasta tunnista alkaen) → widget hakee kuluvan vartin
+            // piirtohetkellä, joten hinta vaihtuu varttirajalla vaikka worker ajaisi 22.41.
+            repo.peek()?.let { data ->
+                val fromMs = now - 60L * 60_000L
+                val list = data.quarters.filter { it.timestamp >= fromMs }
+                    .map { WidgetElectricity.QuarterPrice(it.timestamp, it.sntPerKwh) }
+                if (list.isNotEmpty()) WidgetCache.setElectricityQuarters(ctx, WidgetElectricity.encode(list))
+            }
             // Paivan halvin/kallein vartti (Helsingin aika) widgetille.
             val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Europe/Helsinki"))
             val today = repo.dayQuarters(
@@ -291,7 +299,8 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
 
         // Paivita Glance-widgetit uudella cachella.
         try { WeatherWidget().updateAll(ctx) } catch (e: Exception) { }
-        try { ElectricityWidget().updateAll(ctx) } catch (e: Exception) { }
+        try { ElectricityWidgetRedraw.redraw(ctx) } catch (e: Exception) { }
+        try { ElectricityQuarterAlarm.scheduleIfWidgets(ctx) } catch (e: Exception) { }
         try { StepsWidget().updateAll(ctx) } catch (e: Exception) { }
         try { DepartureWidget().updateAll(ctx) } catch (e: Exception) { }
         Result.success()

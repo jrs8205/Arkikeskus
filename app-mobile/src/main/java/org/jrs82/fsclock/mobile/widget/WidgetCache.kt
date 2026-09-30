@@ -74,6 +74,12 @@ object WidgetCache {
     }
     fun electricitySnt(ctx: Context) = p(ctx).getString("e_snt", "NaN")?.toDoubleOrNull() ?: Double.NaN
     fun electricityUpdatedAt(ctx: Context) = p(ctx).getLong("e_at", 0L)
+    /** Kaikki tiedossa olevat vartit (veroton snt/kWh) [WidgetElectricity]-JSONina → widget hakee
+     *  kuluvan vartin piirtohetkellä eikä jää edellisen workerajon hintaan. */
+    fun setElectricityQuarters(ctx: Context, json: String) {
+        p(ctx).edit().putString("e_quarters", json).apply()
+    }
+    fun electricityQuartersJson(ctx: Context) = p(ctx).getString("e_quarters", "[]") ?: "[]"
 
     // --- Pörssisähkö: päivän halvin/kallein vartti (snt + varttialun aikaleima ms) ---
     fun setElectricityExtremes(

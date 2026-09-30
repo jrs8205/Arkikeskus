@@ -2,7 +2,9 @@ package org.jrs82.fsclock.mobile.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.unit.dp
+import androidx.datastore.preferences.core.Preferences
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
@@ -17,6 +19,7 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -33,26 +36,35 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.R
-import java.time.LocalTime
+import org.jrs82.fsclock.mobile.ElectricityVat
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 class ElectricityWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        provideContent { ElectricityContent(context) }
+        // Jokainen piirto varmistaa seuraavan varttirajan herätyksen (idempotentti PendingIntent).
+        try { ElectricityQuarterAlarm.scheduleIfWidgets(context) } catch (e: Exception) { }
+        provideContent {
+            // Piirtolaskuri luetaan kompositiossa → elävä Glance-sessio recomposaa kun se kasvaa.
+            key(currentState<Preferences>()[ElectricityWidgetRedraw.RENDER_REVISION]) {
+                ElectricityContent(context)
+            }
+        }
     }
 }
 
 @Composable
 private fun ElectricityContent(context: Context) {
-    val snt = WidgetCache.electricitySnt(context)
     val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    val vat = ElectricityVat.enabled(prefs)
+    // Kuluva vartti haetaan piirtohetkellä varttilistasta (veroton) → hinta ja varttiteksti samasta vartista.
+    val nowMs = System.currentTimeMillis()
+    val quarters = WidgetElectricity.decode(WidgetCache.electricityQuartersJson(context))
+    val snt = ElectricityVat.apply(WidgetElectricity.currentPrice(quarters, nowMs), vat)
     val threshold = (prefs.getString("mobile_cheap_electricity_threshold", "5.0") ?: "5.0")
         .trim().replace(',', '.').toDoubleOrNull() ?: 5.0
     val level = WidgetFormat.priceLevel(snt, threshold)
-    val sntSafe = if (!snt.isNaN() && Math.abs(snt) < 0.0005) 0.0 else snt
-    val priceText = if (sntSafe.isNaN()) "–" else String.format(Locale("fi", "FI"), "%.3f", sntSafe)
+    val priceText = ElectricityVat.format(snt)
 
     val levelColor = when (level) {
         PriceLevel.CHEAP -> WidgetColors.pos
@@ -81,8 +93,8 @@ private fun ElectricityContent(context: Context) {
     val innerW = (LocalSize.current.width.value - 40f).coerceAtLeast(0f) // kortin sisaleveys (padding 20*2)
     val markerLeft = (pos01 * (innerW - 16f)).coerceIn(0f, (innerW - 16f).coerceAtLeast(0f))
 
-    // Aktiivinen 15 min vartti + seuraavan vartin alku (Suomen aika). Paivittyy widgetin redrawissa.
-    val now = LocalTime.now(ZoneId.of("Europe/Helsinki"))
+    // Aktiivinen 15 min vartti + seuraavan vartin alku (Suomen aika), samasta hetkestä kuin hinta.
+    val now = java.time.Instant.ofEpochMilli(nowMs).atZone(ZoneId.of("Europe/Helsinki")).toLocalTime()
     val qStart = now.withMinute((now.minute / 15) * 15).withSecond(0).withNano(0)
     val qEnd = qStart.plusMinutes(15)
     val hm = DateTimeFormatter.ofPattern("H.mm")
@@ -114,11 +126,19 @@ private fun ElectricityContent(context: Context) {
                     )
                 }
                 Spacer(GlanceModifier.width(11.dp))
-                Text(
-                    "Pörssisähkö nyt",
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 14.sp, fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                )
+                // Otsikko + ALV-tila kahdella rivillä 40 dp ikonilaatikon korkeudessa → ei lisää korttiin tilaa.
+                Column {
+                    Text(
+                        "Pörssisähkö nyt",
+                        style = TextStyle(color = WidgetColors.dim, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                    )
+                    Text(
+                        ElectricityVat.widgetNote(vat),
+                        style = TextStyle(color = WidgetColors.dim, fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                        maxLines = 1,
+                    )
+                }
                 Spacer(GlanceModifier.defaultWeight())
                 Box(
                     modifier = GlanceModifier.cornerRadius(9.dp).background(chipBg)
@@ -204,4 +224,14 @@ private fun ElectricityContent(context: Context) {
 
 class ElectricityWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = ElectricityWidget()
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        try { ElectricityQuarterAlarm.scheduleIfWidgets(context) } catch (e: Exception) { }
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        try { ElectricityQuarterAlarm.cancel(context) } catch (e: Exception) { }
+    }
 }

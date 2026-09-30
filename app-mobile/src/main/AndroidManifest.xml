@@ -197,6 +197,12 @@
                 android:resource="@xml/widget_electricity_info" />
         </receiver>
 
+        <!-- Sähköwidgetin varttiherätys: AlarmManager piirtää widgetin uudelleen joka vartin alussa,
+             koska WorkManagerin 15 min jaksotyö ei osu varttirajoihin. -->
+        <receiver
+            android:name="org.jrs82.fsclock.mobile.widget.ElectricityQuarterReceiver"
+            android:exported="false" />
+
         <!-- Kotinayton Askeleet-widget (Glance). -->
         <receiver
             android:name="org.jrs82.fsclock.mobile.widget.StepsWidgetReceiver"

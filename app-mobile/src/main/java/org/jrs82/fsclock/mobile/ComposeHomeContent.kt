@@ -849,13 +849,14 @@ private fun ChipIconRow(iconRes: Int, text: String) {
 @Composable
 private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepository, tick: Int, onOpenElectricity: (() -> Unit)? = null) {
     val settingsRevision = LocalHomeDataRevision.current
+    val vat = remember(settingsRevision) { ElectricityVat.enabled(prefs) }
     val q = remember(tick) { repo.currentQuarter() }
     val notice = remember(tick, settingsRevision) { cheapNotice(prefs, repo) }
     val threshold = remember(tick, settingsRevision) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
-            val headerLevel = q?.let { priceLevel(it.sntPerKwh, threshold) }
+            val headerLevel = q?.let { priceLevel(ElectricityVat.apply(it.sntPerKwh, vat), threshold) }
             val headerAccent = headerLevel?.let { priceAccent(it, arki) } ?: MaterialTheme.colorScheme.primary
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_bolt_24),
@@ -872,7 +873,8 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                 Text("Nykyistä varttihintaa ei ole vielä saatavilla", style = MaterialTheme.typography.bodyLarge)
             } else {
                 val cs = MaterialTheme.colorScheme
-                val level = priceLevel(q.sntPerKwh, threshold)
+                val price = ElectricityVat.apply(q.sntPerKwh, vat)
+                val level = priceLevel(price, threshold)
                 val accent = priceAccent(level, arki)
                 ArkiPill(
                     text = priceLabel(level),
@@ -882,7 +884,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                 Spacer(Modifier.height(9.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        String.format(FI, "%.3f", q.sntPerKwh),
+                        ElectricityVat.format(price),
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = accent,
@@ -911,6 +913,12 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                         color = cs.onSurfaceVariant,
                     )
                 }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    ElectricityVat.priceNote(vat),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                )
                 val range = remember(tick) { todayElecRange(repo) }
                 val rmin = range.first
                 val rmax = range.second
@@ -921,12 +929,12 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MinMaxChip(
                             R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, "Halvinta",
-                            String.format(FI, "%02d.%02d · %.3f", rmin.hour, rmin.minute, rmin.sntPerKwh),
+                            quarterPriceText(rmin, vat),
                             Modifier.weight(1f),
                         )
                         MinMaxChip(
                             R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, "Kalleinta",
-                            String.format(FI, "%02d.%02d · %.3f", rmax.hour, rmax.minute, rmax.sntPerKwh),
+                            quarterPriceText(rmax, vat),
                             Modifier.weight(1f),
                         )
                     }
@@ -952,8 +960,12 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
 
 private enum class PriceLevel { CHEAP, NORMAL, EXPENSIVE }
 
-/** Yli tämän (c/kWh, ALV 0 %) hinta luokitellaan kalliiksi (punainen). */
+/** Yli tämän (c/kWh, NÄYTETTY hinta eli ALV-asetuksen mukainen) hinta luokitellaan kalliiksi (punainen). */
 private const val EXPENSIVE_THRESHOLD = 15.0
+
+/** "HH.MM · 0,000" — vartin kello + hinta ALV-asetuksen mukaan, aina kolme desimaalia. */
+private fun quarterPriceText(q: ElectricityData.Quarter, vat: Boolean): String =
+    String.format(FI, "%02d.%02d · %s", q.hour, q.minute, ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat)))
 
 private fun priceLevel(snt: Double, cheapThreshold: Double): PriceLevel = when {
     snt.isNaN() -> PriceLevel.NORMAL
@@ -1215,6 +1227,7 @@ internal fun ElectricitySection() {
     val repo = remember { ElectricityRepository.get(context) }
     val settingsRevision = LocalHomeDataRevision.current
     val threshold = remember(settingsRevision) { cheapThreshold(prefs) }
+    val vat = remember(settingsRevision) { ElectricityVat.enabled(prefs) }
     val refresh = LocalRefreshTick.current
     var dayOffset by remember { mutableStateOf(0) }
     var tick by remember { mutableStateOf(0) }
@@ -1258,9 +1271,9 @@ internal fun ElectricitySection() {
         }
         Spacer(Modifier.height(14.dp))
         if (dayOffset == 2) {
-            ElectricityCompare(context, refresh)
+            ElectricityCompare(context, refresh, vat)
         } else {
-            ElectricityDay(repo, threshold, dayOffset, tick)
+            ElectricityDay(repo, threshold, dayOffset, tick, vat)
         }
     }
 }
@@ -1281,7 +1294,7 @@ private fun ElecTab(label: String, selected: Boolean, modifier: Modifier, onClic
 }
 
 @Composable
-private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOffset: Int, tick: Int) {
+private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOffset: Int, tick: Int, vat: Boolean) {
     val arki = ArkiTheme.colors
     val data = remember(tick) { repo.peek() }
     val quarters = remember(tick, dayOffset) {
@@ -1321,7 +1334,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
         Column(modifier = Modifier.padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (dayOffset == 0 && current != null) {
-                    val level = priceLevel(current.sntPerKwh, threshold)
+                    val level = priceLevel(ElectricityVat.apply(current.sntPerKwh, vat), threshold)
                     ArkiPill(
                         text = priceLabel(level),
                         accent = priceAccent(level, arki),
@@ -1347,12 +1360,15 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                 }
             }
             Spacer(Modifier.height(12.dp))
-            val heroPrice = if (dayOffset == 0 && current != null) current.sntPerKwh
-            else quarters.map { it.sntPerKwh }.average()
+            val heroPrice = ElectricityVat.apply(
+                if (dayOffset == 0 && current != null) current.sntPerKwh
+                else quarters.map { it.sntPerKwh }.average(),
+                vat,
+            )
             val heroLevel = priceLevel(heroPrice, threshold)
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    String.format(FI, "%.3f", heroPrice),
+                    ElectricityVat.format(heroPrice),
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
                     color = priceAccent(heroLevel, arki),
@@ -1366,17 +1382,23 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                     modifier = Modifier.padding(bottom = 6.dp),
                 )
             }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                ElectricityVat.priceNote(vat),
+                style = MaterialTheme.typography.bodySmall,
+                color = cs.onSurfaceVariant,
+            )
             if (min != null && max != null) {
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     MinMaxChip(
                         R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, "Halvinta",
-                        String.format(FI, "%02d.%02d · %.3f", min.hour, min.minute, min.sntPerKwh),
+                        quarterPriceText(min, vat),
                         Modifier.weight(1f),
                     )
                     MinMaxChip(
                         R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, "Kalleinta",
-                        String.format(FI, "%02d.%02d · %.3f", max.hour, max.minute, max.sntPerKwh),
+                        quarterPriceText(max, vat),
                         Modifier.weight(1f),
                     )
                 }
@@ -1384,7 +1406,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
             Spacer(Modifier.height(14.dp))
             val updated = if (data != null && data.fetchedAt > 0) "Päivitetty klo " + hhmm(data.fetchedAt) + " · " else ""
             Text(
-                updated + "Lähde: Elering/Nord Pool. Hinnat ALV 0 %.",
+                updated + "Lähde: Elering/Nord Pool. Hinnat ${ElectricityVat.label(vat)}.",
                 fontSize = 11.sp,
                 color = cs.onSurfaceVariant,
             )
@@ -1448,7 +1470,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                         for (col in 0..3) {
                             val q = hourQs.firstOrNull { it.minute == col * 15 }
                             if (q != null) {
-                                HeatCell(q, dayMin, dayMax, current != null && q.timestamp == current.timestamp, Modifier.weight(1f))
+                                HeatCell(q, dayMin, dayMax, current != null && q.timestamp == current.timestamp, vat, Modifier.weight(1f))
                             } else {
                                 Box(Modifier.weight(1f).height(30.dp))
                             }
@@ -1463,7 +1485,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
 private data class CompareRowData(val label: String, val value: Double, val highlight: Boolean, val isSection: Boolean)
 
 @Composable
-private fun ElectricityCompare(context: Context, refresh: Int) {
+private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
     // Seedataan prosessivälimuistista → ei lasketa raskaita keskiarvoja uudelleen joka kerta kun
     // Vertailu-välilehti avataan (sektio poistuu kompositiosta välilehteä vaihtaessa).
     var rows by remember { mutableStateOf(if (sElectricityCompareTick == refresh) sElectricityCompareRows else null) }
@@ -1499,7 +1521,7 @@ private fun ElectricityCompare(context: Context, refresh: Int) {
         rows?.let { if (it.any { row -> !row.isSection }) { sElectricityCompareRows = it; sElectricityCompareTick = refresh } }
     }
     Text(
-        "Pörssisähkön keskihinnat (ALV 0 %). Lähde: Elering/Nord Pool.",
+        "Pörssisähkön keskihinnat (${ElectricityVat.label(vat)}). Lähde: Elering/Nord Pool.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -1536,7 +1558,7 @@ private fun ElectricityCompare(context: Context, refresh: Int) {
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            String.format(FI, "%.3f", yearRow.value),
+                            ElectricityVat.format(ElectricityVat.apply(yearRow.value, vat)),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = cs.primary,
@@ -1564,7 +1586,7 @@ private fun ElectricityCompare(context: Context, refresh: Int) {
                             if (i > 0) {
                                 HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.5f), thickness = 1.dp)
                             }
-                            MonthRow(m, mMin, mMax)
+                            MonthRow(m, mMin, mMax, vat)
                         }
                     }
                 }
@@ -1575,7 +1597,7 @@ private fun ElectricityCompare(context: Context, refresh: Int) {
 
 /** Vertailun kuukausirivi: väripalkki (taso) + nimi + suhteellinen lämpöpalkki + keskihinta. */
 @Composable
-private fun MonthRow(m: CompareRowData, mMin: Double, mMax: Double) {
+private fun MonthRow(m: CompareRowData, mMin: Double, mMax: Double, vat: Boolean) {
     val cs = MaterialTheme.colorScheme
     val frac = if (mMax > mMin) (((m.value - mMin) / (mMax - mMin)).toFloat()).coerceIn(0.06f, 1f) else 0.5f
     val heat = heatColor(m.value, mMin, mMax)
@@ -1614,7 +1636,7 @@ private fun MonthRow(m: CompareRowData, mMin: Double, mMax: Double) {
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            String.format(FI, "%.3f", m.value),
+            ElectricityVat.format(ElectricityVat.apply(m.value, vat)),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = cs.onSurface,
@@ -1638,7 +1660,7 @@ private fun heatColor(price: Double, dayMin: Double, dayMax: Double): Color {
 
 /** Lämpökarttasolu: tausta = vartin hintataso, teksti = varttihinta (tumma muste lukea kaikilla sävyillä). */
 @Composable
-private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double, isNow: Boolean, modifier: Modifier) {
+private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double, isNow: Boolean, vat: Boolean, modifier: Modifier) {
     Box(
         modifier = modifier
             .height(30.dp)
@@ -1648,7 +1670,7 @@ private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double,
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            String.format(FI, "%.3f", q.sntPerKwh),
+            ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat)),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -2289,14 +2311,15 @@ private fun cheapNotice(prefs: SharedPreferences, repo: ElectricityRepository): 
         ?: MobileThemeController.CHEAP_MODE_ALL_DAY
     val cal = Calendar.getInstance(HELSINKI, FI)
     val today = repo.dayQuarters(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+    val vat = ElectricityVat.enabled(prefs)
     val checked = filterByMode(today, mode)
-    if (checked.isEmpty() || !allBelow(checked, threshold)) return null
+    if (checked.isEmpty() || !allBelow(checked, threshold, vat)) return null
     val max = checked.maxByOrNull { it.sntPerKwh } ?: return null
     val scope = scopeText(mode)
     return String.format(
         FI,
-        "Sähkö on halpaa %s: kaikki alle %.3f c/kWh, korkein %.3f c/kWh",
-        scope, threshold, max.sntPerKwh,
+        "Sähkö on halpaa %s: kaikki alle %s c/kWh, korkein %s c/kWh",
+        scope, ElectricityVat.format(threshold), ElectricityVat.format(ElectricityVat.apply(max.sntPerKwh, vat)),
     )
 }
 
@@ -2321,9 +2344,9 @@ private fun filterByMode(today: List<ElectricityData.Quarter>, mode: String): Li
     }
 }
 
-private fun allBelow(quarters: List<ElectricityData.Quarter>, threshold: Double): Boolean {
+private fun allBelow(quarters: List<ElectricityData.Quarter>, threshold: Double, vat: Boolean): Boolean {
     if (quarters.isEmpty()) return false
-    return quarters.all { it.sntPerKwh < threshold }
+    return quarters.all { ElectricityVat.apply(it.sntPerKwh, vat) < threshold }
 }
 
 private fun scopeText(mode: String): String = when (mode) {
