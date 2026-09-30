@@ -39,3 +39,21 @@ class ElectricityNotifierTest {
         assertEquals("14:30", s.maxHm)
     }
 }
+
+class ElectricityNotifierMessageTest {
+    private val stats = ElectricityNotifier.DayStats(1.0, "03:15", 9.0, "18:00", 5.0)
+
+    @Test fun message_withVat_scalesAllPricesAndLabels() {
+        assertEquals(
+            "Halvin klo 03:15 (1,255 snt), kallein klo 18:00 (11,295 snt). Keskihinta 6,275 snt/kWh, sis. ALV 25,5 %.",
+            ElectricityNotifier.message(stats, true),
+        )
+    }
+
+    @Test fun message_withoutVat_keepsRawPricesThreeDecimals() {
+        assertEquals(
+            "Halvin klo 03:15 (1,000 snt), kallein klo 18:00 (9,000 snt). Keskihinta 5,000 snt/kWh, ALV 0 %.",
+            ElectricityNotifier.message(stats, false),
+        )
+    }
+}

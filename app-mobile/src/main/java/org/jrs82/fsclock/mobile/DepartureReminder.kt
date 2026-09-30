@@ -194,8 +194,11 @@ class DepartureBootReceiver : BroadcastReceiver() {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             "android.intent.action.TIME_SET",
-            Intent.ACTION_TIMEZONE_CHANGED ->
+            Intent.ACTION_TIMEZONE_CHANGED -> {
                 try { DepartureReminder.rescheduleAll(context) } catch (e: Exception) { }
+                // Sähköwidgetin varttiherätys katoaa samoissa tilanteissa.
+                try { org.jrs82.fsclock.mobile.widget.ElectricityQuarterAlarm.scheduleIfWidgets(context) } catch (e: Exception) { }
+            }
         }
     }
 }

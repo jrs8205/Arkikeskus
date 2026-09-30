@@ -61,6 +61,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.preference.PreferenceManager
+import org.jrs82.fsclock.mobile.widget.ElectricityWidgetRedraw
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.ruuvi.RuuviRepository
@@ -323,6 +324,7 @@ fun SettingsScreen(
         ?: MobileThemeController.DEFAULT_UPDATE_INTERVAL_MINUTES
     val threshold = prefs.getString(MobileThemeController.KEY_CHEAP_ELECTRICITY_THRESHOLD, MobileThemeController.DEFAULT_CHEAP_ELECTRICITY_THRESHOLD)
         ?: MobileThemeController.DEFAULT_CHEAP_ELECTRICITY_THRESHOLD
+    val vatOn = remember(refreshTick) { ElectricityVat.enabled(prefs) }
     val stepGoal = prefs.getString(StepGoalNotifier.KEY_GOAL, StepGoalNotifier.DEFAULT_GOAL)
         ?: StepGoalNotifier.DEFAULT_GOAL
     val builtinFeeds = remember { NewsFeedStore.allFeeds(prefs).filter { it.builtin } }
@@ -455,6 +457,19 @@ fun SettingsScreen(
                 // ============================ Pörssisähkö ============================
                 SettingsPage.ELECTRICITY -> {
                     SettingsPageTitle("Pörssisähkö")
+                    SubHeader("Hinnat")
+                    GroupCard {
+                        GroupPrefSwitchRow(
+                            prefs, ElectricityVat.KEY, "ALV 25,5 %",
+                            subtitle = if (vatOn) "Mukana hinnoissa" else "Hinnat ilman ALV:tä",
+                            leadingIconRes = R.drawable.mobile_ic_bolt_24, default = ElectricityVat.DEFAULT,
+                            onChange = {
+                                refreshTick++
+                                // Pelkkä cache-piirto: ei saa odottaa yleisen workerin verkkohakuja.
+                                ElectricityWidgetRedraw.redrawAsync(context)
+                            },
+                        )
+                    }
                     SubHeader("Halpa sähkö")
                     GroupCard {
                         GroupPrefSwitchRow(
@@ -789,7 +804,7 @@ fun SettingsScreen(
         TextFieldDialog(
             title = "Halvan sähkön raja",
             initial = threshold,
-            label = "c/kWh (ALV 0 %)",
+            label = "c/kWh (${ElectricityVat.label(vatOn)})",
             keyboardType = KeyboardType.Decimal,
             onSave = { value ->
                 showThresholdDialog = false

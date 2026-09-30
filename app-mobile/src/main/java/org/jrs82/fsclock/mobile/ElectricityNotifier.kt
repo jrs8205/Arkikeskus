@@ -42,6 +42,15 @@ object ElectricityNotifier {
         return DayStats(min.sntPerKwh, hm(min), max.sntPerKwh, hm(max), sum / quarters.size)
     }
 
+    /** Ilmoitusteksti ALV-asetuksen mukaan, hinnat aina kolmella desimaalilla (puhdas, yksikkötestattava). */
+    fun message(stats: DayStats, vat: Boolean): String = String.format(
+        FI,
+        "Halvin klo %s (%s snt), kallein klo %s (%s snt). Keskihinta %s snt/kWh, %s.",
+        stats.minHm, ElectricityVat.format(ElectricityVat.apply(stats.minSnt, vat)),
+        stats.maxHm, ElectricityVat.format(ElectricityVat.apply(stats.maxSnt, vat)),
+        ElectricityVat.format(ElectricityVat.apply(stats.avgSnt, vat)), ElectricityVat.label(vat),
+    )
+
     private fun hm(q: ElectricityData.Quarter) = String.format(Locale.US, "%02d:%02d", q.hour, q.minute)
 
     private fun dateKey(c: Calendar) = String.format(
@@ -78,14 +87,11 @@ object ElectricityNotifier {
             "ElectricityNotifier",
             "huomisen hinnat ilmoitettu $tomorrowKey: min=${stats.minSnt} max=${stats.maxSnt} ka=${stats.avgSnt}",
         )
+        val vat = ElectricityVat.enabled(prefs)
         Notifications.post(
             context, Notifications.CHANNEL_ELECTRICITY, Notifications.NOTIF_ID_ELECTRICITY,
             "Huomisen sähköhinnat saapuivat",
-            String.format(
-                FI,
-                "Halvin klo %s (%.1f snt), kallein klo %s (%.1f snt). Keskihinta %.1f snt/kWh.",
-                stats.minHm, stats.minSnt, stats.maxHm, stats.maxSnt, stats.avgSnt,
-            ),
+            message(stats, vat),
             "ELECTRICITY",
         )
         prefs.edit().putString(KEY_LAST_DAY, tomorrowKey).apply()

@@ -15,7 +15,7 @@ public class ElectricityData {
         public int dayOfMonth;       // paikallinen
         public int month;            // 1..12
         public int year;
-        public double sntPerKwh;     // ALV mukana
+        public double sntPerKwh;     // ALV 0 % (Elering-spot); ALV lisätään vasta näyttökerroksessa
     }
 
     public long fetchedAt = 0L;
