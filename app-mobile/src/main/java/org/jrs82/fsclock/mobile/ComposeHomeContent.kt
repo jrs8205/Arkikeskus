@@ -924,7 +924,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                 val rmax = range.second
                 if (rmin != null && rmax != null && rmax.sntPerKwh > rmin.sntPerKwh) {
                     Spacer(Modifier.height(16.dp))
-                    PriceMeter(q.sntPerKwh, rmin.sntPerKwh, rmax.sntPerKwh, accent, arki)
+                    PriceMeter(q.sntPerKwh, rmin.sntPerKwh, rmax.sntPerKwh, vat, accent, arki)
                     Spacer(Modifier.height(14.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MinMaxChip(
@@ -964,8 +964,10 @@ private enum class PriceLevel { CHEAP, NORMAL, EXPENSIVE }
 private const val EXPENSIVE_THRESHOLD = 15.0
 
 /** "HH.MM · 0,000" — vartin kello + hinta ALV-asetuksen mukaan, aina kolme desimaalia. */
-private fun quarterPriceText(q: ElectricityData.Quarter, vat: Boolean): String =
-    String.format(FI, "%02d.%02d · %s", q.hour, q.minute, ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat)))
+private fun quarterPriceText(q: ElectricityData.Quarter, vat: Boolean): String = String.format(
+    FI, "%02d.%02d%s · %s", q.hour, q.minute, ElectricityTime.dstSuffix(q.timestamp),
+    ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat)),
+)
 
 private fun priceLevel(snt: Double, cheapThreshold: Double): PriceLevel = when {
     snt.isNaN() -> PriceLevel.NORMAL
@@ -1001,16 +1003,20 @@ private fun todayElecRange(repo: ElectricityRepository): Pair<ElectricityData.Qu
 }
 
 private fun quarterRangeText(q: ElectricityData.Quarter): String {
-    val endTotal = q.hour * 60 + q.minute + 15
-    val eh = (endTotal / 60) % 24
-    val em = endTotal % 60
-    return String.format(FI, "Vartti klo %02d.%02d–%02d.%02d · seuraava %02d.%02d", q.hour, q.minute, eh, em, eh, em)
+    val (start, end) = ElectricityTime.quarterBounds(q.timestamp)
+    return String.format(
+        FI, "Vartti klo %02d.%02d–%02d.%02d · seuraava %02d.%02d",
+        start.hour, start.minute, end.hour, end.minute, end.hour, end.minute,
+    )
 }
 
-/** Liikennevalomittari: vihreä→keltainen→punainen liuku + valkoinen osoitin nykyhinnan kohdalla. */
+/** Liikennevalomittari: vihreä→keltainen→punainen liuku päivän halvimmasta kalleimpaan varttiin,
+ *  valkoinen osoitin nykyhinnan kohdalla ja alla janan alun, keskikohdan ja lopun hinnat.
+ *  Sama jana etusivun kortissa ja sähkösivulla; widget piirtää vastaavan Glancella. */
 @Composable
-private fun PriceMeter(current: Double, min: Double, max: Double, pointer: Color, arki: ArkiColors) {
-    val f = (((current - min) / (max - min)).toFloat()).coerceIn(0.02f, 0.98f)
+private fun PriceMeter(current: Double, min: Double, max: Double, vat: Boolean, pointer: Color, arki: ArkiColors) {
+    val f = PriceScale.fraction(current, min, max) ?: return
+    val (minText, midText, maxText) = PriceScale.labels(min, max, vat)
     Box(modifier = Modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.CenterStart) {
         Box(
             modifier = Modifier
@@ -1030,6 +1036,13 @@ private fun PriceMeter(current: Double, min: Double, max: Double, pointer: Color
             )
             Spacer(Modifier.weight(1f - f))
         }
+    }
+    Spacer(Modifier.height(6.dp))
+    Row(modifier = Modifier.fillMaxWidth()) {
+        val cs = MaterialTheme.colorScheme
+        Text(minText, Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = arki.priceCheap, textAlign = TextAlign.Start, maxLines = 1)
+        Text(midText, Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = cs.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 1)
+        Text(maxText, Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = arki.priceExpensive, textAlign = TextAlign.End, maxLines = 1)
     }
 }
 
@@ -1390,6 +1403,11 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
             )
             if (min != null && max != null) {
                 Spacer(Modifier.height(16.dp))
+                // Hintajana + nyt-osoitin kuten etusivun kortissa (vain Tänään, kun kuluva vartti tunnetaan).
+                if (dayOffset == 0 && current != null && dayMax > dayMin) {
+                    PriceMeter(current.sntPerKwh, dayMin, dayMax, vat, priceAccent(heroLevel, arki), arki)
+                    Spacer(Modifier.height(14.dp))
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     MinMaxChip(
                         R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, "Halvinta",
@@ -1413,40 +1431,9 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
         }
     }
 
-    // LEGENDA + nyt-osoitin (vain Tänään, kun kuluva vartti tunnetaan)
-    if (dayOffset == 0 && current != null && dayMax > dayMin) {
-        Spacer(Modifier.height(16.dp))
-        val nowN = (((current.sntPerKwh - dayMin) / (dayMax - dayMin)).toFloat()).coerceIn(0.02f, 0.98f)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Halpa", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
-            Spacer(Modifier.width(10.dp))
-            Box(modifier = Modifier.weight(1f).height(15.dp), contentAlignment = Alignment.CenterStart) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Brush.horizontalGradient(listOf(arki.priceCheap, arki.priceNormal, arki.priceExpensive))),
-                )
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Spacer(Modifier.weight(nowN))
-                    Box(
-                        modifier = Modifier
-                            .size(15.dp)
-                            .clip(CircleShape)
-                            .background(cs.surface)
-                            .border(3.dp, arki.priceCheap, CircleShape),
-                    )
-                    Spacer(Modifier.weight(1f - nowN))
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-            Text("Kallis", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
-        }
-    }
-
-    // LÄMPÖKARTTA: 24 tuntiriviä × 4 varttisolua (solun väri = hinnan taso)
-    Spacer(Modifier.height(if (dayOffset == 0 && current != null) 12.dp else 16.dp))
+    // LÄMPÖKARTTA: tuntirivit × 4 varttisolua (solun väri = hinnan taso). Rivit todellisista tunneista:
+    // talviaikaan siirryttäessä tunti 03 on kahdesti (25 riviä), kesäaikaan siirryttäessä sitä ei ole (23).
+    Spacer(Modifier.height(16.dp))
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
@@ -1460,11 +1447,12 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
             }
             HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.6f), thickness = 1.dp)
             Spacer(Modifier.height(4.dp))
-            val byHour = quarters.groupBy { it.hour }
-            for (hh in 0..23) {
-                val hourQs = byHour[hh].orEmpty()
+            val byHour = quarters.groupBy { ElectricityTime.hourKey(it.timestamp) }
+            val hourRows = remember(quarters.first().timestamp) { ElectricityTime.dayHours(quarters.first().timestamp) }
+            for (hr in hourRows) {
+                val hourQs = byHour[ElectricityTime.hourKey(hr.startMs)].orEmpty()
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
-                    Text(String.format(FI, "%02d", hh), modifier = Modifier.width(24.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+                    Text(String.format(FI, "%02d", hr.hour) + if (hr.repeated) "*" else "", modifier = Modifier.width(24.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
                     Spacer(Modifier.width(8.dp))
                     Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         for (col in 0..3) {
@@ -1477,6 +1465,14 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                         }
                     }
                 }
+            }
+            if (hourRows.any { it.repeated }) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "* Kello siirtyy talviaikaan, joten tunti 03 on kahdesti. Tähdellä merkitty rivi on jälkimmäinen (talviaikaa).",
+                    fontSize = 11.sp,
+                    color = cs.onSurfaceVariant,
+                )
             }
         }
     }
@@ -1497,6 +1493,7 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
             rows = cached
             return@LaunchedEffect
         }
+        var complete = false
         rows = withContext(Dispatchers.IO) {
             val out = ArrayList<CompareRowData>()
             try {
@@ -1511,14 +1508,15 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
                     val label = MONTHS_FI_ELEC[m - 1] + if (m == curMonth) " (kesken)" else ""
                     out.add(CompareRowData(label, ma.avgSntPerKwh, false, false))
                 }
+                complete = prev != null && out.size == curMonth + 2
             } catch (e: Exception) {
                 // näytetään mitä saatiin
             }
             out
         }
-        // Talleta vain kun saatiin oikeaa dataa (vähintään yksi ei-sektio-rivi) → ei jää tyhjää
-        // tulosta välimuistiin verkkokatkon ajalta.
-        rows?.let { if (it.any { row -> !row.isSection }) { sElectricityCompareRows = it; sElectricityCompareTick = refresh } }
+        // Talleta vain täydellinen tulos (vuosiarvo + kaikki kuukaudet) → verkkokatkon aikana syntynyt
+        // vajaa tulos ei jää välimuistiin, vaan välilehden seuraava avaus yrittää puuttuvia uudelleen.
+        rows?.let { if (complete) { sElectricityCompareRows = it; sElectricityCompareTick = refresh } }
     }
     Text(
         "Pörssisähkön keskihinnat (${ElectricityVat.label(vat)}). Lähde: Elering/Nord Pool.",

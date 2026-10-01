@@ -23,4 +23,11 @@ class AppUpdaterTest {
         assertTrue(AppUpdater.isNewer("v2.11.0-mobile", "v2.11.1-beta"))
         assertFalse(AppUpdater.isNewer("2.11.0", "v2.11.0"))
     }
+
+    @Test fun suffixlessReleaseIsNewerThanLastSuffixedOne() {
+        // 2.26.0 on ensimmäinen julkaisu ilman päätettä: 2.25.0-mobile-asennuksen pitää tunnistaa se päivitykseksi.
+        assertTrue(AppUpdater.isNewer("2.25.0-mobile", "2.26.0"))
+        assertTrue(AppUpdater.isNewer("2.25.0-mobile", "v2.26.0"))
+        assertFalse(AppUpdater.isNewer("2.26.0", "v2.25.0-mobile"))
+    }
 }

@@ -1,6 +1,9 @@
 package org.jrs82.fsclock.mobile.widget
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.unit.dp
@@ -16,6 +19,7 @@ import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -23,6 +27,7 @@ import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
@@ -33,14 +38,21 @@ import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.R
+import org.jrs82.fsclock.mobile.ElectricityTime
 import org.jrs82.fsclock.mobile.ElectricityVat
-import java.time.ZoneId
+import org.jrs82.fsclock.mobile.PriceScale
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 class ElectricityWidget : GlanceAppWidget() {
+    // Asettelu ja osoitinkuvan mittasuhde valitaan widgetin todellisesta koosta. Oletus (Single) antaisi
+    // LocalSizeen aina providerin minimikoon (110 dp).
+    override val sizeMode = SizeMode.Exact
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // Jokainen piirto varmistaa seuraavan varttirajan herätyksen (idempotentti PendingIntent).
         try { ElectricityQuarterAlarm.scheduleIfWidgets(context) } catch (e: Exception) { }
@@ -60,7 +72,8 @@ private fun ElectricityContent(context: Context) {
     // Kuluva vartti haetaan piirtohetkellä varttilistasta (veroton) → hinta ja varttiteksti samasta vartista.
     val nowMs = System.currentTimeMillis()
     val quarters = WidgetElectricity.decode(WidgetCache.electricityQuartersJson(context))
-    val snt = ElectricityVat.apply(WidgetElectricity.currentPrice(quarters, nowMs), vat)
+    val rawSnt = WidgetElectricity.currentPrice(quarters, nowMs)
+    val snt = ElectricityVat.apply(rawSnt, vat)
     val threshold = (prefs.getString("mobile_cheap_electricity_threshold", "5.0") ?: "5.0")
         .trim().replace(',', '.').toDoubleOrNull() ?: 5.0
     val level = WidgetFormat.priceLevel(snt, threshold)
@@ -87,27 +100,29 @@ private fun ElectricityContent(context: Context) {
         PriceLevel.EXPENSIVE -> R.drawable.mobile_ic_arrow_up_24
     }
 
-    // Osoittimen paikka absoluuttisella asteikolla 0..30 c/kWh (SPEC: marker = hinta/30, leikataan).
-    // Nain marker vastaa varikoodattuja vyohykkeita (halpa vasen / kallis oikea), ei paivan vaihtelua.
-    val pos01 = if (snt.isFinite()) (snt / 30.0).coerceIn(0.0, 1.0).toFloat() else 0f
-    val innerW = (LocalSize.current.width.value - 40f).coerceAtLeast(0f) // kortin sisaleveys (padding 20*2)
-    val markerLeft = (pos01 * (innerW - 16f)).coerceIn(0f, (innerW - 16f).coerceAtLeast(0f))
+    // Jana = päivän halvin–kallein vartti, sama asteikko kuin sovelluksen etusivun kortissa ja sähkösivulla.
+    val range = WidgetElectricity.dayRange(quarters, nowMs)
+    val dayMin = range?.first ?: Double.NaN
+    val dayMax = range?.second ?: Double.NaN
+    val pos01 = PriceScale.fraction(rawSnt, dayMin, dayMax)
+    val (minText, midText, maxText) = PriceScale.labels(dayMin, dayMax, vat)
+
+    // Asettelu valitaan ilmoitetun korkeuden ja fonttiskaalan mukaan: matalassa widgetissä rivejä pudotetaan,
+    // jotta jana ja sen hinnat mahtuvat aina kokonaan widgetin sisään.
+    val size = LocalSize.current
+    val spec = ElectricityWidgetLayout.choose(size.height.value, context.resources.configuration.fontScale)
+    val narrow = ElectricityWidgetLayout.isNarrow(size.width.value)
+    val innerW = (size.width.value - 40f).coerceAtLeast(0f) // kortin sisaleveys (padding 20*2)
 
     // Aktiivinen 15 min vartti + seuraavan vartin alku (Suomen aika), samasta hetkestä kuin hinta.
-    val now = java.time.Instant.ofEpochMilli(nowMs).atZone(ZoneId.of("Europe/Helsinki")).toLocalTime()
-    val qStart = now.withMinute((now.minute / 15) * 15).withSecond(0).withNano(0)
-    val qEnd = qStart.plusMinutes(15)
+    val (qStart, qEnd) = ElectricityTime.quarterBounds(nowMs)
     val hm = DateTimeFormatter.ofPattern("H.mm")
-    val quarterText = "Vartti klo ${qStart.format(hm)}–${qEnd.format(hm)} · seuraava ${qEnd.format(hm)}"
+    val quarterShort = "klo ${qStart.format(hm)}–${qEnd.format(hm)}"
+    val quarterText = if (narrow) "Vartti $quarterShort" else "Vartti $quarterShort · seuraava ${qEnd.format(hm)}"
 
-    GlanceTheme(colors = WidgetColors.providers) {
-        Column(
-            modifier = GlanceModifier.fillMaxSize()
-                .background(ImageProvider(R.drawable.widget_card_bg))
-                .cornerRadius(26.dp)
-                .padding(20.dp)
-                .clickable(WidgetDeepLink.openSection(context, "ELECTRICITY")),
-        ) {
+    // Otsikko, hinta ja varttirivi. Janan yläpuolinen osa.
+    val top: @Composable () -> Unit = {
+        if (spec.showHeader) {
             // Otsikkorivi: bolt-chip + "Porssisahko nyt"  ...  tasolappu
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
@@ -127,7 +142,8 @@ private fun ElectricityContent(context: Context) {
                 }
                 Spacer(GlanceModifier.width(11.dp))
                 // Otsikko + ALV-tila kahdella rivillä 40 dp ikonilaatikon korkeudessa → ei lisää korttiin tilaa.
-                Column {
+                // Paino: otsikko lyhenee tarvittaessa, tasolappu pysyy aina kokonaan näkyvissä.
+                Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
                         "Pörssisähkö nyt",
                         style = TextStyle(color = WidgetColors.dim, fontSize = 14.sp, fontWeight = FontWeight.Bold),
@@ -139,43 +155,54 @@ private fun ElectricityContent(context: Context) {
                         maxLines = 1,
                     )
                 }
-                Spacer(GlanceModifier.defaultWeight())
-                Box(
-                    modifier = GlanceModifier.cornerRadius(9.dp).background(chipBg)
-                        .padding(horizontal = 11.dp, vertical = 6.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                        Image(
-                            provider = ImageProvider(chipIcon),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(levelColor),
-                            modifier = GlanceModifier.size(16.dp),
-                        )
-                        Spacer(GlanceModifier.width(5.dp))
-                        Text(
-                            chipText,
-                            style = TextStyle(color = levelColor, fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                        )
+                if (!narrow) {
+                    Box(
+                        modifier = GlanceModifier.cornerRadius(9.dp).background(chipBg)
+                            .padding(horizontal = 11.dp, vertical = 6.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+                            Image(
+                                provider = ImageProvider(chipIcon),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(levelColor),
+                                modifier = GlanceModifier.size(16.dp),
+                            )
+                            Spacer(GlanceModifier.width(5.dp))
+                            Text(
+                                chipText,
+                                style = TextStyle(color = levelColor, fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }
-            Spacer(GlanceModifier.height(14.dp))
-            // Iso hinta
-            Row(verticalAlignment = Alignment.Vertical.Bottom) {
+            Spacer(GlanceModifier.height(spec.gapHeader.dp))
+        }
+        // Iso hinta; kun varttirivi ei mahdu omalle rivilleen, vartin kellonaika näytetään hinnan oikealla puolella.
+        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.Bottom) {
+            Text(
+                priceText,
+                style = TextStyle(color = levelColor, fontSize = spec.priceSp.sp, fontWeight = FontWeight.Bold),
+                maxLines = 1,
+            )
+            Spacer(GlanceModifier.width(7.dp))
+            Text(
+                "c/kWh",
+                style = TextStyle(color = WidgetColors.dim, fontSize = 16.sp, fontWeight = FontWeight.Medium),
+                maxLines = 1,
+            )
+            if (!spec.showQuarter && !narrow) {
+                Spacer(GlanceModifier.defaultWeight())
                 Text(
-                    priceText,
-                    style = TextStyle(color = levelColor, fontSize = 44.sp, fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                )
-                Spacer(GlanceModifier.width(7.dp))
-                Text(
-                    "c/kWh",
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 16.sp, fontWeight = FontWeight.Medium),
+                    quarterShort,
+                    style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
                     maxLines = 1,
                 )
             }
-            Spacer(GlanceModifier.height(9.dp))
+        }
+        if (spec.showQuarter) {
+            Spacer(GlanceModifier.height(spec.gapQuarter.dp))
             // Aktiivinen vartti (15 min varttihinta)
             Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                 Image(
@@ -191,35 +218,96 @@ private fun ElectricityContent(context: Context) {
                     maxLines = 1,
                 )
             }
-            Spacer(GlanceModifier.height(18.dp))
-            // Mittari: gradienttipalkki + osoitin hinnan kohdalla
-            Box(
-                modifier = GlanceModifier.fillMaxWidth().height(16.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Box(
-                    modifier = GlanceModifier.fillMaxWidth().height(8.dp).cornerRadius(99.dp)
-                        .background(ImageProvider(R.drawable.widget_price_gauge)),
-                ) {}
-                Row(modifier = GlanceModifier.fillMaxWidth()) {
-                    Spacer(GlanceModifier.width(markerLeft.dp))
-                    Box(
-                        modifier = GlanceModifier.size(16.dp)
-                            .background(ImageProvider(R.drawable.widget_gauge_marker)),
-                    ) {}
-                }
+        }
+    }
+
+    GlanceTheme(colors = WidgetColors.providers) {
+        Column(
+            modifier = GlanceModifier.fillMaxSize()
+                .background(ImageProvider(R.drawable.widget_card_bg))
+                .cornerRadius(26.dp)
+                .padding(horizontal = 20.dp, vertical = spec.padV.dp)
+                .clickable(WidgetDeepLink.openSection(context, "ELECTRICITY")),
+        ) {
+            if (spec.showGauge && spec !== ElectricityWidgetLayout.ROOMY) {
+                // Yläosa joustaa: jana ja sen hinnat saavat tilansa ensin ja pysyvät alareunan sisällä,
+                // vaikka launcherin ilmoittama korkeus tai fonttien todellinen korkeus poikkeaisi arviosta.
+                Column(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) { top() }
+            } else {
+                top()
             }
-            Spacer(GlanceModifier.height(9.dp))
-            // Asteikkotekstit
-            Row(modifier = GlanceModifier.fillMaxWidth()) {
-                Text("Halpa", style = TextStyle(color = WidgetColors.pos, fontSize = 12.sp, fontWeight = FontWeight.Bold))
-                Spacer(GlanceModifier.defaultWeight())
-                Text("Normaali", style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium))
-                Spacer(GlanceModifier.defaultWeight())
-                Text("Kallis", style = TextStyle(color = WidgetColors.neg, fontSize = 12.sp, fontWeight = FontWeight.Bold))
+            if (spec.showGauge) {
+                Spacer(GlanceModifier.height(spec.gapGauge.dp))
+                // Mittari: gradienttipalkki + osoitin hinnan kohdalla
+                Box(
+                    modifier = GlanceModifier.fillMaxWidth().height(ElectricityWidgetLayout.GAUGE_DP.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Box(
+                        modifier = GlanceModifier.fillMaxWidth().height(8.dp).cornerRadius(99.dp)
+                            .background(ImageProvider(R.drawable.widget_price_gauge)),
+                    ) {}
+                    if (pos01 != null) {
+                        // Valkoinen piste hintatason värisellä renkaalla (sama kuin sovelluksen janassa).
+                        val (ring, core) = gaugeDotBitmaps(context, innerW, pos01)
+                        val dotModifier = GlanceModifier.fillMaxWidth().height(ElectricityWidgetLayout.GAUGE_DP.dp)
+                        Image(
+                            provider = ImageProvider(ring),
+                            contentDescription = null,
+                            contentScale = ContentScale.FillBounds,
+                            colorFilter = ColorFilter.tint(levelColor),
+                            modifier = dotModifier,
+                        )
+                        Image(
+                            provider = ImageProvider(core),
+                            contentDescription = null,
+                            contentScale = ContentScale.FillBounds,
+                            modifier = dotModifier,
+                        )
+                    }
+                }
+                Spacer(GlanceModifier.height(spec.gapLabels.dp))
+                // Janan alun, keskikohdan ja lopun hinnat (päivän halvin – keskikohta – kallein)
+                Row(modifier = GlanceModifier.fillMaxWidth()) {
+                    Text(
+                        minText,
+                        modifier = GlanceModifier.defaultWeight(),
+                        style = TextStyle(color = WidgetColors.scaleMin, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Start),
+                        maxLines = 1,
+                    )
+                    Text(
+                        midText,
+                        modifier = GlanceModifier.defaultWeight(),
+                        style = TextStyle(color = WidgetColors.scaleMid, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
+                        maxLines = 1,
+                    )
+                    Text(
+                        maxText,
+                        modifier = GlanceModifier.defaultWeight(),
+                        style = TextStyle(color = WidgetColors.scaleMax, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End),
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * Janan osoitin kahtena janan levyisenä kuvana: rengas (sävytetään tasovärillä) ja valkoinen sisus.
+ * Kuvat venytetään janan todelliseen leveyteen, joten piste on oikeassa suhteellisessa kohdassa ja
+ * janan sisällä silloinkin, kun launcherin ilmoittama leveys poikkeaa todellisesta.
+ */
+private fun gaugeDotBitmaps(context: Context, widthDp: Float, fraction: Float): Pair<Bitmap, Bitmap> {
+    val density = context.resources.displayMetrics.density
+    val h = (ElectricityWidgetLayout.GAUGE_DP * density).roundToInt().coerceAtLeast(1)
+    val w = (widthDp * density).roundToInt().coerceIn(h, 4096)
+    val cx = ElectricityWidgetLayout.dotCenterPx(fraction, w, h)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
+    fun circle(radius: Float): Bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+        Canvas(it).drawCircle(cx, h / 2f, radius, paint)
+    }
+    return circle(h / 2f) to circle(h * 5f / 16f)
 }
 
 class ElectricityWidgetReceiver : GlanceAppWidgetReceiver() {

@@ -47,6 +47,12 @@ object WidgetColors {
     val warn = ColorProvider(day = Color(0xFFC6881A), night = Color(0xFFE8B23D))
     val neg = ColorProvider(day = Color(0xFFD4552E), night = Color(0xFFE8704E))
 
+    // Hintajanan asteikon hinnat = sovelluksen hintavärit. 12 sp teksti vaatii kontrastin 4,5:1,
+    // johon pos/dim/neg eivät vaalealla kortilla yllä.
+    val scaleMin = ColorProvider(day = Color(0xFF1E7D32), night = Color(0xFF7FD894))
+    val scaleMid = ColorProvider(day = Color(0xFF43474E), night = Color(0xFFC4C6D0))
+    val scaleMax = ColorProvider(day = Color(0xFFC12018), night = Color(0xFFFFB4AB))
+
     // Tekstit.
     val strong = ColorProvider(day = Color(0xFF141821), night = Color(0xFFF3F6FB))
     val text = ColorProvider(day = Color(0xFF3C4452), night = Color(0xFFC2C8D4))
