@@ -162,4 +162,4 @@ Kaikki ovat ilmaisia; MML ja Digitransit vaativat oman kehittäjäavaimen:
 
 ## 📄 Lisenssi
 
-Henkilökohtaiseen käyttöön, ei kaupallista jakelua.
+Arkikeskus on avointa lähdekoodia, ja se on lisensoitu [GNU General Public License v3.0](LICENSE) ‑lisenssillä. Sovellusta saa käyttää, muokata ja jakaa vapaasti, kunhan muokatut versiot julkaistaan lähdekoodeineen samalla lisenssillä.
