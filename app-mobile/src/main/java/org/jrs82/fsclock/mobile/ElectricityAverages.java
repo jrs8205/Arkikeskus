@@ -30,7 +30,9 @@ final class ElectricityAverages {
 
     private static final String TAG = "ElectricityAverages";
     // v2: tuntibucketointi (1.4.1) — vanha v1-cache oli varttipainotettu, hylätään.
-    private static final String PREFS = "mobile_electricity_averages_v2";
+    // v3: tunnin avain aikaleimasta (talviaikaan siirtymisen toistuva tunti omaksi tunnikseen) + vuosiarvo
+    //     vain kaikista 12 kuukaudesta — v2:ssa saattoi olla kesken kuun tallennettuja lopullisia arvoja.
+    private static final String PREFS = "mobile_electricity_averages_v3";
     private static final TimeZone HELSINKI = TimeZone.getTimeZone("Europe/Helsinki");
 
     /** Yhden kuukauden keskiarvo. */
@@ -70,14 +72,14 @@ final class ElectricityAverages {
         String cached = p.getString(key, null);
 
         boolean monthEnded = monthHasEnded(year, month);
+        long[] range = monthRangeMs(year, month);
         if (cached != null) {
             try {
                 JSONObject o = new JSONObject(cached);
                 long savedAt = o.optLong("savedAt", 0L);
                 int count = o.optInt("count", 0);
                 double avg = o.optDouble("avg", Double.NaN);
-                boolean fresh = monthEnded
-                        || (System.currentTimeMillis() - savedAt) < 12L * 3600_000L;
+                boolean fresh = cacheUsable(monthEnded, savedAt, range[1], System.currentTimeMillis());
                 if (!Double.isNaN(avg) && count > 0 && fresh) {
                     return new MonthAverage(year, month, avg, count);
                 }
@@ -89,50 +91,57 @@ final class ElectricityAverages {
         }
 
         // Hae kuukauden aikaväli [kuukauden alku, seuraavan kuukauden alku) Helsingin ajassa.
-        long[] range = monthRangeMs(year, month);
         try {
             ElectricityData data = new ElectricityClient().fetchRange(range[0], range[1]);
-            // Bucketoi tunneittain (avain = päivä*100 + tunti, Helsingin aika): laske kunkin
-            // tunnin keskiarvo ja sitten tuntien painottamaton keskiarvo. Näin sekamuotoinen
-            // data (tuntihinnat + 1.10.2025 jälkeen varttihinnat) ei vääristä lukua, koska
-            // pörssin virallinen kuukausikeskiarvo on tuntipohjainen. Vrt. FMI r_1h -bucketointi.
-            java.util.HashMap<Integer, double[]> hourBuckets = new java.util.HashMap<>();
-            for (ElectricityData.Quarter q : data.quarters) {
-                // Varmista että hinta kuuluu pyydettyyn kuukauteen (Helsingin aika).
-                if (q.year == year && q.month == month) {
-                    int hourKey = q.dayOfMonth * 100 + q.hour;
-                    double[] acc = hourBuckets.get(hourKey);
-                    if (acc == null) {
-                        acc = new double[2];
-                        hourBuckets.put(hourKey, acc);
-                    }
-                    acc[0] += q.sntPerKwh;
-                    acc[1] += 1.0;
-                }
-            }
-            if (hourBuckets.isEmpty()) return null;
-            double sum = 0.0;
-            for (double[] acc : hourBuckets.values()) {
-                sum += acc[0] / acc[1];   // yhden tunnin keskiarvo (1 tuntihinta tai 4 varttia)
-            }
-            int count = hourBuckets.size();   // tuntien lukumäärä kuukaudessa
-            double avg = sum / count;         // tuntien painottamaton keskiarvo
+            MonthAverage result = hourlyAverage(data.quarters, year, month);
+            if (result == null) return null;
 
             JSONObject o = new JSONObject();
-            o.put("avg", avg);
-            o.put("count", count);
+            o.put("avg", result.avgSntPerKwh);
+            o.put("count", result.sampleCount);
             o.put("savedAt", System.currentTimeMillis());
             p.edit().putString(key, o.toString()).apply();
 
-            return new MonthAverage(year, month, avg, count);
+            return result;
         } catch (Exception e) {
             Log.w(TAG, "monthAverage " + year + "-" + month + " failed: " + e.getMessage());
             return null;
         }
     }
 
-    /** Edellisen kokovuoden keskiarvo, painotettuna kuukausien näytemäärillä
-     *  (= sama kuin koko vuoden kaikkien varttien keskiarvo). */
+    /**
+     * Kuukauden tuntien painottamaton keskiarvo: ensin kunkin tunnin keskiarvo (1 tuntihinta tai
+     * 4 varttia), sitten tuntien keskiarvo. Näin sekamuotoinen data (tuntihinnat + 1.10.2025 jälkeen
+     * varttihinnat) ei vääristä lukua, koska pörssin virallinen kuukausikeskiarvo on tuntipohjainen.
+     * Tunnin avain on aikaleima eikä paikallinen tunti: talviaikaan siirryttäessä tunti 03 on kahdesti
+     * ja paikallisella avaimella nämä kaksi tuntia sulautuisivat yhdeksi. null jos kuulta ei ole hintoja.
+     */
+    static MonthAverage hourlyAverage(java.util.List<ElectricityData.Quarter> quarters, int year, int month) {
+        java.util.HashMap<Long, double[]> hourBuckets = new java.util.HashMap<>();
+        for (ElectricityData.Quarter q : quarters) {
+            // Varmista että hinta kuuluu pyydettyyn kuukauteen (Helsingin aika).
+            if (q.year == year && q.month == month) {
+                long hourKey = Math.floorDiv(q.timestamp, 3_600_000L);
+                double[] acc = hourBuckets.get(hourKey);
+                if (acc == null) {
+                    acc = new double[2];
+                    hourBuckets.put(hourKey, acc);
+                }
+                acc[0] += q.sntPerKwh;
+                acc[1] += 1.0;
+            }
+        }
+        if (hourBuckets.isEmpty()) return null;
+        double sum = 0.0;
+        for (double[] acc : hourBuckets.values()) {
+            sum += acc[0] / acc[1];
+        }
+        int count = hourBuckets.size();
+        return new MonthAverage(year, month, sum / count, count);
+    }
+
+    /** Edellisen kokovuoden keskiarvo, painotettuna kuukausien tuntimäärillä
+     *  (= sama kuin koko vuoden kaikkien tuntien keskiarvo). */
     static MonthAverage previousYearAverage(Context ctx, boolean allowNetwork) {
         Calendar now = Calendar.getInstance(HELSINKI);
         int prevYear = now.get(Calendar.YEAR) - 1;
@@ -153,26 +162,45 @@ final class ElectricityAverages {
         }
         if (!allowNetwork) return null;
 
-        double sum = 0.0;
-        int count = 0;
+        MonthAverage[] months = new MonthAverage[12];
         for (int m = 1; m <= 12; m++) {
-            MonthAverage ma = monthAverage(ctx, prevYear, m, true);
-            if (ma != null) {
-                sum += ma.avgSntPerKwh * ma.sampleCount;
-                count += ma.sampleCount;
-            }
+            months[m - 1] = monthAverage(ctx, prevYear, m, true);
+            if (months[m - 1] == null) return null;
         }
-        if (count == 0) return null;
-        double avg = sum / count;
+        MonthAverage result = yearFromMonths(prevYear, months);
+        if (result == null) return null;
         try {
             JSONObject o = new JSONObject();
-            o.put("avg", avg);
-            o.put("count", count);
+            o.put("avg", result.avgSntPerKwh);
+            o.put("count", result.sampleCount);
             o.put("savedAt", System.currentTimeMillis());
             p.edit().putString(key, o.toString()).apply();
         } catch (Exception ignored) {
         }
-        return new MonthAverage(prevYear, 0, avg, count);
+        return result;
+    }
+
+    /** Vuosikeskiarvo kuukausista tuntimäärillä painotettuna. null jos yksikin kuukausi puuttuu:
+     *  vuosiarvo tallennetaan lopullisena, joten vajaasta vuodesta laskettu luku jäisi pysyväksi. */
+    static MonthAverage yearFromMonths(int year, MonthAverage[] months) {
+        if (months.length != 12) return null;
+        double sum = 0.0;
+        int count = 0;
+        for (MonthAverage ma : months) {
+            if (ma == null || ma.sampleCount <= 0) return null;
+            sum += ma.avgSntPerKwh * ma.sampleCount;
+            count += ma.sampleCount;
+        }
+        return new MonthAverage(year, 0, sum / count, count);
+    }
+
+    /** Kelpaako välimuistin keskiarvo. Päättyneen kuun arvo on lopullinen vain jos se on tallennettu
+     *  kuun päätyttyä — kesken kuun tallennettu kattaa vain alkukuun ja jäisi muuten pysyvästi vääräksi.
+     *  Kuluvan kuun arvo vanhenee 12 tunnissa. */
+    static boolean cacheUsable(boolean monthEnded, long savedAt, long monthEndMs, long nowMs) {
+        if (savedAt > nowMs) return false; // kelloa siirretty taaksepäin → tallennusaikaan ei voi luottaa
+        if (monthEnded) return savedAt >= monthEndMs;
+        return (nowMs - savedAt) < 12L * 3600_000L;
     }
 
     private static boolean monthHasEnded(int year, int month) {

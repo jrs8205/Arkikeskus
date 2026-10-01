@@ -51,7 +51,8 @@ object ElectricityNotifier {
         ElectricityVat.format(ElectricityVat.apply(stats.avgSnt, vat)), ElectricityVat.label(vat),
     )
 
-    private fun hm(q: ElectricityData.Quarter) = String.format(Locale.US, "%02d:%02d", q.hour, q.minute)
+    private fun hm(q: ElectricityData.Quarter) =
+        String.format(Locale.US, "%02d:%02d", q.hour, q.minute) + ElectricityTime.dstSuffix(q.timestamp)
 
     private fun dateKey(c: Calendar) = String.format(
         Locale.US, "%04d-%02d-%02d",

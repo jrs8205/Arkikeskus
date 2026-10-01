@@ -183,7 +183,12 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
         }
         // Fix 4: Haetaan verkkodata vain jos yli 25 min vanha (e_fetch_at); vartti luetaan JOKA
         // kierroksella, jotta hinta vaihtuu 15 min välein ilman uutta verkkopyyntöä.
-        if (now - WidgetCache.electricityFetchAt(ctx) > stale) {
+        // Haetaan myös kun tallennettu varttilista ei kata kuluvaa päivää (sovelluspäivitystä edeltävä
+        // lyhyt lista tai vuorokauden vaihtuminen) — muuten widgetin jana jäisi ilman asteikkoa.
+        val listCoversToday = WidgetElectricity.dayRange(
+            WidgetElectricity.decode(WidgetCache.electricityQuartersJson(ctx)), now,
+        ) != null
+        if (!listCoversToday || now - WidgetCache.electricityFetchAt(ctx) > stale) {
             try {
                 val repo = ElectricityRepository.get(ctx)
                 repo.fetchIfStale()
@@ -194,10 +199,11 @@ class WidgetUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWork
             val repo = ElectricityRepository.get(ctx)
             val q = repo.currentQuarter()
             if (q != null) WidgetCache.setElectricity(ctx, q.sntPerKwh, now)
-            // Koko tiedossa oleva varttilista (kuluvasta tunnista alkaen) → widget hakee kuluvan vartin
-            // piirtohetkellä, joten hinta vaihtuu varttirajalla vaikka worker ajaisi 22.41.
+            // Koko tiedossa oleva varttilista (kuluvan päivän alusta) → widget hakee kuluvan vartin ja
+            // päivän halvin–kallein-välin piirtohetkellä, joten hinta vaihtuu varttirajalla vaikka worker
+            // ajaisi 22.41, ja janan asteikko kattaa koko päivän.
             repo.peek()?.let { data ->
-                val fromMs = now - 60L * 60_000L
+                val fromMs = WidgetElectricity.dayStart(now)
                 val list = data.quarters.filter { it.timestamp >= fromMs }
                     .map { WidgetElectricity.QuarterPrice(it.timestamp, it.sntPerKwh) }
                 if (list.isNotEmpty()) WidgetCache.setElectricityQuarters(ctx, WidgetElectricity.encode(list))

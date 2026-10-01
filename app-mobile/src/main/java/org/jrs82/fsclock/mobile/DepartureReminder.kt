@@ -198,6 +198,10 @@ class DepartureBootReceiver : BroadcastReceiver() {
                 try { DepartureReminder.rescheduleAll(context) } catch (e: Exception) { }
                 // Sähköwidgetin varttiherätys katoaa samoissa tilanteissa.
                 try { org.jrs82.fsclock.mobile.widget.ElectricityQuarterAlarm.scheduleIfWidgets(context) } catch (e: Exception) { }
+                // Päivityksen jälkeen widget-cache voi olla vanhaa muotoa → kirjoitetaan se heti uudelleen.
+                if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+                    try { org.jrs82.fsclock.mobile.widget.WidgetUpdateWorker.refreshNow(context) } catch (e: Exception) { }
+                }
             }
         }
     }
