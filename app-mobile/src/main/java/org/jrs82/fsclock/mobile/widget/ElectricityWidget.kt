@@ -104,7 +104,7 @@ private fun ElectricityContent(context: Context) {
     val range = WidgetElectricity.dayRange(quarters, nowMs)
     val dayMin = range?.first ?: Double.NaN
     val dayMax = range?.second ?: Double.NaN
-    val pos01 = PriceScale.fraction(rawSnt, dayMin, dayMax)
+    val pos01 = PriceScale.fraction(rawSnt, dayMin, dayMax, vat)
     val (minText, midText, maxText) = PriceScale.labels(dayMin, dayMax, vat)
 
     // Asettelu valitaan ilmoitetun korkeuden ja fonttiskaalan mukaan: matalassa widgetissä rivejä pudotetaan,

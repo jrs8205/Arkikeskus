@@ -1015,7 +1015,7 @@ private fun quarterRangeText(q: ElectricityData.Quarter): String {
  *  Sama jana etusivun kortissa ja sähkösivulla; widget piirtää vastaavan Glancella. */
 @Composable
 private fun PriceMeter(current: Double, min: Double, max: Double, vat: Boolean, pointer: Color, arki: ArkiColors) {
-    val f = PriceScale.fraction(current, min, max) ?: return
+    val f = PriceScale.fraction(current, min, max, vat) ?: return
     val (minText, midText, maxText) = PriceScale.labels(min, max, vat)
     Box(modifier = Modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.CenterStart) {
         Box(
@@ -1373,11 +1373,9 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                 }
             }
             Spacer(Modifier.height(12.dp))
-            val heroPrice = ElectricityVat.apply(
-                if (dayOffset == 0 && current != null) current.sntPerKwh
-                else quarters.map { it.sntPerKwh }.average(),
-                vat,
-            )
+            val heroPrice =
+                if (dayOffset == 0 && current != null) ElectricityVat.apply(current.sntPerKwh, vat)
+                else quarters.map { ElectricityVat.apply(it.sntPerKwh, vat) }.average()
             val heroLevel = priceLevel(heroPrice, threshold)
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(

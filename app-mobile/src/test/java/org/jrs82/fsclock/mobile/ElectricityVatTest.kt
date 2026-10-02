@@ -18,13 +18,10 @@ class ElectricityVatTest {
         assertTrue(ElectricityVat.apply(Double.NaN, true).isNaN())
     }
 
-    @Test fun apply_scalesNegativePrice() {
-        assertEquals(-1.255, ElectricityVat.apply(-1.0, true), 1e-9)
-    }
-
-    @Test fun factor_matchesRate() {
-        assertEquals(1.255, ElectricityVat.factor(true), 0.0)
-        assertEquals(1.0, ElectricityVat.factor(false), 0.0)
+    @Test fun apply_leavesNegativeAndZeroPriceUntaxed() {
+        // Negatiivisesta hinnasta ei synny arvonlisäverotettavaa kulua; hyvitys on veroton.
+        assertEquals(-1.0, ElectricityVat.apply(-1.0, true), 0.0)
+        assertEquals(0.0, ElectricityVat.apply(0.0, true), 0.0)
     }
 
     @Test fun format_alwaysThreeDecimalsWithFinnishComma() {

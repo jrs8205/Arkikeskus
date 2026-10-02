@@ -17,9 +17,9 @@ object ElectricityVat {
 
     fun enabled(prefs: SharedPreferences): Boolean = prefs.getBoolean(KEY, DEFAULT)
 
-    fun factor(enabled: Boolean): Double = if (enabled) FACTOR else 1.0
-
-    fun apply(snt: Double, enabled: Boolean): Double = if (enabled) snt * FACTOR else snt
+    /** Negatiivisesta hinnasta ei synny arvonlisäverotettavaa kulua (hyvitys on veroton), joten vero
+     *  lisätään vain nollaa suurempiin hintoihin. Keskiarvot lasketaan siksi näytetyistä hinnoista. */
+    fun apply(snt: Double, enabled: Boolean): Double = if (enabled && snt > 0.0) snt * FACTOR else snt
 
     fun label(enabled: Boolean): String = if (enabled) "sis. ALV 25,5 %" else "ALV 0 %"
 
