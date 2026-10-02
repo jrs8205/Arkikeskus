@@ -38,15 +38,26 @@ class ElectricityNotifierTest {
         assertEquals(3.2, s.maxSnt, 0.001)
         assertEquals("14:30", s.maxHm)
     }
+
+    @Test fun withVat_onlyPositiveQuartersAreTaxed_andAverageUsesShownPrices() {
+        val s = ElectricityNotifier.summarize(listOf(q(2, 0, -0.5), q(14, 30, 3.2)), vat = true)!!
+        assertEquals(-0.5, s.minSnt, 1e-9)
+        assertEquals(4.016, s.maxSnt, 1e-9)
+        assertEquals((-0.5 + 4.016) / 2, s.avgSnt, 1e-9)
+    }
 }
 
 class ElectricityNotifierMessageTest {
     private val stats = ElectricityNotifier.DayStats(1.0, "03:15", 9.0, "18:00", 5.0)
 
-    @Test fun message_withVat_scalesAllPricesAndLabels() {
+    @Test fun message_withVat_showsTaxedPricesAndLabel() {
+        val q = { hour: Int, minute: Int, snt: Double ->
+            ElectricityData.Quarter().apply { this.hour = hour; this.minute = minute; sntPerKwh = snt }
+        }
+        val taxed = ElectricityNotifier.summarize(listOf(q(3, 15, 1.0), q(18, 0, 9.0)), vat = true)!!
         assertEquals(
             "Halvin klo 03:15 (1,255 snt), kallein klo 18:00 (11,295 snt). Keskihinta 6,275 snt/kWh, sis. ALV 25,5 %.",
-            ElectricityNotifier.message(stats, true),
+            ElectricityNotifier.message(taxed, true),
         )
     }
 

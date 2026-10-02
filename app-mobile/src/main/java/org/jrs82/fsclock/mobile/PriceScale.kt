@@ -11,10 +11,20 @@ object PriceScale {
         return ((current - min) / (max - min)).toFloat().coerceIn(0.02f, 0.98f)
     }
 
-    /** Janan alun, keskikohdan ja lopun hinnat ALV-asetuksen mukaan. */
-    fun labels(min: Double, max: Double, vat: Boolean): Triple<String, String, String> = Triple(
-        ElectricityVat.format(ElectricityVat.apply(min, vat)),
-        ElectricityVat.format(ElectricityVat.apply((min + max) / 2.0, vat)),
-        ElectricityVat.format(ElectricityVat.apply(max, vat)),
+    /** Osoittimen paikka näytetyistä hinnoista: ALV ei koske negatiivisia hintoja, joten
+     *  verottomista arvoista laskettu paikka ei osuisi janan hintoihin, kun päivän halvin on miinuksella. */
+    fun fraction(current: Double, min: Double, max: Double, vat: Boolean): Float? = fraction(
+        ElectricityVat.apply(current, vat), ElectricityVat.apply(min, vat), ElectricityVat.apply(max, vat),
     )
+
+    /** Janan alun, keskikohdan ja lopun hinnat ALV-asetuksen mukaan. */
+    fun labels(min: Double, max: Double, vat: Boolean): Triple<String, String, String> {
+        val shownMin = ElectricityVat.apply(min, vat)
+        val shownMax = ElectricityVat.apply(max, vat)
+        return Triple(
+            ElectricityVat.format(shownMin),
+            ElectricityVat.format((shownMin + shownMax) / 2.0),
+            ElectricityVat.format(shownMax),
+        )
+    }
 }

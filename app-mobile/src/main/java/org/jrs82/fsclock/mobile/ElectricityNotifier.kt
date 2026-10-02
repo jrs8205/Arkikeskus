@@ -28,8 +28,10 @@ object ElectricityNotifier {
         val avgSnt: Double,
     )
 
-    /** Halvin/kallein vartti + keskihinta annetuista varteista (puhdas, yksikkötestattava). */
-    fun summarize(quarters: List<ElectricityData.Quarter>): DayStats? {
+    /** Halvin/kallein vartti + keskihinta annetuista varteista näytettävinä hintoina (puhdas,
+     *  yksikkötestattava). ALV lisätään varttikohtaisesti ennen keskiarvoa, koska se ei koske
+     *  negatiivisia hintoja. */
+    fun summarize(quarters: List<ElectricityData.Quarter>, vat: Boolean = false): DayStats? {
         if (quarters.isEmpty()) return null
         var min = quarters[0]
         var max = quarters[0]
@@ -37,18 +39,23 @@ object ElectricityNotifier {
         for (q in quarters) {
             if (q.sntPerKwh < min.sntPerKwh) min = q
             if (q.sntPerKwh > max.sntPerKwh) max = q
-            sum += q.sntPerKwh
+            sum += ElectricityVat.apply(q.sntPerKwh, vat)
         }
-        return DayStats(min.sntPerKwh, hm(min), max.sntPerKwh, hm(max), sum / quarters.size)
+        return DayStats(
+            ElectricityVat.apply(min.sntPerKwh, vat), hm(min),
+            ElectricityVat.apply(max.sntPerKwh, vat), hm(max),
+            sum / quarters.size,
+        )
     }
 
-    /** Ilmoitusteksti ALV-asetuksen mukaan, hinnat aina kolmella desimaalilla (puhdas, yksikkötestattava). */
+    /** Ilmoitusteksti [summarize]n näytettävistä hinnoista, aina kolmella desimaalilla; [vat] valitsee
+     *  vain ALV-merkinnän (puhdas, yksikkötestattava). */
     fun message(stats: DayStats, vat: Boolean): String = String.format(
         FI,
         "Halvin klo %s (%s snt), kallein klo %s (%s snt). Keskihinta %s snt/kWh, %s.",
-        stats.minHm, ElectricityVat.format(ElectricityVat.apply(stats.minSnt, vat)),
-        stats.maxHm, ElectricityVat.format(ElectricityVat.apply(stats.maxSnt, vat)),
-        ElectricityVat.format(ElectricityVat.apply(stats.avgSnt, vat)), ElectricityVat.label(vat),
+        stats.minHm, ElectricityVat.format(stats.minSnt),
+        stats.maxHm, ElectricityVat.format(stats.maxSnt),
+        ElectricityVat.format(stats.avgSnt), ElectricityVat.label(vat),
     )
 
     private fun hm(q: ElectricityData.Quarter) =
@@ -83,12 +90,12 @@ object ElectricityNotifier {
         // EI ole vielä huomisen julkaisu → muuten ilmoitus laukeaisi joka päivä jo n. klo 14, ennen
         // oikeiden hintojen julkaisua. Kesä/talvi ei vaikuta: ylivuoto on aina vain aamuyötä.
         if (tomorrowQs.none { it.hour >= 20 }) return // täysi huomispäivä ei vielä julki
-        val stats = summarize(tomorrowQs) ?: return // ei vielä julkaistu → yritä seuraavalla tunnilla
+        val vat = ElectricityVat.enabled(prefs)
+        val stats = summarize(tomorrowQs, vat) ?: return // ei vielä julkaistu → yritä seuraavalla tunnilla
         android.util.Log.i(
             "ElectricityNotifier",
             "huomisen hinnat ilmoitettu $tomorrowKey: min=${stats.minSnt} max=${stats.maxSnt} ka=${stats.avgSnt}",
         )
-        val vat = ElectricityVat.enabled(prefs)
         Notifications.post(
             context, Notifications.CHANNEL_ELECTRICITY, Notifications.NOTIF_ID_ELECTRICITY,
             "Huomisen sähköhinnat saapuivat",
