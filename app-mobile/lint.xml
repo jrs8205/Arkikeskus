@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Suomi ei saa regressoitua englanniksi: puuttuva tai ylimaarainen kaannos katkaisee buildin. -->
+    <issue id="MissingTranslation" severity="fatal" />
+    <issue id="ExtraTranslation" severity="fatal" />
+    <issue id="HardcodedText" severity="warning" />
+</lint>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notif_channel_hsl_name">HSL-häiriöt</string>
+    <string name="notif_channel_hsl_desc">Ilmoitus kun suosikkilinjalle tai -pysäkille tulee uusi häiriö</string>
+    <string name="notif_channel_weather_name">Säävaroitukset</string>
+    <string name="notif_channel_weather_desc">FMI:n säävaroitukset kotipaikkakunnallasi</string>
+    <string name="notif_channel_electricity_name">Pörssisähkö</string>
+    <string name="notif_channel_electricity_desc">Ilmoitus kun huomisen pörssisähköhinnat saapuvat</string>
+    <string name="notif_channel_steps_name">Askeltavoite</string>
+    <string name="notif_channel_steps_desc">Ilmoitus kun päivän askeltavoite on saavutettu</string>
+    <string name="notif_channel_departure_name">Lähtömuistutukset</string>
+    <string name="notif_channel_departure_desc">Muistutus valitsemastasi joukkoliikennelähdöstä ennen sen lähtöä</string>
+    <string name="notif_channel_update_name">Sovelluspäivitykset</string>
+    <string name="notif_channel_update_desc">Ilmoitus kun Arkikeskuksesta on uusi versio saatavilla</string>
+</resources>

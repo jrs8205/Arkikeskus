@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
+import androidx.annotation.StringRes
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -59,6 +60,8 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -103,13 +106,14 @@ import java.util.TimeZone
  * Sää-ikoni piirretään olemassa olevalla [WeatherIconView]-custom-viewillä AndroidView-interopin kautta.
  */
 
+// Vain kalenterilaskentaan (suomalaiset ISO-viikot ja viikon alku), ei näkyvään tekstiin:
+// näkyvät viikonpäivät, kuukaudet ja desimaalit muotoillaan AppLocalen kielellä.
 private val FI = Locale("fi", "FI")
 private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 // Jaetut formatterit (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
-private val EEE_DM_HC = SimpleDateFormat("EEE d.M.", FI).apply { timeZone = HELSINKI }
-private val HMS_HC = SimpleDateFormat("HH:mm:ss", FI).apply { timeZone = HELSINKI }
-private val HM_HC = SimpleDateFormat("HH:mm", FI).apply { timeZone = HELSINKI }
-private val EEEE_DMY_HC = SimpleDateFormat("EEEE d.M.yyyy", FI).apply { timeZone = HELSINKI }
+// Kellonajat ovat pelkkiä numeroita, joten kieli ei vaikuta niihin.
+private val HMS_HC = SimpleDateFormat("HH:mm:ss", Locale.ROOT).apply { timeZone = HELSINKI }
+private val HM_HC = SimpleDateFormat("HH:mm", Locale.ROOT).apply { timeZone = HELSINKI }
 
 /** Etusivun sisääntuloanimaatio soitetaan vain KERRAN prosessin aikana, ei joka kerta kun
  *  etusivulle palataan. Aiemmin slide-animaatio toistui joka paluulla → "koko sivu hyppäsi". */
@@ -125,6 +129,7 @@ private var sForecastMet: WeatherData? = null
 // Sähkövertailun (Vertailu-välilehti) prosessivälimuisti: keskiarvot ovat kalliita laskea (vuosi-/
 // kuukausiaggregaatit) → ei lasketa uudelleen joka välilehtivaihdossa, vain kun refresh muuttuu.
 private var sElectricityCompareTick = -1
+private var sElectricityCompareLang: String? = null
 private var sElectricityCompareRows: List<CompareRowData>? = null
 
 internal fun invalidateHomeWeatherCache() {
@@ -206,8 +211,8 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                 Spacer(Modifier.height(12.dp))
                 if (widgets.isEmpty()) {
                     GenericCard(
-                        "Etusivu on tyhjä",
-                        "Kaikki kortit on piilotettu. Lisää niitä Muokkaa etusivua -painikkeesta.",
+                        stringResource(R.string.home_empty_title),
+                        stringResource(R.string.home_empty_body),
                     )
                 } else {
                     widgets.forEachIndexed { i, id ->
@@ -244,11 +249,13 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
 // järjestyksessä tahansa. Esityskerros (ClockBlock/HolidayCard/WeatherCard/…) on jaettu alla.
 
 // Nimipäivän prosessivälimuisti (almanakka-API): haetaan kerran/päivä, ei joka etusivun avauksella.
-private var sNameDayKey = -1
+// Avaimessa kalenterityyppi, jottei kielen vaihto näytä toisen kalenterin (suomi/ruotsi) nimiä.
+private var sNameDayKey: String? = null
 private var sNameDay = ""
 
 @Composable
 private fun HomeClockWidget() {
+    val context = LocalContext.current
     var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -261,23 +268,25 @@ private fun HomeClockWidget() {
         val c = Calendar.getInstance(HELSINKI, FI)
         c.get(Calendar.MONTH) * 100 + c.get(Calendar.DAY_OF_MONTH)
     }
-    var nameDay by remember { mutableStateOf(if (sNameDayKey == dayMd) sNameDay else "") }
-    LaunchedEffect(dayMd) {
-        if (sNameDayKey == dayMd && sNameDay.isNotEmpty()) {
+    val nameType = AppLocale.almanakkaType(context)
+    val nameKey = "$nameType|$dayMd"
+    var nameDay by remember { mutableStateOf(if (sNameDayKey == nameKey) sNameDay else "") }
+    LaunchedEffect(nameKey) {
+        if (sNameDayKey == nameKey && sNameDay.isNotEmpty()) {
             nameDay = sNameDay
             return@LaunchedEffect
         }
         val c = Calendar.getInstance(HELSINKI, FI)
         val names = withContext(Dispatchers.IO) {
             try {
-                AlmanakkaClient.fetchFinnishNames(c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
+                AlmanakkaClient.fetchNames(c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH), nameType)
             } catch (e: Exception) {
                 ""
             }
         }
         if (names.isNotEmpty()) {
             sNameDay = names
-            sNameDayKey = dayMd
+            sNameDayKey = nameKey
             nameDay = names
         }
     }
@@ -286,6 +295,7 @@ private fun HomeClockWidget() {
 
 @Composable
 private fun HomeHolidayWidget() {
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var dayKey by remember {
         mutableIntStateOf(dateKeyCal(Calendar.getInstance(HELSINKI, FI)))
@@ -308,7 +318,11 @@ private fun HomeHolidayWidget() {
     }
     val flagEntry = remember(dayKey) {
         val h = FinnishHolidays.nextFlagDay(Calendar.getInstance(HELSINKI, FI))
-        if (h != null) holidayEntryFromCal(h.name, flagCal(h.year, h.month - 1, h.day)) else null
+        if (h != null) {
+            holidayEntryFromCal(context, HolidayNames.display(context, h.name), flagCal(h.year, h.month - 1, h.day))
+        } else {
+            null
+        }
     }
     var holidayEntry by remember(dayKey) { mutableStateOf<HolidayEntry?>(null) }
     LaunchedEffect(dayKey) {
@@ -316,9 +330,10 @@ private fun HomeHolidayWidget() {
             try {
                 val ev = MobileHolidayProvider.next(Calendar.getInstance(HELSINKI, FI))
                 if (ev != null) {
+                    val name = HolidayNames.display(context, ev.name, ev.localized)
                     val cal = isoToCal(ev.date)
-                    if (cal != null) holidayEntryFromCal(ev.name, cal)
-                    else HolidayEntry(ev.name, formatIsoDayMonth(ev.date), "")
+                    if (cal != null) holidayEntryFromCal(context, name, cal)
+                    else HolidayEntry(name, formatIsoDayMonth(ev.date), "")
                 } else {
                     val up = FinnishHolidays.upcoming(Calendar.getInstance(HELSINKI, FI), 1)
                     if (up.isEmpty()) {
@@ -329,7 +344,7 @@ private fun HomeHolidayWidget() {
                         if (dateKeyCal(cal) < dateKeyCal(now)) {
                             cal = flagCal(now.get(Calendar.YEAR) + 1, up[0].month - 1, up[0].day)
                         }
-                        holidayEntryFromCal(up[0].name, cal)
+                        holidayEntryFromCal(context, HolidayNames.display(context, up[0].name), cal)
                     }
                 }
             } catch (e: Exception) {
@@ -462,7 +477,9 @@ private fun ClockBlock(nowMs: Long, nameDay: String) {
     // Pehmeä brändigradientti (OSA B / B6): kaksi sinisen sävyä, diagonaali. Aika vasemmalle + pillit.
     val cs = MaterialTheme.colorScheme
     val arki = ArkiTheme.colors
+    val context = LocalContext.current
     val cal = remember(nowMs / 60000L) { Calendar.getInstance(HELSINKI, FI).apply { timeInMillis = nowMs } }
+    val dateText = remember(cal) { clockDate(context, cal) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -487,9 +504,9 @@ private fun ClockBlock(nowMs: Long, nameDay: String) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ClockPill(weekdayEssive(cal), cs.onPrimaryContainer)
-            ClockPill(clockDate(cal), cs.onPrimaryContainer)
-            ClockPill("Viikko " + cal.get(Calendar.WEEK_OF_YEAR), cs.onPrimaryContainer)
+            ClockPill(stringResource(weekdayRes(cal)), cs.onPrimaryContainer)
+            ClockPill(dateText, cs.onPrimaryContainer)
+            ClockPill(stringResource(R.string.home_week, cal.get(Calendar.WEEK_OF_YEAR)), cs.onPrimaryContainer)
             if (nameDay.isNotEmpty()) {
                 ClockPill(nameDay, cs.onPrimaryContainer, painterResource(R.drawable.mobile_ic_cake_24))
             }
@@ -497,7 +514,7 @@ private fun ClockBlock(nowMs: Long, nameDay: String) {
         if (nameDay.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Text(
-                "Nimipäivät: Helsingin yliopiston almanakkatoimisto",
+                stringResource(R.string.holiday_nameday_source),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 color = cs.onPrimaryContainer.copy(alpha = 0.7f),
@@ -523,15 +540,25 @@ private fun ClockPill(text: String, onColor: Color, icon: Painter? = null) {
     }
 }
 
-private val WEEKDAY_ESSIVE_FI = arrayOf(
-    "Sunnuntaina", "Maanantaina", "Tiistaina", "Keskiviikkona", "Torstaina", "Perjantaina", "Lauantaina",
+// Omat viikonpäiväresurssit: suomen pillissä on essiivi ("Maanantaina"), jota Locale ei anna.
+private val WEEKDAY_RES = intArrayOf(
+    R.string.home_weekday_sunday, R.string.home_weekday_monday, R.string.home_weekday_tuesday,
+    R.string.home_weekday_wednesday, R.string.home_weekday_thursday, R.string.home_weekday_friday,
+    R.string.home_weekday_saturday,
 )
 
-private fun weekdayEssive(c: Calendar): String =
-    WEEKDAY_ESSIVE_FI[(c.get(Calendar.DAY_OF_WEEK) - 1).coerceIn(0, 6)]
+@StringRes
+private fun weekdayRes(c: Calendar): Int = WEEKDAY_RES[(c.get(Calendar.DAY_OF_WEEK) - 1).coerceIn(0, 6)]
 
-private fun clockDate(c: Calendar): String =
-    "${c.get(Calendar.DAY_OF_MONTH)}.${c.get(Calendar.MONTH) + 1}.${c.get(Calendar.YEAR)}"
+private fun clockDate(context: Context, c: Calendar): String =
+    localDateFormat(context, R.string.home_date_pattern_full).format(c.time)
+
+/** Päivämäärä kielen kuviolla (esim. fi "EEE d.M.", en "EEE d MMM"); aikavyöhyke aina Helsinki. */
+private fun localDateFormat(context: Context, @StringRes pattern: Int): SimpleDateFormat =
+    SimpleDateFormat(context.getString(pattern), AppLocale.current(context)).apply { timeZone = HELSINKI }
+
+@Composable
+private fun appLocale(): Locale = AppLocale.current(LocalContext.current)
 
 /** Kellon alle: seuraava pyhä + seuraava virallinen liputuspäivä — kaksi rinnakkaista kohoavaa
  *  mini-korttia (ikoni-chip + "N pv" -laskuri + label + nimi + pvm), kuten mockup (Etusivu A). */
@@ -550,7 +577,7 @@ private fun HolidayCard(holiday: HolidayEntry?, flag: HolidayEntry?) {
                 HolidayMini(
                     painterResource(R.drawable.mobile_ic_celebration_24),
                     cs.tertiary,
-                    "Seuraava pyhä",
+                    stringResource(R.string.holiday_next_holiday),
                     holiday,
                     Modifier.weight(1f).fillMaxHeight(),
                 )
@@ -559,7 +586,7 @@ private fun HolidayCard(holiday: HolidayEntry?, flag: HolidayEntry?) {
                 HolidayMini(
                     painterResource(R.drawable.mobile_ic_flag_24),
                     cs.primary,
-                    "Seuraava liputuspäivä",
+                    stringResource(R.string.holiday_next_flag_day),
                     flag,
                     Modifier.weight(1f).fillMaxHeight(),
                 )
@@ -590,7 +617,7 @@ private fun HolidayMini(icon: Painter, accent: Color, label: String, entry: Holi
         }
         Spacer(Modifier.height(14.dp))
         Text(
-            label.uppercase(FI),
+            label.uppercase(appLocale()),
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 0.5.sp,
             color = cs.onSurfaceVariant,
@@ -613,12 +640,7 @@ private fun HolidayMini(icon: Painter, accent: Color, label: String, entry: Holi
 
 private data class HolidayEntry(val name: String, val dateLabel: String, val daysLabel: String)
 
-private val WEEKDAY_SHORT_FI = arrayOf("su", "ma", "ti", "ke", "to", "pe", "la")
-
-private fun shortWeekday(c: Calendar): String =
-    WEEKDAY_SHORT_FI[(c.get(Calendar.DAY_OF_WEEK) - 1).coerceIn(0, 6)]
-
-private fun daysUntilLabel(target: Calendar): String {
+private fun daysUntilLabel(context: Context, target: Calendar): String {
     fun startOfDay(c: Calendar): Long = (c.clone() as Calendar).apply {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
@@ -627,11 +649,18 @@ private fun daysUntilLabel(target: Calendar): String {
     }.timeInMillis
     val today = startOfDay(Calendar.getInstance(HELSINKI, FI))
     val days = Math.round((startOfDay(target) - today) / 86_400_000.0).toInt()
-    return if (days <= 0) "tänään" else "$days pv"
+    return if (days <= 0) {
+        context.getString(R.string.common_today)
+    } else {
+        context.resources.getQuantityString(R.plurals.holiday_days_until, days, days)
+    }
 }
 
-private fun holidayEntryFromCal(name: String, cal: Calendar): HolidayEntry =
-    HolidayEntry(name, "${shortWeekday(cal)} ${calDayMonth(cal)}", daysUntilLabel(cal))
+private fun holidayEntryFromCal(context: Context, name: String, cal: Calendar): HolidayEntry = HolidayEntry(
+    name,
+    localDateFormat(context, R.string.home_date_pattern_weekday_short).format(cal.time),
+    daysUntilLabel(context, cal),
+)
 
 private fun isoToCal(iso: String?): Calendar? {
     if (iso == null || iso.length < 10) return null
@@ -652,9 +681,6 @@ private fun flagCal(year: Int, month: Int, day: Int): Calendar {
 private fun dateKeyCal(c: Calendar): Int =
     c.get(Calendar.YEAR) * 10000 + (c.get(Calendar.MONTH) + 1) * 100 + c.get(Calendar.DAY_OF_MONTH)
 
-private fun calDayMonth(c: Calendar): String =
-    "${c.get(Calendar.DAY_OF_MONTH)}.${c.get(Calendar.MONTH) + 1}."
-
 private fun formatIsoDayMonth(date: String?): String {
     if (date == null || date.length != 10) return ""
     return try {
@@ -670,18 +696,19 @@ private fun formatIsoDayMonth(date: String?): String {
 private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: WeatherData?) {
     val c = weather?.current
     if (c == null) {
-        GenericCard("Sää", "Säätietoja haetaan…")
+        GenericCard(stringResource(R.string.home_title_weather), stringResource(R.string.home_weather_loading))
         return
     }
     val cs = MaterialTheme.colorScheme
     val arki = ArkiTheme.colors
+    val loc = AppLocale.current(context)
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_location_24),
                 accent = arki.weatherAccent,
                 title = displayPlace(prefs),
-                subtitle = if (weather.fetchedAt > 0) "Päivitetty klo " + hhmm(weather.fetchedAt) else null,
+                subtitle = if (weather.fetchedAt > 0) stringResource(R.string.common_updated_at, hhmm(weather.fetchedAt)) else null,
             )
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -693,7 +720,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
                 Spacer(Modifier.width(18.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        formatTemp(c.temperature),
+                        formatTemp(loc, c.temperature),
                         fontSize = 50.sp,
                         fontWeight = FontWeight.Bold,
                         color = arki.weatherAccent,
@@ -708,7 +735,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
                     if (!c.feelsLike.isNaN()) {
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            "Tuntuu kuin " + formatTemp(c.feelsLike),
+                            stringResource(R.string.home_feels_like, formatTemp(loc, c.feelsLike)),
                             fontSize = 14.sp,
                             color = cs.onSurfaceVariant,
                         )
@@ -720,12 +747,12 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
             val wind = if (!c.windSpeed.isNaN()) c.windSpeed else nowForecast?.windSpeed ?: Double.NaN
             val rain = if (!c.precip1h.isNaN()) c.precip1h else nowForecast?.precipitation ?: Double.NaN
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                WeatherStatTile(R.drawable.mobile_ic_wind_24, "Tuuli",
-                    if (wind.isNaN()) "-- m/s" else one(wind) + " m/s", cs.secondary, Modifier.weight(1f))
-                WeatherStatTile(R.drawable.mobile_ic_rain_24, "Sade 1h",
-                    if (rain.isNaN()) "-- mm" else one(rain) + " mm", arki.weatherRain, Modifier.weight(1f))
+                WeatherStatTile(R.drawable.mobile_ic_wind_24, stringResource(R.string.home_wind),
+                    if (wind.isNaN()) "-- m/s" else one(loc, wind) + " m/s", cs.secondary, Modifier.weight(1f))
+                WeatherStatTile(R.drawable.mobile_ic_rain_24, stringResource(R.string.home_rain_1h),
+                    if (rain.isNaN()) "-- mm" else one(loc, rain) + " mm", arki.weatherRain, Modifier.weight(1f))
             }
-            val details = weatherDetailLines(c)
+            val details = weatherDetailLines(context, c)
             if (details.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 var di = 0
@@ -745,7 +772,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
             val hours = remainingHours(weather)
             if (hours.isNotEmpty()) {
                 Spacer(Modifier.height(18.dp))
-                Text("Loppupäivän ennuste", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = cs.onSurface)
+                Text(stringResource(R.string.home_forecast_rest_of_day), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = cs.onSurface)
                 Spacer(Modifier.height(10.dp))
                 Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
                     hours.forEach { h ->
@@ -811,6 +838,7 @@ private fun DetailChip(text: String, modifier: Modifier) {
 
 @Composable
 private fun HourChip(h: WeatherData.Hour) {
+    val loc = appLocale()
     Column(
         modifier = Modifier
             .width(92.dp)
@@ -826,9 +854,9 @@ private fun HourChip(h: WeatherData.Hour) {
             update = { it.setCondition(h.condition) },
             modifier = Modifier.size(42.dp).padding(vertical = 4.dp),
         )
-        Text(formatTemp(h.temperature), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        ChipIconRow(R.drawable.mobile_ic_rain_24, if (h.precipitation.isNaN()) "--" else one(h.precipitation) + " mm")
-        ChipIconRow(R.drawable.mobile_ic_wind_24, if (h.windSpeed.isNaN()) "--" else one(h.windSpeed) + " m/s")
+        Text(formatTemp(loc, h.temperature), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        ChipIconRow(R.drawable.mobile_ic_rain_24, if (h.precipitation.isNaN()) "--" else one(loc, h.precipitation) + " mm")
+        ChipIconRow(R.drawable.mobile_ic_wind_24, if (h.windSpeed.isNaN()) "--" else one(loc, h.windSpeed) + " m/s")
     }
 }
 
@@ -848,10 +876,12 @@ private fun ChipIconRow(iconRes: Int, text: String) {
 
 @Composable
 private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepository, tick: Int, onOpenElectricity: (() -> Unit)? = null) {
+    val context = LocalContext.current
+    val loc = AppLocale.current(context)
     val settingsRevision = LocalHomeDataRevision.current
     val vat = remember(settingsRevision) { ElectricityVat.enabled(prefs) }
     val q = remember(tick) { repo.currentQuarter() }
-    val notice = remember(tick, settingsRevision) { cheapNotice(prefs, repo) }
+    val notice = remember(tick, settingsRevision) { cheapNotice(context, prefs, repo) }
     val threshold = remember(tick, settingsRevision) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
@@ -861,30 +891,30 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_bolt_24),
                 accent = headerAccent,
-                title = "Pörssisähkö",
+                title = stringResource(R.string.electricity_title),
                 trailing = if (onOpenElectricity != null) {
-                    { TextButton(onClick = onOpenElectricity) { Text("Kaikki") } }
+                    { TextButton(onClick = onOpenElectricity) { Text(stringResource(R.string.home_see_all)) } }
                 } else {
                     null
                 },
             )
             Spacer(Modifier.height(12.dp))
             if (q == null) {
-                Text("Nykyistä varttihintaa ei ole vielä saatavilla", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.electricity_no_current_price), style = MaterialTheme.typography.bodyLarge)
             } else {
                 val cs = MaterialTheme.colorScheme
                 val price = ElectricityVat.apply(q.sntPerKwh, vat)
                 val level = priceLevel(price, threshold)
                 val accent = priceAccent(level, arki)
                 ArkiPill(
-                    text = priceLabel(level),
+                    text = stringResource(priceLabelRes(level)),
                     accent = accent,
                     leadingIcon = priceTrendIcon(level)?.let { painterResource(it) },
                 )
                 Spacer(Modifier.height(9.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        ElectricityVat.format(price),
+                        ElectricityVat.format(price, loc),
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = accent,
@@ -908,14 +938,14 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        quarterRangeText(q),
+                        quarterRangeText(context, q),
                         style = MaterialTheme.typography.bodySmall,
                         color = cs.onSurfaceVariant,
                     )
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    ElectricityVat.priceNote(vat),
+                    stringResource(ElectricityVat.priceNoteRes(vat)),
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant,
                 )
@@ -928,13 +958,13 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                     Spacer(Modifier.height(14.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MinMaxChip(
-                            R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, "Halvinta",
-                            quarterPriceText(rmin, vat),
+                            R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, stringResource(R.string.electricity_cheapest),
+                            quarterPriceText(context, rmin, vat),
                             Modifier.weight(1f),
                         )
                         MinMaxChip(
-                            R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, "Kalleinta",
-                            quarterPriceText(rmax, vat),
+                            R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, stringResource(R.string.electricity_most_expensive),
+                            quarterPriceText(context, rmax, vat),
                             Modifier.weight(1f),
                         )
                     }
@@ -964,10 +994,9 @@ private enum class PriceLevel { CHEAP, NORMAL, EXPENSIVE }
 private const val EXPENSIVE_THRESHOLD = 15.0
 
 /** "HH.MM · 0,000" — vartin kello + hinta ALV-asetuksen mukaan, aina kolme desimaalia. */
-private fun quarterPriceText(q: ElectricityData.Quarter, vat: Boolean): String = String.format(
-    FI, "%02d.%02d%s · %s", q.hour, q.minute, ElectricityTime.dstSuffix(q.timestamp),
-    ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat)),
-)
+private fun quarterPriceText(context: Context, q: ElectricityData.Quarter, vat: Boolean): String =
+    String.format(Locale.ROOT, "%02d.%02d", q.hour, q.minute) + ElectricityTime.dstSuffix(context, q.timestamp) +
+        " · " + ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat), AppLocale.current(context))
 
 private fun priceLevel(snt: Double, cheapThreshold: Double): PriceLevel = when {
     snt.isNaN() -> PriceLevel.NORMAL
@@ -982,10 +1011,11 @@ private fun priceAccent(level: PriceLevel, arki: ArkiColors): Color = when (leve
     PriceLevel.EXPENSIVE -> arki.priceExpensive
 }
 
-private fun priceLabel(level: PriceLevel): String = when (level) {
-    PriceLevel.CHEAP -> "Halpaa"
-    PriceLevel.NORMAL -> "Normaali"
-    PriceLevel.EXPENSIVE -> "Kallista"
+@StringRes
+private fun priceLabelRes(level: PriceLevel): Int = when (level) {
+    PriceLevel.CHEAP -> R.string.electricity_level_cheap
+    PriceLevel.NORMAL -> R.string.electricity_level_normal
+    PriceLevel.EXPENSIVE -> R.string.electricity_level_expensive
 }
 
 private fun priceTrendIcon(level: PriceLevel): Int? = when (level) {
@@ -1002,12 +1032,11 @@ private fun todayElecRange(repo: ElectricityRepository): Pair<ElectricityData.Qu
     return qs.minByOrNull { it.sntPerKwh } to qs.maxByOrNull { it.sntPerKwh }
 }
 
-private fun quarterRangeText(q: ElectricityData.Quarter): String {
+private fun quarterRangeText(context: Context, q: ElectricityData.Quarter): String {
     val (start, end) = ElectricityTime.quarterBounds(q.timestamp)
-    return String.format(
-        FI, "Vartti klo %02d.%02d–%02d.%02d · seuraava %02d.%02d",
-        start.hour, start.minute, end.hour, end.minute, end.hour, end.minute,
-    )
+    val from = String.format(Locale.ROOT, "%02d.%02d", start.hour, start.minute)
+    val to = String.format(Locale.ROOT, "%02d.%02d", end.hour, end.minute)
+    return context.getString(R.string.electricity_quarter_range, from, to, to)
 }
 
 /** Liikennevalomittari: vihreä→keltainen→punainen liuku päivän halvimmasta kalleimpaan varttiin,
@@ -1016,7 +1045,7 @@ private fun quarterRangeText(q: ElectricityData.Quarter): String {
 @Composable
 private fun PriceMeter(current: Double, min: Double, max: Double, vat: Boolean, pointer: Color, arki: ArkiColors) {
     val f = PriceScale.fraction(current, min, max, vat) ?: return
-    val (minText, midText, maxText) = PriceScale.labels(min, max, vat)
+    val (minText, midText, maxText) = PriceScale.labels(min, max, vat, appLocale())
     Box(modifier = Modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.CenterStart) {
         Box(
             modifier = Modifier
@@ -1060,7 +1089,7 @@ private fun MinMaxChip(iconRes: Int, accent: Color, label: String, value: String
         Spacer(Modifier.width(7.dp))
         Column {
             Text(
-                label.uppercase(FI),
+                label.uppercase(appLocale()),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.4.sp,
@@ -1073,18 +1102,19 @@ private fun MinMaxChip(iconRes: Int, accent: Color, label: String, value: String
 
 @Composable
 private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: Int) {
+    val context = LocalContext.current
     val settingsRevision = LocalHomeDataRevision.current
-    val sensors = remember(tick, settingsRevision) { buildSensors(prefs, repo) }
+    val sensors = remember(tick, settingsRevision) { buildSensors(context, prefs, repo) }
     val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_thermometer_24),
                 accent = arki.sensorWarm,
-                title = "Anturit",
+                title = stringResource(R.string.home_title_sensors),
                 trailing = {
                     Text(
-                        "Ruuvi · nyt",
+                        stringResource(R.string.home_sensors_ruuvi_now),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1093,7 +1123,7 @@ private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: I
             Spacer(Modifier.height(12.dp))
             if (sensors.isEmpty()) {
                 Text(
-                    "Ei määritettyjä Ruuvi-antureita",
+                    stringResource(R.string.home_sensors_none),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1118,6 +1148,8 @@ private fun SensorsCard(prefs: SharedPreferences, repo: RuuviRepository, tick: I
 
 @Composable
 private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
+    val context = LocalContext.current
+    val loc = AppLocale.current(context)
     val arki = ArkiTheme.colors
     val cs = MaterialTheme.colorScheme
     val sample = entry.second
@@ -1140,12 +1172,12 @@ private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
         )
         if (sample == null) {
             Spacer(Modifier.height(8.dp))
-            Text("odottaa", fontSize = 14.sp, color = cs.onSurfaceVariant)
+            Text(stringResource(R.string.home_sensor_waiting), fontSize = 14.sp, color = cs.onSurfaceVariant)
         } else {
             Spacer(Modifier.height(6.dp))
             val h = sample.humidityPct()
             Text(
-                if (temp == null) "--" else one(temp) + "°",
+                if (temp == null) "--" else one(loc, temp) + "°",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = tempColor,
@@ -1163,13 +1195,13 @@ private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
                 )
                 Spacer(Modifier.width(5.dp))
                 Text(
-                    if (h == null) "-- %" else Math.round(h).toString() + " %",
+                    stringResource(R.string.home_percent, if (h == null) "--" else Math.round(h).toString()),
                     fontSize = 12.sp,
                     color = cs.onSurfaceVariant,
                 )
             }
             Text(
-                ageText(sample.timestamp),
+                homeAgeText(context, sample.timestamp),
                 fontSize = 11.sp,
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(top = 3.dp),
@@ -1198,18 +1230,18 @@ internal fun SensorsSection() {
     val ruuvi = remember { RuuviRepository.get(context) }
     val tick = rememberRuuviScanTick(ruuvi)
     val settingsRevision = LocalHomeDataRevision.current
-    val sensors = remember(tick, settingsRevision) { buildSensors(prefs, ruuvi) }
+    val sensors = remember(tick, settingsRevision) { buildSensors(context, prefs, ruuvi) }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Anturit", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.home_title_sensors), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
         if (sensors.isEmpty()) {
             Text(
-                "Ei määritettyjä Ruuvi-antureita",
+                stringResource(R.string.home_sensors_none),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1275,12 +1307,12 @@ internal fun ElectricitySection() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Pörssisähkö", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.electricity_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ElecTab("Tänään", dayOffset == 0, Modifier.weight(1f)) { dayOffset = 0 }
-            ElecTab("Huomenna", dayOffset == 1, Modifier.weight(1f)) { dayOffset = 1 }
-            ElecTab("Vertailu", dayOffset == 2, Modifier.weight(1f)) { dayOffset = 2 }
+            ElecTab(stringResource(R.string.common_today), dayOffset == 0, Modifier.weight(1f)) { dayOffset = 0 }
+            ElecTab(stringResource(R.string.common_tomorrow), dayOffset == 1, Modifier.weight(1f)) { dayOffset = 1 }
+            ElecTab(stringResource(R.string.electricity_tab_compare), dayOffset == 2, Modifier.weight(1f)) { dayOffset = 2 }
         }
         Spacer(Modifier.height(14.dp))
         if (dayOffset == 2) {
@@ -1308,6 +1340,8 @@ private fun ElecTab(label: String, selected: Boolean, modifier: Modifier, onClic
 
 @Composable
 private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOffset: Int, tick: Int, vat: Boolean) {
+    val context = LocalContext.current
+    val loc = AppLocale.current(context)
     val arki = ArkiTheme.colors
     val data = remember(tick) { repo.peek() }
     val quarters = remember(tick, dayOffset) {
@@ -1321,7 +1355,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
     // (huomisen 00:00–00:45) ei riitä. Toimii myös DST-päivinä (92 / 100 varttia) toisin kuin kiinteä 96.
     if (dayOffset == 1 && (quarters == null || quarters.none { it.hour >= 20 })) {
         Text(
-            "Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.",
+            stringResource(R.string.electricity_tomorrow_pending),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1329,8 +1363,9 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
     }
     if (quarters.isNullOrEmpty()) {
         Text(
-            if (dayOffset == 0) "Tämän päivän varttihintoja ei ole saatavilla."
-            else "Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.",
+            stringResource(
+                if (dayOffset == 0) R.string.electricity_today_unavailable else R.string.electricity_tomorrow_pending,
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1349,19 +1384,22 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                 if (dayOffset == 0 && current != null) {
                     val level = priceLevel(ElectricityVat.apply(current.sntPerKwh, vat), threshold)
                     ArkiPill(
-                        text = priceLabel(level),
+                        text = stringResource(priceLabelRes(level)),
                         accent = priceAccent(level, arki),
                         leadingIcon = priceTrendIcon(level)?.let { painterResource(it) },
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        String.format(FI, "Nyt klo %02d:%02d", current.hour, current.minute),
+                        stringResource(
+                            R.string.electricity_now_at,
+                            String.format(Locale.ROOT, "%02d:%02d", current.hour, current.minute),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = cs.onSurfaceVariant,
                     )
                 } else {
                     Text(
-                        "Huomenna",
+                        stringResource(R.string.common_tomorrow),
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .background(cs.primary.copy(alpha = 0.16f))
@@ -1379,7 +1417,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
             val heroLevel = priceLevel(heroPrice, threshold)
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    ElectricityVat.format(heroPrice),
+                    ElectricityVat.format(heroPrice, loc),
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
                     color = priceAccent(heroLevel, arki),
@@ -1395,7 +1433,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                ElectricityVat.priceNote(vat),
+                stringResource(ElectricityVat.priceNoteRes(vat)),
                 style = MaterialTheme.typography.bodySmall,
                 color = cs.onSurfaceVariant,
             )
@@ -1408,21 +1446,25 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     MinMaxChip(
-                        R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, "Halvinta",
-                        quarterPriceText(min, vat),
+                        R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, stringResource(R.string.electricity_cheapest),
+                        quarterPriceText(context, min, vat),
                         Modifier.weight(1f),
                     )
                     MinMaxChip(
-                        R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, "Kalleinta",
-                        quarterPriceText(max, vat),
+                        R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, stringResource(R.string.electricity_most_expensive),
+                        quarterPriceText(context, max, vat),
                         Modifier.weight(1f),
                     )
                 }
             }
             Spacer(Modifier.height(14.dp))
-            val updated = if (data != null && data.fetchedAt > 0) "Päivitetty klo " + hhmm(data.fetchedAt) + " · " else ""
+            val updated = if (data != null && data.fetchedAt > 0) {
+                stringResource(R.string.common_updated_at, hhmm(data.fetchedAt)) + " · "
+            } else {
+                ""
+            }
             Text(
-                updated + "Lähde: Elering/Nord Pool. Hinnat ${ElectricityVat.label(vat)}.",
+                updated + stringResource(R.string.electricity_source_footer, stringResource(ElectricityVat.labelRes(vat))),
                 fontSize = 11.sp,
                 color = cs.onSurfaceVariant,
             )
@@ -1435,7 +1477,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                Text("klo", modifier = Modifier.width(24.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+                Text(stringResource(R.string.electricity_heatmap_hour), modifier = Modifier.width(24.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
                 Spacer(Modifier.width(8.dp))
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     listOf("15", "30", "45", "60").forEach {
@@ -1450,13 +1492,13 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
             for (hr in hourRows) {
                 val hourQs = byHour[ElectricityTime.hourKey(hr.startMs)].orEmpty()
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
-                    Text(String.format(FI, "%02d", hr.hour) + if (hr.repeated) "*" else "", modifier = Modifier.width(24.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
+                    Text(String.format(Locale.ROOT, "%02d", hr.hour) + if (hr.repeated) "*" else "", modifier = Modifier.width(24.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
                     Spacer(Modifier.width(8.dp))
                     Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         for (col in 0..3) {
                             val q = hourQs.firstOrNull { it.minute == col * 15 }
                             if (q != null) {
-                                HeatCell(q, dayMin, dayMax, current != null && q.timestamp == current.timestamp, vat, Modifier.weight(1f))
+                                HeatCell(q, dayMin, dayMax, current != null && q.timestamp == current.timestamp, vat, loc, Modifier.weight(1f))
                             } else {
                                 Box(Modifier.weight(1f).height(30.dp))
                             }
@@ -1467,7 +1509,7 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
             if (hourRows.any { it.repeated }) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "* Kello siirtyy talviaikaan, joten tunti 03 on kahdesti. Tähdellä merkitty rivi on jälkimmäinen (talviaikaa).",
+                    stringResource(R.string.electricity_dst_footnote),
                     fontSize = 11.sp,
                     color = cs.onSurfaceVariant,
                 )
@@ -1482,12 +1524,18 @@ private data class CompareRowData(val label: String, val value: Double, val high
 private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
     // Seedataan prosessivälimuistista → ei lasketa raskaita keskiarvoja uudelleen joka kerta kun
     // Vertailu-välilehti avataan (sektio poistuu kompositiosta välilehteä vaihtaessa).
-    var rows by remember { mutableStateOf(if (sElectricityCompareTick == refresh) sElectricityCompareRows else null) }
-    LaunchedEffect(refresh) {
+    // Rivien otsikot ovat valmiiksi käännettyjä → välimuisti kelpaa vain samalla kielellä.
+    val lang = AppLocale.language(context)
+    var rows by remember {
+        mutableStateOf(
+            if (sElectricityCompareTick == refresh && sElectricityCompareLang == lang) sElectricityCompareRows else null,
+        )
+    }
+    LaunchedEffect(refresh, lang) {
         // Ohita lasku vain kun välimuistin tick vastaa nykyistä refreshiä → Päivitä (refresh kasvaa)
         // pakottaa silti tuoreen laskennan.
         val cached = sElectricityCompareRows
-        if (cached != null && sElectricityCompareTick == refresh) {
+        if (cached != null && sElectricityCompareTick == refresh && sElectricityCompareLang == lang) {
             rows = cached
             return@LaunchedEffect
         }
@@ -1498,12 +1546,16 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
                 val now = Calendar.getInstance(HELSINKI, FI)
                 val year = now.get(Calendar.YEAR)
                 val curMonth = now.get(Calendar.MONTH) + 1
+                val loc = AppLocale.current(context)
                 val prev = ElectricityAverages.previousYearAverage(context, true)
-                if (prev != null) out.add(CompareRowData("${year - 1} keskihinta", prev.avgSntPerKwh, true, false))
-                out.add(CompareRowData("$year kuukausikeskiarvot", Double.NaN, false, true))
+                if (prev != null) {
+                    out.add(CompareRowData(context.getString(R.string.electricity_compare_year_avg, year - 1), prev.avgSntPerKwh, true, false))
+                }
+                out.add(CompareRowData(context.getString(R.string.electricity_compare_month_section, year), Double.NaN, false, true))
                 for (m in 1..curMonth) {
                     val ma = ElectricityAverages.monthAverage(context, year, m, true) ?: continue
-                    val label = MONTHS_FI_ELEC[m - 1] + if (m == curMonth) " (kesken)" else ""
+                    val name = monthName(loc, m)
+                    val label = if (m == curMonth) context.getString(R.string.electricity_compare_month_partial, name) else name
                     out.add(CompareRowData(label, ma.avgSntPerKwh, false, false))
                 }
                 complete = prev != null && out.size == curMonth + 2
@@ -1514,10 +1566,16 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
         }
         // Talleta vain täydellinen tulos (vuosiarvo + kaikki kuukaudet) → verkkokatkon aikana syntynyt
         // vajaa tulos ei jää välimuistiin, vaan välilehden seuraava avaus yrittää puuttuvia uudelleen.
-        rows?.let { if (complete) { sElectricityCompareRows = it; sElectricityCompareTick = refresh } }
+        rows?.let {
+            if (complete) {
+                sElectricityCompareRows = it
+                sElectricityCompareTick = refresh
+                sElectricityCompareLang = lang
+            }
+        }
     }
     Text(
-        "Pörssisähkön keskihinnat (${ElectricityVat.label(vat)}). Lähde: Elering/Nord Pool.",
+        stringResource(R.string.electricity_compare_header, stringResource(ElectricityVat.labelRes(vat))),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -1525,17 +1583,18 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
     val r = rows
     when {
         r == null -> Text(
-            "Haetaan keskiarvoja…",
+            stringResource(R.string.electricity_compare_loading),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         r.none { !it.isSection } -> Text(
-            "Keskiarvoja ei ole vielä saatavilla. Päivitä uudelleen verkkoyhteydellä.",
+            stringResource(R.string.electricity_compare_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         else -> {
             val cs = MaterialTheme.colorScheme
+            val loc = AppLocale.current(context)
             val yearRow = r.firstOrNull { it.highlight && !it.isSection }
             val sectionRow = r.firstOrNull { it.isSection }
             val monthRows = r.filter { !it.isSection && !it.highlight }
@@ -1554,7 +1613,7 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            ElectricityVat.format(ElectricityVat.apply(yearRow.value, vat)),
+                            ElectricityVat.format(ElectricityVat.apply(yearRow.value, vat), loc),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = cs.primary,
@@ -1570,7 +1629,7 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                         if (sectionRow != null) {
                             Text(
-                                sectionRow.label.uppercase(FI),
+                                sectionRow.label.uppercase(loc),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp,
@@ -1595,6 +1654,7 @@ private fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
 @Composable
 private fun MonthRow(m: CompareRowData, mMin: Double, mMax: Double, vat: Boolean) {
     val cs = MaterialTheme.colorScheme
+    val loc = appLocale()
     val frac = if (mMax > mMin) (((m.value - mMin) / (mMax - mMin)).toFloat()).coerceIn(0.06f, 1f) else 0.5f
     val heat = heatColor(m.value, mMin, mMax)
     Row(
@@ -1632,7 +1692,7 @@ private fun MonthRow(m: CompareRowData, mMin: Double, mMax: Double, vat: Boolean
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            ElectricityVat.format(ElectricityVat.apply(m.value, vat)),
+            ElectricityVat.format(ElectricityVat.apply(m.value, vat), loc),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = cs.onSurface,
@@ -1640,10 +1700,14 @@ private fun MonthRow(m: CompareRowData, mMin: Double, mMax: Double, vat: Boolean
     }
 }
 
-private val MONTHS_FI_ELEC = arrayOf(
-    "Tammikuu", "Helmikuu", "Maaliskuu", "Huhtikuu", "Toukokuu", "Kesäkuu",
-    "Heinäkuu", "Elokuu", "Syyskuu", "Lokakuu", "Marraskuu", "Joulukuu",
-)
+/** Kuukauden itsenäinen nimi isolla alkukirjaimella kielen mukaan ("Tammikuu", "Januari", "January"). */
+private fun monthName(locale: Locale, month: Int): String {
+    val c = Calendar.getInstance(HELSINKI, FI)
+    c.clear()
+    c.set(2000, month - 1, 1)
+    val name = SimpleDateFormat("LLLL", locale).apply { timeZone = HELSINKI }.format(c.time)
+    return name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
+}
 
 /** Jatkuva lämpökarttasävy päivän min–max-välillä: cheap → normal → expensive (tokeneista). */
 @Composable
@@ -1656,7 +1720,7 @@ private fun heatColor(price: Double, dayMin: Double, dayMax: Double): Color {
 
 /** Lämpökarttasolu: tausta = vartin hintataso, teksti = varttihinta (tumma muste lukea kaikilla sävyillä). */
 @Composable
-private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double, isNow: Boolean, vat: Boolean, modifier: Modifier) {
+private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double, isNow: Boolean, vat: Boolean, loc: Locale, modifier: Modifier) {
     Box(
         modifier = modifier
             .height(30.dp)
@@ -1666,7 +1730,7 @@ private fun HeatCell(q: ElectricityData.Quarter, dayMin: Double, dayMax: Double,
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat)),
+            ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat), loc),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -1784,13 +1848,13 @@ internal fun ForecastSection() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Sää-ennuste", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.home_forecast_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Text(place, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
         if (w == null || w.hours.isEmpty()) {
             Text(
-                "Ennustetta ei ole vielä ladattu.",
+                stringResource(R.string.home_forecast_not_loaded),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1799,7 +1863,7 @@ internal fun ForecastSection() {
             var selectedDay by remember(w) { mutableStateOf(days.firstOrNull() ?: 0) }
             Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 days.forEach { key ->
-                    DayTab(dayLabel(key), key == selectedDay) { selectedDay = key }
+                    DayTab(dayLabel(context, key), key == selectedDay) { selectedDay = key }
                     Spacer(Modifier.width(8.dp))
                 }
             }
@@ -1810,7 +1874,7 @@ internal fun ForecastSection() {
                 dayKey(it.timestamp) == selectedDay || dayKey(it.timestamp - 1L) == selectedDay
             }
             if (rows.isEmpty()) {
-                Text("Tälle päivälle ei löytynyt tuntirivejä.", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.home_forecast_no_hours), style = MaterialTheme.typography.bodyMedium)
             } else {
                 rows.forEach { h ->
                     ForecastRow(
@@ -1840,21 +1904,22 @@ private fun DayTab(label: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData.Hour?, met: WeatherData.Hour?) {
+    val loc = AppLocale.current(context)
     ArkiCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(hhmm(h.timestamp), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             ProviderRow(
-                "FMI", h.condition, formatTemp(h.temperature),
-                WeatherTextFormatter.shortLabel(context, h.condition), fmiForecastStats(h),
+                "FMI", h.condition, formatTemp(loc, h.temperature),
+                WeatherTextFormatter.shortLabel(context, h.condition), fmiForecastStats(context, h),
             )
             if (om != null) {
                 ProviderRow(
-                    "Open-Meteo", om.condition, formatNullableTemp(om.temperature),
-                    WeatherTextFormatter.shortLabel(context, om.condition), openMeteoForecastStats(om),
+                    "Open-Meteo", om.condition, formatNullableTemp(loc, om.temperature),
+                    WeatherTextFormatter.shortLabel(context, om.condition), openMeteoForecastStats(context, om),
                 )
             } else {
                 Text(
-                    "Open-Meteo ei saatavilla tälle tunnille",
+                    stringResource(R.string.home_forecast_om_unavailable),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -1864,8 +1929,8 @@ private fun ForecastRow(context: Context, h: WeatherData.Hour, om: OpenMeteoData
             // rivi näytetään vain kun tunnille osuu dataa, ei "ei saatavilla" -tekstiä.
             if (met != null) {
                 ProviderRow(
-                    "MET Norway", met.condition, formatTemp(met.temperature),
-                    WeatherTextFormatter.shortLabel(context, met.condition), metForecastStats(met),
+                    "MET Norway", met.condition, formatTemp(loc, met.temperature),
+                    WeatherTextFormatter.shortLabel(context, met.condition), metForecastStats(context, met),
                 )
             }
         }
@@ -1973,18 +2038,18 @@ internal fun NewsSection() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Kotimaiset", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.home_news_domestic_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         when {
-            loading -> Text("Haetaan uutisia…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            loading -> Text(stringResource(R.string.home_news_loading), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             items.isEmpty() -> Text(
-                "Ei uutisia. Tarkista uutislähteet asetuksista.",
+                stringResource(R.string.home_news_empty_check_sources),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             else -> {
                 val shown = items.take(50)
-                val note = if (shown.size < items.size) "Näytetään ${shown.size} uusinta uutista" else "${items.size} uutista"
+                val note = newsCountNote(shown.size, items.size)
                 Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 shown.forEach { item ->
                     NewsRow(item) {
@@ -2057,23 +2122,23 @@ internal fun OwnFeedsScreen() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Omat syötteet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.home_own_feeds_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         when {
-            loading -> Text("Haetaan uutisia…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            loading -> Text(stringResource(R.string.home_news_loading), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             !hasFeeds -> Text(
-                "Ei omia syötteitä. Lisää asetuksista.",
+                stringResource(R.string.home_own_feeds_none),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             items.isEmpty() -> Text(
-                "Ei uutisia juuri nyt.",
+                stringResource(R.string.home_news_none_now),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             else -> {
                 val shown = items.take(50)
-                val note = if (shown.size < items.size) "Näytetään ${shown.size} uusinta uutista" else "${items.size} uutista"
+                val note = newsCountNote(shown.size, items.size)
                 Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 shown.forEach { item ->
                     NewsRow(item) {
@@ -2087,8 +2152,18 @@ internal fun OwnFeedsScreen() {
     }
 }
 
+/** "Näytetään 50 uusinta uutista" kun lista katkaistiin, muuten "N uutista". */
+@Composable
+private fun newsCountNote(shown: Int, total: Int): String =
+    if (shown < total) {
+        pluralStringResource(R.plurals.home_news_showing_latest, shown, shown)
+    } else {
+        pluralStringResource(R.plurals.home_news_count, total, total)
+    }
+
 @Composable
 private fun NewsRow(item: NewsItem, onOpen: () -> Unit) {
+    val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -2127,7 +2202,7 @@ private fun NewsRow(item: NewsItem, onOpen: () -> Unit) {
                 )
                 if (item.pubTimeMs > 0) {
                     Text(
-                        " · " + ageText(item.pubTimeMs),
+                        " · " + homeAgeText(context, item.pubTimeMs),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -2166,15 +2241,16 @@ private fun dayKey(timestamp: Long): Int {
     return c.get(Calendar.YEAR) * 10000 + (c.get(Calendar.MONTH) + 1) * 100 + c.get(Calendar.DAY_OF_MONTH)
 }
 
-private fun dayLabel(key: Int): String {
+private fun dayLabel(context: Context, key: Int): String {
     val year = key / 10000
     val month = (key / 100) % 100
     val day = key % 100
     val c = Calendar.getInstance(HELSINKI, FI)
     c.clear()
     c.set(year, month - 1, day)
-    var label = EEE_DM_HC.format(c.time)
-    if (label.isNotEmpty()) label = label.substring(0, 1).uppercase(FI) + label.substring(1)
+    val loc = AppLocale.current(context)
+    var label = localDateFormat(context, R.string.home_date_pattern_weekday_short).format(c.time)
+    if (label.isNotEmpty()) label = label.substring(0, 1).uppercase(loc) + label.substring(1)
     return label
 }
 
@@ -2218,40 +2294,47 @@ private fun statColor(kind: StatKind): Color = when (kind) {
     StatKind.HUMIDITY -> ArkiTheme.colors.weatherFrost
 }
 
-private fun fmiForecastStats(h: WeatherData.Hour): List<ForecastStat> {
+private fun fmiForecastStats(context: Context, h: WeatherData.Hour): List<ForecastStat> {
+    val loc = AppLocale.current(context)
     val out = ArrayList<ForecastStat>()
-    if (!h.precipitation.isNaN()) out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, one(h.precipitation) + " mm"))
-    if (!h.windSpeed.isNaN()) out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(h.windSpeed) + " m/s"))
-    if (!h.windGust.isNaN()) out.add(ForecastStat(StatKind.GUST, R.drawable.mobile_ic_wind_24, "puuska " + one(h.windGust) + " m/s"))
-    if (!h.humidity.isNaN()) out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, Math.round(h.humidity).toString() + " %"))
+    if (!h.precipitation.isNaN()) out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, one(loc, h.precipitation) + " mm"))
+    if (!h.windSpeed.isNaN()) out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(loc, h.windSpeed) + " m/s"))
+    if (!h.windGust.isNaN()) out.add(ForecastStat(StatKind.GUST, R.drawable.mobile_ic_wind_24, context.getString(R.string.home_stat_gust, one(loc, h.windGust))))
+    if (!h.humidity.isNaN()) out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, percentText(context, h.humidity)))
     return out
 }
 
-private fun metForecastStats(h: WeatherData.Hour): List<ForecastStat> {
+private fun metForecastStats(context: Context, h: WeatherData.Hour): List<ForecastStat> {
+    val loc = AppLocale.current(context)
     val out = ArrayList<ForecastStat>()
     if (!h.precipitation.isNaN()) {
         val value = if (h.blockHours > 1) {
-            one(h.precipitation) + " mm/" + h.blockHours + " h"
+            one(loc, h.precipitation) + " mm/" + h.blockHours + " h"
         } else {
-            one(h.precipitation) + " mm"
+            one(loc, h.precipitation) + " mm"
         }
         out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, value))
     }
-    if (!h.windSpeed.isNaN()) out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(h.windSpeed) + " m/s"))
-    if (!h.humidity.isNaN()) out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, Math.round(h.humidity).toString() + " %"))
+    if (!h.windSpeed.isNaN()) out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(loc, h.windSpeed) + " m/s"))
+    if (!h.humidity.isNaN()) out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, percentText(context, h.humidity)))
     return out
 }
 
-private fun openMeteoForecastStats(h: OpenMeteoData.Hour): List<ForecastStat> {
+private fun openMeteoForecastStats(context: Context, h: OpenMeteoData.Hour): List<ForecastStat> {
+    val loc = AppLocale.current(context)
     val out = ArrayList<ForecastStat>()
-    h.precipitation?.let { out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, one(it) + " mm")) }
-    h.windSpeed?.let { out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(it) + " m/s")) }
-    h.windGust?.let { out.add(ForecastStat(StatKind.GUST, R.drawable.mobile_ic_wind_24, "puuska " + one(it) + " m/s")) }
-    h.humidity?.let { out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, Math.round(it).toString() + " %")) }
+    h.precipitation?.let { out.add(ForecastStat(StatKind.RAIN, R.drawable.mobile_ic_rain_24, one(loc, it) + " mm")) }
+    h.windSpeed?.let { out.add(ForecastStat(StatKind.WIND, R.drawable.mobile_ic_wind_24, one(loc, it) + " m/s")) }
+    h.windGust?.let { out.add(ForecastStat(StatKind.GUST, R.drawable.mobile_ic_wind_24, context.getString(R.string.home_stat_gust, one(loc, it)))) }
+    h.humidity?.let { out.add(ForecastStat(StatKind.HUMIDITY, R.drawable.mobile_ic_droplet_24, percentText(context, it))) }
     return out
 }
 
-private fun formatNullableTemp(v: Double?): String = if (v == null) "-- C" else formatTemp(v)
+/** Prosentti kielen tavalla: fi/sv "45 %", en "45%". */
+private fun percentText(context: Context, v: Double): String =
+    context.getString(R.string.home_percent, Math.round(v).toString())
+
+private fun formatNullableTemp(loc: Locale, v: Double?): String = if (v == null) "-- C" else formatTemp(loc, v)
 
 // ===================== Data- ja formatointiapurit (replikoi MobileMainActivity) =====================
 
@@ -2291,16 +2374,17 @@ private fun remainingHours(weather: WeatherData?): List<WeatherData.Hour> {
     return hours.filter { it.timestamp >= now - 30L * 60_000L && it.timestamp <= end }
 }
 
-private fun weatherDetailLines(c: WeatherData.Current): List<String> {
+private fun weatherDetailLines(context: Context, c: WeatherData.Current): List<String> {
+    val loc = AppLocale.current(context)
     val lines = ArrayList<String>()
-    if (!c.windGust.isNaN()) lines.add("Puuska " + one(c.windGust) + " m/s")
-    if (!c.humidity.isNaN()) lines.add("Kosteus " + Math.round(c.humidity) + " %")
-    if (!c.cloudCover.isNaN()) lines.add("Pilvisyys " + Math.round(c.cloudCover) + " %")
-    if (c.timestamp > 0) lines.add("FMI-havainto klo " + hhmm(c.timestamp))
+    if (!c.windGust.isNaN()) lines.add(context.getString(R.string.home_detail_gust, one(loc, c.windGust)))
+    if (!c.humidity.isNaN()) lines.add(context.getString(R.string.home_detail_humidity, Math.round(c.humidity)))
+    if (!c.cloudCover.isNaN()) lines.add(context.getString(R.string.home_detail_cloud, Math.round(c.cloudCover)))
+    if (c.timestamp > 0) lines.add(context.getString(R.string.home_detail_fmi_obs, hhmm(c.timestamp)))
     return lines
 }
 
-private fun cheapNotice(prefs: SharedPreferences, repo: ElectricityRepository): String? {
+private fun cheapNotice(context: Context, prefs: SharedPreferences, repo: ElectricityRepository): String? {
     if (!prefs.getBoolean(MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE, true)) return null
     val threshold = cheapThreshold(prefs)
     val mode = prefs.getString(MobileThemeController.KEY_CHEAP_ELECTRICITY_MODE, MobileThemeController.CHEAP_MODE_ALL_DAY)
@@ -2311,11 +2395,10 @@ private fun cheapNotice(prefs: SharedPreferences, repo: ElectricityRepository): 
     val checked = filterByMode(today, mode)
     if (checked.isEmpty() || !allBelow(checked, threshold, vat)) return null
     val max = checked.maxByOrNull { it.sntPerKwh } ?: return null
-    val scope = scopeText(mode)
-    return String.format(
-        FI,
-        "Sähkö on halpaa %s: kaikki alle %s c/kWh, korkein %s c/kWh",
-        scope, ElectricityVat.format(threshold), ElectricityVat.format(ElectricityVat.apply(max.sntPerKwh, vat)),
+    val loc = AppLocale.current(context)
+    return context.getString(
+        cheapNoticeRes(mode),
+        ElectricityVat.format(threshold, loc), ElectricityVat.format(ElectricityVat.apply(max.sntPerKwh, vat), loc),
     )
 }
 
@@ -2345,15 +2428,17 @@ private fun allBelow(quarters: List<ElectricityData.Quarter>, threshold: Double,
     return quarters.all { ElectricityVat.apply(it.sntPerKwh, vat) < threshold }
 }
 
-private fun scopeText(mode: String): String = when (mode) {
-    MobileThemeController.CHEAP_MODE_CURRENT -> "nyt"
-    MobileThemeController.CHEAP_MODE_REMAINING_DAY -> "loppupäivän"
-    else -> "koko päivän"
+// Koko lause per tila, koska ajanilmaus taipuu eri kielissä eri kohtaan lausetta.
+@StringRes
+private fun cheapNoticeRes(mode: String): Int = when (mode) {
+    MobileThemeController.CHEAP_MODE_CURRENT -> R.string.electricity_cheap_notice_now
+    MobileThemeController.CHEAP_MODE_REMAINING_DAY -> R.string.electricity_cheap_notice_rest_of_day
+    else -> R.string.electricity_cheap_notice_all_day
 }
 
 /** Anturit: ensin kaikki nimetyt (MAC→nimi-kartta, rajaton määrä), sitten muut löydetyt
  *  juoksevalla "Anturi N" -nimellä. Nimeäminen: asetukset → Ruuvi-anturit. */
-private fun buildSensors(prefs: SharedPreferences, repo: RuuviRepository): List<Pair<String, RuuviSample?>> {
+private fun buildSensors(context: Context, prefs: SharedPreferences, repo: RuuviRepository): List<Pair<String, RuuviSample?>> {
     val named = SettingsManager.get().sensorNamesByMac()
     val out = ArrayList<Pair<String, RuuviSample?>>()
     val used = HashSet<String>()
@@ -2364,36 +2449,36 @@ private fun buildSensors(prefs: SharedPreferences, repo: RuuviRepository): List<
     var next = named.size + 1
     for ((mac, sample) in repo.snapshot().entries.sortedBy { it.key }) {
         if (used.contains(mac.uppercase(Locale.ROOT))) continue
-        out.add("Anturi $next" to sample)
+        out.add(context.getString(R.string.home_sensor_default_name, next) to sample)
         next++
     }
     return out
 }
 
-private fun formatTemp(v: Double): String {
+private fun formatTemp(loc: Locale, v: Double): String {
     if (v.isNaN()) return "-- C"
-    return String.format(FI, "%.1f C", WeatherData.cleanZero(v))
+    return String.format(loc, "%.1f C", WeatherData.cleanZero(v))
 }
 
-private fun one(v: Double): String = String.format(FI, "%.1f", v)
+private fun one(loc: Locale, v: Double): String = String.format(loc, "%.1f", v)
 
-private fun ageText(timestamp: Long): String {
-    val ageMin = Math.max(0L, (System.currentTimeMillis() - timestamp) / 60_000L)
+/** "nyt" / "5 min sitten" / "2 h sitten" kielen mukaan (jaettu etusivun korttien kesken). */
+internal fun homeAgeText(context: Context, timestamp: Long, nowMs: Long = System.currentTimeMillis()): String {
+    val ageMin = Math.max(0L, (nowMs - timestamp) / 60_000L)
     return when {
-        ageMin < 1L -> "nyt"
-        ageMin < 60L -> "$ageMin min sitten"
-        else -> "${ageMin / 60L} h sitten"
+        ageMin < 1L -> context.getString(R.string.home_now)
+        ageMin < 60L -> context.getString(R.string.home_age_minutes, ageMin)
+        else -> context.getString(R.string.home_age_hours, ageMin / 60L)
     }
+}
+
+/** "850 m" / "1,2 km" kielen desimaalierottimella. */
+internal fun homeDistanceText(loc: Locale, meters: Double): String = when {
+    meters.isNaN() || meters < 0 -> ""
+    meters < 1000.0 -> "${Math.round(meters)} m"
+    else -> String.format(loc, "%.1f km", meters / 1000.0)
 }
 
 private fun formatClock(ms: Long): String = HMS_HC.format(Date(ms))
 
 private fun hhmm(ms: Long): String = HM_HC.format(Date(ms))
-
-private fun formatDate(ms: Long): String {
-    var d = EEEE_DMY_HC.format(Date(ms))
-    if (d.isNotEmpty()) d = d.substring(0, 1).uppercase(FI) + d.substring(1)
-    val cal = Calendar.getInstance(HELSINKI, FI)
-    cal.timeInMillis = ms
-    return "$d · viikko ${cal.get(Calendar.WEEK_OF_YEAR)}"
-}

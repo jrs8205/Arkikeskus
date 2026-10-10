@@ -31,8 +31,8 @@ android {
         applicationId 'org.jrs82.arkikeskus'
         minSdk 30
         targetSdk 35
-        versionCode 87
-        versionName '2.26.1'
+        versionCode 88
+        versionName '2.27.0'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
         buildConfigField "String", "YLE_APP_ID", "\"${yleAppId}\""
@@ -112,8 +112,14 @@ android {
         unitTests.returnDefaultValues = true
     }
 
+    // Vain sovelluksen omat kielet: kirjastojen muut kielet eivat vuoda UI:hin ja APK pienenee.
+    androidResources {
+        localeFilters += ['en', 'fi', 'sv']
+    }
+
     lint {
         abortOnError false
+        lintConfig file('lint.xml')
     }
 
     // HiveMQ vetää Netty:n → useita jareja tarjoaa samat META-INF-tiedostot. Karsitaan duplikaatit.

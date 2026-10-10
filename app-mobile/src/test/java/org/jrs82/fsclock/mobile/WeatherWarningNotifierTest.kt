@@ -1,5 +1,7 @@
 package org.jrs82.fsclock.mobile
 
+import org.jrs82.fsclock.R
+import org.jrs82.fsclock.WarningDetails
 import org.jrs82.fsclock.WeatherWarning
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -82,6 +84,33 @@ class WeatherWarningNotifierTest {
         val r = WeatherWarningNotifier.selectNewWarnings(listOf(a, b), "Vantaa", "Uusimaa", emptySet())
         assertEquals(1, r.toNotify.size)
         assertEquals(1, r.newSeen.size)
+    }
+
+    // --- ilmoituksen sisältö rakenteena ---
+    @Test fun singleNoticeCarriesLevelResourceAndBestBody() {
+        val w = WeatherWarning("Tuulivaroitus", "lyhyt", "Uusimaa", 0L, Long.MAX_VALUE,
+            WeatherWarning.Level.ORANGE, "id-1", false)
+            .withDetails(WarningDetails(60, Double.NaN, "", "Pidempi FMI:n teksti puuskista."))
+        val n = WeatherWarningNotifier.noticeFor(listOf(w), "Vantaa")
+        assertEquals(
+            WeatherWarningNotifier.Notice.Single(
+                "Tuulivaroitus", R.string.warning_level_orange, "Pidempi FMI:n teksti puuskista.", 60),
+            n,
+        )
+    }
+
+    @Test fun singleNoticeWithoutLevelOrDetails() {
+        val w = warn("Tuulivaroitus", "Uusimaa", level = WeatherWarning.Level.UNKNOWN)
+        val n = WeatherWarningNotifier.noticeFor(listOf(w), "Vantaa") as WeatherWarningNotifier.Notice.Single
+        assertEquals(0, n.levelRes)
+        assertEquals("kuvaus", n.body)
+        assertEquals(-1, n.probabilityPct)
+    }
+
+    @Test fun manyNoticeCountsWarnings() {
+        val n = WeatherWarningNotifier.noticeFor(
+            listOf(warn("A", "Uusimaa"), warn("B", "Uusimaa"), warn("C", "Uusimaa")), "Vantaa")
+        assertEquals(WeatherWarningNotifier.Notice.Many("Vantaa", 3), n)
     }
 
     // --- detectMarine: maakunta "Ahvenanmaa" EI saa leimata maavaroitusta merivaroitukseksi ---

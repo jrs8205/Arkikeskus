@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.jrs82.fsclock.R;
 import org.jrs82.fsclock.db.DailyStat;
+import org.jrs82.fsclock.mobile.AppLocale;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -19,8 +20,9 @@ import java.util.Locale;
 
 public class DailyStatAdapter extends RecyclerView.Adapter<DailyStatAdapter.VH> {
 
-    private static final Locale FI = new Locale("fi", "FI");
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("EEE d.M.", FI);
+    // Kieli ja päiväkuvio luetaan ensimmäisestä sidonnasta (Activity luodaan uudelleen kielen vaihtuessa).
+    private Locale locale;
+    private DateTimeFormatter dateFmt;
 
     private final List<DailyStat> data = new ArrayList<>();
     private boolean batteryChannel;
@@ -45,13 +47,18 @@ public class DailyStatAdapter extends RecyclerView.Adapter<DailyStatAdapter.VH> 
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
         DailyStat s = data.get(position);
+        if (locale == null) {
+            locale = AppLocale.INSTANCE.current(h.itemView.getContext());
+            dateFmt = DateTimeFormatter.ofPattern(
+                    h.itemView.getContext().getString(R.string.weather_history_day_pattern), locale);
+        }
         String dateLabel = formatDate(s.date);
         String partial = s.isPartial ? h.itemView.getContext().getString(R.string.history_partial_marker) : "";
 
         if (batteryChannel) {
             h.primary.setText(h.itemView.getContext().getString(
                     R.string.history_battery_row, dateLabel, s.minTemp, s.avgTemp, s.maxTemp));
-            h.extras.setText(String.format(FI,
+            h.extras.setText(String.format(locale,
                     h.itemView.getContext().getString(R.string.history_battery_extras),
                     s.sampleCount, partial));
         } else if (ruuviChannel) {
@@ -61,11 +68,11 @@ public class DailyStatAdapter extends RecyclerView.Adapter<DailyStatAdapter.VH> 
             // totalPrecip-kenttään, ks. siellä oleva kommentti.
             Double avgHumidity = s.totalPrecip;
             if (avgHumidity != null) {
-                h.extras.setText(String.format(FI,
+                h.extras.setText(String.format(locale,
                         h.itemView.getContext().getString(R.string.history_ruuvi_extras),
                         avgHumidity, s.sampleCount));
             } else {
-                h.extras.setText(String.format(FI,
+                h.extras.setText(String.format(locale,
                         h.itemView.getContext().getString(R.string.history_ruuvi_extras_no_humidity),
                         s.sampleCount));
             }
@@ -80,19 +87,19 @@ public class DailyStatAdapter extends RecyclerView.Adapter<DailyStatAdapter.VH> 
         boolean hasPrecip = s.totalPrecip != null;
         boolean hasGust = s.maxWindGust != null;
         if (hasPrecip && hasGust) {
-            return String.format(FI,
+            return String.format(locale,
                     item.getContext().getString(R.string.history_weather_extras),
                     s.totalPrecip, s.maxWindGust, s.sampleCount, partial);
         } else if (hasPrecip) {
-            return String.format(FI,
+            return String.format(locale,
                     item.getContext().getString(R.string.history_weather_extras_no_wind),
                     s.totalPrecip, s.sampleCount, partial);
         } else if (hasGust) {
-            return String.format(FI,
+            return String.format(locale,
                     item.getContext().getString(R.string.history_weather_extras_no_precip),
                     s.maxWindGust, s.sampleCount, partial);
         } else {
-            return String.format(FI,
+            return String.format(locale,
                     item.getContext().getString(R.string.history_weather_extras_basic),
                     s.sampleCount, partial);
         }
@@ -100,7 +107,7 @@ public class DailyStatAdapter extends RecyclerView.Adapter<DailyStatAdapter.VH> 
 
     private String formatDate(String isoDate) {
         try {
-            return LocalDate.parse(isoDate).format(DATE_FMT);
+            return LocalDate.parse(isoDate).format(dateFmt);
         } catch (Exception e) {
             return isoDate;
         }

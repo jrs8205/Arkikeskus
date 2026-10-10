@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notif_channel_hsl_name">HRT-störningar</string>
+    <string name="notif_channel_hsl_desc">Avisering när en ny störning gäller en favoritlinje eller -hållplats</string>
+    <string name="notif_channel_weather_name">Vädervarningar</string>
+    <string name="notif_channel_weather_desc">Meteorologiska institutets (FMI) vädervarningar för din hemort</string>
+    <string name="notif_channel_electricity_name">Börsel</string>
+    <string name="notif_channel_electricity_desc">Avisering när morgondagens börselpriser har kommit</string>
+    <string name="notif_channel_steps_name">Stegmål</string>
+    <string name="notif_channel_steps_desc">Avisering när dagens stegmål har nåtts</string>
+    <string name="notif_channel_departure_name">Avgångspåminnelser</string>
+    <string name="notif_channel_departure_desc">Påminnelse om en vald kollektivtrafikavgång innan den går</string>
+    <string name="notif_channel_update_name">Appuppdateringar</string>
+    <string name="notif_channel_update_desc">Avisering när en ny version av Arkikeskus finns</string>
+</resources>

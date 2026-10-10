@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="electricity_title">Pörssisähkö</string>
+    <string name="electricity_widget_title">Pörssisähkö nyt</string>
+    <string name="electricity_vat_label_incl" formatted="false">sis. ALV 25,5 %</string>
+    <string name="electricity_vat_label_zero" formatted="false">ALV 0 %</string>
+    <string name="electricity_vat_note_incl" formatted="false">Hinta sisältää ALV:n 25,5 %</string>
+    <string name="electricity_vat_note_excl" formatted="false">Hinta ei sisällä ALV:tä (ALV 0 %)</string>
+    <string name="electricity_vat_widget_excl">ilman ALV:tä</string>
+    <string name="electricity_level_cheap">Halpaa</string>
+    <string name="electricity_level_normal">Normaali</string>
+    <string name="electricity_level_expensive">Kallista</string>
+    <string name="electricity_cheapest">Halvinta</string>
+    <string name="electricity_most_expensive">Kalleinta</string>
+    <string name="electricity_no_current_price">Nykyistä varttihintaa ei ole vielä saatavilla</string>
+    <string name="electricity_quarter_range">Vartti klo %1$s–%2$s · seuraava %3$s</string>
+    <string name="electricity_quarter_range_short">Vartti klo %1$s–%2$s</string>
+    <string name="electricity_quarter_time">klo %1$s–%2$s</string>
+    <string name="electricity_dst_summer">kesäaikaa</string>
+    <string name="electricity_dst_winter">talviaikaa</string>
+    <string name="electricity_now_at">Nyt klo %1$s</string>
+    <string name="electricity_tab_compare">Vertailu</string>
+    <string name="electricity_tomorrow_pending">Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.</string>
+    <string name="electricity_today_unavailable">Tämän päivän varttihintoja ei ole saatavilla.</string>
+    <string name="electricity_source_footer">Lähde: Elering/Nord Pool. Hinnat %1$s.</string>
+    <string name="electricity_heatmap_hour">klo</string>
+    <string name="electricity_dst_footnote">* Kello siirtyy talviaikaan, joten tunti 03 on kahdesti. Tähdellä merkitty rivi on jälkimmäinen (talviaikaa).</string>
+    <string name="electricity_compare_header">Pörssisähkön keskihinnat (%1$s). Lähde: Elering/Nord Pool.</string>
+    <string name="electricity_compare_year_avg">%1$d keskihinta</string>
+    <string name="electricity_compare_month_section">%1$d kuukausikeskiarvot</string>
+    <string name="electricity_compare_month_partial">%1$s (kesken)</string>
+    <string name="electricity_compare_loading">Haetaan keskiarvoja…</string>
+    <string name="electricity_compare_empty">Keskiarvoja ei ole vielä saatavilla. Päivitä uudelleen verkkoyhteydellä.</string>
+    <string name="electricity_cheap_notice_now">Sähkö on halpaa nyt: kaikki alle %1$s c/kWh, korkein %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_rest_of_day">Sähkö on halpaa loppupäivän: kaikki alle %1$s c/kWh, korkein %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_all_day">Sähkö on halpaa koko päivän: kaikki alle %1$s c/kWh, korkein %2$s c/kWh</string>
+    <string name="electricity_notify_title">Huomisen sähköhinnat saapuivat</string>
+    <string name="electricity_notify_text">Halvin klo %1$s (%2$s snt), kallein klo %3$s (%4$s snt). Keskihinta %5$s snt/kWh, %6$s.</string>
+    <string name="electricity_tomorrow_not_yet">Huomisen hinnat eivät ole vielä saatavilla.\nNord Pool julkaisee ne yleensä noin klo 14.\nPäivitetään automaattisesti…</string>
+    <string name="electricity_cheapest_at">Halvin: %1$s %2$s c/kWh</string>
+    <string name="electricity_most_expensive_at">Kallein: %1$s %2$s c/kWh</string>
+</resources>

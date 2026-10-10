@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Seurantapalvelun ilmoitukset -->
+    <string name="workout_channel_tracking_name">Lenkin seuranta</string>
+    <string name="workout_channel_tracking_desc">Käynnissä olevan lenkin tila ja hallinta</string>
+    <string name="workout_channel_km_name">Lenkin kilometrivälit</string>
+    <string name="workout_channel_km_desc">Ilmoitus jokaisen täyden kilometrin täyttyessä lenkillä</string>
+    <string name="workout_notif_walk_active">Kävelylenkki käynnissä</string>
+    <string name="workout_notif_walk_paused">Kävelylenkki tauolla</string>
+    <string name="workout_notif_bike_active">Pyörälenkki käynnissä</string>
+    <string name="workout_notif_bike_paused">Pyörälenkki tauolla</string>
+    <string name="workout_action_pause">Tauko</string>
+    <string name="workout_action_resume">Jatka</string>
+    <string name="workout_action_stop">Lopeta</string>
+    <string name="workout_notif_auto_stopped_title">Lenkki päättyi automaattisesti</string>
+    <string name="workout_notif_auto_stopped_text">Ei liikettä 10 minuuttiin — lenkki tallennettiin.</string>
+    <string name="workout_km_title">%1$d. kilometri</string>
+    <string name="workout_km_stats">tahti %1$s/km · aika %2$s · ka %3$.1f km/h</string>
+
+    <!-- Aloitusnäkymä ja historia -->
+    <string name="workout_title">Lenkki</string>
+    <string name="workout_intro">Seuraa kävely- tai pyörälenkkiä: matka, nopeus, kilometrivälit ja reitti. Seuranta jatkuu, vaikka lukitset näytön.</string>
+    <string name="workout_type_walk">Kävely</string>
+    <string name="workout_type_bike">Pyöräily</string>
+    <string name="workout_start_walk">Aloita kävely</string>
+    <string name="workout_start_bike">Aloita pyöräily</string>
+    <string name="workout_auto_stop_hint">Lenkki päättyy automaattisesti, jos liikettä ei ole 10 minuuttiin.</string>
+    <string name="workout_need_fine_location">Lenkkiseuranta tarvitsee tarkan sijaintiluvan.</string>
+    <string name="workout_stats_button">Viikko- ja kuukausitilastot</string>
+    <string name="workout_history_walk">Aiemmat kävelylenkit</string>
+    <string name="workout_history_bike">Aiemmat pyörälenkit</string>
+    <string name="workout_history_walk_empty">Ei vielä kävelylenkkejä.</string>
+    <string name="workout_history_bike_empty">Ei vielä pyörälenkkejä.</string>
+    <string name="workout_shared_title">Jaetut lenkit</string>
+    <string name="workout_shared_badge">Jaettu</string>
+    <string name="workout_import_button">Tuo lenkki tiedostosta (GPX/TCX)</string>
+    <string name="workout_import_none">Tiedostosta ei löytynyt lenkkiä (GPX/TCX).</string>
+    <string name="workout_import_exists">Lenkki on jo laitteella: %1$s</string>
+    <string name="workout_import_done">Jaettu lenkki tuotu: %1$s</string>
+    <string name="workout_file_too_large">Tiedosto on liian suuri (yli %1$d Mt)</string>
+
+    <!-- GPS-lähtölaskenta -->
+    <string name="workout_countdown_go">Aloita!</string>
+    <string name="workout_gps_found_starting">GPS löytyi — lenkki alkaa!</string>
+    <string name="workout_starting_gps_pending">Lenkki alkaa — GPS tarkentuu matkalla</string>
+    <string name="workout_gps_found">GPS löytyi!</string>
+    <string name="workout_gps_searching">Haetaan GPS-signaalia…</string>
+
+    <!-- Aktiivinen lenkki -->
+    <string name="workout_active_walk">Kävelylenkki</string>
+    <string name="workout_active_bike">Pyörälenkki</string>
+    <string name="workout_paused_badge">TAUKO</string>
+    <string name="workout_no_gps">Ei GPS-signaalia</string>
+    <string name="workout_detail_avg">Keski %1$s</string>
+    <string name="workout_detail_max">maks. %1$s</string>
+    <string name="workout_recenter">Kohdista</string>
+    <string name="workout_stop_confirm_title">Lopetetaanko lenkki?</string>
+    <string name="workout_stop_confirm_text">Lenkki tallennetaan ja näet yhteenvedon.</string>
+
+    <!-- Tilastot -->
+    <string name="workout_stats_title">Tilastot</string>
+    <string name="workout_stats_weeks">Viikot</string>
+    <string name="workout_stats_months">Kuukaudet</string>
+    <string name="workout_stats_empty">Ei vielä omia lenkkejä.</string>
+    <string name="workout_stats_week">Viikko %1$d</string>
+    <plurals name="workout_count">
+        <item quantity="one">%1$d lenkki</item>
+        <item quantity="other">%1$d lenkkiä</item>
+    </plurals>
+    <plurals name="workout_walk_count">
+        <item quantity="one">%1$d kävely</item>
+        <item quantity="other">%1$d kävelyä</item>
+    </plurals>
+    <plurals name="workout_bike_count">
+        <item quantity="one">%1$d pyöräily</item>
+        <item quantity="other">%1$d pyöräilyä</item>
+    </plurals>
+    <plurals name="workout_split_count">
+        <item quantity="one">%1$d km-väli</item>
+        <item quantity="other">%1$d km-väliä</item>
+    </plurals>
+
+    <!-- Yhteenveto -->
+    <string name="workout_summary_title">Lenkin yhteenveto</string>
+    <string name="workout_rename">Nimeä lenkki</string>
+    <string name="workout_rename_hint">esim. Koiralenkki</string>
+    <string name="workout_shared_imported">Jaettu lenkki (tuotu tiedostosta)</string>
+    <string name="workout_auto_stopped">Päättyi automaattisesti (ei liikettä 10 min)</string>
+    <string name="workout_tap_to_enlarge">Suurenna napauttamalla</string>
+    <string name="workout_stat_type">Laji</string>
+    <string name="workout_stat_started">Alkoi</string>
+    <string name="workout_stat_ended">Päättyi</string>
+    <string name="workout_stat_distance">Matka</string>
+    <string name="workout_stat_moving">Liikkeellä</string>
+    <string name="workout_stat_avg_speed">Keskinopeus</string>
+    <string name="workout_stat_pace">Tahti</string>
+    <string name="workout_stat_steps">Askeleet</string>
+    <string name="workout_stat_max_speed">Maksiminopeus</string>
+    <string name="workout_stat_calories">Kalorit (arvio)</string>
+    <string name="workout_stat_ascent">Nousua (GPS-arvio)</string>
+    <string name="workout_stat_descent">Laskua (GPS-arvio)</string>
+    <string name="workout_splits_title">Kilometrivälit</string>
+    <string name="workout_split_label">%1$d. km</string>
+    <string name="workout_done">Valmis</string>
+    <string name="workout_delete_title">Poistetaanko lenkki?</string>
+    <string name="workout_delete_text">Lenkki ja sen reitti poistetaan pysyvästi.</string>
+
+    <!-- Jako -->
+    <string name="workout_share_button">Jaa lenkki…</string>
+    <string name="workout_share_title">Jaa lenkki</string>
+    <string name="workout_share_creating">Luodaan jakotiedostoa…</string>
+    <string name="workout_share_failed">Jako epäonnistui.</string>
+    <string name="workout_share_png_title">Kuva kartalla (PNG)</string>
+    <string name="workout_share_png_desc">Someen ja viesteihin</string>
+    <string name="workout_share_gpx_title">GPX-reittitiedosto</string>
+    <string name="workout_share_tcx_title">TCX-harjoitustiedosto</string>
+    <string name="workout_share_tcx_desc">Väliajat ja kalorit mukana</string>
+    <string name="workout_share_attribution">Arkikeskus · © Maanmittauslaitos</string>
+    <string name="workout_file_fallback">Lenkki</string>
+
+    <!-- Oletusnimet ja päivämäärien muodot (kellonaika aina HH:mm) -->
+    <string name="workout_default_name_walk">Kävely %1$s</string>
+    <string name="workout_default_name_bike">Pyöräily %1$s</string>
+    <string name="workout_date_pattern">d.M.</string>
+    <string name="workout_datetime_pattern">d.M. HH:mm</string>
+    <string name="workout_share_datetime_pattern">d.M.yyyy HH:mm</string>
+</resources>

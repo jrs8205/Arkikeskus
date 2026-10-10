@@ -25,7 +25,8 @@ public final class WarningEnricher {
                 if (best == null || isMoreRepresentative(d, best)) best = d;
             }
             if (best != null) {
-                WarningDetails wd = new WarningDetails(best.probabilityPct, best.physicalText, best.detailText);
+                WarningDetails wd = new WarningDetails(
+                        best.probabilityPct, best.physicalValue, best.physicalUnit, best.detailText);
                 out.add(wd.hasAny() ? w.withDetails(wd) : w);
             } else {
                 out.add(w);

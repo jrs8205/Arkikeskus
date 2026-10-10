@@ -1,6 +1,8 @@
 package org.jrs82.fsclock.mobile
 
+import org.jrs82.fsclock.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -58,7 +60,8 @@ class TransitFeaturesTest {
         val t = 1_700_000_000L
         val headers = fullDayHourHeaders(listOf(t, t, t))
         assertEquals(3, headers.size)
-        assertTrue(headers[0]!!.startsWith("klo "))
+        // Pelkkä kaksinumeroinen tunti — UI muotoilee otsikon kielen mukaan (transit_hour_header).
+        assertTrue(headers[0]!!.matches(Regex("\\d{2}")))
         assertNull(headers[1])
         assertNull(headers[2])
     }
@@ -68,7 +71,7 @@ class TransitFeaturesTest {
         val t = 1_700_000_000L
         val headers = fullDayHourHeaders(listOf(t, t + 3600, t + 7200))
         assertEquals(3, headers.size)
-        headers.forEach { assertTrue(it != null && it.startsWith("klo ")) }
+        headers.forEach { assertTrue(it != null && it.matches(Regex("\\d{2}"))) }
     }
 
     // --- Häiriöt ja muutokset -sivu ---
@@ -172,7 +175,7 @@ class TransitFeaturesTest {
     @Test
     fun `tripBannerText HSL ilman ajoneuvoa kertoo ettei vuoro ole viela liikkeella`() {
         val msg = tripBannerText(emptyTimeline(), "BUS", TransitRegion.HSL)
-        assertTrue(msg.contains("ei ole vielä liikkeellä"))
+        assertEquals(TransitText.Res(R.string.transit_banner_trip_not_started), msg)
     }
 
     @Test
@@ -180,9 +183,9 @@ class TransitFeaturesTest {
         // Tampereella trip-näkymässä on nyt MQTT-live → kun GraphQL-dataa ei ole, neutraali
         // "haetaan" eikä valhe "ei ole saatavilla" (live ON saatavilla) tai "ei ole vielä liikkeellä".
         val msg = tripBannerText(emptyTimeline(), "BUS", TransitRegion.TAMPERE)
-        assertFalse(msg.contains("ei ole vielä liikkeellä"))
-        assertFalse(msg.contains("ei ole saatavilla"))
-        assertTrue(msg.contains("Haetaan"))
+        assertNotEquals(TransitText.Res(R.string.transit_banner_trip_not_started), msg)
+        assertNotEquals(TransitText.Res(R.string.transit_banner_trip_no_live_region), msg)
+        assertEquals(TransitText.Res(R.string.transit_banner_fetching_live), msg)
     }
 
     @Test
@@ -190,14 +193,95 @@ class TransitFeaturesTest {
         // Tampereen linjanäkymässä on nyt MQTT-live (B3) → kun GraphQL-dataa ei ole, neutraali
         // "haetaan" eikä valhe "ei ole saatavilla" (live ON saatavilla) tai "ei vuoroja liikkeellä".
         val msg = routeBannerText(emptyTimeline(), TransitRegion.TAMPERE)
-        assertFalse(msg.contains("Ei liikkeellä olevia vuoroja"))
-        assertFalse(msg.contains("ei ole saatavilla"))
-        assertTrue(msg.contains("Haetaan"))
+        assertNotEquals(TransitText.Res(R.string.transit_banner_route_none), msg)
+        assertNotEquals(TransitText.Res(R.string.transit_banner_route_no_live_region), msg)
+        assertEquals(TransitText.Res(R.string.transit_banner_route_fetching), msg)
     }
 
     @Test
     fun `routeBannerText HSL ilman ajoneuvoja sailyttaa nykyviestin`() {
         val msg = routeBannerText(emptyTimeline(), TransitRegion.HSL)
-        assertTrue(msg.contains("Ei liikkeellä olevia vuoroja"))
+        assertEquals(TransitText.Res(R.string.transit_banner_route_none), msg)
+    }
+
+    // --- Kielirakenteet (i18n): banneri on resurssi-id + argumentit, ei suomenkielinen merkkijono ---
+
+    private fun stop(id: String, name: String) = TimelineStop(id, name, "", 0L, false)
+
+    private fun timelineWithVehicle(vehicleAt: Int, board: Int, incoming: Boolean) = TripTimeline(
+        "550", "Itäkeskus", "BUS",
+        listOf(stop("HSL:1", "Kamppi"), stop("HSL:2", "Ruoholahti"), stop("HSL:3", "Lauttasaari"),
+            stop("HSL:4", "Koivusaari")),
+        listOf(vehicleAt), board, incoming,
+    )
+
+    @Test
+    fun `tripBannerText pysakkien maara on monikko ja sisaltaa kulkuvalineen ja sijainnin`() {
+        val msg = tripBannerText(timelineWithVehicle(0, 3, incoming = false), "BUS", TransitRegion.HSL)
+        val word = TransitText.Res(R.string.transit_vehicle_bus)
+        val pos = TransitText.Res(R.string.transit_pos_at, listOf("Kamppi"))
+        assertEquals(TransitText.Plural(R.plurals.transit_banner_stops_away, 3, listOf(word, 3, pos)), msg)
+    }
+
+    @Test
+    fun `tripBannerText lahestyva ajoneuvo kayttaa matkalla-muotoa ja raitiovaunun nimea`() {
+        // Lähestyttäessä efektiivinen indeksi on relIdx-1 → 3 - (1-1) = 3 pysäkkiä.
+        val msg = tripBannerText(timelineWithVehicle(1, 3, incoming = true), "TRAM", TransitRegion.HSL)
+        val word = TransitText.Res(R.string.transit_vehicle_tram)
+        val pos = TransitText.Res(R.string.transit_pos_en_route, listOf("Ruoholahti"))
+        assertEquals(TransitText.Plural(R.plurals.transit_banner_stops_away, 3, listOf(word, 3, pos)), msg)
+    }
+
+    @Test
+    fun `tripBannerText ohitettu ja omalla pysakilla`() {
+        val word = TransitText.Res(R.string.transit_vehicle_bus)
+        assertEquals(
+            TransitText.Res(R.string.transit_banner_passed_now, listOf(word, "Lauttasaari")),
+            tripBannerText(timelineWithVehicle(2, 1, incoming = false), "BUS", TransitRegion.HSL),
+        )
+        assertEquals(
+            TransitText.Res(R.string.transit_banner_at_your_stop, listOf(word, "Ruoholahti")),
+            tripBannerText(timelineWithVehicle(1, 1, incoming = false), "BUS", TransitRegion.HSL),
+        )
+    }
+
+    @Test
+    fun `routeBannerText liikkeella olevien vuorojen maara on monikko`() {
+        val tl = TripTimeline("4", "Hiedanranta", "BUS", emptyList(), listOf(1, 3), -1, false)
+        assertEquals(
+            TransitText.Plural(R.plurals.transit_banner_route_running, 2, listOf(2)),
+            routeBannerText(tl, TransitRegion.HSL),
+        )
+        assertEquals(TransitText.Plural(R.plurals.transit_banner_route_running, 1, listOf(1)), routeRunningText(1))
+    }
+
+    @Test
+    fun `kulkuvalineen subjektisana valitaan moodista ja tuntematon on bussi`() {
+        assertEquals(R.string.transit_vehicle_train, transitVehicleRes("RAIL"))
+        assertEquals(R.string.transit_vehicle_metro, transitVehicleRes("SUBWAY"))
+        assertEquals(R.string.transit_vehicle_ferry, transitVehicleRes("FERRY"))
+        assertEquals(R.string.transit_vehicle_bus, transitVehicleRes(null))
+    }
+
+    @Test
+    fun `alueiden nimet ovat resursseja (sv HRT ja Tammerfors)`() {
+        assertEquals(R.string.transit_region_hsl, TransitRegion.HSL.labelRes)
+        assertEquals(R.string.transit_region_tampere, TransitRegion.TAMPERE.labelRes)
+    }
+
+    @Test
+    fun `liikennetiedotteiden tyypeilla on omat resurssinimet`() {
+        val ids = TrafficNotice.Kind.values().map { it.titleRes }
+        assertEquals(ids.size, ids.toSet().size)
+        assertEquals(R.string.transit_traffic_roadworks, TrafficNotice.Kind.ROAD_WORK.titleRes)
+    }
+
+    @Test
+    fun `hairio osuu suosikkipysakkiin gtfsIdlla vaikka nimi on eri kielella`() {
+        val a = TransitAlert("h", "d", "INFO", "", 0L, 0L, "", "", "Järnvägstorget", "HSL:1020201")
+        assertTrue(a.matchesStop(setOf("HSL:1020201"), setOf("Rautatientori")))
+        assertFalse(a.matchesStop(setOf("HSL:9"), setOf("Rautatientori")))
+        // Vanha suosikki ilman id-osumaa löytyy yhä nimellä.
+        assertTrue(a.matchesStop(emptySet(), setOf("Järnvägstorget")))
     }
 }

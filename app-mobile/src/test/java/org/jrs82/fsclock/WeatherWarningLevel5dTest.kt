@@ -13,11 +13,11 @@ class WeatherWarningLevel5dTest {
         assertEquals(WeatherWarning.Level.UNKNOWN, WeatherWarning.Level.fromFmiSeverity("nonsense"))
     }
     @Test fun greenFields() {
-        assertEquals("Vihreä", WeatherWarning.Level.GREEN.fiName)
+        assertEquals(R.string.warning_level_green, WeatherWarning.Level.GREEN.nameRes)
         assertEquals(0, WeatherWarning.Level.GREEN.rank())
     }
     @Test fun uvType() {
-        assertEquals("UV", WeatherWarning.AwarenessType.UV.fiName)
+        assertEquals(R.string.warning_type_uv, WeatherWarning.AwarenessType.UV.nameRes)
     }
     @Test fun rainFloodCode12NotUv() {
         // MeteoAlarm code 12 = "rain-flood" → must NOT resolve to UV (collision regression)

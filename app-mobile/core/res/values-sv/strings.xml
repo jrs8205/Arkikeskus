@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loading_weather">Laddar väderuppgifter…</string>
+    <string name="weather_label">Vädret senast uppdaterat kl.</string>
+    <string name="weather_stale">inaktuell</string>
+    <string name="wind_format">Vind %1$.0f m/s %2$s</string>
+    <string name="humidity_format">Fuktighet %1$.0f %%</string>
+    <string name="rain24h_format">Regn 24h %1$.1f mm</string>
+    <string name="rain24h_missing">Regn 24h --</string>
+    <string name="feels_format">(Känns som %+.0f°)</string>
+    <string name="battery_format">Batterinivå: %1$d %%  ·  Batteritemperatur: %2$.1f °C</string>
+    <string name="battery_format_charging">⚡ Batterinivå: %1$d %%  ·  Batteritemperatur: %2$.1f °C</string>
+    <string name="wind_format_nodir">Vind %1$.0f m/s</string>
+    <string name="wind_missing">Vind —</string>
+    <string name="humidity_missing">Fuktighet —</string>
+
+    <string name="settings_title">Inställningar för Arkikeskus</string>
+
+    <!-- Asetussivun ryhmät -->
+    <string name="pref_cat_display">Skärm och ljusstyrka</string>
+    <string name="pref_cat_weather">Väder och plats</string>
+    <string name="pref_cat_app">App</string>
+    <string name="pref_cat_test">Testläge (utveckling)</string>
+    <string name="pref_cat_ruuvi">RuuviTag-sensorer</string>
+
+    <!-- Ruuvi -->
+    <string name="pref_ruuvi_scan">Sök efter sensorer</string>
+    <string name="pref_ruuvi_scan_summary">Öppna en lista över RuuviTag-sensorer som hittats i närheten</string>
+    <string name="pref_ruuvi_slot_bedroom">Sensor 1</string>
+    <string name="pref_ruuvi_slot_livingroom">Sensor 2</string>
+    <string name="pref_ruuvi_slot_balcony">Sensor 3</string>
+    <string name="ruuvi_slot_empty">Inte vald</string>
+    <string name="ruuvi_scan_dialog_title">Hittade RuuviTag-sensorer</string>
+    <string name="ruuvi_scan_dialog_empty">Söker efter sensorer…</string>
+    <string name="ruuvi_scan_dialog_hint">Välj en sensor för att koppla den till valfri sensorplats.</string>
+    <string name="ruuvi_scan_dialog_close">Stäng</string>
+    <string name="ruuvi_assign_dialog_title">Koppla %1$s</string>
+    <string name="ruuvi_assign_to_bedroom">Sensor 1</string>
+    <string name="ruuvi_assign_to_livingroom">Sensor 2</string>
+    <string name="ruuvi_assign_to_balcony">Sensor 3</string>
+    <string name="ruuvi_assign_clear">Ta bort sensorkopplingen</string>
+    <string name="ruuvi_perm_needed">Bluetooth-behörighet krävs för att söka efter sensorer.</string>
+    <string name="ruuvi_bt_off">Slå på Bluetooth innan du söker efter sensorer.</string>
+
+    <!-- Näyttö ja kirkkaus -->
+    <string name="pref_day_brightness">Ljusstyrka dagtid</string>
+    <string name="pref_night_brightness">Ljusstyrka nattetid</string>
+    <string name="pref_day_morning">Dagen börjar kl.</string>
+    <string name="pref_night_evening">Natten börjar kl.</string>
+    <string name="pref_night_red_tint">Röd nyans nattetid</string>
+    <string name="pref_night_red_tint_summary">Tillgänglig efter fas 4</string>
+
+    <!-- Sää ja sijainti -->
+    <string name="pref_home_place">Hemort</string>
+
+    <!-- Kotipaikkakunnan vaihdon vahvistusdialogi -->
+    <string name="home_place_change_title">Byta hemort?</string>
+    <string name="home_place_change_message">En egen datakanal startas för den nya hemorten (%1$s). Gamla data och den gamla kanalen sparas, men den nya kanalen är tom till en början.</string>
+    <string name="home_place_change_ok">Byt</string>
+    <string name="home_place_change_cancel">Avbryt</string>
+
+    <!-- Sovellus -->
+    <string name="pref_version">Version</string>
+    <string name="pref_last_update">Senaste väderuppdatering</string>
+    <string name="pref_time_check">Jämför med NTP-tid</string>
+    <string name="pref_time_check_summary">Inte implementerat ännu</string>
+
+    <!-- Testitila -->
+    <string name="pref_test_day">Testa dagsläge</string>
+    <string name="pref_test_night">Testa nattläge</string>
+    <string name="pref_test_warning">Testa varningsrad</string>
+    <string name="pref_test_offline">Testa offlineläge</string>
+    <string name="pref_test_pixel_shift">Status för pixelförskjutning</string>
+    <string name="pref_test_summary">Tryck: testläge i 30 min. Tryck igen för att stänga av.</string>
+    <string name="pref_test_pixel_shift_summary">Aktiv (±40px / ±20px varje minut)</string>
+
+    <!-- Aikavalitsindialogi -->
+    <string name="time_picker_title">Välj tid</string>
+
+    <!-- Auto time -warning -->
+    <string name="auto_time_warning">⚠ Automatisk tid är avstängd — slå på den i inställningarna</string>
+
+    <!-- Testitila-toastit -->
+    <string name="toast_test_cleared">%1$s avstängt</string>
+    <string name="toast_test_warning_label">Varningsradstest</string>
+    <string name="toast_test_offline_label">Offlinetest</string>
+    <string name="toast_test_day_label">Dagslägestest</string>
+    <string name="toast_test_night_label">Nattlägestest</string>
+
+    <!-- Statusriviin offline -->
+    <string name="status_offline_test">Testläge: offline</string>
+    <string name="status_warning_test">Testläge: varningsrad</string>
+
+    <!-- Pitkän painalluksen valikko -->
+    <string name="action_open_settings">Öppna inställningar</string>
+    <string name="action_browse_place">Väder för en annan ort</string>
+    <string name="action_return_home_place">Tillbaka till hemorten</string>
+    <string name="browse_place_title">Väder för en annan ort</string>
+    <string name="browse_place_hint">Ort</string>
+    <string name="browse_place_ok">Sök</string>
+    <string name="browse_place_cancel">Avbryt</string>
+    <string name="browse_fetch_failed">Det gick inte att hämta vädret för orten</string>
+    <string name="browse_status_prefix">Visar: %1$s · %2$s</string>
+    <string name="action_favorite_toggle">Lägg till i eller ta bort från favoriter</string>
+
+    <!-- Headerin navi-napit -->
+    <string name="nav_koti">Hem</string>
+    <string name="nav_forecast">Prognos</string>
+    <string name="nav_electricity">El</string>
+    <string name="favorite_added">Tillagd i favoriter: %1$s</string>
+    <string name="favorite_removed">Borttagen från favoriter: %1$s</string>
+    <string name="favorites_menu_title">Favoriter</string>
+    <string name="favorites_menu_empty">Inga favoriter än</string>
+    <string name="favorites_menu_add">♡  Lägg till \"%1$s\" i favoriter</string>
+    <string name="favorites_menu_remove">♥  Ta bort \"%1$s\" från favoriter</string>
+
+    <!-- Sääoitukset (MeteoAlarm/FMI) -->
+    <string name="warnings_header">VÄDERVARNINGAR</string>
+    <string name="warnings_empty">Inga gällande varningar</string>
+    <string name="warning_area_prefix">Områden: %1$s</string>
+    <string name="warning_valid_same_day">gäller %1$s kl. %2$s–%3$s</string>
+    <string name="warning_valid_multi_day">gäller %1$s kl. %2$s – %3$s kl. %4$s</string>
+
+    <!-- Juhlapyhän ja liputuspäivän esitysmuodot etusivulla -->
+    <string name="holiday_today_format">I dag: %1$s</string>
+    <string name="holiday_tomorrow_format">I morgon: %1$s</string>
+    <string name="holiday_in_days_format">%1$s — om %2$d dagar</string>
+    <string name="flag_today_format">Flaggdag i dag: %1$s</string>
+    <string name="flag_tomorrow_format">Flaggdag i morgon: %1$s</string>
+    <string name="flag_in_days_format">%1$s (flaggdag) — om %2$d dagar</string>
+
+    <!-- Aurinkorivin muoto (kuuosa poistettu Vaihe 4C:ssa) -->
+    <string name="sun_line_format">Soluppgång %1$s\nSolnedgång %2$s\nDagens längd %3$s</string>
+    <string name="day_length_format">Dagens längd %1$s</string>
+    <string name="sun_never_rises">Solen går inte upp i dag</string>
+    <string name="sun_never_sets">Solen går inte ner i dag</string>
+
+    <!-- Supersää (FMI vs Open-Meteo) -->
+    <string name="super_weather_title">Timme för timme</string>
+    <string name="super_weather_col_fmi">Meteorologiska institutet</string>
+
+    <!-- Anturit (RuuviTag — tilavaraus) -->
+    <string name="sensor_label_bedroom">Sensor 1</string>
+    <string name="sensor_label_livingroom">Sensor 2</string>
+    <string name="sensor_label_balcony">Sensor 3</string>
+
+    <!-- Järjestelmä-sivu -->
+    <string name="system_title">System</string>
+    <string name="system_battery_current">Batteri: %1$d %%  ·  %2$.1f °C</string>
+    <string name="system_battery_current_unknown">Batteri: —</string>
+    <string name="system_today_label">I dag</string>
+    <string name="system_today_minmax">min %1$.1f °C kl. %2$s  ·  max %3$.1f °C kl. %4$s</string>
+    <string name="system_today_no_data">Inga data för i dag ännu</string>
+    <string name="system_chart_label">Batteritemperatur (24 h)</string>
+    <string name="system_chart_no_data">Inga data ännu — vänta några minuter</string>
+    <string name="system_export_all">Exportera rå CSV (alla kanaler)</string>
+    <string name="system_export_weather">Exportera väder-CSV (läsbar)</string>
+    <string name="system_export_battery">Exportera batteri-CSV (läsbar)</string>
+    <string name="system_open_history">Öppna historik</string>
+    <string name="system_db_count">Mätningar i databasen: %1$d</string>
+
+    <!-- Historia-sivu -->
+    <string name="history_title">Historik</string>
+    <string name="history_channel_label">Kanal:</string>
+    <string name="history_no_data">Inga data för den här månaden</string>
+    <string name="history_no_channels">Inga kanaler i databasen</string>
+    <string name="history_chart_label">Temperatur under månaden</string>
+    <!-- Sää-kanavan riveille -->
+    <string name="history_weather_row">%1$s  ·  min %2$.1f  medel %3$.1f  max %4$.1f °C</string>
+    <string name="history_weather_extras">Regn %1$.1f mm  ·  max byvind %2$.1f m/s  ·  N=%3$d%4$s</string>
+    <string name="history_weather_extras_no_precip">max byvind %1$.1f m/s  ·  N=%2$d%3$s</string>
+    <string name="history_weather_extras_no_wind">Regn %1$.1f mm  ·  N=%2$d%3$s</string>
+    <!-- Akku-kanavan riveille -->
+    <string name="history_battery_row">%1$s  ·  min %2$.1f  medel %3$.1f  max %4$.1f °C</string>
+    <!-- Ruuvi-kanaville -->
+    <string name="history_ruuvi_label">Sensor: %1$s (%2$s)</string>
+    <string name="history_ruuvi_unassigned">Används inte</string>
+    <string name="history_ruuvi_row">%1$s  ·  min %2$.1f  medel %3$.1f  max %4$.1f °C</string>
+    <string name="history_ruuvi_extras">Fuktighet medel %1$.0f %%  ·  N=%2$d</string>
+
+    <!-- Historia ja tietokanta -->
+    <string name="pref_cat_history">Historik och databas</string>
+    <string name="pref_db_size">Databasens storlek</string>
+    <string name="pref_db_size_summary">Mätningar: %1$d  ·  %2$s</string>
+    <string name="pref_retention_days">Lagringstid</string>
+    <string name="pref_export_csv">Exportera alla data som CSV</string>
+    <string name="pref_clear_db">Töm databasen</string>
+    <string name="pref_clear_db_summary">VARNING: raderar alla mätningar</string>
+
+    <!-- Vahvistusdialogi -->
+    <string name="clear_db_title">Tömma databasen?</string>
+    <string name="clear_db_message">Detta raderar alla mätningar permanent. Åtgärden kan inte ångras.</string>
+    <string name="clear_db_confirm_check">Jag är säker</string>
+    <string name="clear_db_confirm">Töm</string>
+    <string name="clear_db_cancel">Avbryt</string>
+
+    <!-- CSV-toastit -->
+    <string name="toast_csv_exported">CSV exporterad: %1$s</string>
+    <string name="toast_csv_empty">Inga data att exportera</string>
+    <string name="toast_csv_failed">CSV-exporten misslyckades</string>
+    <string name="toast_db_cleared">Databasen har tömts</string>
+
+    <!-- Sääilmiön selitteet (WeatherTextFormatter) -->
+    <string name="wt_clear_day">Klart</string>
+    <string name="wt_clear_night">Klar natt</string>
+    <string name="wt_partly_cloudy_day">Halvklart</string>
+    <string name="wt_partly_cloudy_night">Halvklar natt</string>
+    <string name="wt_cloudy">Mulet</string>
+    <string name="wt_fog">Dimma</string>
+    <string name="wt_thunder_light">Enstaka åskväder</string>
+    <string name="wt_thunder_moderate">Åska</string>
+    <string name="wt_thunder_heavy">Kraftig åska</string>
+    <string name="wt_thunder_shower">Åskskurar</string>
+    <string name="wt_rain_light">Lätt regn</string>
+    <string name="wt_rain_moderate">Regn</string>
+    <string name="wt_rain_heavy">Kraftigt regn</string>
+    <string name="wt_rain_shower_light">Enstaka regnskurar</string>
+    <string name="wt_rain_shower_moderate">Regnskurar</string>
+    <string name="wt_rain_shower_heavy">Kraftiga regnskurar</string>
+    <string name="wt_snow_light">Lätt snöfall</string>
+    <string name="wt_snow_moderate">Snöfall</string>
+    <string name="wt_snow_heavy">Kraftigt snöfall</string>
+    <string name="wt_snow_shower_light">Enstaka snöbyar</string>
+    <string name="wt_snow_shower_moderate">Snöbyar</string>
+    <string name="wt_snow_shower_heavy">Kraftiga snöbyar</string>
+    <string name="wt_sleet_light">Lätt snöblandat regn</string>
+    <string name="wt_sleet_moderate">Snöblandat regn</string>
+    <string name="wt_sleet_heavy">Kraftigt snöblandat regn</string>
+    <string name="wt_sleet_shower_light">Enstaka snöblandade skurar</string>
+    <string name="wt_sleet_shower_moderate">Snöblandade skurar</string>
+    <string name="wt_sleet_shower_heavy">Kraftiga snöblandade skurar</string>
+    <string name="wt_unknown">Vädret okänt</string>
+
+    <!-- Lyhyet sääseliteresurssit tuntisivun sarakkeisiin (12sp, maxLines=1, ellipsize=end) -->
+    <string name="wts_clear_day">Klart</string>
+    <string name="wts_clear_night">Klart</string>
+    <string name="wts_partly_cloudy">Halvklart</string>
+    <string name="wts_cloudy">Mulet</string>
+    <string name="wts_fog">Dimma</string>
+    <string name="wts_thunder">Åska</string>
+    <string name="wts_thunder_shower">Åskskurar</string>
+    <string name="wts_rain_light">Lätt regn</string>
+    <string name="wts_rain_moderate">Regn</string>
+    <string name="wts_rain_heavy">Kraftigt regn</string>
+    <string name="wts_rain_shower">Regnskurar</string>
+    <string name="wts_snow_light">Lätt snöfall</string>
+    <string name="wts_snow_moderate">Snöfall</string>
+    <string name="wts_snow_heavy">Kraftigt snöfall</string>
+    <string name="wts_snow_shower">Snöbyar</string>
+    <string name="wts_sleet_light">Lätt snöblandat regn</string>
+    <string name="wts_sleet_moderate">Snöblandat regn</string>
+    <string name="wts_sleet_heavy">Kraftigt snöblandat regn</string>
+    <string name="wts_sleet_shower">Snöblandade skurar</string>
+
+    <!-- Säilytysajan vaihtoehdot -->
+    <string-array name="retention_labels">
+        <item>30 dagar</item>
+        <item>3 månader</item>
+        <item>1 år</item>
+        <item>3 år</item>
+        <item>10 år</item>
+    </string-array>
+</resources>

@@ -3,6 +3,7 @@ package org.jrs82.fsclock.mobile
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
+import org.jrs82.fsclock.R
 import org.json.JSONArray
 
 /**
@@ -26,10 +27,13 @@ object HslAlertNotifier {
 
     data class Selection(val toNotify: List<TransitAlert>, val newSeen: Set<String>)
 
+    data class NotificationText(val title: TransitText, val body: TransitText)
+
     /**
      * Puhdas valinta (yksikkötestattava): aktiiviset häiriöt jotka osuvat suosikkilinjaan (shortName)
      * tai suosikkipysäkkiin (nimi), joita ei ole vielä nähty. Palauttaa myös uuden "nähdyt"-joukon =
      * nyt aktiiviset osumat (kattorajattu), jotta setti ei kasva ja ratkennut häiriö voi toistua.
+     * Pysäkki osuu ensisijaisesti gtfsId:llä ([favStopIds]), koska nimi vaihtuu sovelluksen kielen mukaan.
      */
     fun selectNewAlerts(
         alerts: List<TransitAlert>,
@@ -37,13 +41,14 @@ object HslAlertNotifier {
         favStops: Set<String>,
         seen: Set<String>,
         nowSec: Long,
+        favStopIds: Set<String> = emptySet(),
     ): Selection {
         val matchedKeys = LinkedHashSet<String>()
         val toNotify = ArrayList<TransitAlert>()
         for (a in alerts) {
             if (!a.isActiveAt(nowSec)) continue
             val lineHit = a.routeShortName.isNotEmpty() && favLines.contains(a.routeShortName)
-            val stopHit = a.stopName.isNotEmpty() && favStops.contains(a.stopName)
+            val stopHit = a.matchesStop(favStopIds, favStops)
             if (!lineHit && !stopHit) continue
             val key = alertKey(a)
             if (!matchedKeys.add(key)) continue // sama häiriö kahdesti tällä kierroksella → kerran
@@ -63,12 +68,13 @@ object HslAlertNotifier {
         if (!prefs.getBoolean(KEY_ENABLED, false)) return
         val favLines = TransitFavorites.getLines(context)
             .mapNotNull { it.shortName.takeIf { s -> s.isNotEmpty() } }.toSet()
-        val favStops = TransitFavorites.getStops(context)
-            .mapNotNull { it.name.takeIf { s -> s.isNotEmpty() } }.toSet()
-        if (favLines.isEmpty() && favStops.isEmpty()) return
+        val stops = TransitFavorites.getStops(context)
+        val favStops = stops.mapNotNull { it.name.takeIf { s -> s.isNotEmpty() } }.toSet()
+        val favStopIds = stops.mapNotNull { it.gtfsId.takeIf { s -> s.isNotEmpty() } }.toSet()
+        if (favLines.isEmpty() && favStops.isEmpty() && favStopIds.isEmpty()) return
         val alerts = try { DigitransitApi.serviceAlerts(TransitRegion.HSL) } catch (e: Exception) { return }
         val nowSec = System.currentTimeMillis() / 1000L
-        val result = selectNewAlerts(alerts, favLines, favStops, loadSeen(prefs), nowSec)
+        val result = selectNewAlerts(alerts, favLines, favStops, loadSeen(prefs), nowSec, favStopIds)
         android.util.Log.i(
             "HslAlertNotifier",
             "favLines=${favLines.size} favStops=${favStops.size} alerts=${alerts.size} uusia=${result.toNotify.size}",
@@ -77,22 +83,29 @@ object HslAlertNotifier {
         saveSeen(prefs, result.newSeen)
     }
 
-    private fun postFor(context: Context, toNotify: List<TransitAlert>) {
+    /** Ilmoituksen otsikko ja teksti rakenteena (yksikkötestattava ilman Contextia). */
+    fun notificationText(toNotify: List<TransitAlert>): NotificationText {
         if (toNotify.size == 1) {
             val a = toNotify[0]
-            val label = if (a.routeShortName.isNotEmpty()) "linja ${a.routeShortName}" else a.stopName
-            Notifications.post(
-                context, Notifications.CHANNEL_HSL_ALERTS, Notifications.NOTIF_ID_HSL,
-                "HSL-häiriö: $label", a.displayText(), "HSL_DISRUPTIONS", favoritesFocus = true,
-            )
-        } else {
-            Notifications.post(
-                context, Notifications.CHANNEL_HSL_ALERTS, Notifications.NOTIF_ID_HSL,
-                "Uusia HSL-häiriöitä suosikeillasi",
-                "${toNotify.size} uutta häiriötä suosikkilinjoillasi tai -pysäkeilläsi. Avaa nähdäksesi.",
-                "HSL_DISRUPTIONS", favoritesFocus = true,
-            )
+            val title = if (a.routeShortName.isNotEmpty()) {
+                TransitText.Res(R.string.transit_hsl_alert_title_line, listOf(a.routeShortName))
+            } else {
+                TransitText.Res(R.string.transit_hsl_alert_title_stop, listOf(a.stopName))
+            }
+            return NotificationText(title, TransitText.Raw(a.displayText()))
         }
+        return NotificationText(
+            TransitText.Res(R.string.transit_hsl_alert_multi_title),
+            TransitText.Plural(R.plurals.transit_hsl_alert_multi_body, toNotify.size, listOf(toNotify.size)),
+        )
+    }
+
+    private fun postFor(context: Context, toNotify: List<TransitAlert>) {
+        val text = notificationText(toNotify)
+        Notifications.post(
+            context, Notifications.CHANNEL_HSL_ALERTS, Notifications.NOTIF_ID_HSL,
+            text.title.resolve(context), text.body.resolve(context), "HSL_DISRUPTIONS", favoritesFocus = true,
+        )
     }
 
     private fun loadSeen(prefs: SharedPreferences): Set<String> = try {

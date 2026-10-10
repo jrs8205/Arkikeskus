@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Seurantapalvelun ilmoitukset -->
+    <string name="workout_channel_tracking_name">Workout tracking</string>
+    <string name="workout_channel_tracking_desc">Status and controls for the workout in progress</string>
+    <string name="workout_channel_km_name">Workout kilometre splits</string>
+    <string name="workout_channel_km_desc">Notification each time you complete a full kilometre during a workout</string>
+    <string name="workout_notif_walk_active">Walk in progress</string>
+    <string name="workout_notif_walk_paused">Walk paused</string>
+    <string name="workout_notif_bike_active">Bike ride in progress</string>
+    <string name="workout_notif_bike_paused">Bike ride paused</string>
+    <string name="workout_action_pause">Pause</string>
+    <string name="workout_action_resume">Resume</string>
+    <string name="workout_action_stop">Stop</string>
+    <string name="workout_notif_auto_stopped_title">Workout ended automatically</string>
+    <string name="workout_notif_auto_stopped_text">No movement for 10 minutes — the workout was saved.</string>
+    <string name="workout_km_title">Kilometre %1$d</string>
+    <string name="workout_km_stats">pace %1$s/km · time %2$s · avg %3$.1f km/h</string>
+
+    <!-- Aloitusnäkymä ja historia -->
+    <string name="workout_title">Workout</string>
+    <string name="workout_intro">Track a walk or bike ride: distance, speed, kilometre splits and route. Tracking continues even when you lock the screen.</string>
+    <string name="workout_type_walk">Walking</string>
+    <string name="workout_type_bike">Cycling</string>
+    <string name="workout_start_walk">Start walk</string>
+    <string name="workout_start_bike">Start bike ride</string>
+    <string name="workout_auto_stop_hint">The workout ends automatically after 10 minutes without movement.</string>
+    <string name="workout_need_fine_location">Workout tracking needs permission to use precise location.</string>
+    <string name="workout_stats_button">Weekly and monthly statistics</string>
+    <string name="workout_history_walk">Previous walks</string>
+    <string name="workout_history_bike">Previous bike rides</string>
+    <string name="workout_history_walk_empty">No walks yet.</string>
+    <string name="workout_history_bike_empty">No bike rides yet.</string>
+    <string name="workout_shared_title">Shared workouts</string>
+    <string name="workout_shared_badge">Shared</string>
+    <string name="workout_import_button">Import workout from file (GPX/TCX)</string>
+    <string name="workout_import_none">No workout found in the file (GPX/TCX).</string>
+    <string name="workout_import_exists">This workout is already on the device: %1$s</string>
+    <string name="workout_import_done">Shared workout imported: %1$s</string>
+    <string name="workout_file_too_large">The file is too large (over %1$d MB)</string>
+
+    <!-- GPS-lähtölaskenta -->
+    <string name="workout_countdown_go">Go!</string>
+    <string name="workout_gps_found_starting">GPS found — workout starting!</string>
+    <string name="workout_starting_gps_pending">Workout starting — GPS accuracy will improve as you go</string>
+    <string name="workout_gps_found">GPS found!</string>
+    <string name="workout_gps_searching">Searching for GPS signal…</string>
+
+    <!-- Aktiivinen lenkki -->
+    <string name="workout_active_walk">Walk</string>
+    <string name="workout_active_bike">Bike ride</string>
+    <string name="workout_paused_badge">PAUSED</string>
+    <string name="workout_no_gps">No GPS signal</string>
+    <string name="workout_detail_avg">Avg %1$s</string>
+    <string name="workout_detail_max">max %1$s</string>
+    <string name="workout_recenter">Recentre</string>
+    <string name="workout_stop_confirm_title">Stop the workout?</string>
+    <string name="workout_stop_confirm_text">The workout will be saved and you\'ll see a summary.</string>
+
+    <!-- Tilastot -->
+    <string name="workout_stats_title">Statistics</string>
+    <string name="workout_stats_weeks">Weeks</string>
+    <string name="workout_stats_months">Months</string>
+    <string name="workout_stats_empty">No workouts of your own yet.</string>
+    <string name="workout_stats_week">Week %1$d</string>
+    <plurals name="workout_count">
+        <item quantity="one">%1$d workout</item>
+        <item quantity="other">%1$d workouts</item>
+    </plurals>
+    <plurals name="workout_walk_count">
+        <item quantity="one">%1$d walk</item>
+        <item quantity="other">%1$d walks</item>
+    </plurals>
+    <plurals name="workout_bike_count">
+        <item quantity="one">%1$d bike ride</item>
+        <item quantity="other">%1$d bike rides</item>
+    </plurals>
+    <plurals name="workout_split_count">
+        <item quantity="one">%1$d km split</item>
+        <item quantity="other">%1$d km splits</item>
+    </plurals>
+
+    <!-- Yhteenveto -->
+    <string name="workout_summary_title">Workout summary</string>
+    <string name="workout_rename">Rename workout</string>
+    <string name="workout_rename_hint">e.g. Dog walk</string>
+    <string name="workout_shared_imported">Shared workout (imported from a file)</string>
+    <string name="workout_auto_stopped">Ended automatically (no movement for 10 min)</string>
+    <string name="workout_tap_to_enlarge">Tap to enlarge</string>
+    <string name="workout_stat_type">Activity</string>
+    <string name="workout_stat_started">Started</string>
+    <string name="workout_stat_ended">Ended</string>
+    <string name="workout_stat_distance">Distance</string>
+    <string name="workout_stat_moving">Moving time</string>
+    <string name="workout_stat_avg_speed">Average speed</string>
+    <string name="workout_stat_pace">Pace</string>
+    <string name="workout_stat_steps">Steps</string>
+    <string name="workout_stat_max_speed">Top speed</string>
+    <string name="workout_stat_calories">Calories (estimate)</string>
+    <string name="workout_stat_ascent">Ascent (GPS estimate)</string>
+    <string name="workout_stat_descent">Descent (GPS estimate)</string>
+    <string name="workout_splits_title">Kilometre splits</string>
+    <string name="workout_split_label">Km %1$d</string>
+    <string name="workout_done">Done</string>
+    <string name="workout_delete_title">Delete the workout?</string>
+    <string name="workout_delete_text">The workout and its route will be permanently deleted.</string>
+
+    <!-- Jako -->
+    <string name="workout_share_button">Share workout…</string>
+    <string name="workout_share_title">Share workout</string>
+    <string name="workout_share_creating">Creating the file to share…</string>
+    <string name="workout_share_failed">Sharing failed.</string>
+    <string name="workout_share_png_title">Image with map (PNG)</string>
+    <string name="workout_share_png_desc">For social media and messages</string>
+    <string name="workout_share_gpx_title">GPX route file</string>
+    <string name="workout_share_tcx_title">TCX training file</string>
+    <string name="workout_share_tcx_desc">Includes splits and calories</string>
+    <string name="workout_share_attribution">Arkikeskus · © National Land Survey of Finland</string>
+    <string name="workout_file_fallback">Workout</string>
+
+    <!-- Oletusnimet ja päivämäärien muodot (kellonaika aina HH:mm) -->
+    <string name="workout_default_name_walk">Walk %1$s</string>
+    <string name="workout_default_name_bike">Bike ride %1$s</string>
+    <string name="workout_date_pattern">d MMM</string>
+    <string name="workout_datetime_pattern">d MMM HH:mm</string>
+    <string name="workout_share_datetime_pattern">d MMM yyyy HH:mm</string>
+</resources>

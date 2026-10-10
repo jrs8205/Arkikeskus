@@ -1,11 +1,16 @@
 package org.jrs82.fsclock.mobile.widget
 
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
+import androidx.glance.LocalContext
 import androidx.glance.color.ColorProvider
 import androidx.glance.color.ColorProviders
 import androidx.glance.material3.ColorProviders as GlanceM3ColorProviders
+import org.jrs82.fsclock.mobile.FontScaleCap
 
 /**
  * Widgettien varit. Kaksi tasoa:
@@ -100,3 +105,8 @@ object WidgetColors {
         (if (mode == "TRAM" || mode == "SUBWAY" || mode == "FERRY") Color(0xFF1A1A1A) else Color(0xFFFFFFFF))
             .let { ColorProvider(day = it, night = it) }
 }
+
+/** Tekstikoko fonttirajalla ([FontScaleCap]): launcher piirtää widgetin tekstit järjestelmän fonttikoolla. */
+@Composable
+internal fun widgetSp(sp: Int): TextUnit =
+    FontScaleCap.widgetSp(LocalContext.current, sp.toFloat()).sp

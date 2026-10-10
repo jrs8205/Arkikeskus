@@ -7,17 +7,17 @@ public class FmiWarningDetail {
     public final long untilMs;
     public final int probabilityPct;   // -1 jos ei
     public final double physicalValue;  // NaN jos ei
-    public final String physicalText;   // valmiiksi muotoiltu, "" jos ei
-    public final String detailText;     // info_fi puretuilla entiteeteillä
+    public final String physicalUnit;   // FMI:n yksikkökoodi, "" jos ei
+    public final String detailText;     // valitun kielen info_xx puretuilla entiteeteillä
 
     public FmiWarningDetail(String context, long fromMs, long untilMs, int probabilityPct,
-                            double physicalValue, String physicalText, String detailText) {
+                            double physicalValue, String physicalUnit, String detailText) {
         this.context = context == null ? "" : context;
         this.fromMs = fromMs;
         this.untilMs = untilMs;
         this.probabilityPct = probabilityPct;
         this.physicalValue = physicalValue;
-        this.physicalText = physicalText == null ? "" : physicalText;
+        this.physicalUnit = physicalUnit == null ? "" : physicalUnit;
         this.detailText = detailText == null ? "" : detailText;
     }
 }

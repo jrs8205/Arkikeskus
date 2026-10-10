@@ -1,6 +1,7 @@
 package org.jrs82.fsclock
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** [WeatherWarning.AwarenessType]-parsinta ja taaksepäin yhteensopiva konstruktori. */
@@ -29,6 +30,17 @@ class WeatherWarningModelTest {
     @Test fun unknownForNullOrEmpty() {
         assertEquals(WeatherWarning.AwarenessType.UNKNOWN, WeatherWarning.AwarenessType.fromParam(null))
         assertEquals(WeatherWarning.AwarenessType.UNKNOWN, WeatherWarning.AwarenessType.fromParam(""))
+    }
+
+    @Test fun everyKnownTypeAndLevelHasDistinctName() {
+        val types = WeatherWarning.AwarenessType.values().filter { it != WeatherWarning.AwarenessType.UNKNOWN }
+        assertTrue(types.all { it.nameRes != 0 })
+        assertEquals(types.size, types.map { it.nameRes }.toSet().size)
+        val levels = WeatherWarning.Level.values().filter { it != WeatherWarning.Level.UNKNOWN }
+        assertTrue(levels.all { it.nameRes != 0 })
+        assertEquals(levels.size, levels.map { it.nameRes }.toSet().size)
+        assertEquals(0, WeatherWarning.Level.UNKNOWN.nameRes)
+        assertEquals(0, WeatherWarning.AwarenessType.UNKNOWN.nameRes)
     }
 
     @Test fun legacyConstructorDefaultsNewFields() {

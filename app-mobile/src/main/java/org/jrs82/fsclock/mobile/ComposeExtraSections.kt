@@ -12,6 +12,7 @@ import android.os.Looper
 import android.view.View
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -53,10 +55,8 @@ import androidx.fragment.app.FragmentContainerView
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * Lisäsektiot: Puhelimen tiedot, Liikennetiedot, GPS-nopeus (natiivi Compose) sekä
@@ -88,6 +88,12 @@ private fun FragmentHostSection(
     DisposableEffect(containerId) {
         val fm = activity.supportFragmentManager
         var frag = fm.findFragmentByTag(tag)
+        // Activityn uudelleenluonnissa (fonttikoko, kieli, teema) FragmentManager palauttaa fragmentin
+        // ennen kuin Compose on luonut säiliön → näkymä jää irralleen ja sektio tyhjäksi. Korvataan uudella.
+        if (frag != null && frag.view?.parent == null && !fm.isStateSaved) {
+            fm.beginTransaction().remove(frag).commitNowAllowingStateLoss()
+            frag = null
+        }
         if (frag == null && !fm.isStateSaved) {
             frag = create()
             fm.beginTransaction().add(containerId, frag, tag).commitNowAllowingStateLoss()
@@ -119,13 +125,13 @@ internal fun RoutePlannerHost() {
 
 private class DeviceBlock(val title: String, val body: String, val needsPermission: PermissionNeed?)
 
-private enum class PermissionNeed(val label: String, val permissions: Array<String>) {
+private enum class PermissionNeed(@StringRes val label: Int, val permissions: Array<String>) {
     LOCATION(
-        "Salli sijainti, jotta verkon nimi näkyy",
+        R.string.home_device_perm_location,
         arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
     ),
     PHONE_AND_LOCATION(
-        "Salli puhelimen tila ja sijainti",
+        R.string.home_device_perm_phone_location,
         arrayOf(
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -133,7 +139,7 @@ private enum class PermissionNeed(val label: String, val permissions: Array<Stri
         ),
     ),
     PHONE(
-        "Salli puhelimen tila",
+        R.string.home_device_perm_phone,
         arrayOf(Manifest.permission.READ_PHONE_STATE),
     ),
 }
@@ -154,23 +160,23 @@ internal fun DeviceInfoSection() {
     LaunchedEffect(tick) {
         blocks = withContext(Dispatchers.IO) {
             listOf(
-                DeviceBlock("Akku", DeviceInfoReaders.battery(context).toString(), null),
+                DeviceBlock(context.getString(R.string.home_device_battery), DeviceInfoReaders.battery(context).toString(), null),
                 DeviceBlock(
                     "WiFi", DeviceInfoReaders.wifi(context).toString(),
                     if (hasLocation) null else PermissionNeed.LOCATION,
                 ),
                 DeviceBlock(
-                    "Mobiiliverkko", DeviceInfoReaders.cellular(context).toString(),
+                    context.getString(R.string.home_device_cellular), DeviceInfoReaders.cellular(context).toString(),
                     if (hasPhone && hasLocation) null else PermissionNeed.PHONE_AND_LOCATION,
                 ),
                 DeviceBlock(
                     "SIM", DeviceInfoReaders.sim(context).toString(),
                     if (hasPhone) null else PermissionNeed.PHONE,
                 ),
-                DeviceBlock("Laitteisto", DeviceInfoReaders.hardware().toString(), null),
-                DeviceBlock("Muisti", DeviceInfoReaders.memory(context).toString(), null),
-                DeviceBlock("Näyttö", DeviceInfoReaders.display(context).toString(), null),
-                DeviceBlock("Anturit", DeviceInfoReaders.sensors(context).toString(), null),
+                DeviceBlock(context.getString(R.string.home_device_hardware), DeviceInfoReaders.hardware(context).toString(), null),
+                DeviceBlock(context.getString(R.string.home_device_memory), DeviceInfoReaders.memory(context).toString(), null),
+                DeviceBlock(context.getString(R.string.home_device_display), DeviceInfoReaders.display(context).toString(), null),
+                DeviceBlock(context.getString(R.string.home_title_sensors), DeviceInfoReaders.sensors(context).toString(), null),
             )
         }
     }
@@ -181,11 +187,11 @@ internal fun DeviceInfoSection() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Puhelimen tiedot", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.home_device_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         if (blocks.isEmpty()) {
             Text(
-                "Luetaan laitetietoja…",
+                stringResource(R.string.home_device_loading),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -213,7 +219,7 @@ private fun DeviceCard(block: DeviceBlock, onRequest: (PermissionNeed) -> Unit) 
             if (need != null) {
                 Spacer(Modifier.height(10.dp))
                 FilledTonalButton(onClick = { onRequest(need) }) {
-                    Text(need.label)
+                    Text(stringResource(need.label))
                 }
             }
         }
@@ -225,8 +231,6 @@ private fun hasPerm(context: Context, perm: String): Boolean =
 
 // ===================== Liikennetiedot (TrafficNoticesRepository) =====================
 
-private val FI_X = Locale("fi", "FI")
-
 @Composable
 internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
     val context = LocalContext.current
@@ -235,11 +239,11 @@ internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
     // Myös kotipaikan/sijainnin vaihtuessa (rev kasvaa) → referenssikoordinaatit luetaan uudelleen.
     val rev = LocalHomeDataRevision.current
     var notices by remember(kind) { mutableStateOf<List<TrafficNotice>?>(null) }
-    var status by remember(kind) { mutableStateOf("Haetaan liikennetiedotteita…") }
+    var status by remember(kind) { mutableStateOf(context.getString(R.string.home_traffic_notices_loading)) }
     LaunchedEffect(kind, refresh, rev) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
-            status = "Salli sijainti, jotta lähialueen tiedotteet voidaan hakea."
+            status = context.getString(R.string.home_traffic_notices_need_location)
             notices = emptyList()
             return@LaunchedEffect
         }
@@ -251,19 +255,18 @@ internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
             }
         }
         if (result == null) {
-            status = "Liikennetietojen haku epäonnistui."
+            status = context.getString(R.string.home_traffic_failed)
             notices = emptyList()
         } else {
             notices = result
             // Kerro käyttäjälle täsmälleen mitä näytetään (säde, aikaikkuna, lähde).
-            status = when (kind) {
-                TrafficNotice.Kind.ROAD_WORK ->
-                    "Käynnissä olevat ja 30 vrk sisällä alkavat tietyöt noin 50 km säteellä sijainnistasi (Fintraffic)"
-                TrafficNotice.Kind.WEIGHT_RESTRICTION ->
-                    "Voimassa olevat painorajoitukset noin 50 km säteellä sijainnistasi (Fintraffic)"
-                else ->
-                    "Aktiiviset tiedotteet noin 50 km säteellä sijainnistasi — viimeiset 12 h tai voimassa oleva kesto (Fintraffic)"
-            }
+            status = context.getString(
+                when (kind) {
+                    TrafficNotice.Kind.ROAD_WORK -> R.string.home_traffic_scope_roadworks
+                    TrafficNotice.Kind.WEIGHT_RESTRICTION -> R.string.home_traffic_scope_weight
+                    else -> R.string.home_traffic_scope_all
+                },
+            )
         }
     }
     Column(
@@ -279,12 +282,12 @@ internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
         val list = notices
         when {
             list == null -> Text(
-                "Haetaan…",
+                stringResource(R.string.common_loading),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             list.isEmpty() -> Text(
-                "Ei tiedotteita tällä alueella juuri nyt.",
+                stringResource(R.string.home_traffic_none_area),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -295,19 +298,21 @@ internal fun TrafficSection(kind: TrafficNotice.Kind, title: String) {
 
 @Composable
 private fun TrafficCard(n: TrafficNotice) {
+    val context = LocalContext.current
     val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Column(modifier = Modifier.padding(14.dp)) {
+            val kindTitle = stringResource(n.kind.titleRes)
             Text(
-                n.title.ifEmpty { n.kind.title },
+                n.title.ifEmpty { kindTitle },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = arki.warning,
             )
             val meta = buildList {
-                add(n.kind.title)
-                if (!n.distanceMeters.isNaN()) add(formatDistanceFi(n.distanceMeters))
-                val v = trafficValidity(n)
+                add(kindTitle)
+                if (!n.distanceMeters.isNaN()) add(homeDistanceText(AppLocale.current(context), n.distanceMeters))
+                val v = homeValidityText(context, n.startTimeMs, n.endTimeMs, R.string.home_date_pattern_full_date_time)
                 if (v.isNotEmpty()) add(v)
             }.joinToString("  ·  ")
             Spacer(Modifier.height(2.dp))
@@ -321,25 +326,6 @@ private fun TrafficCard(n: TrafficNotice) {
                 Text(n.details, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-    }
-}
-
-private fun formatDistanceFi(meters: Double): String = when {
-    meters.isNaN() -> ""
-    meters < 1000.0 -> "${Math.round(meters)} m"
-    else -> String.format(FI_X, "%.1f km", meters / 1000.0)
-}
-
-// Jaettu formatter (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
-private val DMY_HM_X = SimpleDateFormat("d.M.yyyy HH:mm", FI_X)
-
-private fun trafficValidity(n: TrafficNotice): String {
-    if (n.startTimeMs <= 0L && n.endTimeMs <= 0L) return ""
-    val dt = DMY_HM_X
-    return when {
-        n.startTimeMs <= 0L -> "voimassa asti " + dt.format(Date(n.endTimeMs))
-        n.endTimeMs <= 0L -> "alkaen " + dt.format(Date(n.startTimeMs))
-        else -> dt.format(Date(n.startTimeMs)) + " – " + dt.format(Date(n.endTimeMs))
     }
 }
 
@@ -374,11 +360,11 @@ internal fun SpeedometerSection() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("GPS-nopeus", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.home_gps_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         if (!granted) {
             Spacer(Modifier.height(12.dp))
             Text(
-                "Salli sijainti, jotta nopeus voidaan mitata.",
+                stringResource(R.string.home_gps_need_location),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -387,7 +373,7 @@ internal fun SpeedometerSection() {
                 permLauncher.launch(
                     arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                 )
-            }) { Text("Salli sijainti") }
+            }) { Text(stringResource(R.string.home_allow_location)) }
         } else {
             Spacer(Modifier.height(16.dp))
             GpsSpeedContent(context)
@@ -514,8 +500,8 @@ private fun GpsSpeedContent(context: Context) {
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
     )
-    Text(signalLabel(location, satUsed, satVisible), style = MaterialTheme.typography.bodyMedium)
-    val detail = speedDetail(location, nowMs)
+    Text(signalLabel(context, location, satUsed, satVisible), style = MaterialTheme.typography.bodyMedium)
+    val detail = speedDetail(context, location, nowMs)
     if (detail.isNotEmpty()) {
         Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -528,31 +514,24 @@ private fun speedKmh(loc: Location?, nowMs: Long): Float {
     return if (kmh < 2f) 0f else kmh
 }
 
-private fun signalLabel(loc: Location?, used: Int, visible: Int): String {
+private fun signalLabel(context: Context, loc: Location?, used: Int, visible: Int): String {
     if (used > 0) {
         val quality = when {
-            used >= 10 -> "Erinomainen"
-            used >= 7 -> "Hyvä"
-            used >= 4 -> "Heikko"
-            else -> "Ei korjausta"
+            used >= 10 -> R.string.home_gps_quality_excellent
+            used >= 7 -> R.string.home_gps_quality_good
+            used >= 4 -> R.string.home_gps_quality_weak
+            else -> R.string.home_gps_quality_none
         }
-        return "$quality · $used/$visible satelliittia"
+        return context.resources.getQuantityString(R.plurals.home_gps_signal, visible, context.getString(quality), used, visible)
     }
-    if (loc != null && loc.hasAccuracy()) return "Tarkkuus ±${Math.round(loc.accuracy)} m"
-    return "Odotetaan GPS-signaalia…"
+    if (loc != null && loc.hasAccuracy()) return context.getString(R.string.home_gps_accuracy, Math.round(loc.accuracy))
+    return context.getString(R.string.home_gps_waiting)
 }
 
-private fun speedDetail(loc: Location?, nowMs: Long): String {
+private fun speedDetail(context: Context, loc: Location?, nowMs: Long): String {
     if (loc == null) return ""
-    val sb = StringBuilder()
-    if (loc.hasAccuracy()) sb.append("Tarkkuus ±").append(Math.round(loc.accuracy)).append(" m")
-    val ageMin = Math.max(0L, (nowMs - loc.time) / 60_000L)
-    val age = when {
-        ageMin < 1L -> "nyt"
-        ageMin < 60L -> "$ageMin min sitten"
-        else -> "${ageMin / 60L} h sitten"
-    }
-    if (sb.isNotEmpty()) sb.append(" · ")
-    sb.append("Päivitetty ").append(age)
-    return sb.toString()
+    val parts = ArrayList<String>(2)
+    if (loc.hasAccuracy()) parts.add(context.getString(R.string.home_gps_accuracy, Math.round(loc.accuracy)))
+    parts.add(context.getString(R.string.home_gps_updated, homeAgeText(context, loc.time, nowMs)))
+    return parts.joinToString(" · ")
 }

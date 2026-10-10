@@ -52,7 +52,16 @@ class BugFixRegressionTest {
             readAllLimited(ByteArrayInputStream(ByteArray(1001)), 1000)
             fail("Olisi pitänyt heittää FileTooLargeException")
         } catch (e: FileTooLargeException) {
-            assertTrue(e.message!!.contains("liian suuri"))
+            // Käyttäjän teksti tulee resurssista (userMessage); poikkeus kantaa rajan rakenteena.
+            assertEquals(0, e.maxMb)
+            assertTrue(e.message!!.contains("too large"))
         }
+    }
+
+    @Test
+    fun `FileTooLargeException kantaa rajan megatavuina kayttajan viestia varten`() {
+        val e = FileTooLargeException(20 * 1024 * 1024)
+        assertEquals(20, e.maxMb)
+        assertEquals("File too large (over 20 MB)", e.message)
     }
 }

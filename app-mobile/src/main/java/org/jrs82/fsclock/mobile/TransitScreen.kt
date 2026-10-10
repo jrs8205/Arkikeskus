@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -73,6 +74,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -122,8 +125,8 @@ private const val MAX_NEARBY_STOPS = 10
 private const val MAX_PER_FAV_STOP = 5
 private const val MAX_PER_SELECTED_STOP = 8
 
-private val FI_TR = Locale("fi", "FI")
-private val TR_CLOCK = SimpleDateFormat("HH:mm", FI_TR)
+// Kellonaika HH:mm kaikilla kielillä → kieliriippumaton Locale.
+private val TR_CLOCK = SimpleDateFormat("HH:mm", Locale.ROOT)
 
 // ===================== Listan rivimalli (vastaa TransitFragment.buildItems-tyyppejä) =====================
 
@@ -260,13 +263,15 @@ private class TransitState(private val appContext: Context) {
     fun refresh() {
         if (disposed) return
         if (!hasLocationPermission()) {
-            transientStatus = "Salli sijainti nähdäksesi lähimmät lähdöt."
+            transientStatus = appContext.getString(R.string.transit_status_allow_location)
             requestPermission()
             return
         }
         if (inFlight) return
         inFlight = true
-        if (lastStops.isEmpty() && favStops.isEmpty()) transientStatus = "Haetaan lähimpiä lähtöjä…"
+        if (lastStops.isEmpty() && favStops.isEmpty()) {
+            transientStatus = appContext.getString(R.string.transit_status_fetching_nearby)
+        }
         requestLocationThenFetch()
     }
 
@@ -301,15 +306,15 @@ private class TransitState(private val appContext: Context) {
                 }
         } catch (e: SecurityException) {
             // Lupa ehti kadota tarkistuksen (refresh → hasLocationPermission) jälkeen.
-            onFetchFail("Sijaintilupa puuttuu.")
+            onFetchFail(appContext.getString(R.string.transit_status_no_location_permission))
         } catch (e: Exception) {
-            onFetchFail("Sijaintia ei voitu lukea.")
+            onFetchFail(appContext.getString(R.string.transit_status_location_read_failed))
         }
     }
 
     private fun fetchFallbackLocation(client: FusedLocationProviderClient) {
         if (disposed) { inFlight = false; return }
-        val errorMessage = "Sijaintia ei saatu. Kokeile Päivitä-nappia hetken päästä."
+        val errorMessage = appContext.getString(R.string.transit_status_location_unavailable)
         try {
             client.lastLocation
                 .addOnSuccessListener { location ->
@@ -323,7 +328,7 @@ private class TransitState(private val appContext: Context) {
                     if (best != null) fetch(best.latitude, best.longitude) else onFetchFail(errorMessage)
                 }
         } catch (e: SecurityException) {
-            onFetchFail("Sijaintilupa puuttuu.")
+            onFetchFail(appContext.getString(R.string.transit_status_no_location_permission))
         } catch (e: Exception) {
             val best = lastKnownFromLocationManager()
             if (best != null) fetch(best.latitude, best.longitude) else onFetchFail(errorMessage)
@@ -375,7 +380,7 @@ private class TransitState(private val appContext: Context) {
                     transientStatus = null
                 }
             } catch (e: Exception) {
-                ui.post { onFetchFail("Lähtöjen haku epäonnistui. Kokeile Päivitä-nappia.") }
+                ui.post { onFetchFail(appContext.getString(R.string.transit_status_departures_failed)) }
             }
         }
     }
@@ -412,7 +417,7 @@ private class TransitState(private val appContext: Context) {
      *  Overlay hakee lähdöt itse (stop/station-fallback). */
     fun openPlace(p: PlaceHit) {
         if (p.gtfsId.isNullOrEmpty()) {
-            Toast.makeText(appContext, "Tälle kohteelle ei ole lähtötietoja.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(appContext, R.string.transit_toast_no_departure_info, Toast.LENGTH_SHORT).show()
             return
         }
         fullDayStop = NearbyStop(
@@ -459,7 +464,7 @@ private class TransitState(private val appContext: Context) {
         if (sel != null) {
             val deps = sel.departures.sortedBy { it.departureEpochSec }
             val sectionKey = "selected-stop|${sel.gtfsId}"
-            items.add(TransitRow.HeaderRow(stopHeaderText(sel), headerModeOf(sel), sectionKey, zoneLabelOf(sel), sel))
+            items.add(TransitRow.HeaderRow(stopHeaderText(ctx, sel), headerModeOf(sel), sectionKey, zoneLabelOf(sel), sel))
             addAlertRows(items, sel, sectionKey)
             addDepRows(items, deps, minOf(deps.size, MAX_PER_SELECTED_STOP), sectionKey)
             return items
@@ -468,12 +473,14 @@ private class TransitState(private val appContext: Context) {
         if (query.trim().isNotEmpty()) {
             val routes = searchRoutes
             if (!routes.isNullOrEmpty()) {
-                items.add(TransitRow.HeaderRow("Linjat", "FAV", "search-routes", ""))
+                items.add(TransitRow.HeaderRow(ctx.getString(R.string.transit_header_lines), "FAV", "search-routes", ""))
                 routes.forEach { items.add(TransitRow.RouteRow(it)) }
             }
             val places = searchPlaces
             if (!places.isNullOrEmpty()) {
-                items.add(TransitRow.HeaderRow("Pysäkit ja asemat", "BUS", "search-places", ""))
+                items.add(
+                    TransitRow.HeaderRow(ctx.getString(R.string.transit_header_stops_stations), "BUS", "search-places", ""),
+                )
                 places.forEach { items.add(TransitRow.PlaceRow(it)) }
             }
             return items
@@ -487,7 +494,7 @@ private class TransitState(private val appContext: Context) {
         val shownFavStops = favStops.filter { it.gtfsId in favStopIdsNow }
         val favLines = TransitFavorites.getLines(ctx)
         if (favLines.isNotEmpty() || shownFavStops.isNotEmpty()) {
-            items.add(TransitRow.HeaderRow("Suosikit", "FAV", "favorites", ""))
+            items.add(TransitRow.HeaderRow(ctx.getString(R.string.transit_header_favourites), "FAV", "favorites", ""))
             favLines.forEach { items.add(TransitRow.RouteRow(it)) }
             shownFavStops.forEach { items.add(TransitRow.FavStopRow(it)) }
         }
@@ -500,7 +507,7 @@ private class TransitState(private val appContext: Context) {
             if (deps.isEmpty()) continue
             if (stopsShown >= MAX_NEARBY_STOPS) break
             val sectionKey = "nearby-stop|${stop.gtfsId}"
-            items.add(TransitRow.HeaderRow(stopHeaderText(stop), headerModeOf(stop), sectionKey, zoneLabelOf(stop), stop))
+            items.add(TransitRow.HeaderRow(stopHeaderText(ctx, stop), headerModeOf(stop), sectionKey, zoneLabelOf(stop), stop))
             addAlertRows(items, stop, sectionKey)
             addDepRows(items, deps, minOf(deps.size, MAX_PER_STOP), sectionKey)
             stopsShown++
@@ -545,13 +552,13 @@ private fun headerModeOf(s: NearbyStop): String {
     return "BUS"
 }
 
-private fun stopHeaderText(s: NearbyStop): String {
-    val name = if (s.name.isNullOrEmpty()) "Pysäkki" else s.name
+private fun stopHeaderText(ctx: Context, s: NearbyStop): String {
+    val name = if (s.name.isNullOrEmpty()) ctx.getString(R.string.transit_stop) else s.name
     val code = if (s.code.isNullOrEmpty()) "" else " " + s.code
     if (s.distanceMeters.isNaN() || s.distanceMeters < 0) return name + code
     val m = Math.round(s.distanceMeters)
     return if (m < 1000) "$name$code · $m m"
-    else "$name$code · " + String.format(FI_TR, "%.1f km", m / 1000.0)
+    else "$name$code · " + String.format(AppLocale.current(ctx), "%.1f km", m / 1000.0)
 }
 
 private fun zoneLabelOf(s: NearbyStop?): String {
@@ -562,33 +569,51 @@ private fun zoneLabelOf(s: NearbyStop?): String {
     return z.uppercase(Locale.ROOT)
 }
 
-private fun depTimeText(d: Departure): String {
+private fun depTimeText(ctx: Context, d: Departure): String {
     val nowSec = System.currentTimeMillis() / 1000L
     val diffSec = d.departureEpochSec - nowSec
-    if (diffSec <= 30) return "nyt"
-    val minutes = diffSec / 60L
-    return if (minutes < 60) "$minutes min" else TR_CLOCK.format(Date(d.departureEpochSec * 1000L))
+    if (diffSec <= 30) return ctx.getString(R.string.transit_dep_now)
+    val minutes = (diffSec / 60L).toInt()
+    return if (minutes < 60) {
+        ctx.resources.getQuantityString(R.plurals.transit_minutes, minutes, minutes)
+    } else {
+        TR_CLOCK.format(Date(d.departureEpochSec * 1000L))
+    }
 }
 
-private fun transitModeWord(mode: String?): String = when (mode) {
-    "TRAM" -> "Ratikka"
-    "RAIL" -> "Juna"
-    "SUBWAY" -> "Metro"
-    "FERRY" -> "Lautta"
-    else -> "Bussi"
+/** Kulkuväline lauseen subjektina ("Bussi" / "Bussen" / "The bus"); tuntematon → bussi kuten ennen. */
+@StringRes
+internal fun transitVehicleRes(mode: String?): Int = when (mode) {
+    "TRAM" -> R.string.transit_vehicle_tram
+    "RAIL" -> R.string.transit_vehicle_train
+    "SUBWAY" -> R.string.transit_vehicle_metro
+    "FERRY" -> R.string.transit_vehicle_ferry
+    else -> R.string.transit_vehicle_bus
 }
 
-private fun timelineModeWord(mode: String?): String = when (mode) {
-    "TRAM" -> "ratikka"
-    "RAIL" -> "juna"
-    "SUBWAY" -> "metro"
-    else -> "bussi"
+/** Kulkuvälineen nimi (Bussi / Buss / Bus), esim. ikonin saavutettavuuskuvaus. */
+@StringRes
+private fun transitModeNameRes(mode: String?): Int = when (mode) {
+    "TRAM" -> R.string.transit_mode_tram
+    "RAIL" -> R.string.transit_mode_train
+    "SUBWAY" -> R.string.transit_mode_metro
+    "FERRY" -> R.string.transit_mode_ferry
+    else -> R.string.transit_mode_bus
+}
+
+@StringRes
+private fun timelineVehicleRes(mode: String?, approaching: Boolean): Int = when (mode) {
+    "TRAM" -> if (approaching) R.string.transit_timeline_tram_approaching else R.string.transit_timeline_tram_here
+    "RAIL" -> if (approaching) R.string.transit_timeline_train_approaching else R.string.transit_timeline_train_here
+    "SUBWAY" -> if (approaching) R.string.transit_timeline_metro_approaching else R.string.transit_timeline_metro_here
+    "FERRY" -> if (approaching) R.string.transit_timeline_ferry_approaching else R.string.transit_timeline_ferry_here
+    else -> if (approaching) R.string.transit_timeline_bus_approaching else R.string.transit_timeline_bus_here
 }
 
 private fun liveClockText(epochSec: Long): String = TR_CLOCK.format(Date(epochSec * 1000L))
 
-private fun formatMetersFi(m: Double): String {
-    if (m >= 1000) return String.format(FI_TR, "%.1f km", m / 1000.0)
+private fun formatMeters(locale: Locale, m: Double): String {
+    if (m >= 1000) return String.format(locale, "%.1f km", m / 1000.0)
     val r = Math.round(m / 10.0) * 10
     return "$r m"
 }
@@ -642,7 +667,7 @@ private fun RegionSelectorRow(selected: TransitRegion, onSelect: (TransitRegion)
             FilterChip(
                 selected = r == selected,
                 onClick = { onSelect(r) },
-                label = { Text(r.label) },
+                label = { Text(stringResource(r.labelRes)) },
             )
         }
     }
@@ -663,7 +688,7 @@ internal fun TransitScreen() {
         val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (granted) state.refresh()
-        else state.transientStatus = "Sijaintilupa tarvitaan lähimpien lähtöjen näyttämiseen."
+        else state.transientStatus = context.getString(R.string.transit_status_location_needed)
     }
     state.requestPermission = {
         permLauncher.launch(
@@ -706,13 +731,14 @@ internal fun TransitScreen() {
 
     val trimmedQuery = state.query.trim()
     val emptyStatus: String? = if (items.isNotEmpty()) null else when {
-        state.selectedStop != null -> "Ei tulevia lähtöjä tältä pysäkiltä."
+        state.selectedStop != null -> stringResource(R.string.transit_empty_stop)
         trimmedQuery.isNotEmpty() -> when {
-            state.searchRoutes == null && state.searchPlaces == null -> "Haetaan \"$trimmedQuery\"…"
-            else -> "Ei osumia haulla \"$trimmedQuery\".\nKokeile pysäkin, aseman tai linjan nimeä/numeroa."
+            state.searchRoutes == null && state.searchPlaces == null ->
+                stringResource(R.string.transit_searching, trimmedQuery)
+            else -> stringResource(R.string.transit_no_results, trimmedQuery)
         }
         state.modeFilter != null && (state.lastStops.isNotEmpty() || state.favStops.isNotEmpty()) ->
-            "Ei valitun kulkuvälineen lähtöjä lähistöllä."
+            stringResource(R.string.transit_empty_mode)
         else -> null
     }
     val statusText = state.transientStatus ?: emptyStatus
@@ -720,7 +746,7 @@ internal fun TransitScreen() {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
-                "Lähilähdöt",
+                stringResource(R.string.transit_title_nearby),
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
@@ -738,7 +764,7 @@ internal fun TransitScreen() {
                         state.searchPlaces = null
                     }
                 },
-                placeholder = "Hae linja (esim. 550), pysäkki tai asema",
+                placeholder = stringResource(R.string.transit_search_hint),
                 modifier = Modifier.padding(horizontal = 14.dp),
                 onSearch = {
                     if (state.query.trim().isNotEmpty()) state.runLiveSearch(state.query)
@@ -754,16 +780,13 @@ internal fun TransitScreen() {
                 ) {
                     ModeFilterChip(
                         selected = state.modeFilter == null,
-                        label = "Kaikki",
+                        label = stringResource(R.string.transit_filter_all),
                         mode = null,
                     ) { state.updateModeFilter(null) }
-                    listOf(
-                        "BUS" to "Bussit", "TRAM" to "Ratikat", "RAIL" to "Junat",
-                        "SUBWAY" to "Metro", "FERRY" to "Lautat",
-                    ).forEach { (mode, label) ->
+                    MODE_FILTERS.forEach { (mode, labelRes) ->
                         ModeFilterChip(
                             selected = state.modeFilter == mode,
-                            label = label,
+                            label = stringResource(labelRes),
                             mode = mode,
                         ) { state.updateModeFilter(if (state.modeFilter == mode) null else mode) }
                     }
@@ -778,8 +801,7 @@ internal fun TransitScreen() {
                     if (items.isNotEmpty()) {
                         item(key = "reminder_hint") {
                             Text(
-                                "Vinkki: tallenna lähtö suosikiksi ja aseta muistutus.\n" +
-                                    "Saat ilmoituksen 1–60 minuuttia ennen lähtöä.",
+                                stringResource(R.string.transit_reminder_tip),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -894,7 +916,7 @@ private fun TransitHeaderRow(row: TransitRow.HeaderRow, onFullDay: (NearbyStop) 
             if (isFavStop) {
                 Icon(
                     painterResource(R.drawable.mobile_ic_star),
-                    contentDescription = "Suosikki",
+                    contentDescription = stringResource(R.string.transit_cd_favourite),
                     tint = Color.Unspecified,
                     modifier = Modifier
                         .padding(start = 4.dp)
@@ -904,7 +926,7 @@ private fun TransitHeaderRow(row: TransitRow.HeaderRow, onFullDay: (NearbyStop) 
         }
         if (stop != null) {
             Text(
-                "Koko päivä ›",
+                stringResource(R.string.transit_full_day_link),
                 modifier = Modifier.padding(start = 8.dp),
                 color = colorResource(R.color.mobile_accent),
                 fontSize = 12.sp,
@@ -985,7 +1007,7 @@ private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState)
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(
-                    depTimeText(d),
+                    depTimeText(context, d),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = colorResource(
@@ -995,7 +1017,11 @@ private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState)
                 if (d.realtime && Math.abs(d.delaySeconds) >= 60) {
                     val min = Math.round(d.delaySeconds / 60.0f)
                     Text(
-                        if (d.delaySeconds > 0) "+$min min" else "$min min",
+                        if (d.delaySeconds > 0) {
+                            pluralStringResource(R.plurals.transit_delay_late, min, min)
+                        } else {
+                            pluralStringResource(R.plurals.transit_delay_early, -min, -min)
+                        },
                         fontSize = 12.sp,
                         color = colorResource(
                             if (d.delaySeconds > 0) R.color.mobile_warning_red else R.color.mobile_transit_tram,
@@ -1010,7 +1036,7 @@ private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState)
                     )
                     Toast.makeText(
                         context,
-                        if (now) "Linja lisätty suosikkeihin" else "Linja poistettu suosikeista",
+                        if (now) R.string.transit_toast_line_added else R.string.transit_toast_line_removed,
                         Toast.LENGTH_SHORT,
                     ).show()
                     state.favVersion++
@@ -1019,7 +1045,7 @@ private fun TransitDepartureRow(d: Departure, favTick: Int, state: TransitState)
             ) {
                 Icon(
                     painterResource(if (fav) R.drawable.mobile_ic_star else R.drawable.mobile_ic_star_outline),
-                    contentDescription = "Suosikki",
+                    contentDescription = stringResource(R.string.transit_cd_favourite),
                     tint = Color.Unspecified,
                 )
             }
@@ -1044,7 +1070,7 @@ private fun TransitTypeEyebrow(iconRes: Int, label: String) {
             modifier = Modifier.size(13.dp),
         )
         Text(
-            label.uppercase(FI_TR),
+            label.uppercase(AppLocale.current(LocalContext.current)),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp,
@@ -1095,8 +1121,12 @@ private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
                     .weight(1f)
                     .padding(start = 12.dp),
             ) {
-                TransitTypeEyebrow(transitModeIconRes(r.mode), "Linja")
-                val routeText = r.longName ?: ""
+                TransitTypeEyebrow(transitModeIconRes(r.mode), stringResource(R.string.transit_line))
+                // Vanhat suosikit tallensivat pitkäksi nimeksi generoidun "Linja NNN" -tekstin → näytetään
+                // kielen mukainen nimi; sama kun pitkä nimi puuttuu.
+                val legacyLabel = remember { Regex("^Linja \\S+$") }
+                val routeText = r.longName?.takeUnless { it.isBlank() || legacyLabel.matches(it) }
+                    ?: stringResource(R.string.transit_line_number, r.shortName ?: "")
                 if (routeText.isNotBlank()) {
                     Text(
                         routeText,
@@ -1117,7 +1147,7 @@ private fun TransitRouteRow(r: RouteHit, favTick: Int, state: TransitState) {
             ) {
                 Icon(
                     painterResource(if (fav) R.drawable.mobile_ic_star else R.drawable.mobile_ic_star_outline),
-                    contentDescription = "Suosikki",
+                    contentDescription = stringResource(R.string.transit_cd_favourite),
                     tint = Color.Unspecified,
                 )
             }
@@ -1132,8 +1162,8 @@ private fun TransitFavStopRow(stop: NearbyStop, state: TransitState) {
     // Best-effort: metro-/juna-pysäkki = asema (oma moodi-ikoni), muut = pysäkki (pylväsikoni).
     val isStation = mode == "SUBWAY" || mode == "RAIL"
     val typeIcon = if (isStation) transitModeIconRes(mode) else R.drawable.mobile_ic_signpost_24
-    val typeLabel = if (isStation) "Asema" else "Pysäkki"
-    val name = if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name
+    val typeLabel = stringResource(if (isStation) R.string.transit_station else R.string.transit_stop)
+    val name = if (stop.name.isNullOrEmpty()) stringResource(R.string.transit_stop) else stop.name
     val code = stop.code ?: ""
     ArkiCard(
         modifier = Modifier
@@ -1191,14 +1221,14 @@ private fun TransitFavStopRow(stop: NearbyStop, state: TransitState) {
             IconButton(
                 onClick = {
                     TransitFavorites.toggleStopFav(context, stop.gtfsId, name)
-                    Toast.makeText(context, "Poistettu suosikeista", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.transit_toast_removed_from_favourites, Toast.LENGTH_SHORT).show()
                     state.favVersion++
                 },
                 modifier = Modifier.size(40.dp),
             ) {
                 Icon(
                     painterResource(R.drawable.mobile_ic_star),
-                    contentDescription = "Poista suosikeista",
+                    contentDescription = stringResource(R.string.transit_cd_remove_favourite),
                     tint = Color.Unspecified,
                 )
             }
@@ -1274,7 +1304,7 @@ private fun TransitPlaceRow(p: PlaceHit, state: TransitState) {
                     p.modes.forEach { m ->
                         Icon(
                             painterResource(transitModeIconRes(m)),
-                            contentDescription = m,
+                            contentDescription = stringResource(transitModeNameRes(m)),
                             tint = transitModeColor(m),
                             modifier = Modifier.size(19.dp),
                         )
@@ -1295,14 +1325,14 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
         onDismissRequest = onDismiss,
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Sulje") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) }
         },
         text = {
             // Samat täpät/rivit kuin asetussivulla (SwitchRow/ClickableRow) → yhtenäinen ulkoasu.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SwitchRow(
-                    title = "Suosikkilinja",
-                    subtitle = "Linja ${d.routeShortName ?: ""}",
+                    title = stringResource(R.string.transit_fav_line),
+                    subtitle = stringResource(R.string.transit_line_number, d.routeShortName ?: ""),
                     leadingIconRes = R.drawable.mobile_ic_star_outline,
                     checked = lineFav,
                 ) {
@@ -1310,7 +1340,7 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
                     state.favVersion++
                 }
                 SwitchRow(
-                    title = "Suosikkipysäkki",
+                    title = stringResource(R.string.transit_fav_stop),
                     subtitle = d.stopName ?: "",
                     leadingIconRes = R.drawable.mobile_ic_star_outline,
                     checked = stopFav,
@@ -1323,8 +1353,8 @@ private fun TransitFavoriteDialog(d: Departure, state: TransitState, onDismiss: 
                 // Vain jos lähtö on >= 2 min päässä → säädin 1–60 min on aina kelvollinen.
                 if (d.departureEpochSec - System.currentTimeMillis() / 1000L >= 120) {
                     ClickableRow(
-                        title = "Lisää muistutus lähtöajasta",
-                        subtitle = "Saat ilmoituksen ennen lähtöä",
+                        title = stringResource(R.string.transit_add_reminder),
+                        subtitle = stringResource(R.string.transit_add_reminder_sub),
                         leadingIconRes = R.drawable.mobile_ic_clock_24,
                         trailingIconRes = R.drawable.mobile_ic_chevron_right_24,
                     ) {
@@ -1367,25 +1397,38 @@ private fun TransitReminderDialog(d: Departure, onDismiss: () -> Unit) {
                 )
                 Toast.makeText(
                     context,
-                    if (ok) "Muistutus $leadMin min ennen lähtöä (klo ${TR_CLOCK.format(Date(remindAtSec * 1000L))})"
-                    else "Lähtö on jo liian lähellä",
+                    if (ok) {
+                        context.resources.getQuantityString(
+                            R.plurals.transit_reminder_set_toast, leadMin, leadMin,
+                            TR_CLOCK.format(Date(remindAtSec * 1000L)),
+                        )
+                    } else {
+                        context.getString(R.string.transit_reminder_too_close)
+                    },
                     Toast.LENGTH_LONG,
                 ).show()
                 onDismiss()
-            }) { Text("Aseta muistutus") }
+            }) { Text(stringResource(R.string.transit_reminder_set)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Peruuta") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
         title = {
+            val depClock = TR_CLOCK.format(Date(d.departureEpochSec * 1000L))
             Text(
-                (if (!d.routeShortName.isNullOrEmpty()) "Linja ${d.routeShortName} " else "Lähtö ") +
-                    "klo ${TR_CLOCK.format(Date(d.departureEpochSec * 1000L))}",
+                if (!d.routeShortName.isNullOrEmpty()) {
+                    stringResource(R.string.transit_line_at, d.routeShortName, depClock)
+                } else {
+                    stringResource(R.string.transit_departure_at, depClock)
+                },
             )
         },
         text = {
             Column {
-                Text("Muistuta $leadMin min ennen lähtöä", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Ilmoitus klo ${TR_CLOCK.format(Date(remindAtSec * 1000L))}",
+                    pluralStringResource(R.plurals.transit_reminder_lead, leadMin, leadMin),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stringResource(R.string.transit_reminder_at, TR_CLOCK.format(Date(remindAtSec * 1000L))),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1397,7 +1440,7 @@ private fun TransitReminderDialog(d: Departure, onDismiss: () -> Unit) {
                 )
                 if (!d.stopName.isNullOrEmpty()) {
                     Text(
-                        "Pysäkiltä ${d.stopName}",
+                        stringResource(R.string.transit_reminder_from_stop, d.stopName),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1452,10 +1495,10 @@ private fun TransitAlertRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
 private fun TransitAlertDialog(a: TransitAlert, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Sulje") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) } },
         title = {
             Text(
-                if (a.header.isNotEmpty()) a.header else "Häiriötiedote",
+                if (a.header.isNotEmpty()) a.header else stringResource(R.string.transit_alert_title),
                 fontWeight = FontWeight.Bold,
             )
         },
@@ -1480,17 +1523,17 @@ private sealed class FullDayRow {
     class Dep(val d: Departure) : FullDayRow()
 }
 
-private val TR_HOUR = SimpleDateFormat("HH", FI_TR)
+private val TR_HOUR = SimpleDateFormat("HH", Locale.ROOT)
 
-/** Tunti-otsikko jokaiselle (aikajärjestyksessä olevalle) lähdölle, tai null jos sama tunti kuin
- *  edellinen. Eriytetty puhtaaksi funktioksi yksikkötestiä varten. */
+/** Tunti ("08") jokaiselle (aikajärjestyksessä olevalle) lähdölle, tai null jos sama tunti kuin
+ *  edellinen. UI muotoilee otsikon (transit_hour_header). Puhdas funktio yksikkötestiä varten. */
 internal fun fullDayHourHeaders(epochSecs: List<Long>): List<String?> {
     val out = ArrayList<String?>(epochSecs.size)
     var last = ""
     for (e in epochSecs) {
         val h = TR_HOUR.format(Date(e * 1000L))
         if (h != last) {
-            out.add("klo $h")
+            out.add(h)
             last = h
         } else {
             out.add(null)
@@ -1521,7 +1564,7 @@ private fun TransitFullDayOverlay(
     val context = LocalContext.current
     var fav by remember(stop) { mutableStateOf(TransitFavorites.isStopFav(context, stop.gtfsId)) }
     var rows by remember(stop) { mutableStateOf<List<FullDayRow>?>(null) }
-    var status by remember(stop) { mutableStateOf("Haetaan koko päivän aikataulua…") }
+    var status by remember(stop) { mutableStateOf(context.getString(R.string.transit_full_day_loading)) }
     LaunchedEffect(stop) {
         val ns = withContext(Dispatchers.IO) {
             try {
@@ -1534,7 +1577,7 @@ private fun TransitFullDayOverlay(
             }
         }
         if (ns == null || ns.departures.isEmpty()) {
-            status = "Koko päivän aikataulua ei saatu."
+            status = context.getString(R.string.transit_full_day_failed)
             rows = emptyList()
         } else {
             rows = buildFullDayRows(ns.departures)
@@ -1555,7 +1598,10 @@ private fun TransitFullDayOverlay(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
-                Icon(painterResource(R.drawable.mobile_ic_arrow_back), contentDescription = "Takaisin")
+                Icon(
+                    painterResource(R.drawable.mobile_ic_arrow_back),
+                    contentDescription = stringResource(R.string.common_back),
+                )
             }
             Column(
                 modifier = Modifier
@@ -1563,14 +1609,14 @@ private fun TransitFullDayOverlay(
                     .padding(start = 6.dp),
             ) {
                 Text(
-                    if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name,
+                    if (stop.name.isNullOrEmpty()) stringResource(R.string.transit_stop) else stop.name,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    "Koko päivän aikataulu",
+                    stringResource(R.string.transit_full_day_title),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1578,11 +1624,11 @@ private fun TransitFullDayOverlay(
             // Suosikkitähti: lisää/poista pysäkki suosikeista (näkyy Lähilähdöissä ja widgetin valinnassa).
             IconButton(
                 onClick = {
-                    val label = if (stop.name.isNullOrEmpty()) "Pysäkki" else stop.name
+                    val label = if (stop.name.isNullOrEmpty()) context.getString(R.string.transit_stop) else stop.name
                     fav = TransitFavorites.toggleStopFav(context, stop.gtfsId, label)
                     Toast.makeText(
                         context,
-                        if (fav) "Pysäkki lisätty suosikkeihin" else "Pysäkki poistettu suosikeista",
+                        if (fav) R.string.transit_toast_stop_added else R.string.transit_toast_stop_removed,
                         Toast.LENGTH_SHORT,
                     ).show()
                     onFavoritesChanged()
@@ -1591,7 +1637,9 @@ private fun TransitFullDayOverlay(
             ) {
                 Icon(
                     painterResource(if (fav) R.drawable.mobile_ic_star else R.drawable.mobile_ic_star_outline),
-                    contentDescription = if (fav) "Poista suosikeista" else "Lisää suosikiksi",
+                    contentDescription = stringResource(
+                        if (fav) R.string.transit_cd_remove_favourite else R.string.transit_cd_add_favourite,
+                    ),
                     // Sama keltainen kuin reittien tähdissä (drawablen oma väri).
                     tint = Color.Unspecified,
                 )
@@ -1632,7 +1680,7 @@ private fun TransitFullDayOverlay(
                 ) { i ->
                     when (val row = r[i]) {
                         is FullDayRow.Hour -> Text(
-                            row.label,
+                            stringResource(R.string.transit_hour_header, row.label),
                             modifier = Modifier.padding(start = 18.dp, top = 14.dp, bottom = 4.dp),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
@@ -1747,40 +1795,45 @@ private class LiveTracking(val tl: TripTimeline) {
     }
 
     /** VP-päivitys → banneriteksti (entinen muotoilu säilytetty) tai null jos hylätään. */
-    fun bannerFor(mode: String, lat: Double, lon: Double, loc: String?, tsi: Long): String? {
+    fun bannerFor(ctx: Context, mode: String, lat: Double, lon: Double, loc: String?, tsi: Long): String? {
         val e = etaFor(lat, lon, loc, tsi) ?: return null
-        return liveBannerText(mode, e)
+        return liveBannerText(ctx, mode, e)
     }
 }
 
 /** [LiveEta] → sama banneriteksti kuin ennen (kuvausrivi varatilana + vanha tekstipolku). */
-private fun liveBannerText(mode: String, e: LiveEta): String {
-    val word = transitModeWord(mode)
-    val src = if (e.gps) "" else " (arvio)"
-    if (e.passed) return "$word on jo ohittanut pysäkkisi$src."
+private fun liveBannerText(ctx: Context, mode: String, e: LiveEta): String {
+    val word = ctx.getString(transitVehicleRes(mode))
+    val src = if (e.gps) "" else " " + ctx.getString(R.string.transit_live_estimate)
+    if (e.passed) return ctx.getString(R.string.transit_live_passed, word, src)
     var eta = ""
     if (e.boardEpochSec > 0) {
         val secs = e.boardEpochSec - System.currentTimeMillis() / 1000L
-        eta = if (secs in 0 until 3600) {
-            " (saapuu ~klo ${liveClockText(e.boardEpochSec)}, ~${maxOf(1, Math.round(secs / 60.0))} min)"
+        val clock = liveClockText(e.boardEpochSec)
+        eta = " " + if (secs in 0 until 3600) {
+            val min = maxOf(1, Math.round(secs / 60.0).toInt())
+            ctx.resources.getQuantityString(R.plurals.transit_live_eta_min, min, clock, min)
         } else {
-            " (saapuu ~klo ${liveClockText(e.boardEpochSec)})"
+            ctx.getString(R.string.transit_live_eta, clock)
         }
     }
-    return "$word ~${formatMetersFi(maxOf(0.0, e.toBoardMeters))} ennen pysäkkiäsi$eta$src."
+    val distance = formatMeters(AppLocale.current(ctx), maxOf(0.0, e.toBoardMeters))
+    return ctx.getString(R.string.transit_live_distance, word, distance, eta, src)
 }
 
-internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegion): String {
-    val word = transitModeWord(mode)
+internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegion): TransitText {
+    val word = TransitText.Res(transitVehicleRes(mode))
     if (tl.vehicleStopIndices.isEmpty()) {
         // HSL: GraphQL on auktoriteetti → tyhjä = vuoro ei liikkeellä. Tampere: live tulee MQTT:stä
         // (tämä GraphQL-pohjainen teksti on vain varatila kunnes MQTT-overlay täyttää bannerin) →
         // neutraali "haetaan", ei valhetta. Muut alueet: ei live-sijaintia lainkaan.
-        return when {
-            region.liveVehiclePositions -> "Ei live-sijaintia — vuoro ei ole vielä liikkeellä."
-            region.liveViaMqtt -> "Haetaan live-sijaintia…"
-            else -> "Live-sijainti ei ole saatavilla tällä alueella — ajat ovat aikataulun mukaiset."
-        }
+        return TransitText.Res(
+            when {
+                region.liveVehiclePositions -> R.string.transit_banner_trip_not_started
+                region.liveViaMqtt -> R.string.transit_banner_fetching_live
+                else -> R.string.transit_banner_trip_no_live_region
+            },
+        )
     }
     val relIdx = tl.vehicleStopIndices[0]
     val approaching = tl.vehicleIncoming
@@ -1790,29 +1843,40 @@ internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegio
     if (tl.boardStopIndex >= 0) {
         val n = tl.boardStopIndex - effIdx
         if (n > 0) {
-            val pos = if (approaching) "matkalla pysäkille $at" else "pysäkillä $at"
-            return "$word on $n pysäkin päässä pysäkistäsi (nyt $pos)."
+            val pos = TransitText.Res(
+                if (approaching) R.string.transit_pos_en_route else R.string.transit_pos_at,
+                listOf(at),
+            )
+            return TransitText.Plural(R.plurals.transit_banner_stops_away, n, listOf(word, n, pos))
         }
-        if (n == 0) return "$word on pysäkilläsi tai aivan vieressä ($at)."
-        return "$word on jo ohittanut pysäkkisi (nyt: $at)."
+        if (n == 0) return TransitText.Res(R.string.transit_banner_at_your_stop, listOf(word, at))
+        return TransitText.Res(R.string.transit_banner_passed_now, listOf(word, at))
     }
-    return word + (if (approaching) " on matkalla pysäkille " else " on pysäkillä ") + at + "."
+    return TransitText.Res(
+        if (approaching) R.string.transit_banner_en_route_to else R.string.transit_banner_at_stop,
+        listOf(word, at),
+    )
 }
 
-internal fun routeBannerText(tl: TripTimeline, region: TransitRegion): String {
+internal fun routeBannerText(tl: TripTimeline, region: TransitRegion): TransitText {
     val c = tl.vehicleStopIndices.size
     if (c == 0) {
         // HSL: GraphQL auktoriteetti. Tampere: live tulee MQTT:stä (tämä on varatila kunnes MQTT-overlay
         // päivittää bannerin live-vuorojen määrällä) → neutraali "haetaan". Muut: ei livea.
-        return when {
-            region.liveVehiclePositions -> "Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat."
-            region.liveViaMqtt -> "Haetaan live-sijaintia — alla reitti ja seuraavat lähtöajat."
-            else -> "Live-sijainti ei ole saatavilla tällä alueella — alla reitti ja seuraavat lähtöajat."
-        }
+        return TransitText.Res(
+            when {
+                region.liveVehiclePositions -> R.string.transit_banner_route_none
+                region.liveViaMqtt -> R.string.transit_banner_route_fetching
+                else -> R.string.transit_banner_route_no_live_region
+            },
+        )
     }
-    return c.toString() + (if (c == 1) " vuoro liikkeellä" else " vuoroa liikkeellä") +
-        " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä."
+    return routeRunningText(c)
 }
+
+/** "N vuoroa liikkeellä — …" (GraphQL-vehiclePositions ja Tampereen MQTT-laskuri). */
+internal fun routeRunningText(count: Int): TransitText =
+    TransitText.Plural(R.plurals.transit_banner_route_running, count, listOf(count))
 
 /** Vuoronäkymän yläosa (UI-spec-A, löyhästi sovellettu): app bar (linja + lähtö→määränpää, EI
  *  takaisin-nuolta — järjestelmän paluuele riittää) + ETA-kortti. Iso saapumisaika nousupysäkin
@@ -1858,7 +1922,8 @@ private fun TripEtaHeader(
     val boardName = (boardStop?.name) ?: ""
     val passed = liveEta?.passed == true
     val live = liveEta != null && !liveEta.passed
-    val distanceText = if (live && liveEta != null) formatMetersFi(maxOf(0.0, liveEta.toBoardMeters)) else null
+    val locale = AppLocale.current(LocalContext.current)
+    val distanceText = if (live && liveEta != null) formatMeters(locale, maxOf(0.0, liveEta.toBoardMeters)) else null
     // Kuvausrivi (kaikki bannerin tilat säilyvät) näytetään kun ei "siistissä" live-tilassa.
     val showDescriptive = liveEta == null || passed
 
@@ -1889,7 +1954,7 @@ private fun TripEtaHeader(
             Column(modifier = Modifier.weight(1f)) {
                 if (originText.isNotBlank()) {
                     Text(
-                        "${originText.uppercase(Locale.getDefault())} →",
+                        "${originText.uppercase(locale)} →",
                         color = dimColor,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
@@ -1925,7 +1990,7 @@ private fun TripEtaHeader(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        if (passed) "OHITTANUT PYSÄKKISI" else "SAAPUU PYSÄKILLESI",
+                        stringResource(if (passed) R.string.transit_eta_passed else R.string.transit_eta_arriving),
                         color = labelColor,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -1943,14 +2008,24 @@ private fun TripEtaHeader(
                                 Spacer(Modifier.width(8.dp))
                                 Text("·", color = dimColor, fontSize = 20.sp)
                                 Spacer(Modifier.width(8.dp))
-                                Text("klo", color = dimColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                Text(
+                                    stringResource(R.string.transit_clock_label),
+                                    color = dimColor,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                )
                                 Spacer(Modifier.width(4.dp))
                                 Text(klo, color = midColor, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     } else if (klo != null) {
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text("klo", color = dimColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                stringResource(R.string.transit_clock_label),
+                                color = dimColor,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
                             Spacer(Modifier.width(6.dp))
                             Text(klo, color = bigColor, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                         }
@@ -2016,13 +2091,18 @@ private fun PulsingLiveDot(color: Color) {
 @Composable
 private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
     BackHandler(onBack = onClose)
 
     var routePatterns by remember(detail) { mutableStateOf<RoutePatterns?>(null) }
     var patternIdx by remember(detail) { mutableIntStateOf(0) }
     var timeline by remember(detail) { mutableStateOf<TripTimeline?>(null) }
     var banner by remember(detail) {
-        mutableStateOf(if (detail is TransitDetail.Route) "Haetaan linjan tietoja…" else "Haetaan vuoron tietoja…")
+        mutableStateOf(
+            context.getString(
+                if (detail is TransitDetail.Route) R.string.transit_loading_route else R.string.transit_loading_trip,
+            ),
+        )
     }
     val liveHolder = remember(detail) { mutableStateOf<LiveTracking?>(null) }
     var detailAlert by remember(detail) { mutableStateOf<TransitAlert?>(null) }
@@ -2047,7 +2127,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
             try { DigitransitApi.routePatterns(detail.routeGtfsId, regionForGtfsId(detail.routeGtfsId)) } catch (e: Exception) { null }
         }
         if (rp == null || rp.patterns.isEmpty()) {
-            banner = "Linjan tietoja ei saatu."
+            banner = context.getString(R.string.transit_line_failed)
             return@LaunchedEffect
         }
         routePatterns = rp
@@ -2060,7 +2140,9 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
         if (isRoute && routePatterns == null) return@LaunchedEffect
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
-                if (isRoute) banner = banner.takeIf { timeline != null } ?: "Haetaan aikataulua…"
+                if (isRoute) {
+                    banner = banner.takeIf { timeline != null } ?: context.getString(R.string.transit_loading_timetable)
+                }
                 val tl = withContext(Dispatchers.IO) {
                     try {
                         when (detail) {
@@ -2078,7 +2160,9 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     }
                 }
                 if (tl == null || tl.stops.isEmpty()) {
-                    banner = if (isRoute) "Linjan aikataulua ei saatu." else "Vuoron tietoja ei saatu."
+                    banner = context.getString(
+                        if (isRoute) R.string.transit_line_timetable_failed else R.string.transit_trip_failed,
+                    )
                 } else {
                     timeline = tl
                     val bannerRegion = regionForGtfsId(
@@ -2087,8 +2171,10 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                             is TransitDetail.Route -> detail.routeGtfsId
                         }
                     )
-                    banner = if (isRoute) routeBannerText(tl, bannerRegion)
-                    else tripBannerText(tl, detail.mode, bannerRegion)
+                    banner = (
+                        if (isRoute) routeBannerText(tl, bannerRegion)
+                        else tripBannerText(tl, detail.mode, bannerRegion)
+                        ).resolve(context)
                     // HSL: vaatii GraphQL:stä saadun vehicleId:n (HFP-MQTT-tilausta varten).
                     // Tampere (liveViaMqtt): vehicleId on aina tyhjä → riittää reittimuoto + nousupysäkki,
                     // live-GPS tulee TampereMqttClientilta route-topicista.
@@ -2131,7 +2217,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     val holder = liveHolder.value ?: return@post
                     val e = holder.etaFor(lat, lon, loc, tsi) ?: return@post
                     liveEta = e
-                    banner = liveBannerText(detail.mode, e)
+                    banner = liveBannerText(context, detail.mode, e)
                 }
             }
             onDispose { client.disconnect() }
@@ -2159,7 +2245,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     val e = holder.etaFor(lat, lon, "GPS", tsi)
                     if (e != null) {
                         liveEta = e
-                        liveBanner = liveBannerText(mode, e)
+                        liveBanner = liveBannerText(context, mode, e)
                     }
                     val idx = holder.tl.stops.indexOfFirst { it.gtfsId == "tampere:$stopId" }
                     if (idx >= 0) {
@@ -2199,9 +2285,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                         val active = liveRouteStops.values.count {
                             System.currentTimeMillis() - it.second < 90_000L
                         }
-                        liveBanner = "$active " +
-                            (if (active == 1) "vuoro liikkeellä" else "vuoroa liikkeellä") +
-                            " — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä."
+                        liveBanner = routeRunningText(active).resolve(context)
                     }
                 }
             }
@@ -2232,7 +2316,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                 IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
                     Icon(
                         painterResource(R.drawable.mobile_ic_arrow_back),
-                        contentDescription = "Takaisin",
+                        contentDescription = stringResource(R.string.common_back),
                     )
                 }
                 Box(
@@ -2272,9 +2356,13 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     TextButton(onClick = {
                         patternIdx = (patternIdx + 1) % rp.patterns.size
                         timeline = null
-                        banner = "Haetaan aikataulua…"
+                        banner = context.getString(R.string.transit_loading_timetable)
                     }) {
-                        Text("Valitse suunta", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.transit_choose_direction),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }
@@ -2379,8 +2467,8 @@ private fun TimelineStopRow(
         else -> MaterialTheme.colorScheme.outlineVariant
     }
     var label = s.name ?: ""
-    if (isVehicle) label += "  • " + timelineModeWord(mode) + (if (approaching) " tulossa" else " tässä")
-    else if (isBoard) label += "  • oma pysäkki"
+    if (isVehicle) label += "  • " + stringResource(timelineVehicleRes(mode, approaching))
+    else if (isBoard) label += "  • " + stringResource(R.string.transit_timeline_your_stop)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -2419,8 +2507,6 @@ private fun TimelineStopRow(
 
 // ===================== Häiriöt ja muutokset (kaikki HSL-häiriöt) =====================
 
-private val TR_DATETIME = SimpleDateFormat("d.M. 'klo' HH:mm", FI_TR)
-
 /** Listan severity-ikonin väri (teema-adaptoituva AAA-tekstiväri neutraalilla kortilla). */
 private fun alertIconColorRes(rank: Int): Int = when {
     rank >= 3 -> R.color.mobile_warning_red
@@ -2428,13 +2514,13 @@ private fun alertIconColorRes(rank: Int): Int = when {
     else -> R.color.mobile_warning_yellow
 }
 
-private fun effectiveRangeText(a: TransitAlert): String {
-    val s = if (a.startEpochSec > 0) TR_DATETIME.format(Date(a.startEpochSec * 1000L)) else ""
-    val e = if (a.endEpochSec > 0) TR_DATETIME.format(Date(a.endEpochSec * 1000L)) else ""
+private fun effectiveRangeText(ctx: Context, fmt: SimpleDateFormat, a: TransitAlert): String {
+    val s = if (a.startEpochSec > 0) fmt.format(Date(a.startEpochSec * 1000L)) else ""
+    val e = if (a.endEpochSec > 0) fmt.format(Date(a.endEpochSec * 1000L)) else ""
     return when {
         s.isNotEmpty() && e.isNotEmpty() -> "$s – $e"
-        s.isNotEmpty() -> "alkaen $s"
-        e.isNotEmpty() -> "$e asti"
+        s.isNotEmpty() -> ctx.getString(R.string.transit_range_from, s)
+        e.isNotEmpty() -> ctx.getString(R.string.transit_range_until, e)
         else -> ""
     }
 }
@@ -2449,20 +2535,20 @@ internal fun filterDisruptions(
     query: String,
     nowSec: Long,
 ): List<TransitAlert> {
-    val q = query.trim().lowercase(FI_TR)
+    val q = query.trim().lowercase(Locale.ROOT)
     return list.filter { a ->
         val modeOk = mode == null || a.mode.equals(mode, ignoreCase = true)
         val activeOk = !activeOnly || a.isActiveAt(nowSec)
         // Linjanumero osuu tarkasti tai alkuosalla (myös yksikirjaimiset junalinjat A/P/T) ja ≥2
         // merkillä myös osumana. Vapaa tekstihaku (pysäkki/otsikko/kuvaus) vasta ≥2 merkillä, ettei
         // yksi kirjain tulvi proosasta (suomenkielinen teksti sisältää lähes aina kysytyn kirjaimen).
-        val rsn = a.routeShortName.lowercase(FI_TR)
+        val rsn = a.routeShortName.lowercase(Locale.ROOT)
         val routeOk = q.isNotEmpty() && (rsn == q || rsn.startsWith(q) || (q.length >= 2 && rsn.contains(q)))
         val textOk = q.isEmpty() || routeOk || (
             q.length >= 2 && (
-                a.stopName.lowercase(FI_TR).contains(q) ||
-                    a.header.lowercase(FI_TR).contains(q) ||
-                    a.description.lowercase(FI_TR).contains(q)
+                a.stopName.lowercase(Locale.ROOT).contains(q) ||
+                    a.header.lowercase(Locale.ROOT).contains(q) ||
+                    a.description.lowercase(Locale.ROOT).contains(q)
                 )
             )
         modeOk && activeOk && textOk
@@ -2485,28 +2571,30 @@ internal object DisruptionNav {
 internal fun HslDisruptionsScreen() {
     val refreshTick = LocalRefreshTick.current
     var all by remember { mutableStateOf<List<TransitAlert>?>(null) }
-    var status by remember { mutableStateOf("Haetaan häiriöitä…") }
+    val context = LocalContext.current
+    var status by remember { mutableStateOf(context.getString(R.string.transit_disruptions_loading)) }
     var query by remember { mutableStateOf("") }
     var modeFilter by remember { mutableStateOf<String?>(null) }
     var activeOnly by remember { mutableStateOf(true) }
     var dialogFor by remember { mutableStateOf<TransitAlert?>(null) }
-    val context = LocalContext.current
     // Alue (HSL / Tampere) — oma valinta häiriösivulla; oletus = Lähilähtöjen valinta. Helsingissä
     // asuva ei tarvitse Tampereen häiriöitä eikä toisin päin → ei sekoiteta samaan listaan.
     var region by remember { mutableStateOf(currentRegion(context)) }
     val favLines = remember { TransitFavorites.getLines(context).map { it.shortName }.filter { it.isNotEmpty() }.toSet() }
     val favStops = remember { TransitFavorites.getStops(context).map { it.name }.filter { it.isNotEmpty() }.toSet() }
+    // Pysäkin nimi riippuu kielestä (Accept-Language) → vertailu ensisijaisesti gtfsId:llä.
+    val favStopIds = remember { TransitFavorites.getStops(context).map { it.gtfsId }.filter { it.isNotEmpty() }.toSet() }
     val hasFavorites = favLines.isNotEmpty() || favStops.isNotEmpty()
     // Ilmoituksesta avattaessa (HSL-suosikkihäiriö): näytä heti vain suosikkien häiriöt.
     var favoritesOnly by remember { mutableStateOf(DisruptionNav.consumeFocusFavorites() && hasFavorites) }
 
     LaunchedEffect(refreshTick, region) {
-        if (all == null) status = "Haetaan häiriöitä…"
+        if (all == null) status = context.getString(R.string.transit_disruptions_loading)
         val result = withContext(Dispatchers.IO) {
             try { DigitransitApi.serviceAlerts(region) } catch (e: Exception) { null }
         }
         if (result == null) {
-            if (all == null) status = "Häiriöiden haku epäonnistui. Kokeile Päivitä-nappia."
+            if (all == null) status = context.getString(R.string.transit_disruptions_failed)
         } else {
             all = result
         }
@@ -2518,7 +2606,7 @@ internal fun HslDisruptionsScreen() {
             if (favoritesOnly) {
                 base.filter { a ->
                     (a.routeShortName.isNotEmpty() && favLines.contains(a.routeShortName)) ||
-                        (a.stopName.isNotEmpty() && favStops.contains(a.stopName))
+                        a.matchesStop(favStopIds, favStops)
                 }
             } else {
                 base
@@ -2528,7 +2616,7 @@ internal fun HslDisruptionsScreen() {
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            "Häiriöt ja muutokset",
+            stringResource(R.string.transit_title_disruptions),
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
@@ -2538,7 +2626,7 @@ internal fun HslDisruptionsScreen() {
         SearchTextField(
             value = query,
             onValueChange = { query = it },
-            placeholder = "Hae linja tai pysäkki",
+            placeholder = stringResource(R.string.transit_disruptions_search_hint),
             modifier = Modifier.padding(horizontal = 14.dp),
             onClear = { query = "" },
         )
@@ -2550,16 +2638,13 @@ internal fun HslDisruptionsScreen() {
         ) {
             ModeFilterChip(
                 selected = modeFilter == null,
-                label = "Kaikki",
+                label = stringResource(R.string.transit_filter_all),
                 mode = null,
             ) { modeFilter = null }
-            listOf(
-                "BUS" to "Bussit", "TRAM" to "Ratikat", "RAIL" to "Junat",
-                "SUBWAY" to "Metro", "FERRY" to "Lautat",
-            ).forEach { (mode, label) ->
+            MODE_FILTERS.forEach { (mode, labelRes) ->
                 ModeFilterChip(
                     selected = modeFilter == mode,
-                    label = label,
+                    label = stringResource(labelRes),
                     mode = mode,
                 ) { modeFilter = if (modeFilter == mode) null else mode }
             }
@@ -2571,20 +2656,20 @@ internal fun HslDisruptionsScreen() {
             FilterChip(
                 selected = activeOnly,
                 onClick = { activeOnly = !activeOnly },
-                label = { Text("Vain voimassa olevat") },
+                label = { Text(stringResource(R.string.transit_filter_active_only)) },
             )
             if (hasFavorites) {
                 Spacer(modifier = Modifier.width(8.dp))
                 FilterChip(
                     selected = favoritesOnly,
                     onClick = { favoritesOnly = !favoritesOnly },
-                    label = { Text("Vain suosikit") },
+                    label = { Text(stringResource(R.string.transit_filter_favourites_only)) },
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
             shown?.let {
                 Text(
-                    "${it.size} häiriötä",
+                    pluralStringResource(R.plurals.transit_disruption_count, it.size, it.size),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -2592,6 +2677,9 @@ internal fun HslDisruptionsScreen() {
         }
         Box(modifier = Modifier.fillMaxSize()) {
             val list = shown
+            val datePattern = stringResource(R.string.transit_datetime_pattern)
+            val locale = AppLocale.current(context)
+            val dateFmt = remember(datePattern, locale) { SimpleDateFormat(datePattern, locale) }
             if (list != null && list.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -2602,11 +2690,11 @@ internal fun HslDisruptionsScreen() {
                     items(
                         list.size,
                         key = { i -> "${list[i].header}:${list[i].startEpochSec}:${list[i].routeShortName}:$i" },
-                    ) { i -> DisruptionRow(list[i]) { dialogFor = it } }
+                    ) { i -> DisruptionRow(list[i], dateFmt) { dialogFor = it } }
                 }
             } else {
                 Text(
-                    if (list == null) status else "Ei häiriöitä valituilla suodattimilla.",
+                    if (list == null) status else stringResource(R.string.transit_disruptions_empty),
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(32.dp),
@@ -2623,6 +2711,15 @@ internal fun HslDisruptionsScreen() {
         TransitAlertDialog(a) { dialogFor = null }
     }
 }
+
+/** Kulkuvälinesuodattimet (moodi → chipin teksti), sama järjestys Lähilähdöissä ja Häiriöissä. */
+private val MODE_FILTERS: List<Pair<String, Int>> = listOf(
+    "BUS" to R.string.transit_filter_bus,
+    "TRAM" to R.string.transit_filter_tram,
+    "RAIL" to R.string.transit_filter_train,
+    "SUBWAY" to R.string.transit_filter_metro,
+    "FERRY" to R.string.transit_filter_ferry,
+)
 
 @Composable
 /** Kulkuvälinesuodattimen chip-ikoni: "Kaikki" (mode=null) → done_all, muut kortin moodi-ikoni. */
@@ -2648,7 +2745,8 @@ private fun ModeFilterChip(selected: Boolean, label: String, mode: String?, onCl
 }
 
 @Composable
-private fun DisruptionRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
+private fun DisruptionRow(a: TransitAlert, dateFmt: SimpleDateFormat, onClick: (TransitAlert) -> Unit) {
+    val context = LocalContext.current
     ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -2692,7 +2790,7 @@ private fun DisruptionRow(a: TransitAlert, onClick: (TransitAlert) -> Unit) {
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val sub = listOf(effectiveRangeText(a), a.stopName)
+                val sub = listOf(effectiveRangeText(context, dateFmt, a), a.stopName)
                     .filter { it.isNotEmpty() }
                     .joinToString("  ·  ")
                 if (sub.isNotEmpty()) {

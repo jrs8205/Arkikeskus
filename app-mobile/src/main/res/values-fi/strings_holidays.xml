@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="holiday_next_holiday">Seuraava pyhä</string>
+    <string name="holiday_next_flag_day">Seuraava liputuspäivä</string>
+    <plurals name="holiday_days_until">
+        <item quantity="one">%1$d pv</item>
+        <item quantity="other">%1$d pv</item>
+    </plurals>
+    <string name="holiday_nameday_source">Nimipäivät: Helsingin yliopiston almanakkatoimisto</string>
+    <string name="holiday_almanac_attribution">Kalenteri- ja nimipäivätiedot tarjoaa Yliopiston almanakkatoimisto.</string>
+    <string name="holiday_new_years_day">Uudenvuodenpäivä</string>
+    <string name="holiday_epiphany">Loppiainen</string>
+    <string name="holiday_good_friday">Pitkäperjantai</string>
+    <string name="holiday_easter_sunday">Pääsiäispäivä</string>
+    <string name="holiday_easter_monday">2. pääsiäispäivä</string>
+    <string name="holiday_may_day_eve">Vappuaatto</string>
+    <string name="holiday_may_day">Vappu</string>
+    <string name="holiday_mothers_day">Äitienpäivä</string>
+    <string name="holiday_ascension">Helatorstai</string>
+    <string name="holiday_whit_sunday">Helluntai</string>
+    <string name="holiday_midsummer_eve">Juhannusaatto</string>
+    <string name="holiday_midsummer_day">Juhannuspäivä</string>
+    <string name="holiday_all_saints">Pyhäinpäivä</string>
+    <string name="holiday_fathers_day">Isänpäivä</string>
+    <string name="holiday_independence">Itsenäisyyspäivä</string>
+    <string name="holiday_first_advent">1. adventti</string>
+    <string name="holiday_christmas_eve">Jouluaatto</string>
+    <string name="holiday_christmas_day">Joulupäivä</string>
+    <string name="holiday_boxing_day">Tapaninpäivä</string>
+    <string name="holiday_new_years_eve">Uudenvuodenaatto</string>
+    <string name="holiday_runeberg">Runebergin päivä</string>
+    <string name="holiday_kalevala">Kalevalan päivä, suomalaisen kulttuurin päivä</string>
+    <string name="holiday_minna_canth">Minna Canthin päivä, tasa-arvon päivä</string>
+    <string name="holiday_agricola">Mikael Agricolan päivä, suomen kielen päivä</string>
+    <string name="holiday_veterans">Kansallinen veteraanipäivä</string>
+    <string name="holiday_europe">Eurooppa-päivä</string>
+    <string name="holiday_snellman">J.V. Snellmanin päivä, suomalaisuuden päivä</string>
+    <string name="holiday_memorial">Kaatuneitten muistopäivä</string>
+    <string name="holiday_defence_forces">Puolustusvoimain lippujuhlan päivä</string>
+    <string name="holiday_eino_leino">Eino Leinon päivä, runon ja suven päivä</string>
+    <string name="holiday_nature">Suomen luonnon päivä</string>
+    <string name="holiday_miina_sillanpaa">Miina Sillanpään päivä, kansalaisvaikuttamisen päivä</string>
+    <string name="holiday_aleksis_kivi">Aleksis Kiven päivä, suomalaisen kirjallisuuden päivä</string>
+    <string name="holiday_un">YK:n päivä</string>
+    <string name="holiday_swedish_heritage">Ruotsalaisuuden päivä, Kustaa Aadolfin päivä</string>
+    <string name="holiday_childrens_rights">Lapsen oikeuksien päivä</string>
+    <string name="holiday_sibelius">Jean Sibeliuksen päivä, suomalaisen musiikin päivä</string>
+</resources>

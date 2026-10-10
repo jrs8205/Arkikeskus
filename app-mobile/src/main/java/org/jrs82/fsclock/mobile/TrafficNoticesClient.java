@@ -35,7 +35,7 @@ final class TrafficNoticesClient {
         out.sort(Comparator
                 .comparingLong((TrafficNotice n) -> n.startTimeMs > 0
                         ? -n.startTimeMs : Long.MIN_VALUE)
-                .thenComparing(n -> n.kind.title)
+                .thenComparing(n -> n.kind.ordinal())
                 .thenComparing(n -> n.title));
         return out;
     }
@@ -107,10 +107,10 @@ final class TrafficNoticesClient {
                 props.optString("situationId", ""),
                 props.optString("id", ""),
                 feature.optString("id", ""));
+        // Tyhjä otsikko → UI näyttää tyypin nimen (Kind.titleRes) käyttäjän kielellä.
         String title = firstNonEmpty(
                 announcement.optString("title", ""),
-                props.optString("name", ""),
-                kind.title);
+                props.optString("name", ""));
         String location = firstNonEmpty(
                 nestedString(announcement, "location", "description"),
                 nestedString(props, "location", "description"),

@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import org.jrs82.fsclock.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -67,6 +68,35 @@ class HslAlertNotifierTest {
         val a = alert("Muu linja", route = "550", stop = "Muupysäkki")
         val r = HslAlertNotifier.selectNewAlerts(listOf(a), setOf("63"), setOf("Rautatientori"), emptySet(), now)
         assertTrue(r.toNotify.isEmpty())
+    }
+
+    @Test fun stopMatchesByGtfsIdAcrossLanguages() {
+        // Suosikki tallennettu suomeksi, häiriö haettu ruotsiksi (Accept-Language: sv) → id ratkaisee.
+        val a = TransitAlert("Hållplatsen stängd", "d", "WARNING", "DETOUR", 0L, 0L, "", "BUS", "Järnvägstorget", "HSL:1020201")
+        val r = HslAlertNotifier.selectNewAlerts(
+            listOf(a), emptySet(), setOf("Rautatientori"), emptySet(), now, favStopIds = setOf("HSL:1020201"),
+        )
+        assertEquals(1, r.toNotify.size)
+    }
+
+    @Test fun singleLineAlertTextIsStructured() {
+        val a = alert("Linja 63 poikkeaa", route = "63")
+        val t = HslAlertNotifier.notificationText(listOf(a))
+        assertEquals(TransitText.Res(R.string.transit_hsl_alert_title_line, listOf("63")), t.title)
+        assertEquals(TransitText.Raw("Linja 63 poikkeaa"), t.body)
+    }
+
+    @Test fun singleStopAlertTextUsesStopName() {
+        val a = alert("Pysäkki suljettu", stop = "Rautatientori")
+        val t = HslAlertNotifier.notificationText(listOf(a))
+        assertEquals(TransitText.Res(R.string.transit_hsl_alert_title_stop, listOf("Rautatientori")), t.title)
+    }
+
+    @Test fun multipleAlertsUsePluralBody() {
+        val list = listOf(alert("A", route = "1"), alert("B", route = "2"), alert("C", route = "3"))
+        val t = HslAlertNotifier.notificationText(list)
+        assertEquals(TransitText.Res(R.string.transit_hsl_alert_multi_title), t.title)
+        assertEquals(TransitText.Plural(R.plurals.transit_hsl_alert_multi_body, 3, listOf(3)), t.body)
     }
 
     @Test fun duplicateAlertNotifiedOnce() {

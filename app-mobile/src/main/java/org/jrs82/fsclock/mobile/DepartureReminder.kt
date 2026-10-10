@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.preference.PreferenceManager
+import org.jrs82.fsclock.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -25,6 +26,35 @@ object DepartureReminder {
 
     /** Avoimet muistutukset oletus-SharedPreferencesissä JSON-listana. */
     const val KEY_PENDING = "departure_pending"
+
+    data class ReminderText(val title: TransitText, val body: TransitText)
+
+    /** Muistutusilmoituksen otsikko ja teksti rakenteena (yksikkötestattava ilman Contextia).
+     *  Kellonaika laitteen aikavyöhykkeessä, HH:mm kaikilla kielillä. */
+    fun notificationText(
+        line: String,
+        headsign: String,
+        stop: String,
+        departureEpochSec: Long,
+        leadMin: Int,
+    ): ReminderText {
+        val timeText = if (departureEpochSec > 0) {
+            SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(departureEpochSec * 1000L))
+        } else {
+            ""
+        }
+        val title = if (line.isNotEmpty()) {
+            TransitText.Res(R.string.transit_reminder_notif_title_line, listOf(line, timeText))
+        } else {
+            TransitText.Res(R.string.transit_departure_at, listOf(timeText))
+        }
+        val body = if (headsign.isNotEmpty()) {
+            TransitText.Plural(R.plurals.transit_reminder_notif_body_headsign, leadMin, listOf(stop, leadMin, headsign))
+        } else {
+            TransitText.Plural(R.plurals.transit_reminder_notif_body, leadMin, listOf(stop, leadMin))
+        }
+        return ReminderText(title, body)
+    }
 
     /** Hälytyksen laukaisuhetki (ms epoch): leadMin ennen lähtöä. */
     fun triggerMs(departureEpochSec: Long, leadMin: Int): Long =
@@ -171,14 +201,11 @@ class DepartureReminderReceiver : BroadcastReceiver() {
         val reqKey = intent.getStringExtra("reqKey").orEmpty()
         // Muistutus toteutui → poista se persistoidusta listasta (ettei boot aseta sitä uudelleen).
         DepartureReminder.removePending(context, reqKey)
-        val clock = SimpleDateFormat("HH:mm", Locale("fi", "FI"))
-        val timeText = if (depEpochSec > 0) clock.format(Date(depEpochSec * 1000L)) else ""
-        val title = if (line.isNotEmpty()) "Linja $line lähtee klo $timeText" else "Lähtö klo $timeText"
-        val dest = if (headsign.isNotEmpty()) " ($headsign)" else ""
+        val text = DepartureReminder.notificationText(line, headsign, stop, depEpochSec, leadMin)
         Notifications.post(
             context, Notifications.CHANNEL_DEPARTURE, notifId,
-            title,
-            "Pysäkiltä $stop$dest noin $leadMin min kuluttua.",
+            text.title.resolve(context),
+            text.body.resolve(context),
             "TRANSIT",
         )
     }

@@ -13,6 +13,7 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -66,6 +69,7 @@ import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.ruuvi.RuuviRepository
 import org.jrs82.fsclock.ruuvi.RuuviSample
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -83,23 +87,21 @@ import java.util.Locale
  * erillistä NavHostia eikä modaaleja → järjestelmän takaisin-ele toimii ja alapalkki jää näkyviin.
  */
 
-private val FI = Locale("fi", "FI")
-
 /** Yhtenäinen pyöristetty laatikkomuoto valikon ja asetusten kohdille (sama molemmilla sivuilla). */
 internal val ItemBoxShape = RoundedCornerShape(20.dp)
 
 /** Asetusten keskussivu + alasivut. Järjestys = keskussivun kategorioiden järjestys. */
-enum class SettingsPage(val title: String) {
-    HUB("Asetukset"),
-    WEATHER("Sää & sijainti"),
-    ELECTRICITY("Pörssisähkö"),
-    NEWS("Uutiset"),
-    TRANSIT("Joukkoliikenne"),
-    FITNESS("Lenkki & askeleet"),
-    RUUVI("Ruuvi-anturit"),
-    APPEARANCE("Ulkoasu"),
-    APP_DATA("Sovellus & data"),
-    ABOUT("Tietoja"),
+enum class SettingsPage(@StringRes val titleRes: Int) {
+    HUB(R.string.common_settings),
+    WEATHER(R.string.settings_page_weather),
+    ELECTRICITY(R.string.settings_page_electricity),
+    NEWS(R.string.settings_page_news),
+    TRANSIT(R.string.settings_page_transit),
+    FITNESS(R.string.settings_page_fitness),
+    RUUVI(R.string.settings_page_ruuvi),
+    APPEARANCE(R.string.settings_page_appearance),
+    APP_DATA(R.string.settings_page_app_data),
+    ABOUT(R.string.settings_page_about),
 }
 
 /** Sivun talletus Activityn uudelleenluontiin (teemanvaihto) — käyttäjä jää samalle alasivulle. */
@@ -109,30 +111,36 @@ internal val SettingsPageSaver = Saver<SettingsPage, String>(
 )
 
 private val THEME_OPTIONS = listOf(
-    MobileThemeController.VALUE_SYSTEM to "Järjestelmän mukaan",
-    MobileThemeController.VALUE_LIGHT to "Vaalea",
-    MobileThemeController.VALUE_DARK to "Tumma",
+    MobileThemeController.VALUE_SYSTEM to R.string.settings_theme_system,
+    MobileThemeController.VALUE_LIGHT to R.string.settings_theme_light,
+    MobileThemeController.VALUE_DARK to R.string.settings_theme_dark,
 )
 private val CHEAP_MODE_OPTIONS = listOf(
-    MobileThemeController.CHEAP_MODE_CURRENT to "Nykyinen vartti",
-    MobileThemeController.CHEAP_MODE_REMAINING_DAY to "Koko loppupäivä",
-    MobileThemeController.CHEAP_MODE_ALL_DAY to "Koko päivä",
+    MobileThemeController.CHEAP_MODE_CURRENT to R.string.settings_cheap_mode_current,
+    MobileThemeController.CHEAP_MODE_REMAINING_DAY to R.string.settings_cheap_mode_rest_of_day,
+    MobileThemeController.CHEAP_MODE_ALL_DAY to R.string.settings_cheap_mode_all_day,
 )
-private val INTERVAL_OPTIONS = listOf(
-    "10" to "10 minuuttia",
-    "15" to "15 minuuttia",
-    "30" to "30 minuuttia",
-    "60" to "60 minuuttia",
-    "120" to "120 minuuttia",
-)
-private val STEP_GOAL_OPTIONS = listOf(
-    "7000" to "7 000 askelta",
-    "8000" to "8 000 askelta",
-    "10000" to "10 000 askelta",
-    "12000" to "12 000 askelta",
-    "15000" to "15 000 askelta",
-    "20000" to "20 000 askelta",
-)
+// Arvot tallentuvat prefseihin merkkijonoina ("10", "7000") kuten ennenkin; vain näkyvä nimi muotoillaan kielen mukaan.
+private val INTERVAL_MINUTES = listOf(10, 15, 30, 60, 120)
+private val STEP_GOALS = listOf(7000, 8000, 10000, 12000, 15000, 20000)
+
+/** Prefs-arvo → näkyvä nimi nykyisellä kielellä. */
+@Composable
+private fun resolvedOptions(options: List<Pair<String, Int>>): List<Pair<String, String>> =
+    options.map { (value, res) -> value to stringResource(res) }
+
+@Composable
+private fun intervalOptionList(): List<Pair<String, String>> =
+    INTERVAL_MINUTES.map { it.toString() to pluralStringResource(R.plurals.settings_interval_minutes, it, it) }
+
+/** Tuhaterotin kielen mukaan: fi/sv "7 000", en "7,000". */
+@Composable
+private fun stepGoalOptionList(locale: Locale): List<Pair<String, String>> {
+    val nf = NumberFormat.getIntegerInstance(locale)
+    return STEP_GOALS.map {
+        it.toString() to pluralStringResource(R.plurals.settings_step_goal_steps, it, nf.format(it))
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,6 +152,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val repo = remember { RuuviRepository.get(context) }
+    val locale = AppLocale.current(context)
 
     // Kasvatetaan kun jokin näkymän ulkopuolinen tila muuttuu (slot-liitos, anturin nimi,
     // oma syöte) → keyatut remember-lukijat lukevat arvot uudelleen.
@@ -160,10 +169,10 @@ fun SettingsScreen(
                 repo.start()
                 showScanDialog = true
             } else {
-                toast(context, "Bluetooth on pois päältä. Kytke se päälle ja yritä uudelleen.")
+                toast(context, R.string.settings_bt_off)
             }
         } else {
-            toast(context, "Bluetooth-skannauslupa tarvitaan antureiden etsimiseen.")
+            toast(context, R.string.settings_bt_scan_permission)
         }
     }
 
@@ -175,7 +184,7 @@ fun SettingsScreen(
         if (granted) {
             Notifications.runOnce(context)
         } else {
-            toast(context, "Salli ilmoitukset, jotta sovellus voi lähettää ilmoituksia.")
+            toast(context, R.string.settings_notif_permission_needed)
         }
     }
     val enableNotif: () -> Unit = {
@@ -196,7 +205,7 @@ fun SettingsScreen(
                 repo.start()
                 showScanDialog = true
             } else {
-                toast(context, "Bluetooth on pois päältä. Kytke se päälle ja yritä uudelleen.")
+                toast(context, R.string.settings_bt_off)
             }
         } else {
             scanPermLauncher.launch(perm)
@@ -219,15 +228,18 @@ fun SettingsScreen(
                     Handler(Looper.getMainLooper()).post {
                         toast(
                             context,
-                            if (res != null)
-                                "Varmuuskopio tallennettu: ${res.workouts} lenkkiä, " +
-                                    "${res.prefs} asetusta (${formatBackupBytes(res.bytes)})."
-                            else "Tallennus epäonnistui.",
+                            if (res != null) context.getString(
+                                R.string.backup_saved_file,
+                                context.resources.getQuantityString(R.plurals.backup_workouts, res.workouts, res.workouts),
+                                context.resources.getQuantityString(R.plurals.backup_settings, res.prefs, res.prefs),
+                                formatBackupSize(context, res.bytes.toLong()),
+                            )
+                            else context.getString(R.string.backup_save_failed),
                         )
                     }
                 } catch (e: Exception) {
                     Handler(Looper.getMainLooper()).post {
-                        toast(context, "Varmuuskopiointi epäonnistui: ${e.message}")
+                        toast(context, context.getString(R.string.backup_failed_reason, e.message ?: e.javaClass.simpleName))
                     }
                 }
             }.start()
@@ -236,7 +248,7 @@ fun SettingsScreen(
     // Jaettu palautuspolku: SAF-valitsimesta TAI suoraan automaattibackupin persistoidusta URIsta.
     val runRestoreFrom: (android.net.Uri) -> Unit = { uri ->
         if (WorkoutTracker.state.value.phase != WorkoutTracker.Phase.IDLE) {
-            toast(context, "Lopeta käynnissä oleva lenkki ennen palautusta.")
+            toast(context, R.string.backup_stop_workout_first)
         } else {
             Thread {
                 try {
@@ -245,11 +257,11 @@ fun SettingsScreen(
                     }
                     Handler(Looper.getMainLooper()).post {
                         if (res != null) restoreDone = res
-                        else toast(context, "Palautus epäonnistui.")
+                        else toast(context, R.string.backup_restore_failed)
                     }
                 } catch (e: Exception) {
                     Handler(Looper.getMainLooper()).post {
-                        toast(context, "Palautus epäonnistui: ${e.message}")
+                        toast(context, context.getString(R.string.backup_restore_failed_reason, e.displayMessage(context)))
                     }
                 }
             }.start()
@@ -276,8 +288,8 @@ fun SettingsScreen(
         bgLocationGranted = hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         toast(
             context,
-            if (bgLocationGranted) "Taustasijainti sallittu — widgetit päivittävät paikan myös taustalla."
-            else "Valitse sijainniksi \"Salli aina\", niin kotinäytön widgetit päivittyvät taustalla.",
+            if (bgLocationGranted) R.string.settings_bg_location_granted
+            else R.string.settings_bg_location_denied,
         )
     }
     val locationPermLauncher = rememberLauncherForActivityResult(
@@ -300,8 +312,8 @@ fun SettingsScreen(
         }
         toast(
             context,
-            if (precise) "Automaattinen sijainti on käytössä."
-            else "Tarkkaa sijaintilupaa ei annettu. Kaupunkihaku toimii normaalisti.",
+            if (precise) R.string.settings_auto_location_on
+            else R.string.settings_precise_location_denied,
         )
     }
 
@@ -330,6 +342,10 @@ fun SettingsScreen(
     val builtinFeeds = remember { NewsFeedStore.allFeeds(prefs).filter { it.builtin } }
     val customFeeds = remember(refreshTick) { NewsFeedStore.customFeeds(prefs) }
     val namedSensors = remember(refreshTick) { SettingsManager.get().sensorNamesByMac().entries.toList() }
+    val themeOptions = resolvedOptions(THEME_OPTIONS)
+    val cheapModeOptions = resolvedOptions(CHEAP_MODE_OPTIONS)
+    val intervalOptions = intervalOptionList()
+    val stepGoalOptions = stepGoalOptionList(locale)
 
     // Takaisin-ele/-nappi: alasivulta keskussivulle, keskussivulta sulje asetukset. Drive-overlayn
     // ollessa auki tämä on pois käytöstä → Drive-sivun oma BackHandler (komposoituu myöhemmin) sulkee
@@ -354,47 +370,48 @@ fun SettingsScreen(
             when (page) {
                 // ============================ KESKUSSIVU ============================
                 SettingsPage.HUB -> {
-                    SettingsPageTitle("Asetukset")
+                    SettingsPageTitle(stringResource(SettingsPage.HUB.titleRes))
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         val ruuviSubtitle = if (namedSensors.isNotEmpty())
-                            "${namedSensors.size} anturia · etsi uusia" else "Etsi antureita Bluetoothilla"
+                            pluralStringResource(R.plurals.settings_hub_ruuvi_sensors, namedSensors.size, namedSensors.size)
+                        else stringResource(R.string.settings_hub_ruuvi_find)
                         // Etusivu ylimpänä; avaa SUORAAN korttijärjestelynäkymän (ei turhaa välisivua).
-                        HubRow("Etusivu", "Näkyvät kortit ja järjestys",
+                        HubRow(R.string.settings_hub_home, stringResource(R.string.settings_hub_home_sub),
                             R.drawable.mobile_ic_dashboard_24) {
                             context.startActivity(Intent(context, MobileWidgetOrderActivity::class.java))
                         }
-                        HubRow("Sää & sijainti", "Sijainti · säävaroitukset",
+                        HubRow(SettingsPage.WEATHER.titleRes, stringResource(R.string.settings_hub_weather_sub),
                             R.drawable.mobile_ic_location_24) { onPageChange(SettingsPage.WEATHER) }
-                        HubRow("Pörssisähkö", "Halvan sähkön huomio ja rajat",
+                        HubRow(SettingsPage.ELECTRICITY.titleRes, stringResource(R.string.settings_hub_electricity_sub),
                             R.drawable.mobile_ic_bolt_24) { onPageChange(SettingsPage.ELECTRICITY) }
-                        HubRow("Uutiset", "10 lähdettä · 9 kategoriaa · omat syötteet",
+                        HubRow(SettingsPage.NEWS.titleRes, stringResource(R.string.settings_hub_news_sub),
                             R.drawable.mobile_ic_news_24) { onPageChange(SettingsPage.NEWS) }
-                        HubRow("Joukkoliikenne", "HSL-häiriöilmoitukset suosikeille",
+                        HubRow(SettingsPage.TRANSIT.titleRes, stringResource(R.string.settings_hub_transit_sub),
                             R.drawable.mobile_ic_bus_24) { onPageChange(SettingsPage.TRANSIT) }
-                        HubRow("Lenkki & askeleet", "Kilometri-ilmoitus · askeltavoite",
+                        HubRow(SettingsPage.FITNESS.titleRes, stringResource(R.string.settings_hub_fitness_sub),
                             R.drawable.mobile_ic_transit_walk) { onPageChange(SettingsPage.FITNESS) }
-                        HubRow("Ruuvi-anturit", ruuviSubtitle,
+                        HubRow(SettingsPage.RUUVI.titleRes, ruuviSubtitle,
                             R.drawable.mobile_ic_thermometer_24) { onPageChange(SettingsPage.RUUVI) }
-                        HubRow("Ulkoasu", "Teema · laitteen värit",
+                        HubRow(SettingsPage.APPEARANCE.titleRes, stringResource(R.string.settings_hub_appearance_sub),
                             R.drawable.mobile_ic_palette_24) { onPageChange(SettingsPage.APPEARANCE) }
-                        HubRow("Sovellus & data", "Päivitysväli · varmuuskopiointi",
+                        HubRow(SettingsPage.APP_DATA.titleRes, stringResource(R.string.settings_hub_app_data_sub),
                             R.drawable.mobile_ic_tune_24) { onPageChange(SettingsPage.APP_DATA) }
-                        HubRow("Tietoja", "Versio ${appVersion(context)} · GitHub",
+                        HubRow(SettingsPage.ABOUT.titleRes, stringResource(R.string.settings_hub_about_sub, appVersion(context)),
                             R.drawable.mobile_ic_info_24) { onPageChange(SettingsPage.ABOUT) }
                     }
                 }
 
                 // ============================ Sää & sijainti ============================
                 SettingsPage.WEATHER -> {
-                    SettingsPageTitle("Sää & sijainti")
-                    SubHeader("Sijainti")
+                    SettingsPageTitle(stringResource(SettingsPage.WEATHER.titleRes))
+                    SubHeader(stringResource(R.string.settings_location_header))
                     GroupCard {
                         GroupRowSwitch(
-                            title = "Automaattinen sijainti",
-                            subtitle = "Päivitä paikkakunta laitteen sijainnin perusteella, jos lupa on annettu",
+                            title = stringResource(R.string.settings_auto_location),
+                            subtitle = stringResource(R.string.settings_auto_location_sub),
                             leadingIconRes = R.drawable.mobile_ic_location_24,
                             checked = autoLocation,
                         ) { enable ->
@@ -428,8 +445,8 @@ fun SettingsScreen(
                         if (autoLocation && !bgLocationGranted) {
                             GroupDivider()
                             GroupRowClickable(
-                                title = "Widgetit taustalla",
-                                subtitle = "Salli sijainti \"aina\", jotta kotinäytön widgetit päivittävät paikan myös sovelluksen ollessa kiinni",
+                                title = stringResource(R.string.settings_bg_widgets),
+                                subtitle = stringResource(R.string.settings_bg_widgets_sub),
                                 leadingIconRes = R.drawable.mobile_ic_location_24,
                                 showChevron = true,
                             ) {
@@ -438,16 +455,16 @@ fun SettingsScreen(
                         }
                         GroupDivider()
                         GroupRowInfo(
-                            title = "Viimeisin sääpäivitys",
-                            value = lastUpdateText(),
+                            title = stringResource(R.string.settings_last_weather_update),
+                            value = lastUpdateText(context),
                             leadingIconRes = R.drawable.mobile_ic_clock_24,
                         )
                     }
-                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    SubHeader(stringResource(R.string.settings_notifications_header), R.drawable.mobile_ic_info_24)
                     GroupCard {
                         GroupPrefSwitchRow(
-                            prefs, WeatherWarningNotifier.KEY_ENABLED, "Säävaroitukset (oma paikkakunta)",
-                            subtitle = "Ilmoita FMI:n säävaroituksista kotipaikkakunnallasi",
+                            prefs, WeatherWarningNotifier.KEY_ENABLED, stringResource(R.string.settings_notify_warnings),
+                            subtitle = stringResource(R.string.settings_notify_warnings_sub),
                             leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
                             onChange = { if (it) enableNotif() },
                         )
@@ -456,12 +473,12 @@ fun SettingsScreen(
 
                 // ============================ Pörssisähkö ============================
                 SettingsPage.ELECTRICITY -> {
-                    SettingsPageTitle("Pörssisähkö")
-                    SubHeader("Hinnat")
+                    SettingsPageTitle(stringResource(SettingsPage.ELECTRICITY.titleRes))
+                    SubHeader(stringResource(R.string.settings_prices_header))
                     GroupCard {
                         GroupPrefSwitchRow(
-                            prefs, ElectricityVat.KEY, "ALV 25,5 %",
-                            subtitle = if (vatOn) "Mukana hinnoissa" else "Hinnat ilman ALV:tä",
+                            prefs, ElectricityVat.KEY, stringResource(R.string.settings_vat_title),
+                            subtitle = stringResource(if (vatOn) R.string.settings_vat_on else R.string.settings_vat_off),
                             leadingIconRes = R.drawable.mobile_ic_bolt_24, default = ElectricityVat.DEFAULT,
                             onChange = {
                                 refreshTick++
@@ -470,33 +487,33 @@ fun SettingsScreen(
                             },
                         )
                     }
-                    SubHeader("Halpa sähkö")
+                    SubHeader(stringResource(R.string.settings_cheap_header))
                     GroupCard {
                         GroupPrefSwitchRow(
-                            prefs, MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE, "Halvan sähkön huomio",
-                            subtitle = "Näytä huomio etusivulla kun sähkö on halpaa",
+                            prefs, MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE, stringResource(R.string.settings_cheap_notice),
+                            subtitle = stringResource(R.string.settings_cheap_notice_sub),
                             leadingIconRes = R.drawable.mobile_ic_bolt_24, default = true,
                         )
                         GroupDivider()
                         GroupRowClickable(
-                            title = "Halvan sähkön raja",
+                            title = stringResource(R.string.settings_cheap_threshold),
                             leadingIconRes = R.drawable.mobile_ic_bolt_24,
                             valueText = "$threshold c/kWh",
                             showChevron = true,
                         ) { showThresholdDialog = true }
                         GroupDivider()
                         GroupRowClickable(
-                            title = "Milloin huomio näytetään",
+                            title = stringResource(R.string.settings_cheap_mode),
                             leadingIconRes = R.drawable.mobile_ic_clock_24,
-                            valueText = labelFor(CHEAP_MODE_OPTIONS, cheapMode),
+                            valueText = labelFor(cheapModeOptions, cheapMode),
                             showChevron = true,
                         ) { showModeDialog = true }
                     }
-                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    SubHeader(stringResource(R.string.settings_notifications_header), R.drawable.mobile_ic_info_24)
                     GroupCard {
                         GroupPrefSwitchRow(
-                            prefs, ElectricityNotifier.KEY_ENABLED, "Huomisen hinnat",
-                            subtitle = "Ilmoita kun huomisen sähköhinnat saapuvat (n. klo 14)",
+                            prefs, ElectricityNotifier.KEY_ENABLED, stringResource(R.string.settings_notify_tomorrow_prices),
+                            subtitle = stringResource(R.string.settings_notify_tomorrow_prices_sub),
                             leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
                             onChange = { if (it) enableNotif() },
                         )
@@ -505,8 +522,8 @@ fun SettingsScreen(
 
                 // ============================ Uutiset ============================
                 SettingsPage.NEWS -> {
-                    SettingsPageTitle("Uutiset")
-                    SubHeader("Uutislähteet · ${builtinFeeds.size}")
+                    SettingsPageTitle(stringResource(SettingsPage.NEWS.titleRes))
+                    SubHeader(stringResource(R.string.settings_news_sources_header, builtinFeeds.size))
                     GroupCard {
                         builtinFeeds.forEachIndexed { index, feed ->
                             GroupPrefSwitchRow(
@@ -516,7 +533,7 @@ fun SettingsScreen(
                             if (index < builtinFeeds.lastIndex) GroupDivider()
                         }
                     }
-                    SubHeader("Omat uutissyötteet")
+                    SubHeader(stringResource(R.string.settings_custom_feeds_header))
                     GroupCard {
                         customFeeds.forEach { feed ->
                             GroupRowClickable(
@@ -526,12 +543,12 @@ fun SettingsScreen(
                             GroupDivider()
                         }
                         GroupRowClickable(
-                            title = "Lisää oma syöte",
-                            subtitle = "Lisää oma RSS- tai Atom-syöte (nimi + osoite)",
+                            title = stringResource(R.string.settings_add_feed),
+                            subtitle = stringResource(R.string.settings_add_feed_sub),
                             leadingIconRes = R.drawable.mobile_ic_add_24,
                         ) { addFeed = true }
                     }
-                    SubHeader("Uutiskategoriat (Kotimaat + Ulkomaat) · ${FOREIGN_CATEGORY_TAGS.size}")
+                    SubHeader(stringResource(R.string.settings_news_categories_header, FOREIGN_CATEGORY_TAGS.size))
                     GroupCard {
                         FOREIGN_CATEGORY_TAGS.forEachIndexed { index, pair ->
                             GroupPrefSwitchRow(
@@ -546,14 +563,14 @@ fun SettingsScreen(
                 // ============================ Joukkoliikenne ============================
                 SettingsPage.TRANSIT -> {
                     SettingsPageTitle(
-                        "Joukkoliikenne",
-                        "HSL-häiriöilmoitukset suosikkilinjoillesi ja -pysäkeillesi.",
+                        stringResource(SettingsPage.TRANSIT.titleRes),
+                        stringResource(R.string.settings_transit_desc),
                     )
-                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    SubHeader(stringResource(R.string.settings_notifications_header), R.drawable.mobile_ic_info_24)
                     GroupCard {
                         GroupPrefSwitchRow(
-                            prefs, HslAlertNotifier.KEY_ENABLED, "HSL-häiriöt suosikeilla",
-                            subtitle = "Ilmoita kun suosikkilinjalle tai -pysäkille tulee uusi häiriö",
+                            prefs, HslAlertNotifier.KEY_ENABLED, stringResource(R.string.settings_notify_hsl),
+                            subtitle = stringResource(R.string.settings_notify_hsl_sub),
                             leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
                             onChange = { if (it) enableNotif() },
                         )
@@ -562,27 +579,27 @@ fun SettingsScreen(
 
                 // ============================ Lenkki & askeleet ============================
                 SettingsPage.FITNESS -> {
-                    SettingsPageTitle("Lenkki & askeleet")
-                    SubHeader("Askeltavoite")
+                    SettingsPageTitle(stringResource(SettingsPage.FITNESS.titleRes))
+                    SubHeader(stringResource(R.string.settings_step_goal))
                     GroupCard {
                         GroupRowClickable(
-                            title = "Tavoite",
+                            title = stringResource(R.string.settings_goal),
                             leadingIconRes = R.drawable.mobile_ic_transit_walk,
-                            valueText = labelFor(STEP_GOAL_OPTIONS, stepGoal),
+                            valueText = labelFor(stepGoalOptions, stepGoal),
                             showChevron = true,
                         ) { showStepGoalDialog = true }
                     }
-                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    SubHeader(stringResource(R.string.settings_notifications_header), R.drawable.mobile_ic_info_24)
                     GroupCard {
                         GroupPrefSwitchRow(
-                            prefs, WorkoutTrackingService.KEY_WORKOUT_KM_NOTIFY, "Kilometri-ilmoitus",
-                            subtitle = "Ääni-ilmoitus joka täyden kilometrin täyttyessä lenkillä",
+                            prefs, WorkoutTrackingService.KEY_WORKOUT_KM_NOTIFY, stringResource(R.string.settings_km_announcement),
+                            subtitle = stringResource(R.string.settings_km_announcement_sub),
                             leadingIconRes = R.drawable.mobile_ic_info_24, default = true,
                         )
                         GroupDivider()
                         GroupPrefSwitchRow(
-                            prefs, StepGoalNotifier.KEY_ENABLED, "Askeltavoite saavutettu",
-                            subtitle = "Ilmoita kun saavutat päivän askeltavoitteen",
+                            prefs, StepGoalNotifier.KEY_ENABLED, stringResource(R.string.settings_notify_step_goal),
+                            subtitle = stringResource(R.string.settings_notify_step_goal_sub),
                             leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
                             onChange = { if (it) enableNotif() },
                         )
@@ -592,28 +609,28 @@ fun SettingsScreen(
                 // ============================ Ruuvi-anturit ============================
                 SettingsPage.RUUVI -> {
                     SettingsPageTitle(
-                        "Ruuvi-anturit",
-                        "Skannaa ja nimeä RuuviTag-anturit. Lukemat näkyvät etusivulla ja Anturit-näkymässä.",
+                        stringResource(SettingsPage.RUUVI.titleRes),
+                        stringResource(R.string.settings_ruuvi_desc),
                     )
-                    SubHeader("Anturit")
+                    SubHeader(stringResource(R.string.settings_sensors_header))
                     GroupCard {
                         GroupRowClickable(
-                            title = "Etsi antureita (Bluetooth)",
-                            subtitle = "Skannaa lähellä olevat RuuviTagit ja nimeä napauttamalla",
+                            title = stringResource(R.string.settings_find_sensors_bt),
+                            subtitle = stringResource(R.string.settings_find_sensors_sub),
                             leadingIconRes = R.drawable.mobile_ic_bluetooth_24,
                         ) { requestScan() }
                         namedSensors.forEach { e ->
                             GroupDivider()
                             GroupRowClickable(
                                 title = e.value,
-                                subtitle = macSummary(repo, e.key),
+                                subtitle = macSummary(context, repo, e.key),
                                 leadingIconRes = R.drawable.mobile_ic_thermometer_24,
                             ) { editSensorMac = e.key }
                         }
                     }
                     if (namedSensors.isEmpty()) {
                         Text(
-                            "Antureita voi nimetä rajattomasti. Nimetyt anturit näkyvät tässä.",
+                            stringResource(R.string.settings_sensors_empty),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp),
@@ -623,13 +640,13 @@ fun SettingsScreen(
 
                 // ============================ Ulkoasu ============================
                 SettingsPage.APPEARANCE -> {
-                    SettingsPageTitle("Ulkoasu")
-                    SubHeader("Teema")
+                    SettingsPageTitle(stringResource(SettingsPage.APPEARANCE.titleRes))
+                    SubHeader(stringResource(R.string.settings_theme))
                     GroupCard {
                         GroupRowClickable(
-                            title = "Teema",
+                            title = stringResource(R.string.settings_theme),
                             leadingIconRes = R.drawable.mobile_ic_palette_24,
-                            valueText = labelFor(THEME_OPTIONS, themeMode),
+                            valueText = labelFor(themeOptions, themeMode),
                             showChevron = true,
                         ) { showThemeDialog = true }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -638,8 +655,8 @@ fun SettingsScreen(
                                 mutableStateOf(prefs.getBoolean(MobileThemeController.KEY_DYNAMIC_COLOR, false))
                             }
                             GroupRowSwitch(
-                                title = "Käytä laitteen värejä",
-                                subtitle = "Material You -värit taustakuvasta. Pois päältä: oma kirkas brändipaletti.",
+                                title = stringResource(R.string.settings_dynamic_color),
+                                subtitle = stringResource(R.string.settings_dynamic_color_sub),
                                 leadingIconRes = R.drawable.mobile_ic_palette_24,
                                 checked = dynamic,
                             ) {
@@ -653,50 +670,54 @@ fun SettingsScreen(
 
                 // ============================ Sovellus & data ============================
                 SettingsPage.APP_DATA -> {
-                    SettingsPageTitle("Sovellus & data")
-                    SubHeader("Tietojen päivitys")
+                    SettingsPageTitle(stringResource(SettingsPage.APP_DATA.titleRes))
+                    SubHeader(stringResource(R.string.settings_data_update_header))
                     GroupCard {
                         // Koskee KAIKKIA automaattisesti haettavia tietoja (sää, sähkö, uutiset,
                         // liikenne…) — kuinka usein näkyvä sivu virkistetään sovelluksen ollessa auki.
                         GroupRowClickable(
-                            title = "Tietojen päivitysväli",
-                            subtitle = "Kaikki tiedot (sää, sähkö, uutiset…)",
+                            title = stringResource(R.string.settings_update_interval),
+                            subtitle = stringResource(R.string.settings_update_interval_sub),
                             leadingIconRes = R.drawable.mobile_ic_clock_24,
-                            valueText = labelFor(INTERVAL_OPTIONS, interval),
+                            valueText = labelFor(intervalOptions, interval),
                             showChevron = true,
                         ) { showIntervalDialog = true }
                     }
-                    SubHeader("Ilmoitukset", R.drawable.mobile_ic_info_24)
+                    SubHeader(stringResource(R.string.settings_notifications_header), R.drawable.mobile_ic_info_24)
                     GroupCard {
                         GroupPrefSwitchRow(
-                            prefs, AppUpdateNotifier.KEY_ENABLED, "Sovelluspäivitykset",
-                            subtitle = "Ilmoita kun Arkikeskuksesta on uusi versio",
+                            prefs, AppUpdateNotifier.KEY_ENABLED, stringResource(R.string.settings_notify_app_update),
+                            subtitle = stringResource(R.string.settings_notify_app_update_sub),
                             leadingIconRes = R.drawable.mobile_ic_info_24, default = false,
                             onChange = { if (it) enableNotif() },
                         )
                     }
-                    SubHeader("Varmuuskopiointi", R.drawable.mobile_ic_backup_24)
+                    SubHeader(stringResource(R.string.backup_title), R.drawable.mobile_ic_backup_24)
                     GroupCard {
                         GroupRowClickable(
-                            title = "Varmuuskopiointi Driveen",
-                            subtitle = "WhatsApp-tyylinen Google Drive -varmuuskopio",
+                            title = stringResource(R.string.backup_drive_row),
+                            subtitle = stringResource(R.string.backup_drive_row_sub),
                             leadingIconRes = R.drawable.mobile_ic_backup_24,
                             showChevron = true,
                         ) { showDriveBackup = true }
                         GroupDivider()
                         GroupRowClickable(
-                            title = "Vie varmuuskopio (tiedostoon)",
-                            subtitle = "Asetukset ja lenkit yhteen tiedostoon (esim. Driveen)",
+                            title = stringResource(R.string.backup_export_row),
+                            subtitle = stringResource(R.string.backup_export_row_sub),
                             leadingIconRes = R.drawable.mobile_ic_backup_24,
                         ) {
+                            // Päiväys konemuodossa (lajittuu tiedostolistassa), vain etuliite käännetään.
                             backupExportLauncher.launch(
-                                "Arkikeskus-varmuuskopio-" +
-                                    SimpleDateFormat("yyyy-MM-dd", FI).format(Date()) + ".json")
+                                context.getString(
+                                    R.string.backup_file_name,
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date()),
+                                ),
+                            )
                         }
                         GroupDivider()
                         GroupRowClickable(
-                            title = "Palauta varmuuskopio (tiedostosta)",
-                            subtitle = "Tuo aiemmin viety varmuuskopiotiedosto",
+                            title = stringResource(R.string.backup_import_row),
+                            subtitle = stringResource(R.string.backup_import_row_sub),
                             leadingIconRes = R.drawable.mobile_ic_restore_24,
                         ) {
                             backupRestoreLauncher.launch(
@@ -707,8 +728,8 @@ fun SettingsScreen(
 
                 // ============================ Tietoja ============================
                 SettingsPage.ABOUT -> {
-                    SettingsPageTitle("Tietoja")
-                    SubHeader("Sovellus")
+                    SettingsPageTitle(stringResource(SettingsPage.ABOUT.titleRes))
+                    SubHeader(stringResource(R.string.settings_app_header))
                     AboutGroup(context)
                 }
             }
@@ -719,22 +740,15 @@ fun SettingsScreen(
     restoreDone?.let { res ->
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("Varmuuskopio palautettu") },
-            text = {
-                Text(
-                    "Palautettu ${res.workouts} lenkkiä ja ${res.prefs} asetusta." +
-                        (if (res.skipped > 0) " ${res.skipped} lenkkiä oli jo laitteella." else "") +
-                        "\n\nSovellus käynnistetään uudelleen, jotta teema ja asetukset tulevat " +
-                        "voimaan. Anturien nimet näkyvät seuraavasta skannauksesta.",
-                )
-            },
+            title = { Text(stringResource(R.string.backup_restored_title)) },
+            text = { Text(restoreSummaryText(res, R.string.backup_restart_note_full)) },
             confirmButton = {
                 TextButton(onClick = {
                     restoreDone = null
                     // Aito uudelleenkäynnistys erillisen prosessin kautta → splash näkyy
                     // (suoraan itsensä käynnistävältä kuolevalta prosessilta Android ohittaa sen).
                     RestartActivity.restartApp(context)
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.common_ok)) }
             },
         )
     }
@@ -744,8 +758,8 @@ fun SettingsScreen(
     }
     if (showThemeDialog) {
         RadioDialog(
-            title = "Teema",
-            options = THEME_OPTIONS,
+            title = stringResource(R.string.settings_theme),
+            options = themeOptions,
             current = themeMode,
             onPick = { value ->
                 showThemeDialog = false
@@ -763,8 +777,8 @@ fun SettingsScreen(
     }
     if (showModeDialog) {
         RadioDialog(
-            title = "Milloin huomio näytetään",
-            options = CHEAP_MODE_OPTIONS,
+            title = stringResource(R.string.settings_cheap_mode),
+            options = cheapModeOptions,
             current = cheapMode,
             onPick = { value ->
                 showModeDialog = false
@@ -776,8 +790,8 @@ fun SettingsScreen(
     }
     if (showIntervalDialog) {
         RadioDialog(
-            title = "Tietojen päivitysväli",
-            options = INTERVAL_OPTIONS,
+            title = stringResource(R.string.settings_update_interval),
+            options = intervalOptions,
             current = interval,
             onPick = { value ->
                 showIntervalDialog = false
@@ -789,8 +803,8 @@ fun SettingsScreen(
     }
     if (showStepGoalDialog) {
         RadioDialog(
-            title = "Askeltavoite",
-            options = STEP_GOAL_OPTIONS,
+            title = stringResource(R.string.settings_step_goal),
+            options = stepGoalOptions,
             current = stepGoal,
             onPick = { value ->
                 showStepGoalDialog = false
@@ -802,9 +816,11 @@ fun SettingsScreen(
     }
     if (showThresholdDialog) {
         TextFieldDialog(
-            title = "Halvan sähkön raja",
+            title = stringResource(R.string.settings_cheap_threshold),
             initial = threshold,
-            label = "c/kWh (${ElectricityVat.label(vatOn)})",
+            label = stringResource(
+                if (vatOn) R.string.settings_threshold_label_vat else R.string.settings_threshold_label_no_vat,
+            ),
             keyboardType = KeyboardType.Decimal,
             onSave = { value ->
                 showThresholdDialog = false
@@ -813,7 +829,7 @@ fun SettingsScreen(
                     prefs.edit().putString(MobileThemeController.KEY_CHEAP_ELECTRICITY_THRESHOLD, cleaned).apply()
                     refreshTick++
                 } else {
-                    toast(context, "Anna luku, esim. 5.0")
+                    toast(context, R.string.settings_threshold_invalid)
                 }
             },
             onDismiss = { showThresholdDialog = false },
@@ -821,9 +837,9 @@ fun SettingsScreen(
     }
     editSensorMac?.let { mac ->
         TextFieldDialog(
-            title = "Anturin nimi ($mac)",
+            title = stringResource(R.string.settings_sensor_name_title, mac),
             initial = SettingsManager.get().sensorNameFor(mac),
-            label = "Nimi (tyhjä poistaa nimeämisen)",
+            label = stringResource(R.string.settings_sensor_name_label),
             keyboardType = KeyboardType.Text,
             onSave = { value ->
                 editSensorMac = null
@@ -842,7 +858,7 @@ fun SettingsScreen(
                     addFeed = false
                     refreshTick++
                 } else {
-                    toast(context, "Virheellinen osoite. Käytä http(s)://-alkuista osoitetta.")
+                    toast(context, R.string.settings_feed_invalid_url)
                 }
             },
             onDelete = null,
@@ -859,7 +875,7 @@ fun SettingsScreen(
                     editFeed = null
                     refreshTick++
                 } else {
-                    toast(context, "Virheellinen osoite. Käytä http(s)://-alkuista osoitetta.")
+                    toast(context, R.string.settings_feed_invalid_url)
                 }
             },
             onDelete = {
@@ -890,6 +906,7 @@ private fun RuuviScanDialog(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val locale = AppLocale.current(context)
     val repo = remember { RuuviRepository.get(context) }
     val sm = remember { SettingsManager.get() }
     var samples by remember { mutableStateOf(sortedSnapshot(repo)) }
@@ -921,21 +938,21 @@ private fun RuuviScanDialog(
 
     AlertDialog(
         onDismissRequest = onClose,
-        confirmButton = { TextButton(onClick = onClose) { Text("Sulje") } },
-        title = { Text("Etsi antureita") },
+        confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.common_close)) } },
+        title = { Text(stringResource(R.string.settings_scan_title)) },
         text = {
             Column {
                 Text(
-                    "Napauta anturia antaaksesi sille nimen. Nimettyjä antureita voi olla rajattomasti.",
+                    stringResource(R.string.settings_scan_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 if (samples.isEmpty()) {
-                    Text("Etsitään RuuviTageja…", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_scan_searching), style = MaterialTheme.typography.bodyLarge)
                 } else {
                     samples.forEach { (mac, s) ->
-                        val temp = s.temperatureC()?.let { String.format(FI, "%.1f °C", it) } ?: "– °C"
+                        val temp = s.temperatureC()?.let { String.format(locale, "%.1f °C", it) } ?: "– °C"
                         val existing = sm.sensorNameFor(mac)
                         val suffix = if (existing.isEmpty()) "" else "  [$existing]"
                         Row(
@@ -968,7 +985,7 @@ private fun RadioDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Sulje") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) } },
         title = { Text(title) },
         text = {
             Column {
@@ -1002,8 +1019,8 @@ private fun TextFieldDialog(
     var text by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { onSave(text) }) { Text("Tallenna") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Peruuta") } },
+        confirmButton = { TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.common_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
         title = { Text(title) },
         text = {
             OutlinedTextField(
@@ -1029,15 +1046,17 @@ private fun CustomFeedDialog(
     var url by remember { mutableStateOf(existing?.url ?: "") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { onSave(name, url) }) { Text("Tallenna") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Peruuta") } },
-        title = { Text(if (existing == null) "Lisää oma syöte" else "Muokkaa syötettä") },
+        confirmButton = { TextButton(onClick = { onSave(name, url) }) { Text(stringResource(R.string.common_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+        title = {
+            Text(stringResource(if (existing == null) R.string.settings_add_feed else R.string.settings_edit_feed))
+        },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nimi (esim. Oma blogi)") },
+                    label = { Text(stringResource(R.string.settings_feed_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1045,7 +1064,7 @@ private fun CustomFeedDialog(
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("Osoite (https://…)") },
+                    label = { Text(stringResource(R.string.settings_feed_url_label)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
@@ -1053,7 +1072,7 @@ private fun CustomFeedDialog(
                 if (onDelete != null) {
                     Spacer(Modifier.height(8.dp))
                     TextButton(onClick = onDelete) {
-                        Text("Poista syöte", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.settings_delete_feed), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -1062,11 +1081,6 @@ private fun CustomFeedDialog(
 }
 
 // ===================== Otsikko- ja ryhmäkomponentit =====================
-
-/** Varmuuskopion koko luettavana: "11,6 kt" / "1,2 Mt" — kasvava luku kertoo että dataa kertyy. */
-private fun formatBackupBytes(bytes: Int): String =
-    if (bytes < 1024 * 1024) String.format(FI, "%.1f kt", bytes / 1024.0)
-    else String.format(FI, "%.1f Mt", bytes / (1024.0 * 1024.0))
 
 /** Iso vasemmalle tasattu sivuotsikko (sama tyyli kuin "Lenkki"/"Häiriöt ja muutokset"); ei nuolta/ikonia. */
 @Composable
@@ -1101,7 +1115,7 @@ private fun SubHeader(text: String, leadingIconRes: Int? = null) {
             Spacer(Modifier.width(6.dp))
         }
         Text(
-            text.uppercase(FI),
+            text.uppercase(AppLocale.current(LocalContext.current)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.SemiBold,
@@ -1133,13 +1147,13 @@ private fun GroupDivider() {
 /** Keskussivun kategoriarivi: oma pyöristetty kortti + chevron oikealla. */
 @Composable
 private fun HubRow(
-    title: String,
+    @StringRes titleRes: Int,
     subtitle: String,
     leadingIconRes: Int,
     onClick: () -> Unit,
 ) {
     ClickableRow(
-        title = title,
+        title = stringResource(titleRes),
         subtitle = subtitle,
         leadingIconRes = leadingIconRes,
         trailingIconRes = R.drawable.mobile_ic_chevron_right_24,
@@ -1367,13 +1381,13 @@ private fun AboutGroup(context: Context) {
 
     GroupCard {
         GroupRowInfo(
-            title = "Sovelluksen versio",
+            title = stringResource(R.string.settings_app_version),
             value = current,
             leadingIconRes = R.drawable.mobile_ic_info_24,
         )
         GroupDivider()
         GroupRowClickable(
-            title = if (checking) "Tarkistetaan päivityksiä…" else "Tarkista päivitykset",
+            title = stringResource(if (checking) R.string.settings_checking_updates else R.string.settings_check_updates),
             subtitle = status,
             leadingIconRes = R.drawable.mobile_ic_refresh_24,
         ) {
@@ -1385,9 +1399,9 @@ private fun AboutGroup(context: Context) {
                 checking = false
                 update = if (newer) rel else null
                 status = when {
-                    rel == null -> "Päivitystarkistus epäonnistui. Tarkista verkkoyhteys."
-                    newer -> "Uudempi versio ${rel.versionName} on saatavilla."
-                    else -> "Sovellus on ajan tasalla."
+                    rel == null -> context.getString(R.string.settings_update_check_failed)
+                    newer -> context.getString(R.string.settings_update_available, rel.versionName)
+                    else -> context.getString(R.string.settings_up_to_date)
                 }
             }
         }
@@ -1395,8 +1409,9 @@ private fun AboutGroup(context: Context) {
         if (avail?.apkUrl != null) {
             GroupDivider()
             GroupRowClickable(
-                title = if (downloading) "Ladataan ja asennetaan…" else "Lataa ja asenna ${avail.versionName}",
-                subtitle = "Haetaan GitHub-julkaisusta. Asennukseen tarvitaan lupa asentaa tuntemattomista lähteistä.",
+                title = if (downloading) stringResource(R.string.settings_downloading_installing)
+            else stringResource(R.string.settings_download_install, avail.versionName),
+                subtitle = stringResource(R.string.settings_download_install_sub),
                 leadingIconRes = R.drawable.mobile_ic_download_24,
             ) {
                 if (downloading) return@GroupRowClickable
@@ -1409,7 +1424,7 @@ private fun AboutGroup(context: Context) {
         }
         GroupDivider()
         GroupRowClickable(
-            title = "GitHub – lähdekoodi ja julkaisut",
+            title = stringResource(R.string.settings_github),
             subtitle = "github.com/jrs8205/Arkikeskus",
             leadingIconRes = R.drawable.mobile_ic_code_24,
         ) {
@@ -1422,17 +1437,17 @@ private fun openUrl(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (e: Exception) {
-        toast(context, "Selainta ei löytynyt")
+        toast(context, R.string.settings_no_browser)
     }
 }
 
 // ===================== Apufunktiot =====================
 
-private fun macSummary(repo: RuuviRepository, mac: String?): String {
-    if (mac.isNullOrEmpty()) return "Ei anturia"
+private fun macSummary(context: Context, repo: RuuviRepository, mac: String?): String {
+    if (mac.isNullOrEmpty()) return context.getString(R.string.settings_no_sensor)
     val s = repo.getLatest(mac)
     val temp = s?.temperatureC()
-    return if (temp != null) "$mac · ${String.format(FI, "%.1f °C", temp)}" else mac
+    return if (temp != null) "$mac · ${String.format(AppLocale.current(context), "%.1f °C", temp)}" else mac
 }
 
 private fun sortedSnapshot(repo: RuuviRepository): List<Pair<String, RuuviSample>> =
@@ -1453,9 +1468,11 @@ private fun appVersion(context: Context): String = try {
     "?"
 }
 
-private fun lastUpdateText(): String {
+private fun lastUpdateText(context: Context): String {
     val ts = SettingsManager.get().getLastSuccessfulFmiUpdate()
-    return if (ts <= 0L) "—" else SimpleDateFormat("d.M.yyyy HH:mm", FI).format(Date(ts))
+    if (ts <= 0L) return "—"
+    return SimpleDateFormat(context.getString(R.string.settings_datetime_pattern), AppLocale.current(context))
+        .format(Date(ts))
 }
 
 private fun bluetoothScanPermission(): String =
@@ -1475,3 +1492,5 @@ private fun isBluetoothOn(context: Context): Boolean = try {
 private fun toast(context: Context, msg: String) {
     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
 }
+
+private fun toast(context: Context, @StringRes msg: Int) = toast(context, context.getString(msg))

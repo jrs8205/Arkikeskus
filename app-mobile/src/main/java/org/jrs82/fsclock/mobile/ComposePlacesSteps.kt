@@ -12,6 +12,7 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,6 +55,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -84,8 +88,6 @@ import kotlin.coroutines.resume
  * (SettingsManager, MmlGeocodingClient, HealthConnectStepsBridge, StepCounter, StepCalorieEstimator,
  * StepsHistory, StepsHtmlExporter) — ei tuplalogiikkaa, vain Compose-esityskerros.
  */
-
-private val FI_PS = Locale("fi", "FI")
 
 // Profiiliavaimet (samat kuin MobileMainActivityssa — jaettu SharedPreferences).
 private const val KEY_PROFILE_SEX = "mobile_profile_sex"
@@ -125,13 +127,14 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
 
     // --- Haku (ennakoiva, debouncattu MML-geokoodaus) ---
     var query by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
+    // Tila resurssi-id:nä (0 = ei tilaa), jotta teksti seuraa kieltä eikä jää muistiin vanhalla kielellä.
+    var status by remember { mutableIntStateOf(0) }
     var results by remember { mutableStateOf<List<PlaceChoice>>(emptyList()) }
     LaunchedEffect(query) {
         val q = query.trim()
         if (q.isEmpty()) {
             results = emptyList()
-            status = ""
+            status = 0
             return@LaunchedEffect
         }
         // 1) Välitön offline-kuntahaku assets-listasta (jo 1 merkistä, ei verkkoa) → ehdotukset heti.
@@ -139,10 +142,10 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
             KuntaList.search(context, q, 8).map { PlaceChoice(it.name, it.name, it.lat, it.lon) }
         }
         results = offline
-        status = if (offline.isNotEmpty()) "Valitse paikka listalta." else "Haetaan…"
+        status = if (offline.isNotEmpty()) R.string.places_status_choose else R.string.places_status_searching
         // 2) MML täydentää osoitteet/kylät/kaupunginosat (vaatii ≥3 merkkiä). Yhdistetään: kunnat ensin, dedup.
         if (q.length < 3) {
-            if (offline.isEmpty()) status = "Kirjoita vähintään kolme kirjainta."
+            if (offline.isEmpty()) status = R.string.places_status_min_chars
             return@LaunchedEffect
         }
         delay(250)
@@ -162,9 +165,9 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
                 if (seen.add(KuntaList.normalize(p.displayPlace))) merged.add(p)
             }
             results = if (merged.size > 12) ArrayList(merged.subList(0, 12)) else merged
-            status = if (merged.isEmpty()) "Kaupunkeja ei löytynyt." else "Valitse paikka listalta."
+            status = if (merged.isEmpty()) R.string.places_status_none else R.string.places_status_choose
         } else if (offline.isEmpty()) {
-            status = "Haku epäonnistui."
+            status = R.string.places_status_failed
         }
     }
 
@@ -174,12 +177,10 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Paikkakunnat", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.places_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Etusivun sää käyttää laitteen sijaintia automaattisesti. Voit myös hakea kaupungin tai " +
-                "valita suosikin — valinta näkyy, kunnes avaat sovelluksen uudelleen. Automaattisen " +
-                "sijainnin voi kytkeä pois Asetuksista.",
+            stringResource(R.string.places_intro),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -191,17 +192,17 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Nykyinen sääpaikka", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.places_current), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(current, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
                 IconButton(onClick = {
                     val sm = SettingsManager.get()
                     if (sm.isFavoritePlace(current)) {
                         sm.removeFavoritePlace(current)
-                        Toast.makeText(context, "Poistettu suosikeista", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.places_fav_removed), Toast.LENGTH_SHORT).show()
                     } else {
                         sm.addFavoritePlace(current)
-                        Toast.makeText(context, "Lisätty suosikiksi", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.places_fav_added), Toast.LENGTH_SHORT).show()
                     }
                     tick++
                 }) {
@@ -209,7 +210,9 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
                         painterResource(
                             if (isFavorite) R.drawable.mobile_ic_favorite_24 else R.drawable.mobile_ic_favorite_add_24,
                         ),
-                        contentDescription = if (isFavorite) "Poista suosikeista" else "Lisää suosikiksi",
+                        contentDescription = stringResource(
+                            if (isFavorite) R.string.places_fav_remove else R.string.places_fav_add,
+                        ),
                         tint = if (isFavorite) Color(0xFFE0526B) else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -223,19 +226,19 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            label = { Text("Hae kaupunkia tai kaupunginosaa") },
+            label = { Text(stringResource(R.string.places_search_label)) },
             leadingIcon = { Icon(painterResource(R.drawable.mobile_ic_search_24), contentDescription = null) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = ""; results = emptyList(); status = "" }) {
+                    IconButton(onClick = { query = ""; results = emptyList(); status = 0 }) {
                         Text("✕", fontSize = 18.sp)
                     }
                 }
             },
         )
-        if (status.isNotEmpty()) {
+        if (status != 0) {
             Spacer(Modifier.height(6.dp))
-            Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(status), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         results.forEach { hit ->
             PlaceRow(hit.displayPlace, leading = R.drawable.mobile_ic_search_24, onClick = {
@@ -246,11 +249,11 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
 
         // Suosikit
         Spacer(Modifier.height(16.dp))
-        Text("Suosikkipaikat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.places_favourites_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         if (favorites.isEmpty()) {
             Text(
-                "Ei suosikkipaikkoja. Lisää nykyinen sääpaikka yllä olevasta sydämestä.",
+                stringResource(R.string.places_favourites_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -323,7 +326,7 @@ private fun FavoritePlaceRow(place: String, onSelect: () -> Unit, onRemove: () -
             IconButton(onClick = onRemove, modifier = Modifier.padding(end = 6.dp)) {
                 Icon(
                     painterResource(R.drawable.mobile_ic_favorite_24),
-                    contentDescription = "Poista suosikeista",
+                    contentDescription = stringResource(R.string.places_fav_remove),
                     tint = Color(0xFFE0526B),
                 )
             }
@@ -469,7 +472,7 @@ private fun appLabel(context: Context, pkg: String): String {
     // Puhelimen oman askellaskurin attribuutiot: "android" (vanha) sekä kesäkuusta 2026
     // "com.android.healthconnect.phone.<laitehash>" (todettu Pixel 8a:lla livenä).
     if (pkg == "android" || pkg.isBlank() || pkg.startsWith("com.android.healthconnect")) {
-        return "Puhelimen askellaskuri"
+        return context.getString(R.string.steps_source_phone)
     }
     return try {
         val pm = context.packageManager
@@ -477,7 +480,7 @@ private fun appLabel(context: Context, pkg: String): String {
     } catch (e: Exception) {
         // Ei asennettu paketti: jos arvo ei edes näytä paketilta (ei pistettä), kyse on
         // laitetason tunnisteesta → näytä ymmärrettävänä.
-        if ('.' !in pkg) "Puhelimen askellaskuri ($pkg)" else pkg
+        if ('.' !in pkg) context.getString(R.string.steps_source_phone_id, pkg) else pkg
     }
 }
 
@@ -722,8 +725,8 @@ internal fun StepsSection() {
             }
             HealthConnectStepsBridge.historyWithCalories(context, period, count, hcCaloriesGranted) { labels, steps, active, _ ->
                 if (myGen == historyGen[0]) {
-                    historyRows = hcHistoryRows(prefs, labels, steps, active, period)
-                    historyNote = if (historyRows.isEmpty()) "" else "🔥 = aktiiviset kalorit (Health Connect tai arvio)."
+                    historyRows = hcHistoryRows(context, prefs, labels, steps, active, period)
+                    historyNote = if (historyRows.isEmpty()) "" else context.getString(R.string.steps_note_hc_calories)
                     historyLoading = false
                 }
             }
@@ -740,9 +743,8 @@ internal fun StepsSection() {
             }
             if (myGen == historyGen[0]) {
                 historyRows = rows
-                val base = "Huom: laskenta kerää askelia kun sovellus on ollut käytössä; " +
-                    "katkoja voi tulla laitteen uudelleenkäynnistyksessä."
-                historyNote = if (ph > 0 && pw > 0) "$base 🔥 = askelpohjainen aktiivinen kaloriarvio." else base
+                val base = context.getString(R.string.steps_note_raw)
+                historyNote = if (ph > 0 && pw > 0) context.getString(R.string.steps_note_raw_calories, base) else base
                 historyLoading = false
             }
         }
@@ -750,7 +752,7 @@ internal fun StepsSection() {
 
     val available = hcAvailable || rawAvailable
     val caloriesText = remember(todaySteps, hcCalActive, hcCalTotal, hcCalHas, profileTick, canHcCalories) {
-        todayCaloriesText(prefs, todaySteps, hcCalActive, hcCalTotal, hcCalHas, canHcCalories)
+        todayCaloriesText(context, prefs, todaySteps, hcCalActive, hcCalTotal, hcCalHas, canHcCalories)
     }
 
     Column(
@@ -759,14 +761,14 @@ internal fun StepsSection() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Askeleet", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.steps_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
 
         // Kytkin + lähde-info
         ArkiCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Askelmittari", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.steps_counter), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Switch(
                         checked = enabled && available,
                         enabled = available,
@@ -779,7 +781,7 @@ internal fun StepsSection() {
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    stepsNote(available, enabled, useHc, hcAvailable),
+                    stringResource(stepsNote(available, enabled, useHc)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -791,7 +793,7 @@ internal fun StepsSection() {
                     FilledTonalButton(onClick = {
                         arLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
                     }) {
-                        Text("Salli liikunta-aktiivisuus (puhelimen askelmittari)")
+                        Text(stringResource(R.string.steps_allow_activity))
                     }
                 }
                 // Health Connect = VALINNAINEN lisälähde (oletus pois). Yhdistä esim. kello tai sormus.
@@ -799,7 +801,7 @@ internal fun StepsSection() {
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "Käytä Health Connectia",
+                            stringResource(R.string.steps_use_hc),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
@@ -820,9 +822,7 @@ internal fun StepsSection() {
                         )
                     }
                     Text(
-                        "Health Connect kokoaa askeleet ja muut terveystiedot yhteen — voit yhdistää esim. " +
-                            "älykellon, -sormuksen tai muut terveyssovellukset. Se ei ole oletuksena " +
-                            "asennettuna; ilman sitä Arkikeskus käyttää puhelimen omaa askelmittaria.",
+                        stringResource(R.string.steps_hc_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -830,13 +830,13 @@ internal fun StepsSection() {
                         onClick = { openOrInstallHealthConnect(context) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                     ) {
-                        Text(if (hcAvailable) "Avaa Health Connect" else "Asenna Health Connect")
+                        Text(stringResource(if (hcAvailable) R.string.steps_hc_open else R.string.steps_hc_install))
                     }
                     if (useHcEnabled && hcAvailable && hcGranted && !hcCaloriesGranted) {
                         FilledTonalButton(onClick = {
                             hcLauncher.launch(HealthConnectStepsBridge.permissions().toSet())
                         }) {
-                            Text("Lue myös kalorit Health Connectista")
+                            Text(stringResource(R.string.steps_hc_read_calories))
                         }
                     }
                 }
@@ -850,10 +850,10 @@ internal fun StepsSection() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                StepsTab("Tänään", tab == 0, Modifier.weight(1f)) { tab = 0 }
-                StepsTab("Päivät", tab == 1, Modifier.weight(1f)) { tab = 1 }
-                StepsTab("Viikot", tab == 2, Modifier.weight(1f)) { tab = 2 }
-                StepsTab("Kuukaudet", tab == 3, Modifier.weight(1f)) { tab = 3 }
+                StepsTab(stringResource(R.string.common_today), tab == 0, Modifier.weight(1f)) { tab = 0 }
+                StepsTab(stringResource(R.string.steps_tab_days), tab == 1, Modifier.weight(1f)) { tab = 1 }
+                StepsTab(stringResource(R.string.steps_tab_weeks), tab == 2, Modifier.weight(1f)) { tab = 2 }
+                StepsTab(stringResource(R.string.steps_tab_months), tab == 3, Modifier.weight(1f)) { tab = 3 }
             }
             Spacer(Modifier.height(14.dp))
 
@@ -863,9 +863,12 @@ internal fun StepsSection() {
                 val stepCm = prefs.getFloat(KEY_PROFILE_STEP, 0f)
                 val heightCm = prefs.getFloat(KEY_PROFILE_HEIGHT, 0f)
                 val distanceText = if ((heightCm > 0f || stepCm > 0f) && todaySteps > 0) {
-                    String.format(
-                        java.util.Locale("fi", "FI"), "≈ %.1f km kävelty",
-                        StepCalorieEstimator.distanceKm(todaySteps, heightCm.toDouble(), stepCm.toDouble()),
+                    stringResource(
+                        R.string.steps_distance_walked,
+                        String.format(
+                            AppLocale.current(context), "%.1f",
+                            StepCalorieEstimator.distanceKm(todaySteps, heightCm.toDouble(), stepCm.toDouble()),
+                        ),
                     )
                 } else {
                     ""
@@ -886,7 +889,7 @@ internal fun StepsSection() {
                             exportSteps(context, prefs, useHc, hcCaloriesGranted, stepCounter) { result ->
                                 exporting = false
                                 if (result != null && result.ok) exportResult = result
-                                else Toast.makeText(context, "HTML-vienti epäonnistui", Toast.LENGTH_LONG).show()
+                                else Toast.makeText(context, context.getString(R.string.steps_export_failed), Toast.LENGTH_LONG).show()
                             }
                         }
                     },
@@ -896,19 +899,14 @@ internal fun StepsSection() {
                     ArkiCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                "Lähteet (Health Connect)",
+                                stringResource(R.string.steps_sources_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
                             Spacer(Modifier.height(6.dp))
                             if (sourcePkgs.isEmpty()) {
                                 Text(
-                                    "Yksikään sovellus ei ole kirjannut askeleita tämän puhelimen Health " +
-                                        "Connectiin tänään. Health Connect on puhelinkohtainen tietovarasto: " +
-                                        "se ei synkkaudu Google-tilin kautta toisesta puhelimesta. Askeleet " +
-                                        "ilmestyvät tähän, kun jokin sovellus (esim. kellon, sormuksen tai " +
-                                        "puhelimen terveyssovellus) kirjoittaa ne tämän laitteen Health " +
-                                        "Connectiin — tarkista sovelluksen kirjoitusluvat ja avaa se kerran.",
+                                    stringResource(R.string.steps_sources_empty),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -925,7 +923,7 @@ internal fun StepsSection() {
                                             modifier = Modifier.weight(1f),
                                         )
                                         Text(
-                                            sourceSteps.getOrElse(i) { 0L }.toString() + " askelta",
+                                            stepsCountText(context, sourceSteps.getOrElse(i) { 0L }),
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold,
                                         )
@@ -933,12 +931,7 @@ internal fun StepsSection() {
                                 }
                                 Spacer(Modifier.height(8.dp))
                                 Text(
-                                    "Askelluku yllä on Health Connectin yhdistämä summa, josta päällekkäiset " +
-                                        "lähteet on poistettu. Tässä kunkin sovelluksen oma luku (Health " +
-                                        "Connectin laskemana) — eri rivit voivat mitata samoja askelia, joten " +
-                                        "niitä ei kuulu laskea yhteen. Kellon tai sormuksen data näkyy vasta, " +
-                                        "kun sen oma sovellus on synkannut tähän puhelimeen. Lähteiden " +
-                                        "tärkeysjärjestystä voi muuttaa Health Connectin asetuksista.",
+                                    stringResource(R.string.steps_sources_note),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -950,9 +943,9 @@ internal fun StepsSection() {
                                         Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS"))
                                 } catch (e: Exception) {
                                     Toast.makeText(context,
-                                        "Health Connect -asetuksia ei voitu avata", Toast.LENGTH_SHORT).show()
+                                        context.getString(R.string.steps_hc_settings_failed), Toast.LENGTH_SHORT).show()
                                 }
-                            }) { Text("Avaa Health Connect") }
+                            }) { Text(stringResource(R.string.steps_hc_open)) }
                         }
                     }
                 }
@@ -960,12 +953,12 @@ internal fun StepsSection() {
                 ArkiCard(modifier = Modifier.fillMaxWidth()) {
                     when {
                         historyRows.isEmpty() && historyLoading -> Text(
-                            "Ladataan…",
+                            stringResource(R.string.common_loading),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(16.dp),
                         )
                         historyRows.isEmpty() -> Text(
-                            "Ei vielä kertynyttä askeldataa.",
+                            stringResource(R.string.steps_history_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(16.dp),
                         )
@@ -988,8 +981,8 @@ internal fun StepsSection() {
     if (res != null) {
         AlertDialog(
             onDismissRequest = { exportResult = null },
-            title = { Text("HTML tallennettu") },
-            text = { Text("Tallennettu kansioon Download/Arkikeskus:\n" + res.fileName) },
+            title = { Text(stringResource(R.string.steps_export_saved_title)) },
+            text = { Text(stringResource(R.string.steps_export_saved_text, res.fileName)) },
             confirmButton = {
                 TextButton(onClick = {
                     exportResult = null
@@ -999,11 +992,11 @@ internal fun StepsSection() {
                         view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         context.startActivity(view)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Avaamiseen ei löytynyt sovellusta", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.steps_no_app_to_open), Toast.LENGTH_SHORT).show()
                     }
-                }) { Text("Avaa") }
+                }) { Text(stringResource(R.string.common_open)) }
             },
-            dismissButton = { TextButton(onClick = { exportResult = null }) { Text("Sulje") } },
+            dismissButton = { TextButton(onClick = { exportResult = null }) { Text(stringResource(R.string.common_close)) } },
         )
     }
 }
@@ -1045,6 +1038,7 @@ private fun StepsTodayContent(
     onExport: () -> Unit,
 ) {
     val arki = ArkiTheme.colors
+    val context = LocalContext.current
     ArkiCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -1053,8 +1047,12 @@ private fun StepsTodayContent(
         ),
     ) {
         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(formatStepsNum(steps), fontSize = 52.sp, fontWeight = FontWeight.Bold, color = arki.health)
-            Text("askelta tänään" + if (useHc) " (Health Connect)" else "", style = MaterialTheme.typography.bodyMedium)
+            Text(formatStepsNumber(context, steps), fontSize = 52.sp, fontWeight = FontWeight.Bold, color = arki.health)
+            Text(
+                pluralStringResource(R.plurals.steps_today_label, stepsQuantity(steps)) +
+                    if (useHc) " (Health Connect)" else "",
+                style = MaterialTheme.typography.bodyMedium,
+            )
             if (distanceText.isNotEmpty()) {
                 Text(
                     distanceText,
@@ -1076,12 +1074,12 @@ private fun StepsTodayContent(
         FilledTonalButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
             Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Päivitä Health Connectista")
+            Text(stringResource(R.string.steps_hc_refresh))
         }
         if (lastRefreshMs > 0L) {
             Spacer(Modifier.height(4.dp))
             Text(
-                "Päivitetty klo " + hhmmPs(lastRefreshMs),
+                stringResource(R.string.common_updated_at, hhmmPs(lastRefreshMs)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
@@ -1091,11 +1089,11 @@ private fun StepsTodayContent(
     }
     Spacer(Modifier.height(12.dp))
     TextButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) {
-        Text(if (hasProfile) "Muokkaa profiilia" else "Lisää pituus ja paino kalori- ja matka-arviota varten")
+        Text(stringResource(if (hasProfile) R.string.steps_profile_edit else R.string.steps_profile_add))
     }
     Spacer(Modifier.height(4.dp))
     Button(onClick = onExport, enabled = !exporting, modifier = Modifier.fillMaxWidth()) {
-        Text(if (exporting) "Viedään…" else "Lataa HTML-yhteenveto")
+        Text(stringResource(if (exporting) R.string.steps_exporting else R.string.steps_export_button))
     }
 }
 
@@ -1109,18 +1107,18 @@ private fun ProfileDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onSav
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Profiili kalori- ja matka-arviota varten") },
+        title = { Text(stringResource(R.string.steps_profile_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text("Sukupuoli", style = MaterialTheme.typography.labelLarge)
-                SexOption("Nainen", sex == "female") { sex = "female" }
-                SexOption("Mies", sex == "male") { sex = "male" }
-                SexOption("En halua kertoa", sex != "female" && sex != "male") { sex = "" }
+                Text(stringResource(R.string.steps_profile_sex), style = MaterialTheme.typography.labelLarge)
+                SexOption(stringResource(R.string.steps_profile_female), sex == "female") { sex = "female" }
+                SexOption(stringResource(R.string.steps_profile_male), sex == "male") { sex = "male" }
+                SexOption(stringResource(R.string.steps_profile_sex_unspecified), sex != "female" && sex != "male") { sex = "" }
                 Spacer(Modifier.height(8.dp))
-                NumberField("Ikä (v)", age) { age = it }
-                NumberField("Pituus (cm)", height) { height = it }
-                NumberField("Paino (kg)", weight) { weight = it }
-                NumberField("Askelpituus (cm, valinnainen)", step) { step = it }
+                NumberField(stringResource(R.string.steps_profile_age), age) { age = it }
+                NumberField(stringResource(R.string.steps_profile_height), height) { height = it }
+                NumberField(stringResource(R.string.steps_profile_weight), weight) { weight = it }
+                NumberField(stringResource(R.string.steps_profile_step_length), step) { step = it }
             }
         },
         confirmButton = {
@@ -1133,9 +1131,9 @@ private fun ProfileDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onSav
                     .putFloat(KEY_PROFILE_STEP, parseFloatPs(step))
                     .apply()
                 onSaved()
-            }) { Text("Tallenna") }
+            }) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Peruuta") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -1192,13 +1190,12 @@ private fun openOrInstallHealthConnect(context: Context) {
     }
 }
 
-private fun stepsNote(available: Boolean, enabled: Boolean, useHc: Boolean, hcAvailable: Boolean): String = when {
-    !available -> "Tässä laitteessa ei ole askelanturia eikä Health Connectia, joten askelmittaria ei voi ottaa käyttöön."
-    !enabled -> "Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet."
-    useHc -> "Lähde: Health Connect (yhdistetyt laitteet, esim. kello/sormus). Luku haetaan automaattisesti; " +
-        "jos kellon/sormuksen sovellus ei ole vielä synkannut tähän puhelimeen, avaa se kerran."
-    else -> "Lähde: puhelimen oma askelmittari. Kävellessä askeleet kasvavat reaaliajassa. Halutessasi voit " +
-        "yhdistää Health Connectin (kello/sormus) alta."
+@StringRes
+private fun stepsNote(available: Boolean, enabled: Boolean, useHc: Boolean): Int = when {
+    !available -> R.string.steps_note_unavailable
+    !enabled -> R.string.steps_note_disabled
+    useHc -> R.string.steps_note_hc
+    else -> R.string.steps_note_phone
 }
 
 /** Askelmittarin pääkytkin: oletuslähde puhelimen oma anturi (ACTIVITY_RECOGNITION); Health Connect
@@ -1241,6 +1238,7 @@ private fun toggleSteps(
 
 /** Replikoi renderStepsCalories + buildCaloriesText: tämän päivän kaloriteksti profiilista/HC:stä. */
 private fun todayCaloriesText(
+    context: Context,
     prefs: SharedPreferences,
     steps: Long,
     hcActive: Int,
@@ -1261,30 +1259,43 @@ private fun todayCaloriesText(
     if (canHcCalories && hcHas) {
         val a = if (hcActive > 0) hcActive else activeEst
         val t = if (hcTotal > 0) hcTotal else totalEst
-        return buildCaloriesText(km, a, hcActive > 0, t, hcTotal > 0)
+        return buildCaloriesText(context, km, a, hcActive > 0, t, hcTotal > 0)
     }
-    return buildCaloriesText(km, activeEst, false, totalEst, false)
+    return buildCaloriesText(context, km, activeEst, false, totalEst, false)
 }
 
-private fun buildCaloriesText(km: Double, active: Int, activeIsHc: Boolean, total: Int, totalIsHc: Boolean): String {
-    val sb = StringBuilder()
-    if (km > 0) sb.append(String.format(Locale.US, "Matka-arvio: %.1f km", km).replace('.', ','))
+private fun buildCaloriesText(
+    context: Context,
+    km: Double,
+    active: Int,
+    activeIsHc: Boolean,
+    total: Int,
+    totalIsHc: Boolean,
+): String {
+    val lines = ArrayList<String>()
+    val loc = AppLocale.current(context)
+    val nf = java.text.NumberFormat.getIntegerInstance(loc)
+    if (km > 0) {
+        lines += context.getString(R.string.steps_cal_distance, String.format(loc, "%.1f", km))
+    }
     if (activeIsHc || active > 0) {
-        if (sb.isNotEmpty()) sb.append("\n")
-        sb.append("Aktiivinen kulutus: ")
-        if (activeIsHc) sb.append("$active kcal (Health Connect)")
-        else sb.append("noin $active kcal (arvio)")
+        lines += context.getString(
+            if (activeIsHc) R.string.steps_cal_active_hc else R.string.steps_cal_active_est,
+            nf.format(active.toLong()),
+        )
     }
     if (totalIsHc || total > 0) {
-        if (sb.isNotEmpty()) sb.append("\n")
-        if (totalIsHc) sb.append("Päivän kokonaiskulutus: $total kcal (Health Connect)")
-        else sb.append("Päivän kokonaisarvio: noin $total kcal")
+        lines += context.getString(
+            if (totalIsHc) R.string.steps_cal_total_hc else R.string.steps_cal_total_est,
+            nf.format(total.toLong()),
+        )
     }
     if (activeIsHc || active > 0 || totalIsHc || total > 0) {
-        if (sb.isNotEmpty()) sb.append("\n")
-        sb.append("Kalorit: ").append(if (activeIsHc || totalIsHc) "Health Connect" else "Arkikeskus-arvio")
+        lines += context.getString(
+            if (activeIsHc || totalIsHc) R.string.steps_cal_source_hc else R.string.steps_cal_source_app,
+        )
     }
-    return sb.toString()
+    return lines.joinToString("\n")
 }
 
 /** Yksi sarakkeistettu historiarivi: nimi, askeleet, matka (km, 0 = ei näytetä), aktiiviset kalorit (0 = ei näytetä). */
@@ -1292,6 +1303,7 @@ private data class StepHistRow(val label: String, val steps: Long, val km: Doubl
 
 /** HC-historia rakenteisina riveinä (uusin ensin): aktiiviset kalorit HC:stä tai profiiliarviosta. */
 private fun hcHistoryRows(
+    context: Context,
     prefs: SharedPreferences,
     labels: Array<String>,
     steps: LongArray,
@@ -1312,7 +1324,7 @@ private fun hcHistoryRows(
         }
         val km = if ((h > 0 || stepCm > 0) && steps[i] > 0)
             StepCalorieEstimator.distanceKm(steps[i], h, stepCm) else 0.0
-        out.add(StepHistRow(hcHistoryLabel(labels[i], periodType), steps[i], km, kcal))
+        out.add(StepHistRow(hcHistoryLabel(context, labels[i], periodType), steps[i], km, kcal))
     }
     return out
 }
@@ -1323,13 +1335,15 @@ private fun hcHistoryRows(
 @Composable
 private fun StepHistoryColumn(rows: List<StepHistRow>, note: String) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val context = LocalContext.current
+    val loc = AppLocale.current(context)
     Column(modifier = Modifier.padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(Modifier.weight(1f))
-            Text("Askeleet", style = MaterialTheme.typography.labelMedium, color = muted,
+            Text(stringResource(R.string.steps_col_steps), style = MaterialTheme.typography.labelMedium, color = muted,
                 textAlign = TextAlign.End, modifier = Modifier.width(78.dp))
             Text("km", style = MaterialTheme.typography.labelMedium, color = muted,
                 textAlign = TextAlign.End, modifier = Modifier.width(46.dp))
@@ -1343,9 +1357,9 @@ private fun StepHistoryColumn(rows: List<StepHistRow>, note: String) {
             ) {
                 Text(r.label, style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                Text(formatStepsNum(r.steps), style = MaterialTheme.typography.bodyMedium,
+                Text(formatStepsNumber(context, r.steps), style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.End, modifier = Modifier.width(78.dp))
-                Text(if (r.km > 0) String.format(Locale("fi", "FI"), "%.1f", r.km) else "–",
+                Text(if (r.km > 0) String.format(loc, "%.1f", r.km) else "–",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.End, modifier = Modifier.width(46.dp))
                 Text(if (r.kcal > 0) r.kcal.toString() else "–",
@@ -1360,28 +1374,34 @@ private fun StepHistoryColumn(rows: List<StepHistRow>, note: String) {
     }
 }
 
-private fun hcHistoryLabel(isoDate: String, periodType: Int): String = try {
+private fun hcHistoryLabel(context: Context, isoDate: String, periodType: Int): String = try {
     val d = java.time.LocalDate.parse(isoDate)
+    val loc = AppLocale.current(context)
     when (periodType) {
-        HealthConnectStepsBridge.PERIOD_WEEKS -> "Viikko " + d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear())
-        HealthConnectStepsBridge.PERIOD_MONTHS -> StepsHistory.monthNameFi(d.monthValue) + " " + d.year
-        else -> "${d.dayOfMonth}.${d.monthValue}."
+        HealthConnectStepsBridge.PERIOD_WEEKS -> context.getString(
+            R.string.steps_week_label, d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear()),
+        )
+        HealthConnectStepsBridge.PERIOD_MONTHS -> WorkoutStats.monthLabel(d.year, d.monthValue, loc)
+        else -> java.time.format.DateTimeFormatter
+            .ofPattern(context.getString(R.string.steps_date_pattern), loc).format(d)
     }
 } catch (e: Exception) {
     isoDate
 }
 
-private fun exportLabel(isoDate: String, periodType: Int): String = try {
+private fun exportLabel(context: Context, isoDate: String, periodType: Int): String = try {
     val d = java.time.LocalDate.parse(isoDate)
+    val loc = AppLocale.current(context)
     when (periodType) {
         HealthConnectStepsBridge.PERIOD_WEEKS -> {
             val wk = d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear())
             val wky = d.get(java.time.temporal.WeekFields.ISO.weekBasedYear())
-            val end = d.plusDays(6)
-            "Vk $wk/$wky (${d.dayOfMonth}.${d.monthValue}.–${end.dayOfMonth}.${end.monthValue}.)"
+            val f = java.time.format.DateTimeFormatter.ofPattern(context.getString(R.string.steps_date_pattern), loc)
+            context.getString(R.string.steps_export_week, wk, wky, f.format(d), f.format(d.plusDays(6)))
         }
-        HealthConnectStepsBridge.PERIOD_MONTHS -> StepsHistory.monthNameFi(d.monthValue) + " " + d.year
-        else -> "${d.dayOfMonth}.${d.monthValue}.${d.year}"
+        HealthConnectStepsBridge.PERIOD_MONTHS -> WorkoutStats.monthLabel(d.year, d.monthValue, loc)
+        else -> java.time.format.DateTimeFormatter
+            .ofPattern(context.getString(R.string.steps_export_date_pattern), loc).format(d)
     }
 } catch (e: Exception) {
     isoDate
@@ -1421,7 +1441,7 @@ private fun exportSteps(
 
 private fun writeReport(context: Context, report: StepsHtmlExporter.Report, onResult: (StepsHtmlExporter.Result?) -> Unit) {
     Thread {
-        val name = StepsHtmlExporter.buildFileName()
+        val name = StepsHtmlExporter.buildFileName(context)
         val result = StepsHtmlExporter.export(context.applicationContext, report, name)
         Handler(Looper.getMainLooper()).post { onResult(result) }
     }.start()
@@ -1438,11 +1458,11 @@ private fun gatherHcReportThenExport(
     val weeks = ArrayList<StepsHtmlExporter.Row>()
     val months = ArrayList<StepsHtmlExporter.Row>()
     HealthConnectStepsBridge.historyWithCalories(context, HealthConnectStepsBridge.PERIOD_DAYS, 365, hcCaloriesGranted) { l1, s1, a1, t1 ->
-        fillHcRows(prefs, days, l1, s1, a1, t1, HealthConnectStepsBridge.PERIOD_DAYS)
+        fillHcRows(context, prefs, days, l1, s1, a1, t1, HealthConnectStepsBridge.PERIOD_DAYS)
         HealthConnectStepsBridge.historyWithCalories(context, HealthConnectStepsBridge.PERIOD_WEEKS, 104, hcCaloriesGranted) { l2, s2, a2, t2 ->
-            fillHcRows(prefs, weeks, l2, s2, a2, t2, HealthConnectStepsBridge.PERIOD_WEEKS)
+            fillHcRows(context, prefs, weeks, l2, s2, a2, t2, HealthConnectStepsBridge.PERIOD_WEEKS)
             HealthConnectStepsBridge.historyWithCalories(context, HealthConnectStepsBridge.PERIOD_MONTHS, 36, hcCaloriesGranted) { l3, s3, a3, t3 ->
-                fillHcRows(prefs, months, l3, s3, a3, t3, HealthConnectStepsBridge.PERIOD_MONTHS)
+                fillHcRows(context, prefs, months, l3, s3, a3, t3, HealthConnectStepsBridge.PERIOD_MONTHS)
                 HealthConnectStepsBridge.todaySteps(context) { todaySteps ->
                     val ts = if (todaySteps < 0) 0L else todaySteps
                     HealthConnectStepsBridge.todayCalories(context) { active, total, has ->
@@ -1467,6 +1487,7 @@ private fun gatherHcReportThenExport(
 }
 
 private fun fillHcRows(
+    context: Context,
     prefs: SharedPreferences,
     out: MutableList<StepsHtmlExporter.Row>,
     labels: Array<String>,
@@ -1484,7 +1505,7 @@ private fun fillHcRows(
             val est = estimateActiveKcal(prefs, steps[i])
             if (est > 0) { a = est; estimated = true }
         }
-        out.add(StepsHtmlExporter.Row(exportLabel(labels[i], periodType), steps[i], a, t, estimated))
+        out.add(StepsHtmlExporter.Row(exportLabel(context, labels[i], periodType), steps[i], a, t, estimated))
     }
 }
 
@@ -1497,27 +1518,29 @@ private fun buildRawReport(context: Context, prefs: SharedPreferences, stepCount
     val weekLabel = LinkedHashMap<String, String>()
     val monthSteps = LinkedHashMap<String, Long>()
     val monthLabel = LinkedHashMap<String, String>()
+    val loc = AppLocale.current(context)
+    val dayFmt = java.time.format.DateTimeFormatter.ofPattern(context.getString(R.string.steps_export_date_pattern), loc)
 
     for (e in rows) {
         val key = e.dateKey
         val d = java.time.LocalDate.of(key / 10000, (key / 100) % 100, key % 100)
         val ae = estimateActiveKcal(prefs, e.steps.toLong())
-        days.add(StepsHtmlExporter.Row("${d.dayOfMonth}.${d.monthValue}.${d.year}", e.steps.toLong(), ae, 0, ae > 0))
+        days.add(StepsHtmlExporter.Row(dayFmt.format(d), e.steps.toLong(), ae, 0, ae > 0))
         val wk = d.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear())
         val wky = d.get(java.time.temporal.WeekFields.ISO.weekBasedYear())
         val wkey = "$wky-" + if (wk < 10) "0$wk" else "$wk"
         weekSteps[wkey] = (weekSteps[wkey] ?: 0L) + e.steps
-        weekLabel[wkey] = "Vk $wk/$wky"
+        weekLabel[wkey] = context.getString(R.string.steps_export_week_short, wk, wky)
         val mkey = "${d.year}-" + if (d.monthValue < 10) "0${d.monthValue}" else "${d.monthValue}"
         monthSteps[mkey] = (monthSteps[mkey] ?: 0L) + e.steps
-        monthLabel[mkey] = StepsHistory.monthNameFi(d.monthValue) + " " + d.year
+        monthLabel[mkey] = WorkoutStats.monthLabel(d.year, d.monthValue, loc)
     }
     days.reverse()
 
     val todaySteps = stepCounter.currentTodaySteps().toLong()
     val todayActive = estimateActiveKcal(prefs, todaySteps)
     return StepsHtmlExporter.Report(
-        "Puhelimen askelanturi", todaySteps, todayActive, 0, todayActive > 0,
+        context.getString(R.string.steps_source_phone_sensor), todaySteps, todayActive, 0, todayActive > 0,
         days, mapToRows(prefs, weekSteps, weekLabel), mapToRows(prefs, monthSteps, monthLabel),
     )
 }
@@ -1536,10 +1559,20 @@ private fun mapToRows(
     return out
 }
 
-private fun formatStepsNum(steps: Long): String = String.format(Locale.US, "%,d", steps).replace(',', ' ')
+/** Askelmäärä tuhaterottimin näkyvän kielen tapaan (fi/sv välilyönti, en pilkku). */
+internal fun formatStepsNumber(context: Context, steps: Long): String =
+    java.text.NumberFormat.getIntegerInstance(AppLocale.current(context)).format(steps)
+
+/** Plurals-määrä Int-rajoissa (getQuantityString ottaa Intin, askelsummat ovat Long). */
+internal fun stepsQuantity(steps: Long): Int = steps.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+
+/** "1 askel" / "12 345 askelta" näkyvällä kielellä (monikko + tuhaterotin). */
+internal fun stepsCountText(context: Context, steps: Long): String =
+    context.resources.getQuantityString(R.plurals.steps_count, stepsQuantity(steps), formatStepsNumber(context, steps))
 
 // Jaettu formatter (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
-private val HM_PS = java.text.SimpleDateFormat("HH:mm", FI_PS)
+// Kellonaika HH:mm kaikilla kielillä → kieliriippumaton locale.
+private val HM_PS = java.text.SimpleDateFormat("HH:mm", Locale.ROOT)
 
 private fun hhmmPs(ms: Long): String = HM_PS.format(java.util.Date(ms))
 

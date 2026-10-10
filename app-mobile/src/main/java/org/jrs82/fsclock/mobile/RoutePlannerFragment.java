@@ -87,14 +87,14 @@ import java.util.concurrent.Executors;
 public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapter.Listener {
 
     private static final long DEBOUNCE_MS = 280L;
-    private static final Locale FI = new Locale("fi", "FI");
-    private static final SimpleDateFormat TIME_LABEL = new SimpleDateFormat("EEE d.M. 'klo' HH:mm", FI);
-    private static final SimpleDateFormat TIME_NOW = new SimpleDateFormat("HH:mm", FI);
-    private static final String MY_LOCATION = "Oma sijainti";
-    /** Erikoisehdotus, jonka valinta tarkoittaa "käytä GPS-sijaintia" (lat/lon NaN). */
-    private static final GeoPlace MY_LOC =
-            new GeoPlace(MY_LOCATION, "Nykyinen sijaintisi (GPS)", Double.NaN, Double.NaN, "my-location");
+    private static final SimpleDateFormat TIME_NOW = new SimpleDateFormat("HH:mm", Locale.ROOT);
+    /** "my-location"-kerros = erikoisehdotus, jonka valinta tarkoittaa "käytä GPS-sijaintia" (lat/lon NaN). */
+    private static final String MY_LOCATION_LAYER = "my-location";
     private static final LatLng HELSINKI = new LatLng(60.1699, 24.9384);
+
+    /** "Oma sijainti" käyttöliittymän kielellä; kentän teksti vertautuu tähän (ks. isMyLocation). */
+    private String myLocationLabel = "";
+    private GeoPlace myLocationPlace;
 
     private EditText fromField, toField;
     private TextView swapBtn, timeBtn, status;
@@ -167,7 +167,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                     }
                 } else {
                     pendingSearch = false;
-                    showStatus("Sijaintilupa tarvitaan, kun lähtö on oma sijainti.");
+                    showStatus(getString(R.string.transit_route_need_location));
                 }
             });
 
@@ -183,6 +183,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         final long viewToken = ++viewGeneration;
+        myLocationLabel = getString(R.string.transit_route_my_location);
+        myLocationPlace = new GeoPlace(myLocationLabel, getString(R.string.transit_route_my_location_sub),
+                Double.NaN, Double.NaN, MY_LOCATION_LAYER);
         fromField = view.findViewById(R.id.route_from);
         toField = view.findViewById(R.id.route_to);
         swapBtn = view.findViewById(R.id.route_swap);
@@ -270,7 +273,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         };
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), backCallback);
 
-        fromField.setText(MY_LOCATION);
+        fromField.setText(myLocationLabel);
         // Kentän fokusoituessa siirrytään "hakutilaan" (kuten HSL Reittiopas): otsikko, alaotsikko,
         // aikavalinta ja Hae reitit -nappi piilotetaan, jolloin hakukenttä nousee ylös ja ennakoiville
         // ehdotuksille jää koko ruutu. Kun molemmat kentät menettävät fokuksen (esim. ehdotus valittu),
@@ -291,7 +294,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
         updateTimeButton();
         updateClearButtons();
-        showStatus("Anna määränpää — reitit haetaan heti.\nLähtö on oletuksena oma sijaintisi.");
+        showStatus(getString(R.string.transit_route_intro));
     }
 
     /** Avattaessa sivu valikosta: hae sijainti hakuehdotusten kohdistusta varten (best-effort). */
@@ -361,7 +364,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         final int field = activeField;
         final String q = (field == 2 ? toField : fromField).getText().toString().trim();
         if (q.isEmpty()) { offerMyLocationIfEmpty(field == 2 ? toField : fromField, field); return; }
-        if (q.length() < 2 || q.equals(MY_LOCATION)) return;
+        if (q.length() < 2 || q.equals(myLocationLabel)) return;
         searchIo.execute(() -> {
             List<GeoPlace> res;
             try { res = DigitransitApi.geocodePlaces(q, gpsLat, gpsLon, planRegion()); }
@@ -372,7 +375,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 String cur = (field == 2 ? toField : fromField).getText().toString().trim();
                 if (field != activeField || !q.equals(cur)) return;  // vanhentunut
                 adapter.submit(r);
-                if (r.isEmpty()) showStatus("Ei paikkoja haulla \"" + q + "\".");
+                if (r.isEmpty()) showStatus(getString(R.string.transit_route_no_places, q));
                 else hideStatus();
             });
         });
@@ -380,8 +383,8 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
 
     @Override
     public void onSuggestClick(GeoPlace p) {
-        boolean my = "my-location".equals(p.layer);
-        String label = my ? MY_LOCATION : p.name;
+        boolean my = MY_LOCATION_LAYER.equals(p.layer);
+        String label = my ? myLocationLabel : p.name;
         final int chosenField = activeField;
         suppressWatch = true;
         if (chosenField == 2) {
@@ -405,9 +408,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (bothEndsReady()) {
             doSearch();
         } else if (chosenField == 2) {
-            showStatus("Valitse vielä lähtö, tai jätä se omaan sijaintiisi.");
+            showStatus(getString(R.string.transit_route_choose_origin_hint));
         } else {
-            showStatus("Valitse vielä määränpää.");
+            showStatus(getString(R.string.transit_route_choose_destination_hint));
         }
     }
 
@@ -433,7 +436,10 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         Context ctx = getContext();
         if (ctx == null) return;
         new AlertDialog.Builder(ctx)
-                .setItems(new CharSequence[]{"Lähtö nyt", "Lähtö klo…", "Perillä klo…"}, (d, w) -> {
+                .setItems(new CharSequence[]{
+                        ctx.getString(R.string.transit_route_leave_now),
+                        ctx.getString(R.string.transit_route_depart_at_option),
+                        ctx.getString(R.string.transit_route_arrive_by_option)}, (d, w) -> {
                     if (w == 0) {
                         timeEpochMs = 0L;
                         arriveBy = false;
@@ -470,9 +476,14 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private void updateTimeButton() {
         if (timeEpochMs <= 0) {
             // HSL-tyyli: "Lähtö nyt" + sen hetkinen kellonaika.
-            timeBtn.setText("Lähtö nyt · " + TIME_NOW.format(new Date()));
+            timeBtn.setText(getString(R.string.transit_route_leave_now_time, TIME_NOW.format(new Date())));
         } else {
-            timeBtn.setText((arriveBy ? "Perillä " : "Lähtö ") + TIME_LABEL.format(new Date(timeEpochMs)));
+            // Päiväyskuvio on kielikohtainen (fi "pe 9.10. klo 14:05", en "Fri 9 Oct, 14:05").
+            SimpleDateFormat label = new SimpleDateFormat(
+                    getString(R.string.transit_route_time_pattern), AppLocale.INSTANCE.current(requireContext()));
+            String when = label.format(new Date(timeEpochMs));
+            timeBtn.setText(getString(arriveBy
+                    ? R.string.transit_route_arrive_label : R.string.transit_route_depart_label, when));
         }
     }
 
@@ -487,19 +498,20 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     private void buildFilterChips() {
         if (filterRow == null || !isAdded()) return;
         filterRow.removeAllViews();
-        String[][] modes = {
-                {"", "Kaikki"}, {"BUS", "Bussi"}, {"RAIL", "Juna"},
-                {"TRAM", "Ratikka"}, {"SUBWAY", "Metro"}, {"FERRY", "Lautta"}};
-        for (String[] m : modes) {
-            final String mode = m[0];
-            filterRow.addView(makeFilterChip(m[1], routeModeChipIcon(mode), mode.equals(planTransitMode), v -> {
+        String[] modes = {"", "BUS", "RAIL", "TRAM", "SUBWAY", "FERRY"};
+        for (String m : modes) {
+            final String mode = m;
+            String label = mode.isEmpty() ? getString(R.string.transit_filter_all)
+                    : RoutePlannerAdapter.modeWord(requireContext(), mode);
+            filterRow.addView(makeFilterChip(label, routeModeChipIcon(mode), mode.equals(planTransitMode), v -> {
                 planTransitMode = mode;
                 persistRouteFilters();
                 buildFilterChips();
                 if (bothEndsReady()) doSearch();
             }));
         }
-        filterRow.addView(makeFilterChip("Vain suorat", R.drawable.mobile_ic_arrow_right_alt_24, planDirectOnly, v -> {
+        filterRow.addView(makeFilterChip(getString(R.string.transit_route_direct_only),
+                R.drawable.mobile_ic_arrow_right_alt_24, planDirectOnly, v -> {
             planDirectOnly = !planDirectOnly;
             persistRouteFilters();
             buildFilterChips();
@@ -578,30 +590,30 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         final boolean fromMy = (fromPlace == null) && isMyLocation(fromField);
         final boolean toMy = (toPlace == null) && isMyLocation(toField);
         if (toPlace == null && !toMy) {
-            showStatus("Valitse määränpää: kirjoita Minne-kenttään ja valitse ehdotus.");
+            showStatus(getString(R.string.transit_route_need_destination));
             return;
         }
         if (fromPlace == null && !fromMy) {
-            showStatus("Valitse lähtö: kirjoita Mistä-kenttään ja valitse ehdotus, tai valitse Oma sijainti.");
+            showStatus(getString(R.string.transit_route_need_origin));
             return;
         }
         if (fromMy && toMy) {
-            showStatus("Lähtö ja määränpää eivät voi molemmat olla oma sijainti.");
+            showStatus(getString(R.string.transit_route_both_my_location));
             return;
         }
         if (fromMy || toMy) {
             if (!hasLocationPermission()) {
                 pendingSearch = true;
-                showStatus("Salli sijainti, jotta reitti voidaan laskea omasta sijainnistasi.");
+                showStatus(getString(R.string.transit_route_allow_location));
                 permLauncher.launch(new String[]{
                         Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
                 return;
             }
-            showStatus("Haetaan sijaintia…");
+            showStatus(getString(R.string.transit_route_locating));
             fetchLocation((lat, lon) -> {
                 if (!hasLiveView() || request != planGeneration || !sectionVisible) return;
                 if (!validCoordinate(lat, lon)) {
-                    showStatus("Sijaintia ei saatu. Yritä uudelleen.");
+                    showStatus(getString(R.string.transit_route_location_failed));
                     return;
                 }
                 gpsLat = lat;
@@ -632,7 +644,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     }
 
     private void runPlan(long request, double fromLat, double fromLon, double toLat, double toLon) {
-        showStatus("Haetaan reittejä…");
+        showStatus(getString(R.string.transit_route_searching));
         adapter.submit(new ArrayList<>());
         final String iso = isoFor(timeEpochMs);
         final boolean arr = arriveBy;
@@ -650,7 +662,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             final List<Itinerary> r = res;
             ui.post(() -> {
                 if (!hasLiveView() || !sectionVisible || request != planGeneration || adapter == null) return;
-                if (r == null) { showStatus("Reittihaku epäonnistui. Yritä uudelleen."); return; }
+                if (r == null) { showStatus(getString(R.string.transit_route_search_failed)); return; }
                 List<Itinerary> shown = r;
                 if (directOnly) {
                     shown = new ArrayList<>();
@@ -659,10 +671,10 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 itineraries = shown;
                 adapter.submit(shown);
                 if (shown.isEmpty()) {
-                    String msg = "Ei reittejä tälle välille tai ajalle.";
-                    if (directOnly && !r.isEmpty()) msg = "Ei suoria reittejä tällä haulla — salli vaihdot tai vaihda kulkuvälinettä.";
-                    else if (!mode.isEmpty()) msg = "Ei reittejä valitulla kulkuvälineellä.";
-                    showStatus(msg);
+                    int msg = R.string.transit_route_none;
+                    if (directOnly && !r.isEmpty()) msg = R.string.transit_route_none_direct;
+                    else if (!mode.isEmpty()) msg = R.string.transit_route_none_mode;
+                    showStatus(getString(msg));
                 } else {
                     hideStatus();
                     // HSL-malli: reittiehdotukset koko korkeudella (puoliasennossa alin kortti
@@ -685,7 +697,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     @Override
     public void onItineraryClick(Itinerary it) {
         if (it == null) return;
-        detailTitle.setText("Reitti");
+        detailTitle.setText(R.string.transit_route_title);
         detailSummary.setText(routeSummary(it));
         // Reitin linjojen häiriöt osat-listan kärkeen, sitten reitin osat.
         List<Object> detailItems = new ArrayList<>(collectAlerts(it));
@@ -719,9 +731,9 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (ctx == null || a == null) return;
         String body = !a.description.isEmpty() ? a.description : a.displayText();
         new AlertDialog.Builder(ctx)
-                .setTitle(!a.header.isEmpty() ? a.header : "Häiriötiedote")
+                .setTitle(!a.header.isEmpty() ? a.header : ctx.getString(R.string.transit_alert_title))
                 .setMessage(body)
-                .setPositiveButton("Sulje", null)
+                .setPositiveButton(R.string.common_close, null)
                 .show();
     }
 
@@ -797,7 +809,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
             if (!isViewCurrent(token) || !sectionVisible || map == null) return;
             if (!validCoordinate(lat, lon)) {
                 setFollowing(false);
-                Toast.makeText(requireContext(), "Sijaintia ei saatu. Yritä uudelleen.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), R.string.transit_route_location_failed, Toast.LENGTH_SHORT).show();
                 return;
             }
             gpsLat = lat;
@@ -1103,7 +1115,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 all.add(new LatLng(p[0], p[1]));
             }
             Feature f = Feature.fromGeometry(LineString.fromLngLats(line));
-            String hex = String.format(FI, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode));
+            String hex = String.format(Locale.ROOT, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode));
             f.addStringProperty("color", leg.isWalk() ? "#9AA0A6" : hex);
             f.addBooleanProperty("walk", leg.isWalk());
             lines.add(f);
@@ -1169,7 +1181,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
                 catch (Exception e) { vid = ""; }
                 if (vid == null || vid.isEmpty() || colorByVid.containsKey(vid)) continue;
                 vehicleIds.add(vid);
-                colorByVid.put(vid, String.format(FI, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode)));
+                colorByVid.put(vid, String.format(Locale.ROOT, "#%06X", 0xFFFFFF & TransitStyle.modeColor(ctx, leg.mode)));
                 iconByVid.put(vid, "veh-icon-" + (leg.mode == null ? "BUS" : leg.mode));
             }
             if (vehicleIds.isEmpty()) return;
@@ -1224,13 +1236,12 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     }
 
     private String routeSummary(Itinerary it) {
-        SimpleDateFormat hm = new SimpleDateFormat("HH:mm", FI);
-        String t = (it.startEpochMs > 0 ? hm.format(new Date(it.startEpochMs)) : "")
-                + " – " + (it.endEpochMs > 0 ? hm.format(new Date(it.endEpochMs)) : "");
-        int min = Math.max(1, Math.round(it.durationSec / 60f));
-        String tr = it.transfers <= 0 ? "suora yhteys"
-                : (it.transfers == 1 ? "1 vaihto" : it.transfers + " vaihtoa");
-        return t + "  ·  " + min + " min  ·  " + tr;
+        Context ctx = requireContext();
+        String t = (it.startEpochMs > 0 ? TIME_NOW.format(new Date(it.startEpochMs)) : "")
+                + " – " + (it.endEpochMs > 0 ? TIME_NOW.format(new Date(it.endEpochMs)) : "");
+        String tr = it.transfers <= 0 ? ctx.getString(R.string.transit_direct_connection)
+                : ctx.getResources().getQuantityString(R.plurals.transit_transfers, it.transfers, it.transfers);
+        return t + "  ·  " + RoutePlannerAdapter.minutes(ctx, it.durationSec) + "  ·  " + tr;
     }
 
     private void closeDetail() {
@@ -1293,7 +1304,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
     }
 
     private boolean isMyLocation(EditText field) {
-        return field != null && MY_LOCATION.equalsIgnoreCase(field.getText().toString().trim());
+        return field != null && myLocationLabel.equalsIgnoreCase(field.getText().toString().trim());
     }
 
     /** Onko toinen pää (kuin annettu kenttä) jo "Oma sijainti". */
@@ -1316,7 +1327,7 @@ public class RoutePlannerFragment extends Fragment implements RoutePlannerAdapte
         if (otherFieldIsMyLocation(fieldNum)) {
             adapter.submit(new ArrayList<>());
         } else {
-            adapter.submit(java.util.Collections.singletonList(MY_LOC));
+            adapter.submit(java.util.Collections.singletonList(myLocationPlace));
             hideStatus();
         }
     }

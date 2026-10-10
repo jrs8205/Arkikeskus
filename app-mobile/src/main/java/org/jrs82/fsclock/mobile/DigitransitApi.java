@@ -104,6 +104,51 @@ public final class DigitransitApi {
 
     private DigitransitApi() {}
 
+    // --- Kieli (Accept-Language + geokoodauksen lang) ---
+
+    /** Pakotettu kieli (testit); null = seuraa sovelluksen lokaalia. Ei aseteta näkymistä, koska
+     *  pysyvä arvo jäisi vanhaksi kielen vaihtuessa taustalla (widget-worker hakisi vanhalla kielellä). */
+    private static volatile String languageOverride;
+
+    public static void setLanguage(String language) {
+        languageOverride = language == null ? null : ("sv".equals(language) ? "sv" : "fi");
+    }
+
+    /** Digitransitin kieli "fi"/"sv". Prosessin oletuslokaalilista = sovelluksen resurssikonfiguraatio
+     *  (myös Android 13+ sovelluskohtainen kieli), joten kutsujat eivät tarvitse Contextia. */
+    public static String language() {
+        String forced = languageOverride;
+        if (forced != null) return forced;
+        return languageFor(defaultLanguageTags());
+    }
+
+    static String languageFor(List<String> tags) {
+        return AppLocale.INSTANCE.digitransitLanguage(AppLocale.INSTANCE.resolve(tags));
+    }
+
+    private static List<String> defaultLanguageTags() {
+        List<String> tags = new ArrayList<>();
+        try {
+            android.os.LocaleList list = android.os.LocaleList.getDefault();
+            if (list != null) {
+                for (int i = 0; i < list.size(); i++) tags.add(list.get(i).toLanguageTag());
+            }
+        } catch (RuntimeException ignored) {
+            // JVM-yksikkötesteissä android.jar-tynkä → putoaa Javan oletuslokaaliin.
+        }
+        if (tags.isEmpty()) tags.add(Locale.getDefault().toLanguageTag());
+        return tags;
+    }
+
+    /** Pelias-geokoodauksen URL (autocomplete/search); eriytetty yksikkötestiä varten. */
+    static String geocodeUrl(String baseUrl, String text, String language, int size, String sources,
+                             double focusLat, double focusLon) throws java.io.UnsupportedEncodingException {
+        return baseUrl + "?text=" + URLEncoder.encode(text, "UTF-8")
+                + "&lang=" + language + "&size=" + size
+                + (sources == null || sources.isEmpty() ? "" : "&sources=" + sources)
+                + "&focus.point.lat=" + focusLat + "&focus.point.lon=" + focusLon;
+    }
+
     // --- Lähimmät lähdöt ---
 
     public static List<NearbyStop> nearbyDepartures(double lat, double lon, TransitRegion region) throws Exception {
@@ -177,7 +222,7 @@ public final class DigitransitApi {
      *  (sama otsikko+kuvaus+linja+pysäkki) ja järjestää: vakavin ensin, sitten uusin alkamisaika. */
     static List<TransitAlert> serviceAlerts(TransitRegion region) throws Exception {
         String serviceAlertsQuery = "{ alerts(feeds:[\"" + region.alertFeed + "\"]) { " + ALERT_FIELDS
-                + " route { shortName mode } stop { name } } }";
+                + " route { shortName mode } stop { gtfsId name } } }";
         JSONObject data = postQuery(serviceAlertsQuery, new JSONObject(), region);
         JSONArray arr = data == null ? null : data.optJSONArray("alerts");
         List<TransitAlert> out = new ArrayList<>();
@@ -198,8 +243,9 @@ public final class DigitransitApi {
             String mode = (route == null || route.isNull("mode")) ? "" : route.optString("mode", "");
             JSONObject stop = a.optJSONObject("stop");
             String stopName = (stop == null || stop.isNull("name")) ? "" : stop.optString("name", "");
+            String stopGtfsId = (stop == null || stop.isNull("gtfsId")) ? "" : stop.optString("gtfsId", "");
             if (!seen.add(header + "|" + desc + "|" + rsn + "|" + stopName)) continue;
-            out.add(new TransitAlert(header, desc, sev, eff, start, end, rsn, mode, stopName));
+            out.add(new TransitAlert(header, desc, sev, eff, start, end, rsn, mode, stopName, stopGtfsId));
         }
         out.sort((x, y) -> {
             int bySev = Integer.compare(y.severityRank(), x.severityRank());
@@ -339,9 +385,7 @@ public final class DigitransitApi {
             throws Exception {
         double flat = Double.isNaN(lat) ? 60.17 : lat;
         double flon = Double.isNaN(lon) ? 24.94 : lon;
-        String url = baseUrl + "?text=" + URLEncoder.encode(text, "UTF-8")
-                + "&lang=fi&size=10&sources=" + region.geocodeSources
-                + "&focus.point.lat=" + flat + "&focus.point.lon=" + flon;
+        String url = geocodeUrl(baseUrl, text, language(), 10, region.geocodeSources, flat, flon);
         String raw = httpGet(url);
         JSONArray features = new JSONObject(raw).optJSONArray("features");
         List<PlaceHit> out = new ArrayList<>();
@@ -419,9 +463,7 @@ public final class DigitransitApi {
     static List<GeoPlace> geocodePlaces(String text, double lat, double lon, TransitRegion region) throws Exception {
         double flat = Double.isNaN(lat) ? region.focusLat : lat;
         double flon = Double.isNaN(lon) ? region.focusLon : lon;
-        String url = GEOCODE_URL + "?text=" + URLEncoder.encode(text, "UTF-8")
-                + "&lang=fi&size=8"
-                + "&focus.point.lat=" + flat + "&focus.point.lon=" + flon;
+        String url = geocodeUrl(GEOCODE_URL, text, language(), 8, null, flat, flon);
         String raw = httpGet(url);
         JSONArray features = new JSONObject(raw).optJSONArray("features");
         List<GeoPlace> out = new ArrayList<>();
@@ -764,7 +806,7 @@ public final class DigitransitApi {
         if (errors != null && errors.length() > 0) {
             JSONObject first = errors.optJSONObject(0);
             throw new IOException("Digitransit GraphQL: "
-                    + (first == null ? "tuntematon virhe" : first.optString("message", "virhe")));
+                    + (first == null ? "unknown error" : first.optString("message", "error")));
         }
         return root.optJSONObject("data");
     }
@@ -772,7 +814,7 @@ public final class DigitransitApi {
     private static String httpPost(String jsonBody, TransitRegion region) throws Exception {
         // Ilman avainta Digitransit vastaa 401/403 → epää heti selkeällä virheellä (kutsujat ottavat kiinni).
         if (BuildConfig.DIGITRANSIT_KEY == null || BuildConfig.DIGITRANSIT_KEY.trim().isEmpty()) {
-            throw new IOException("Digitransit-avain puuttuu");
+            throw new IOException("Digitransit key missing");
         }
         HttpURLConnection conn = (HttpURLConnection) new URL(region.endpoint).openConnection();
         conn.setConnectTimeout(TIMEOUT_MS);
@@ -782,6 +824,8 @@ public final class DigitransitApi {
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "application/json");
         conn.setRequestProperty("Accept-Encoding", "gzip");
+        // sv → ruotsinkieliset pysäkki-/paikannimet ja häiriötekstit (esim. "Centralstationen").
+        conn.setRequestProperty("Accept-Language", language());
         conn.setRequestProperty("digitransit-subscription-key", BuildConfig.DIGITRANSIT_KEY);
         try {
             try (OutputStream os = conn.getOutputStream()) {
@@ -810,7 +854,7 @@ public final class DigitransitApi {
     private static String httpGet(String urlString) throws Exception {
         // Ilman avainta Digitransit vastaa 401/403 → epää heti selkeällä virheellä (kutsujat ottavat kiinni).
         if (BuildConfig.DIGITRANSIT_KEY == null || BuildConfig.DIGITRANSIT_KEY.trim().isEmpty()) {
-            throw new IOException("Digitransit-avain puuttuu");
+            throw new IOException("Digitransit key missing");
         }
         HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
         conn.setConnectTimeout(TIMEOUT_MS);
@@ -818,6 +862,8 @@ public final class DigitransitApi {
         conn.setRequestMethod("GET");
         conn.setRequestProperty("Accept", "application/json");
         conn.setRequestProperty("Accept-Encoding", "gzip");
+        // sv → ruotsinkieliset pysäkki-/paikannimet ja häiriötekstit (esim. "Centralstationen").
+        conn.setRequestProperty("Accept-Language", language());
         conn.setRequestProperty("digitransit-subscription-key", BuildConfig.DIGITRANSIT_KEY);
         try {
             int code = conn.getResponseCode();

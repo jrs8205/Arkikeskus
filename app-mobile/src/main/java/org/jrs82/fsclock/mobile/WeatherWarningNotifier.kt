@@ -2,8 +2,10 @@ package org.jrs82.fsclock.mobile
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.StringRes
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.FmiWarningDetailsClient
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.WarningEnricher
 import org.jrs82.fsclock.WarningsClient
@@ -18,6 +20,7 @@ import org.json.JSONArray
  * "Oma paikka": MeteoAlarmin `areaDesc` listaa kunnat/maakunnat pilkulla → osuma kun kotipaikan nimi
  * ([SettingsManager.getHomePlace]) sisältyy johonkin alueosaan. Merivaroitukset ([WeatherWarning.marine])
  * jätetään pois. Identiteetti = varoituksen vakaa `identifier` (fallback event|area|onset).
+ * Tekstit haetaan sovelluksen kielellä; `areaDesc` on kaikilla kielillä suomeksi, joten osuma ei muutu.
  */
 object WeatherWarningNotifier {
 
@@ -26,13 +29,31 @@ object WeatherWarningNotifier {
     private const val SEEN_CAP = 100
 
     /** Ilmoituksen sisältö: FMI:n pidempi teksti jos rikkaampi, muuten MeteoAlarm-kuvaus/alue. */
-    private fun bestText(w: WeatherWarning): String {
+    internal fun bestBody(w: WeatherWarning): String {
         val fmi = w.details.detailText
         val base = if (w.description.isNotEmpty()) w.description else w.areaDesc
-        val body = if (fmi.length > base.length) fmi else base
-        val prob = if (w.details.probabilityPct >= 0) " (todennäköisyys ${w.details.probabilityPct} %)" else ""
-        return body + prob
+        return if (fmi.length > base.length) fmi else base
     }
+
+    /** Ilmoituksen sisältö rakenteena (resurssi-id:t + argumentit) → valinta testattavissa ilman Contextia. */
+    internal sealed class Notice {
+        data class Single(
+            val event: String,
+            @StringRes val levelRes: Int,
+            val body: String,
+            val probabilityPct: Int,
+        ) : Notice()
+
+        data class Many(val homePlace: String, val count: Int) : Notice()
+    }
+
+    internal fun noticeFor(toNotify: List<WeatherWarning>, homePlace: String): Notice =
+        if (toNotify.size == 1) {
+            val w = toNotify[0]
+            Notice.Single(w.event, w.level.nameRes, bestBody(w), w.details.probabilityPct)
+        } else {
+            Notice.Many(homePlace, toNotify.size)
+        }
 
     /** Varoituksen identiteettiavain (MeteoAlarm tarjoaa vakaan identifierin). */
     fun warningKey(w: WeatherWarning): String =
@@ -98,9 +119,10 @@ object WeatherWarningNotifier {
         val homePlace = SettingsManager.get().homePlace ?: ""
         if (homePlace.isBlank()) return
         val homeRegion = FinnishRegions.regionForPlace(homePlace)
-        val raw = try { WarningsClient().fetch() } catch (e: Exception) { return }
+        val locale = AppLocale.current(context)
+        val raw = try { WarningsClient().fetch(locale.language) } catch (e: Exception) { return }
         val warnings = try {
-            WarningEnricher.enrich(raw, FmiWarningDetailsClient().fetch())
+            WarningEnricher.enrich(raw, FmiWarningDetailsClient().fetch(AppLocale.fmiInfoKey(locale)))
         } catch (e: Exception) {
             raw
         }
@@ -114,23 +136,30 @@ object WeatherWarningNotifier {
     }
 
     private fun postFor(context: Context, homePlace: String, toNotify: List<WeatherWarning>) {
-        if (toNotify.size == 1) {
-            val w = toNotify[0]
-            val lvl = if (w.level.fiName.isNotEmpty()) " (${w.level.fiName})" else ""
-            Notifications.post(
-                context, Notifications.CHANNEL_WEATHER, Notifications.NOTIF_ID_WEATHER,
-                "Säävaroitus: ${w.event}$lvl",
-                bestText(w),
-                "WEATHER_WARNINGS",
-            )
-        } else {
-            Notifications.post(
-                context, Notifications.CHANNEL_WEATHER, Notifications.NOTIF_ID_WEATHER,
-                "Säävaroituksia paikkakunnalla $homePlace",
-                "${toNotify.size} voimassa olevaa säävaroitusta. Avaa nähdäksesi.",
-                "WEATHER_WARNINGS",
-            )
+        val title: String
+        val body: String
+        when (val n = noticeFor(toNotify, homePlace)) {
+            is Notice.Single -> {
+                title = if (n.levelRes != 0) {
+                    context.getString(R.string.warning_notif_title_level, n.event, context.getString(n.levelRes))
+                } else {
+                    context.getString(R.string.warning_notif_title, n.event)
+                }
+                body = if (n.probabilityPct >= 0) {
+                    context.getString(R.string.warning_notif_body_probability, n.body, n.probabilityPct)
+                } else {
+                    n.body
+                }
+            }
+            is Notice.Many -> {
+                title = context.getString(R.string.warning_notif_title_many, n.homePlace)
+                body = context.resources.getQuantityString(R.plurals.warning_notif_body_many, n.count, n.count)
+            }
         }
+        Notifications.post(
+            context, Notifications.CHANNEL_WEATHER, Notifications.NOTIF_ID_WEATHER,
+            title, body, "WEATHER_WARNINGS",
+        )
     }
 
     private fun loadSeen(prefs: SharedPreferences): Set<String> = try {

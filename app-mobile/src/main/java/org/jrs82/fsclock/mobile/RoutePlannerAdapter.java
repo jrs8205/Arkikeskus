@@ -41,8 +41,7 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     private static final int TYPE_ITINERARY = 1;
     private static final int TYPE_LEG = 2;
     private static final int TYPE_ALERT = 3;
-    private static final Locale FI = new Locale("fi", "FI");
-    private static final SimpleDateFormat CLOCK = new SimpleDateFormat("HH:mm", FI);
+    private static final SimpleDateFormat CLOCK = new SimpleDateFormat("HH:mm", Locale.ROOT);
 
     private final List<Object> items = new ArrayList<>();
     private final Listener listener;
@@ -96,7 +95,7 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             Itinerary it = (Itinerary) item;
             ItineraryVH vh = (ItineraryVH) holder;
             vh.time.setText(clock(it.startEpochMs) + " – " + clock(it.endEpochMs));
-            vh.meta.setText(minutes(it.durationSec));
+            vh.meta.setText(minutes(ctx, it.durationSec));
             buildLegBar(vh.legs, it);
             bindDepartureLine(vh.departure, it);
             vh.itemView.setOnClickListener(v -> { if (listener != null) listener.onItineraryClick(it); });
@@ -155,7 +154,7 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         box.removeAllViews();
         if (it.legs.isEmpty()) {
             TextView t = new TextView(ctx);
-            t.setText("Kävely koko matka");
+            t.setText(ctx.getString(R.string.transit_walk_whole_way));
             t.setTextSize(13);
             t.setTextColor(ContextCompat.getColor(ctx, R.color.mobile_text_muted));
             box.addView(t);
@@ -199,11 +198,11 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
 
         String label;
         if (leg.isWalk()) {
-            label = minutes(leg.durationSec);
+            label = minutes(ctx, leg.durationSec);
         } else {
             String name = leg.routeShortName == null || leg.routeShortName.isEmpty()
-                    ? modeWord(leg.mode) : leg.routeShortName;
-            label = name + " · " + minutes(leg.durationSec);
+                    ? modeWord(ctx, leg.mode) : leg.routeShortName;
+            label = name + " · " + minutes(ctx, leg.durationSec);
         }
         if (!label.isEmpty()) {
             TextView num = new TextView(ctx);
@@ -232,16 +231,20 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             return;
         }
         Context ctx = t.getContext();
-        String timeTxt = "klo " + clock(firstTransit.startEpochMs);
-        String from = firstTransit.fromName == null || firstTransit.fromName.isEmpty()
-                ? "" : " pysäkiltä " + firstTransit.fromName;
-        android.text.SpannableString s = new android.text.SpannableString("Lähtee " + timeTxt + from);
-        int st = "Lähtee ".length();
-        s.setSpan(new android.text.style.ForegroundColorSpan(
-                        ContextCompat.getColor(ctx, R.color.mobile_route_depart)),
-                st, st + timeTxt.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        s.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                st, st + timeTxt.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        String timeTxt = ctx.getString(R.string.transit_clock_time, clock(firstTransit.startEpochMs));
+        String full = firstTransit.fromName == null || firstTransit.fromName.isEmpty()
+                ? ctx.getString(R.string.transit_leaves_at, timeTxt)
+                : ctx.getString(R.string.transit_leaves_at_from, timeTxt, firstTransit.fromName);
+        android.text.SpannableString s = new android.text.SpannableString(full);
+        // Aika korostetaan siitä kohdasta, johon käännös sen sijoittaa.
+        int st = full.indexOf(timeTxt);
+        if (st >= 0) {
+            s.setSpan(new android.text.style.ForegroundColorSpan(
+                            ContextCompat.getColor(ctx, R.color.mobile_route_depart)),
+                    st, st + timeTxt.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            s.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                    st, st + timeTxt.length(), android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         t.setText(s);
         t.setVisibility(View.VISIBLE);
     }
@@ -252,8 +255,8 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         vh.time.setText(clock(leg.startEpochMs));
         if (leg.isWalk()) {
             vh.badge.setVisibility(View.GONE);
-            vh.primary.setText("Kävely");
-            String sec = distance(leg.distanceMeters) + " · " + minutes(leg.durationSec);
+            vh.primary.setText(ctx.getString(R.string.transit_walk));
+            String sec = distance(ctx, leg.distanceMeters) + " · " + minutes(ctx, leg.durationSec);
             if (leg.toName != null && !leg.toName.isEmpty()
                     && !"Destination".equals(leg.toName)) sec += " → " + leg.toName;
             vh.secondary.setText(sec);
@@ -264,19 +267,23 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             vh.badge.setBackgroundTintList(ColorStateList.valueOf(TransitStyle.modeColor(ctx, leg.mode)));
             vh.badge.setTextColor(TransitStyle.onModeColor(ctx, leg.mode));  // musta/valk luettavuuden mukaan
             String head = leg.headsign == null || leg.headsign.isEmpty() ? "" : " → " + leg.headsign;
-            vh.primary.setText(modeWord(leg.mode) + head);
-            String stop = stopInfo(leg);
+            vh.primary.setText(modeWord(ctx, leg.mode) + head);
+            String stop = stopInfo(ctx, leg);
             String sec = (leg.fromName == null ? "" : leg.fromName)
                     + (stop.isEmpty() ? "" : " (" + stop + ")")
-                    + "  ·  " + minutes(leg.durationSec);
+                    + "  ·  " + minutes(ctx, leg.durationSec);
             vh.secondary.setText(sec);
         }
     }
 
     /** Lähtöpaikan tarkenne reitin osaan: laituri (juna/metro) tai pysäkkikoodi, jos tiedossa. */
-    private static String stopInfo(Leg leg) {
-        if (leg.fromPlatform != null && !leg.fromPlatform.isEmpty()) return "laituri " + leg.fromPlatform;
-        if (leg.fromStopCode != null && !leg.fromStopCode.isEmpty()) return "pysäkki " + leg.fromStopCode;
+    private static String stopInfo(Context ctx, Leg leg) {
+        if (leg.fromPlatform != null && !leg.fromPlatform.isEmpty()) {
+            return ctx.getString(R.string.transit_platform, leg.fromPlatform);
+        }
+        if (leg.fromStopCode != null && !leg.fromStopCode.isEmpty()) {
+            return ctx.getString(R.string.transit_stop_code, leg.fromStopCode);
+        }
         return "";
     }
 
@@ -286,28 +293,32 @@ class RoutePlannerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         return epochMs > 0 ? CLOCK.format(new Date(epochMs)) : "";
     }
 
-    private static String minutes(int sec) {
+    static String minutes(Context ctx, int sec) {
         int min = Math.max(1, Math.round(sec / 60f));
-        return min + " min";
+        return ctx.getResources().getQuantityString(R.plurals.transit_minutes, min, min);
     }
 
-    private static String distance(int meters) {
-        if (meters >= 1000) return String.format(FI, "%.1f km", meters / 1000.0);
+    private static String distance(Context ctx, int meters) {
+        if (meters >= 1000) {
+            return String.format(AppLocale.INSTANCE.current(ctx), "%.1f km", meters / 1000.0);
+        }
         return meters + " m";
     }
 
-    private static String transfersText(int n) {
-        if (n <= 0) return "suora yhteys";
-        return n == 1 ? "1 vaihto" : n + " vaihtoa";
+    /** Kulkuvälineen nimi (Bussi/Buss/Bus …); tuntematon moodi näytetään koodina. */
+    static String modeWord(Context ctx, String mode) {
+        int res = modeNameRes(mode);
+        if (res != 0) return ctx.getString(res);
+        return mode == null ? "" : mode;
     }
 
-    private static String modeWord(String mode) {
-        if ("TRAM".equals(mode)) return "Ratikka";
-        if ("RAIL".equals(mode)) return "Juna";
-        if ("SUBWAY".equals(mode)) return "Metro";
-        if ("FERRY".equals(mode)) return "Lautta";
-        if ("BUS".equals(mode)) return "Bussi";
-        return mode == null ? "" : mode;
+    static int modeNameRes(String mode) {
+        if ("TRAM".equals(mode)) return R.string.transit_mode_tram;
+        if ("RAIL".equals(mode)) return R.string.transit_mode_train;
+        if ("SUBWAY".equals(mode)) return R.string.transit_mode_metro;
+        if ("FERRY".equals(mode)) return R.string.transit_mode_ferry;
+        if ("BUS".equals(mode)) return R.string.transit_mode_bus;
+        return 0;
     }
 
     private static int dp(Context ctx, int v) {

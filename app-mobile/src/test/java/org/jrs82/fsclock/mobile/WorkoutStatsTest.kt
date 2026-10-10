@@ -2,11 +2,11 @@ package org.jrs82.fsclock.mobile
 
 import org.jrs82.fsclock.db.WorkoutEntity
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 
 /** Lenkkien viikko-/kuukausiaggregointi. Kiinteä vyöhyke → tulos riippumaton testikoneen
  *  aikavyöhykkeestä. Päivämäärät LocalDatesta, jotta ISO-viikkorajat ovat ilmeisiä. */
@@ -46,8 +46,7 @@ class WorkoutStatsTest {
         assertEquals(2, weeks.size)
 
         val w25 = weeks[0]
-        assertEquals("Viikko 25", w25.label)
-        assertEquals("15.6.–21.6.", w25.dateRange)
+        assertEquals(WorkoutStats.Period.Week(25, LocalDate.of(2026, 6, 15)), w25.period)
         assertEquals(3, w25.count)
         assertEquals(8000.0, w25.distanceM, 1e-6)
         assertEquals(1_800_000L, w25.movingTimeMs)
@@ -58,13 +57,13 @@ class WorkoutStatsTest {
         assertEquals(1, w25.bikeCount)
 
         val w24 = weeks[1]
-        assertEquals("Viikko 24", w24.label)
-        assertEquals("8.6.–14.6.", w24.dateRange)
+        assertEquals(WorkoutStats.Period.Week(24, LocalDate.of(2026, 6, 8)), w24.period)
+        assertEquals(LocalDate.of(2026, 6, 14), (w24.period as WorkoutStats.Period.Week).sunday)
         assertEquals(1, w24.count)
     }
 
     @Test
-    fun `kuukausi ryhmittaa ja nimeaa suomeksi uusin ensin`() {
+    fun `kuukausi ryhmittaa vuoteen ja kuukauteen uusin ensin`() {
         val list = listOf(
             wo(LocalDate.of(2026, 5, 20), distM = 1000.0),
             wo(LocalDate.of(2026, 6, 2), distM = 2000.0),
@@ -72,13 +71,12 @@ class WorkoutStatsTest {
         )
         val months = WorkoutStats.monthly(list, zone)
         assertEquals(2, months.size)
-        assertEquals("Kesäkuu 2026", months[0].label)
-        assertNull(months[0].dateRange)
+        assertEquals(WorkoutStats.Period.Month(2026, 6), months[0].period)
         assertEquals(2, months[0].count)
         assertEquals(6000.0, months[0].distanceM, 1e-6)
         assertEquals(1, months[0].walkCount)
         assertEquals(1, months[0].bikeCount)
-        assertEquals("Toukokuu 2026", months[1].label)
+        assertEquals(WorkoutStats.Period.Month(2026, 5), months[1].period)
         assertEquals(1, months[1].count)
     }
 
@@ -91,11 +89,10 @@ class WorkoutStatsTest {
         )
         val weeks = WorkoutStats.weekly(list, zone)
         assertEquals(2, weeks.size)
-        assertEquals("Viikko 1", weeks[0].label)
-        assertEquals("Viikko 1", weeks[1].label)
         // Uusin ensin: 29.12.2025-viikko (–4.1.) ennen 30.12.2024-viikkoa (–5.1.)
-        assertEquals("29.12.–4.1.", weeks[0].dateRange)
-        assertEquals("30.12.–5.1.", weeks[1].dateRange)
+        assertEquals(WorkoutStats.Period.Week(1, LocalDate.of(2025, 12, 29)), weeks[0].period)
+        assertEquals(WorkoutStats.Period.Week(1, LocalDate.of(2024, 12, 30)), weeks[1].period)
+        assertEquals(LocalDate.of(2026, 1, 4), (weeks[0].period as WorkoutStats.Period.Week).sunday)
     }
 
     @Test
@@ -115,5 +112,23 @@ class WorkoutStatsTest {
         assertEquals(1, weeks[0].bikeCount)
         assertEquals(0L, weeks[0].steps)
         assertEquals(0.0, weeks[0].elevGainM, 1e-6)
+    }
+
+    @Test
+    fun `viikkovali muotoillaan kielen kuviolla`() {
+        val week = WorkoutStats.Period.Week(25, LocalDate.of(2026, 6, 15))
+        assertEquals("15.6.–21.6.", WorkoutStats.weekRange(week, "d.M.", AppLocale.FINNISH))
+        assertEquals("15 Jun–21 Jun", WorkoutStats.weekRange(week, "d MMM", AppLocale.ENGLISH))
+        // Vuodenvaihde: väli ylittää vuoden rajan
+        val ny = WorkoutStats.Period.Week(1, LocalDate.of(2025, 12, 29))
+        assertEquals("29.12.–4.1.", WorkoutStats.weekRange(ny, "d.M.", AppLocale.SWEDISH))
+    }
+
+    @Test
+    fun `kuukauden nimi itsenaisessa muodossa isolla alkukirjaimella`() {
+        assertEquals("Kesäkuu 2026", WorkoutStats.monthLabel(2026, 6, AppLocale.FINNISH))
+        assertEquals("Juni 2026", WorkoutStats.monthLabel(2026, 6, AppLocale.SWEDISH))
+        assertEquals("June 2026", WorkoutStats.monthLabel(2026, 6, AppLocale.ENGLISH))
+        assertEquals("Tammikuu 2027", WorkoutStats.monthLabel(2027, 1, Locale("fi", "FI")))
     }
 }

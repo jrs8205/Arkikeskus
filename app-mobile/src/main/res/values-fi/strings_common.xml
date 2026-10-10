@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_cancel">Peruuta</string>
+    <string name="common_save">Tallenna</string>
+    <string name="common_close">Sulje</string>
+    <string name="common_delete">Poista</string>
+    <string name="common_add">Lisää</string>
+    <string name="common_yes">Kyllä</string>
+    <string name="common_no">Ei</string>
+    <string name="common_refresh">Päivitä</string>
+    <string name="common_open">Avaa</string>
+    <string name="common_back">Takaisin</string>
+    <string name="common_loading">Ladataan…</string>
+    <string name="common_stale">vanhentunut</string>
+    <string name="common_updated_at">Päivitetty klo %1$s</string>
+    <string name="common_today">Tänään</string>
+    <string name="common_tomorrow">Huomenna</string>
+    <string name="common_dismiss">Hylkää</string>
+    <string name="common_settings">Asetukset</string>
+    <string name="common_unknown">Ei tiedossa</string>
+</resources>

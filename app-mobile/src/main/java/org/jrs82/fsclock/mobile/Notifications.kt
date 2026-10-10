@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.work.Constraints
@@ -66,34 +67,43 @@ object Notifications {
     private const val QUIET_START_HOUR = 23
     private const val QUIET_END_HOUR = 7
 
-    // Prosessitason vartija: kanavat luodaan vain kerran per prosessi (M9). Jokainen post() kutsui
-    // ennen 7 createNotificationChannel + 2 delete -binder-kutsua → turhaa toistoa.
-    @Volatile private var channelsEnsured = false
+    /** Kanavan id + nimen ja kuvauksen resurssit (luontijärjestyksessä). */
+    data class ChannelSpec(val id: String, @StringRes val nameRes: Int, @StringRes val descRes: Int)
+
+    val CHANNELS: List<ChannelSpec> = listOf(
+        ChannelSpec(CHANNEL_HSL_ALERTS, R.string.notif_channel_hsl_name, R.string.notif_channel_hsl_desc),
+        ChannelSpec(CHANNEL_WEATHER, R.string.notif_channel_weather_name, R.string.notif_channel_weather_desc),
+        ChannelSpec(CHANNEL_ELECTRICITY, R.string.notif_channel_electricity_name, R.string.notif_channel_electricity_desc),
+        ChannelSpec(CHANNEL_STEPS, R.string.notif_channel_steps_name, R.string.notif_channel_steps_desc),
+        ChannelSpec(CHANNEL_DEPARTURE, R.string.notif_channel_departure_name, R.string.notif_channel_departure_desc),
+        ChannelSpec(CHANNEL_UPDATE, R.string.notif_channel_update_name, R.string.notif_channel_update_desc),
+    )
+
+    // Prosessitason vartija: kanavat luodaan kerran per prosessi ja kieli (M9). Jokainen post() kutsui
+    // ennen 7 createNotificationChannel + 2 delete -binder-kutsua → turhaa toistoa. Kielen vaihtuessa
+    // luodaan uudelleen, koska createNotificationChannel samalla id:llä päivittää nimen ja kuvauksen.
+    @Volatile private var channelsLanguage: String? = null
 
     // Iso ikoni dekoodataan vain kerran (M9): ennen joka post() dekoodasi ison launcher-bitmapin.
     @Volatile private var largeIcon: Bitmap? = null
 
-    /** Luo ilmoituskanavat (idempotentti). Kaikki hälytyskanavat IMPORTANCE_HIGH (heads-up + ääni). */
+    /** Luo ilmoituskanavat sovelluksen nykyisellä kielellä (idempotentti saman kielen sisällä). Kaikki
+     *  hälytyskanavat IMPORTANCE_HIGH (heads-up + ääni). Kutsutaan uudelleen kielen vaihtuessa. */
     fun ensureChannels(context: Context) {
-        if (channelsEnsured) return
+        val language = AppLocale.language(context)
+        if (!needsChannelRefresh(channelsLanguage, language)) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // Migraatio: poista vanhat DEFAULT-tärkeyden kanavat (tärkeys lukittuu luonnissa).
         nm.deleteNotificationChannel("notif_hsl_alerts")
         nm.deleteNotificationChannel("notif_weather_warnings")
-        highChannel(nm, CHANNEL_HSL_ALERTS, "HSL-häiriöt",
-            "Ilmoitus kun suosikkilinjalle tai -pysäkille tulee uusi häiriö")
-        highChannel(nm, CHANNEL_WEATHER, "Säävaroitukset",
-            "FMI:n säävaroitukset kotipaikkakunnallasi")
-        highChannel(nm, CHANNEL_ELECTRICITY, "Pörssisähkö",
-            "Ilmoitus kun huomisen pörssisähköhinnat saapuvat")
-        highChannel(nm, CHANNEL_STEPS, "Askeltavoite",
-            "Ilmoitus kun päivän askeltavoite on saavutettu")
-        highChannel(nm, CHANNEL_DEPARTURE, "Lähtömuistutukset",
-            "Muistutus valitsemastasi joukkoliikennelähdöstä ennen sen lähtöä")
-        highChannel(nm, CHANNEL_UPDATE, "Sovelluspäivitykset",
-            "Ilmoitus kun Arkikeskuksesta on uusi versio saatavilla")
-        channelsEnsured = true
+        for (c in CHANNELS) {
+            highChannel(nm, c.id, context.getString(c.nameRes), context.getString(c.descRes))
+        }
+        channelsLanguage = language
     }
+
+    /** Pitääkö kanavat luoda (uudelleen): ei vielä luotu tässä prosessissa tai kieli on vaihtunut. */
+    internal fun needsChannelRefresh(ensuredFor: String?, language: String): Boolean = ensuredFor != language
 
     private fun highChannel(nm: NotificationManager, id: String, name: String, desc: String) {
         val ch = NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH)

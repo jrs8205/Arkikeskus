@@ -5,9 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import androidx.compose.ui.unit.dp
-import androidx.datastore.preferences.core.Preferences
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
@@ -23,7 +21,6 @@ import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
-import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -42,6 +39,8 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.R
+import org.jrs82.fsclock.mobile.FontScaleCap
+import org.jrs82.fsclock.mobile.AppLocale
 import org.jrs82.fsclock.mobile.ElectricityTime
 import org.jrs82.fsclock.mobile.ElectricityVat
 import org.jrs82.fsclock.mobile.PriceScale
@@ -57,10 +56,7 @@ class ElectricityWidget : GlanceAppWidget() {
         // Jokainen piirto varmistaa seuraavan varttirajan herätyksen (idempotentti PendingIntent).
         try { ElectricityQuarterAlarm.scheduleIfWidgets(context) } catch (e: Exception) { }
         provideContent {
-            // Piirtolaskuri luetaan kompositiossa → elävä Glance-sessio recomposaa kun se kasvaa.
-            key(currentState<Preferences>()[ElectricityWidgetRedraw.RENDER_REVISION]) {
-                ElectricityContent(context)
-            }
+            RenderRevision { ElectricityContent(context) }
         }
     }
 }
@@ -77,7 +73,8 @@ private fun ElectricityContent(context: Context) {
     val threshold = (prefs.getString("mobile_cheap_electricity_threshold", "5.0") ?: "5.0")
         .trim().replace(',', '.').toDoubleOrNull() ?: 5.0
     val level = WidgetFormat.priceLevel(snt, threshold)
-    val priceText = ElectricityVat.format(snt)
+    val locale = AppLocale.current(context)
+    val priceText = ElectricityVat.format(snt, locale)
 
     val levelColor = when (level) {
         PriceLevel.CHEAP -> WidgetColors.pos
@@ -89,11 +86,7 @@ private fun ElectricityContent(context: Context) {
         PriceLevel.NORMAL -> WidgetColors.warnTintChip
         PriceLevel.EXPENSIVE -> WidgetColors.negTintChip
     }
-    val chipText = when (level) {
-        PriceLevel.CHEAP -> "Halpaa"
-        PriceLevel.NORMAL -> "Normaali"
-        PriceLevel.EXPENSIVE -> "Kallis"
-    }
+    val chipText = context.getString(WidgetFormat.priceLabelRes(level))
     val chipIcon = when (level) {
         PriceLevel.CHEAP -> R.drawable.mobile_ic_arrow_down_24
         PriceLevel.NORMAL -> R.drawable.mobile_ic_arrow_right_alt_24
@@ -105,25 +98,29 @@ private fun ElectricityContent(context: Context) {
     val dayMin = range?.first ?: Double.NaN
     val dayMax = range?.second ?: Double.NaN
     val pos01 = PriceScale.fraction(rawSnt, dayMin, dayMax, vat)
-    val (minText, midText, maxText) = PriceScale.labels(dayMin, dayMax, vat)
+    val (minText, midText, maxText) = PriceScale.labels(dayMin, dayMax, vat, locale)
 
     // Asettelu valitaan ilmoitetun korkeuden ja fonttiskaalan mukaan: matalassa widgetissä rivejä pudotetaan,
     // jotta jana ja sen hinnat mahtuvat aina kokonaan widgetin sisään.
     val size = LocalSize.current
-    val spec = ElectricityWidgetLayout.choose(size.height.value, context.resources.configuration.fontScale)
+    val spec = ElectricityWidgetLayout.choose(size.height.value, FontScaleCap.effective(context.resources.configuration.fontScale))
     val narrow = ElectricityWidgetLayout.isNarrow(size.width.value)
     val innerW = (size.width.value - 40f).coerceAtLeast(0f) // kortin sisaleveys (padding 20*2)
 
     // Aktiivinen 15 min vartti + seuraavan vartin alku (Suomen aika), samasta hetkestä kuin hinta.
     val (qStart, qEnd) = ElectricityTime.quarterBounds(nowMs)
     val hm = DateTimeFormatter.ofPattern("H.mm")
-    val quarterShort = "klo ${qStart.format(hm)}–${qEnd.format(hm)}"
-    val quarterText = if (narrow) "Vartti $quarterShort" else "Vartti $quarterShort · seuraava ${qEnd.format(hm)}"
+    val quarterShort = context.getString(R.string.electricity_quarter_time, qStart.format(hm), qEnd.format(hm))
+    val quarterText = if (narrow) {
+        context.getString(R.string.electricity_quarter_range_short, qStart.format(hm), qEnd.format(hm))
+    } else {
+        context.getString(R.string.electricity_quarter_range, qStart.format(hm), qEnd.format(hm), qEnd.format(hm))
+    }
 
     // Otsikko, hinta ja varttirivi. Janan yläpuolinen osa.
     val top: @Composable () -> Unit = {
         if (spec.showHeader) {
-            // Otsikkorivi: bolt-chip + "Porssisahko nyt"  ...  tasolappu
+            // Otsikkorivi: bolt-chip + otsikko  ...  tasolappu
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Vertical.CenterVertically,
@@ -145,13 +142,13 @@ private fun ElectricityContent(context: Context) {
                 // Paino: otsikko lyhenee tarvittaessa, tasolappu pysyy aina kokonaan näkyvissä.
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
-                        "Pörssisähkö nyt",
-                        style = TextStyle(color = WidgetColors.dim, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                        context.getString(R.string.electricity_widget_title),
+                        style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(14), fontWeight = FontWeight.Bold),
                         maxLines = 1,
                     )
                     Text(
-                        ElectricityVat.widgetNote(vat),
-                        style = TextStyle(color = WidgetColors.dim, fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                        context.getString(ElectricityVat.widgetNoteRes(vat)),
+                        style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(11), fontWeight = FontWeight.Medium),
                         maxLines = 1,
                     )
                 }
@@ -170,7 +167,7 @@ private fun ElectricityContent(context: Context) {
                             Spacer(GlanceModifier.width(5.dp))
                             Text(
                                 chipText,
-                                style = TextStyle(color = levelColor, fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                                style = TextStyle(color = levelColor, fontSize = widgetSp(13), fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }
@@ -183,20 +180,20 @@ private fun ElectricityContent(context: Context) {
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.Bottom) {
             Text(
                 priceText,
-                style = TextStyle(color = levelColor, fontSize = spec.priceSp.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = levelColor, fontSize = widgetSp(spec.priceSp), fontWeight = FontWeight.Bold),
                 maxLines = 1,
             )
             Spacer(GlanceModifier.width(7.dp))
             Text(
                 "c/kWh",
-                style = TextStyle(color = WidgetColors.dim, fontSize = 16.sp, fontWeight = FontWeight.Medium),
+                style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(16), fontWeight = FontWeight.Medium),
                 maxLines = 1,
             )
             if (!spec.showQuarter && !narrow) {
                 Spacer(GlanceModifier.defaultWeight())
                 Text(
                     quarterShort,
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                    style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(12), fontWeight = FontWeight.Medium),
                     maxLines = 1,
                 )
             }
@@ -214,7 +211,7 @@ private fun ElectricityContent(context: Context) {
                 Spacer(GlanceModifier.width(6.dp))
                 Text(
                     quarterText,
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                    style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(12), fontWeight = FontWeight.Medium),
                     maxLines = 1,
                 )
             }
@@ -272,19 +269,19 @@ private fun ElectricityContent(context: Context) {
                     Text(
                         minText,
                         modifier = GlanceModifier.defaultWeight(),
-                        style = TextStyle(color = WidgetColors.scaleMin, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Start),
+                        style = TextStyle(color = WidgetColors.scaleMin, fontSize = widgetSp(12), fontWeight = FontWeight.Bold, textAlign = TextAlign.Start),
                         maxLines = 1,
                     )
                     Text(
                         midText,
                         modifier = GlanceModifier.defaultWeight(),
-                        style = TextStyle(color = WidgetColors.scaleMid, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
+                        style = TextStyle(color = WidgetColors.scaleMid, fontSize = widgetSp(12), fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
                         maxLines = 1,
                     )
                     Text(
                         maxText,
                         modifier = GlanceModifier.defaultWeight(),
-                        style = TextStyle(color = WidgetColors.scaleMax, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End),
+                        style = TextStyle(color = WidgetColors.scaleMax, fontSize = widgetSp(12), fontWeight = FontWeight.Bold, textAlign = TextAlign.End),
                         maxLines = 1,
                     )
                 }

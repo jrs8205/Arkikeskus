@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +45,6 @@ import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 /**
  * WhatsApp-tyylinen Varmuuskopiointi-sivu: Google-tilin valinta, iso Varmuuskopioi-nappi,
@@ -53,7 +55,7 @@ import java.util.Locale
 internal fun DriveBackupScreen(onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val fi = remember { Locale("fi", "FI") }
+    val locale = AppLocale.current(context)
 
     var email by remember { mutableStateOf(DriveBackup.accountEmail(context)) }
     var lastInfo by remember { mutableStateOf(DriveBackup.cachedInfo(context)) }
@@ -71,13 +73,13 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
             email = DriveBackup.accountEmail(context)
             if (email != null) {
                 DriveBackup.applySchedule(context)
-                toast(context, "Kirjauduttu: $email")
+                toast(context, context.getString(R.string.backup_signed_in_as, email))
             } else {
-                toast(context, "Drive-oikeutta ei myonnetty.")
+                toast(context, context.getString(R.string.backup_drive_access_denied))
             }
         } catch (e: ApiException) {
             if (e.statusCode != 12501) { // 12501 = SIGN_IN_CANCELLED (kayttaja perui — ei virheilmoitusta)
-                toast(context, "Kirjautuminen epaonnistui (${e.statusCode}).")
+                toast(context, context.getString(R.string.backup_sign_in_failed, e.statusCode))
             }
         }
     }
@@ -94,10 +96,10 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
             busy = null
             res.onSuccess { info ->
                 lastInfo = info
-                toast(context, "Varmuuskopio tallennettu Driveen (${formatBytes(info.bytes)}).")
+                toast(context, context.getString(R.string.backup_saved_drive, formatBackupSize(context, info.bytes)))
             }.onFailure { e ->
                 DriveBackup.recordError(context, e)
-                toast(context, "Varmuuskopiointi epaonnistui: ${e.message ?: e.javaClass.simpleName}")
+                toast(context, context.getString(R.string.backup_failed_reason, e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -105,7 +107,7 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
     fun doRestore() {
         if (busy != null) return
         if (WorkoutTracker.state.value.phase != WorkoutTracker.Phase.IDLE) {
-            toast(context, "Lopeta kaynnissa oleva lenkki ennen palautusta.")
+            toast(context, context.getString(R.string.backup_stop_workout_first))
             return
         }
         busy = "restore"
@@ -114,7 +116,7 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
             busy = null
             res.onSuccess { restoreDone = it }
                 .onFailure { e ->
-                    toast(context, "Palautus epaonnistui: ${e.message ?: e.javaClass.simpleName}")
+                    toast(context, context.getString(R.string.backup_restore_failed_reason, e.displayMessage(context)))
                 }
         }
     }
@@ -123,7 +125,7 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
         DriveBackup.signInClient(context).signOut().addOnCompleteListener {
             email = null
             DriveBackup.applySchedule(context)
-            toast(context, "Kirjauduttu ulos.")
+            toast(context, context.getString(R.string.backup_signed_out))
         }
     }
 
@@ -134,12 +136,11 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Varmuuskopiointi", style = MaterialTheme.typography.headlineSmall,
+        Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
         Text(
-            "Varmuuskopioi lenkit, askeleet ja asetukset Google Driveen, jotta et menetä niitä " +
-                "uudella puhelimella. Kopio tallentuu tilisi piilotettuun sovelluskansioon.",
+            stringResource(R.string.backup_drive_intro),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -149,12 +150,12 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
             ArkiCard(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
-                        "Kirjaudu Google-tilillä, jotta varmuuskopiot tallentuvat Driveesi.",
+                        stringResource(R.string.backup_sign_in_prompt),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = { launchSignIn() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Kirjaudu Google-tilillä")
+                        Text(stringResource(R.string.backup_sign_in))
                     }
                 }
             }
@@ -162,14 +163,14 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
             // Tila
             ArkiCard(modifier = Modifier.fillMaxWidth(), shape = ItemBoxShape) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Viimeisin varmuuskopio", style = MaterialTheme.typography.labelMedium,
+                    Text(stringResource(R.string.backup_last), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(2.dp))
                     Text(
                         lastInfo?.let {
-                            SimpleDateFormat("d.M. HH:mm", fi).format(Date(it.timeMs)) +
-                                " · " + formatBytes(it.bytes)
-                        } ?: "Ei vielä varmuuskopiota",
+                            SimpleDateFormat(stringResource(R.string.backup_date_pattern), locale).format(Date(it.timeMs)) +
+                                " · " + formatBackupSize(context, it.bytes)
+                        } ?: stringResource(R.string.backup_none_yet),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
@@ -187,33 +188,33 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {
-                    Text("Varmuuskopioi", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.backup_now), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(Modifier.height(16.dp))
 
             ClickableRow(
-                title = "Google-tili",
+                title = stringResource(R.string.backup_google_account),
                 subtitle = email,
                 onClick = { launchSignIn() },
             )
             Spacer(Modifier.height(8.dp))
             ClickableRow(
-                title = "Automaattinen varmuuskopiointi",
-                subtitle = freqLabel(freq),
+                title = stringResource(R.string.backup_auto),
+                subtitle = stringResource(driveFrequencyLabelRes(freq)),
                 leadingIconRes = R.drawable.mobile_ic_backup_24,
                 onClick = { freqDialog = true },
             )
             Spacer(Modifier.height(8.dp))
             ClickableRow(
-                title = "Palauta varmuuskopio",
-                subtitle = "Lataa Drivestä ja korvaa nykyiset tiedot",
+                title = stringResource(R.string.backup_restore),
+                subtitle = stringResource(R.string.backup_restore_sub),
                 leadingIconRes = R.drawable.mobile_ic_restore_24,
                 onClick = { restoreConfirm = true },
             )
             Spacer(Modifier.height(8.dp))
             ClickableRow(
-                title = "Kirjaudu ulos",
+                title = stringResource(R.string.backup_sign_out),
                 onClick = { signOut() },
             )
         }
@@ -227,7 +228,7 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
         )
         AlertDialog(
             onDismissRequest = { freqDialog = false },
-            title = { Text("Automaattinen varmuuskopiointi") },
+            title = { Text(stringResource(R.string.backup_auto)) },
             text = {
                 Column {
                     options.forEach { opt ->
@@ -243,13 +244,13 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = freq == opt, onClick = null)
-                            Text(freqLabel(opt), modifier = Modifier.padding(start = 8.dp))
+                            Text(stringResource(driveFrequencyLabelRes(opt)), modifier = Modifier.padding(start = 8.dp))
                         }
                     }
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { freqDialog = false }) { Text("Sulje") } },
+            dismissButton = { TextButton(onClick = { freqDialog = false }) { Text(stringResource(R.string.common_close)) } },
         )
     }
 
@@ -257,20 +258,17 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
     if (restoreConfirm) {
         AlertDialog(
             onDismissRequest = { restoreConfirm = false },
-            title = { Text("Palauta varmuuskopio") },
-            text = {
-                Text(
-                    "Tämä lataa Driveen tallennetun varmuuskopion ja yhdistää sen nykyisiin " +
-                        "tietoihin. Sovellus käynnistetään uudelleen palautuksen jälkeen. Jatketaanko?",
-                )
-            },
+            title = { Text(stringResource(R.string.backup_restore)) },
+            text = { Text(stringResource(R.string.backup_restore_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     restoreConfirm = false
                     doRestore()
-                }) { Text("Palauta") }
+                }) { Text(stringResource(R.string.backup_restore_action)) }
             },
-            dismissButton = { TextButton(onClick = { restoreConfirm = false }) { Text("Peruuta") } },
+            dismissButton = {
+                TextButton(onClick = { restoreConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
+            },
         )
     }
 
@@ -278,36 +276,33 @@ internal fun DriveBackupScreen(onClose: () -> Unit) {
     restoreDone?.let { res ->
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("Varmuuskopio palautettu") },
-            text = {
-                Text(
-                    "Palautettu ${res.workouts} lenkkiä ja ${res.prefs} asetusta" +
-                        (if (res.skipped > 0) " (${res.skipped} jo laitteella)" else "") +
-                        ".\n\nSovellus käynnistetään uudelleen.",
-                )
-            },
+            title = { Text(stringResource(R.string.backup_restored_title)) },
+            text = { Text(restoreSummaryText(res, R.string.backup_restart_note)) },
             confirmButton = {
                 TextButton(onClick = {
                     restoreDone = null
                     RestartActivity.restartApp(context)
-                }) { Text("Käynnistä uudelleen") }
+                }) { Text(stringResource(R.string.backup_restart)) }
             },
         )
     }
 }
 
-private fun freqLabel(freq: String): String = when (freq) {
-    DriveBackup.FREQ_DAILY -> "Päivittäin"
-    DriveBackup.FREQ_WEEKLY -> "Viikoittain"
-    DriveBackup.FREQ_MONTHLY -> "Kuukausittain"
-    DriveBackup.FREQ_MANUAL -> "Vain napautettaessa"
-    else -> "Ei käytössä"
-}
-
-private fun formatBytes(bytes: Long): String = when {
-    bytes < 1024 -> "$bytes t"
-    bytes < 1024 * 1024 -> String.format(Locale("fi", "FI"), "%.0f kt", bytes / 1024.0)
-    else -> String.format(Locale("fi", "FI"), "%.1f Mt", bytes / (1024.0 * 1024.0))
+/** Palautuksen yhteenveto dialogiin (jaettu asetusten tiedostopalautuksen kanssa); [restartNote] kertoo
+ *  mitä uudelleenkäynnistyksessä tapahtuu. */
+@Composable
+internal fun restoreSummaryText(res: BackupManager.RestoreResult, @StringRes restartNote: Int): String {
+    val summary = stringResource(
+        R.string.backup_restored_summary,
+        pluralStringResource(R.plurals.backup_workouts, res.workouts, res.workouts),
+        pluralStringResource(R.plurals.backup_settings, res.prefs, res.prefs),
+    )
+    val skipped = if (res.skipped > 0) {
+        " " + pluralStringResource(R.plurals.backup_skipped, res.skipped, res.skipped)
+    } else {
+        ""
+    }
+    return summary + skipped + "\n\n" + stringResource(restartNote)
 }
 
 private fun toast(context: Context, msg: String) {

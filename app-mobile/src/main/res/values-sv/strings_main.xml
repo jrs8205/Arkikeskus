@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="main_section_home">Hem</string>
+    <string name="main_section_forecast">7-dygnsprognos</string>
+    <string name="main_section_weather_warnings">Vädervarningar</string>
+    <string name="main_section_places">Orter</string>
+    <string name="main_section_sensors">Sensorer</string>
+    <string name="main_section_traffic_accidents">Olyckor</string>
+    <string name="main_section_traffic_roadworks">Vägarbeten</string>
+    <string name="main_section_traffic_weight">Viktbegränsningar</string>
+    <string name="main_section_traffic_incidents">Trafikmeddelanden</string>
+    <string name="main_section_traffic_congestion">Köer</string>
+    <string name="main_section_road_cameras">Väglagskameror</string>
+    <string name="main_section_transit">Avgångar nära dig</string>
+    <string name="main_section_route_planner">Reseplanerare</string>
+    <string name="main_section_hsl_disruptions">Störningar och ändringar</string>
+    <string name="main_section_speedometer">GPS-hastighet</string>
+    <string name="main_section_steps">Steg</string>
+    <string name="main_section_workout">Träningspass</string>
+    <string name="main_section_news">Inrikes</string>
+    <string name="main_section_news_foreign">Utrikes</string>
+    <string name="main_section_own_feeds">Egna flöden</string>
+    <string name="main_section_electricity">Börsel</string>
+    <string name="main_section_teletext">Text-TV</string>
+    <string name="main_section_tv_guide">TV-program</string>
+    <string name="main_section_device_info">Telefoninfo</string>
+    <string name="main_section_flights">Flyg</string>
+    <string name="main_nav_home">Hem</string>
+    <string name="main_menu">Meny</string>
+    <string name="main_drawer_weather">Väder</string>
+    <string name="main_drawer_traffic">Trafikinfo</string>
+    <string name="main_drawer_transit">Kollektivtrafik (HRT/Tammerfors)</string>
+    <string name="main_drawer_news">Nyheter</string>
+    <string name="main_drawer_fitness">Motion</string>
+    <string name="main_drawer_other">Övrigt</string>
+    <string name="main_update_available">Ny version %1$s finns tillgänglig</string>
+    <string name="main_update_whats_new">Vad är nytt</string>
+    <string name="main_update_whats_new_title">Vad är nytt – %1$s</string>
+    <string name="main_update_install">Uppdatera</string>
+    <string name="main_update_downloading">Laddar ned uppdateringen…</string>
+    <string name="main_backup_restored">Säkerhetskopian har återställts.</string>
+    <string name="main_workout_import_none">Filen innehöll inget träningspass (GPX/TCX).</string>
+    <string name="main_workout_import_exists">Träningspasset finns redan på enheten: %1$s</string>
+    <string name="main_workout_import_done">Delat träningspass importerat: %1$s</string>
+    <string name="main_search_clear">Töm sökningen</string>
+</resources>

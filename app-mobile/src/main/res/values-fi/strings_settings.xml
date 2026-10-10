@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Alasivujen otsikot -->
+    <string name="settings_page_weather">Sää &amp; sijainti</string>
+    <string name="settings_page_electricity">Pörssisähkö</string>
+    <string name="settings_page_news">Uutiset</string>
+    <string name="settings_page_transit">Joukkoliikenne</string>
+    <string name="settings_page_fitness">Lenkki &amp; askeleet</string>
+    <string name="settings_page_ruuvi">Ruuvi-anturit</string>
+    <string name="settings_page_appearance">Ulkoasu</string>
+    <string name="settings_page_app_data">Sovellus &amp; data</string>
+    <string name="settings_page_about">Tietoja</string>
+
+    <!-- Keskussivu -->
+    <string name="settings_hub_home">Etusivu</string>
+    <string name="settings_hub_home_sub">Näkyvät kortit ja järjestys</string>
+    <string name="settings_hub_weather_sub">Sijainti · säävaroitukset</string>
+    <string name="settings_hub_electricity_sub">Halvan sähkön huomio ja rajat</string>
+    <string name="settings_hub_news_sub">10 lähdettä · 9 kategoriaa · omat syötteet</string>
+    <string name="settings_hub_transit_sub">HSL-häiriöilmoitukset suosikeille</string>
+    <string name="settings_hub_fitness_sub">Kilometri-ilmoitus · askeltavoite</string>
+    <string name="settings_hub_ruuvi_find">Etsi antureita Bluetoothilla</string>
+    <plurals name="settings_hub_ruuvi_sensors">
+        <item quantity="one">%1$d anturi · etsi uusia</item>
+        <item quantity="other">%1$d anturia · etsi uusia</item>
+    </plurals>
+    <string name="settings_hub_appearance_sub">Teema · laitteen värit</string>
+    <string name="settings_hub_app_data_sub">Päivitysväli · varmuuskopiointi</string>
+    <string name="settings_hub_about_sub">Versio %1$s · GitHub</string>
+    <string name="settings_notifications_header">Ilmoitukset</string>
+    <string name="settings_notif_permission_needed">Salli ilmoitukset, jotta sovellus voi lähettää ilmoituksia.</string>
+
+    <!-- Sää ja sijainti -->
+    <string name="settings_location_header">Sijainti</string>
+    <string name="settings_auto_location">Automaattinen sijainti</string>
+    <string name="settings_auto_location_sub">Päivitä paikkakunta laitteen sijainnin perusteella, jos lupa on annettu</string>
+    <string name="settings_auto_location_on">Automaattinen sijainti on käytössä.</string>
+    <string name="settings_precise_location_denied">Tarkkaa sijaintilupaa ei annettu. Kaupunkihaku toimii normaalisti.</string>
+    <string name="settings_bg_widgets">Widgetit taustalla</string>
+    <string name="settings_bg_widgets_sub">Salli sijainti \"aina\", jotta kotinäytön widgetit päivittävät paikan myös sovelluksen ollessa kiinni</string>
+    <string name="settings_bg_location_granted">Taustasijainti sallittu — widgetit päivittävät paikan myös taustalla.</string>
+    <string name="settings_bg_location_denied">Valitse sijainniksi \"Salli aina\", niin kotinäytön widgetit päivittyvät taustalla.</string>
+    <string name="settings_last_weather_update">Viimeisin sääpäivitys</string>
+    <string name="settings_datetime_pattern">d.M.yyyy HH:mm</string>
+    <string name="settings_notify_warnings">Säävaroitukset (oma paikkakunta)</string>
+    <string name="settings_notify_warnings_sub">Ilmoita FMI:n säävaroituksista kotipaikkakunnallasi</string>
+
+    <!-- Pörssisähkö -->
+    <string name="settings_prices_header">Hinnat</string>
+    <string name="settings_vat_title" formatted="false">ALV 25,5 %</string>
+    <string name="settings_vat_on">Mukana hinnoissa</string>
+    <string name="settings_vat_off">Hinnat ilman ALV:tä</string>
+    <string name="settings_cheap_header">Halpa sähkö</string>
+    <string name="settings_cheap_notice">Halvan sähkön huomio</string>
+    <string name="settings_cheap_notice_sub">Näytä huomio etusivulla kun sähkö on halpaa</string>
+    <string name="settings_cheap_threshold">Halvan sähkön raja</string>
+    <string name="settings_threshold_label_vat" formatted="false">c/kWh (sis. ALV 25,5 %)</string>
+    <string name="settings_threshold_label_no_vat" formatted="false">c/kWh (ALV 0 %)</string>
+    <string name="settings_threshold_invalid">Anna luku, esim. 5.0</string>
+    <string name="settings_cheap_mode">Milloin huomio näytetään</string>
+    <string name="settings_cheap_mode_current">Nykyinen vartti</string>
+    <string name="settings_cheap_mode_rest_of_day">Koko loppupäivä</string>
+    <string name="settings_cheap_mode_all_day">Koko päivä</string>
+    <string name="settings_notify_tomorrow_prices">Huomisen hinnat</string>
+    <string name="settings_notify_tomorrow_prices_sub">Ilmoita kun huomisen sähköhinnat saapuvat (n. klo 14)</string>
+
+    <!-- Uutiset -->
+    <string name="settings_news_sources_header">Uutislähteet · %1$d</string>
+    <string name="settings_custom_feeds_header">Omat uutissyötteet</string>
+    <string name="settings_add_feed">Lisää oma syöte</string>
+    <string name="settings_add_feed_sub">Lisää oma RSS- tai Atom-syöte (nimi + osoite)</string>
+    <string name="settings_edit_feed">Muokkaa syötettä</string>
+    <string name="settings_feed_name_label">Nimi (esim. Oma blogi)</string>
+    <string name="settings_feed_url_label">Osoite (https://…)</string>
+    <string name="settings_delete_feed">Poista syöte</string>
+    <string name="settings_feed_invalid_url">Virheellinen osoite. Käytä http(s)://-alkuista osoitetta.</string>
+    <string name="settings_news_categories_header">Uutiskategoriat (Kotimaat + Ulkomaat) · %1$d</string>
+
+    <!-- Joukkoliikenne -->
+    <string name="settings_transit_desc">HSL-häiriöilmoitukset suosikkilinjoillesi ja -pysäkeillesi.</string>
+    <string name="settings_notify_hsl">HSL-häiriöt suosikeilla</string>
+    <string name="settings_notify_hsl_sub">Ilmoita kun suosikkilinjalle tai -pysäkille tulee uusi häiriö</string>
+
+    <!-- Lenkki ja askeleet -->
+    <string name="settings_step_goal">Askeltavoite</string>
+    <string name="settings_goal">Tavoite</string>
+    <plurals name="settings_step_goal_steps">
+        <item quantity="one">%1$s askel</item>
+        <item quantity="other">%1$s askelta</item>
+    </plurals>
+    <string name="settings_km_announcement">Kilometri-ilmoitus</string>
+    <string name="settings_km_announcement_sub">Ääni-ilmoitus joka täyden kilometrin täyttyessä lenkillä</string>
+    <string name="settings_notify_step_goal">Askeltavoite saavutettu</string>
+    <string name="settings_notify_step_goal_sub">Ilmoita kun saavutat päivän askeltavoitteen</string>
+
+    <!-- Ruuvi-anturit -->
+    <string name="settings_ruuvi_desc">Skannaa ja nimeä RuuviTag-anturit. Lukemat näkyvät etusivulla ja Anturit-näkymässä.</string>
+    <string name="settings_sensors_header">Anturit</string>
+    <string name="settings_find_sensors_bt">Etsi antureita (Bluetooth)</string>
+    <string name="settings_find_sensors_sub">Skannaa lähellä olevat RuuviTagit ja nimeä napauttamalla</string>
+    <string name="settings_sensors_empty">Antureita voi nimetä rajattomasti. Nimetyt anturit näkyvät tässä.</string>
+    <string name="settings_no_sensor">Ei anturia</string>
+    <string name="settings_sensor_name_title">Anturin nimi (%1$s)</string>
+    <string name="settings_sensor_name_label">Nimi (tyhjä poistaa nimeämisen)</string>
+    <string name="settings_scan_title">Etsi antureita</string>
+    <string name="settings_scan_hint">Napauta anturia antaaksesi sille nimen. Nimettyjä antureita voi olla rajattomasti.</string>
+    <string name="settings_scan_searching">Etsitään RuuviTageja…</string>
+    <string name="settings_bt_off">Bluetooth on pois päältä. Kytke se päälle ja yritä uudelleen.</string>
+    <string name="settings_bt_scan_permission">Bluetooth-skannauslupa tarvitaan antureiden etsimiseen.</string>
+
+    <!-- Ulkoasu -->
+    <string name="settings_theme">Teema</string>
+    <string name="settings_theme_system">Järjestelmän mukaan</string>
+    <string name="settings_theme_light">Vaalea</string>
+    <string name="settings_theme_dark">Tumma</string>
+    <string name="settings_dynamic_color">Käytä laitteen värejä</string>
+    <string name="settings_dynamic_color_sub">Material You -värit taustakuvasta. Pois päältä: oma kirkas brändipaletti.</string>
+
+    <!-- Sovellus ja data -->
+    <string name="settings_data_update_header">Tietojen päivitys</string>
+    <string name="settings_update_interval">Tietojen päivitysväli</string>
+    <string name="settings_update_interval_sub">Kaikki tiedot (sää, sähkö, uutiset…)</string>
+    <plurals name="settings_interval_minutes">
+        <item quantity="one">%1$d minuutti</item>
+        <item quantity="other">%1$d minuuttia</item>
+    </plurals>
+    <string name="settings_notify_app_update">Sovelluspäivitykset</string>
+    <string name="settings_notify_app_update_sub">Ilmoita kun Arkikeskuksesta on uusi versio</string>
+
+    <!-- Tietoja ja sovelluspäivitys -->
+    <string name="settings_app_header">Sovellus</string>
+    <string name="settings_app_version">Sovelluksen versio</string>
+    <string name="settings_check_updates">Tarkista päivitykset</string>
+    <string name="settings_checking_updates">Tarkistetaan päivityksiä…</string>
+    <string name="settings_update_check_failed">Päivitystarkistus epäonnistui. Tarkista verkkoyhteys.</string>
+    <string name="settings_update_available">Uudempi versio %1$s on saatavilla.</string>
+    <string name="settings_up_to_date">Sovellus on ajan tasalla.</string>
+    <string name="settings_download_install">Lataa ja asenna %1$s</string>
+    <string name="settings_downloading_installing">Ladataan ja asennetaan…</string>
+    <string name="settings_download_install_sub">Haetaan GitHub-julkaisusta. Asennukseen tarvitaan lupa asentaa tuntemattomista lähteistä.</string>
+    <string name="settings_github">GitHub – lähdekoodi ja julkaisut</string>
+    <string name="settings_no_browser">Selainta ei löytynyt</string>
+    <string name="settings_update_allow_unknown_sources">Salli ensin asennus tuntemattomista lähteistä, sitten yritä uudelleen.</string>
+    <string name="settings_update_opening_installer">Avataan asennus…</string>
+    <string name="settings_update_download_failed">Lataus epäonnistui: %1$s</string>
+    <string name="settings_update_incomplete">Epätäydellinen lataus (%1$d/%2$d tavua)</string>
+    <string name="settings_update_empty">Tyhjä lataus</string>
+    <string name="settings_update_notif_title">Uusi versio %1$s saatavilla</string>
+    <string name="settings_update_notif_text">Avaa päivittääksesi Arkikeskuksen.</string>
+
+    <!-- Etusivun kortit -->
+    <string name="settings_home_cards_title">Etusivun kortit</string>
+    <string name="settings_home_cards_hint">Vedä kahvasta järjestääksesi. Valinta näyttää kortin etusivulla.</string>
+    <string name="settings_home_cards_drag">Raahaa järjestääksesi</string>
+    <string name="settings_home_cards_order_saved">Järjestys tallennettu</string>
+    <string name="settings_home_cards_saved">Tallennettu</string>
+
+    <!-- Health Connect -perustelu -->
+    <string name="settings_health_title">Terveystietojen käyttö</string>
+    <string name="settings_health_why">Miksi Arkikeskus pyytää Health Connect -oikeuksia?</string>
+    <string name="settings_health_reads">Arkikeskus lukee Health Connectista askeleet ja kalorit (aktiiviset ja kokonaiskulutuksen), jotta Askeleet-sivu voi näyttää päivän askelmäärän, kaloriarvion sekä päivä-, viikko- ja kuukausihistorian.</string>
+    <string name="settings_health_privacy">Tietoja käytetään vain näyttämiseen tässä sovelluksessa ja paikalliseen HTML-vientiin, jonka teet itse. Tietoja ei lähetetä verkkoon eikä jaeta kolmansille osapuolille. Sovellus ei kirjoita mitään Health Connectiin.</string>
+    <string name="settings_health_revoke">Voit perua oikeudet milloin tahansa Health Connectin asetuksista — askelmittari toimii silloin puhelimen oman anturin varassa.</string>
+</resources>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="news_cat_all">All</string>
+    <string name="news_cat_world">World</string>
+    <string name="news_cat_tech">Technology</string>
+    <string name="news_cat_mobile">Mobile</string>
+    <string name="news_cat_sport">Sport</string>
+    <string name="news_cat_culture">Culture</string>
+    <string name="news_cat_entertainment">Entertainment</string>
+    <string name="news_cat_science">Science</string>
+    <string name="news_cat_nature">Nature</string>
+    <string name="news_cat_fashion">Beauty &amp; fashion</string>
+    <string name="news_tab_read">Read</string>
+    <string name="news_title_domestic">Domestic</string>
+    <string name="news_title_foreign">World</string>
+    <string name="news_titles_in_finnish">Headlines in Finnish</string>
+    <string name="news_titles_in_english">Headlines in English</string>
+    <string name="news_filter">News filter</string>
+    <plurals name="news_hidden_by_filter">
+        <item quantity="one">%1$d hidden by the filter</item>
+        <item quantity="other">%1$d hidden by the filter</item>
+    </plurals>
+    <string name="news_order_personal">Newest first · order adapts to the topics you read</string>
+    <string name="news_order_read">Recently read · newest at the top (up to 100)</string>
+    <string name="news_order_newest">Newest first</string>
+    <string name="news_loading">Fetching news…</string>
+    <string name="news_empty_read">You haven\'t read any news yet.</string>
+    <string name="news_empty_all_read">You\'ve read the latest news in this category.</string>
+    <string name="news_empty_filtered">All news in this view is hidden by the filter.</string>
+    <string name="news_empty">No news right now. Refresh with the button in the bottom bar.</string>
+    <string name="news_mute_title">Muted words</string>
+    <string name="news_mute_subtitle">Hide news with the word in the headline</string>
+    <string name="news_mute_enabled">Filtering on</string>
+    <string name="news_mute_enabled_on">Muted words are hidden</string>
+    <string name="news_mute_enabled_off">All news is shown</string>
+    <string name="news_mute_topics">TOPICS</string>
+    <string name="news_mute_words">WORDS (%1$d)</string>
+    <string name="news_mute_no_words">No muted words yet.</string>
+    <string name="news_mute_add_hint">Add a word, e.g. rumour</string>
+    <string name="news_mute_remove">Remove %1$s</string>
+    <string name="news_mute_tip">Tip: muting matches words in the headline. Categories bring a topic in; muted words take out exactly what you name.</string>
+    <string name="news_pack_sport">Sport</string>
+    <string name="news_pack_politics">Politics</string>
+    <string name="news_pack_entertainment">Entertainment &amp; celebrities</string>
+    <string name="news_pack_economy">Economy</string>
+    <string name="news_pack_crime">Crime &amp; accidents</string>
+    <string name="news_onboarding_title">Which topics interest you?</string>
+    <string name="news_onboarding_body">Choose the topics you want news about – we\'ll only show the categories you pick (both domestic and world news). If you don\'t choose any, everything is shown. You can change this later in Settings.</string>
+    <string name="news_onboarding_done">Done</string>
+    <string name="news_onboarding_skip">Skip</string>
+    <string name="news_recommended">recommended</string>
+    <plurals name="news_related_sources">
+        <item quantity="one">+ %1$d other source</item>
+        <item quantity="other">+ %1$d other sources</item>
+    </plurals>
+    <string name="news_age_just_now">just now</string>
+    <string name="news_age_minutes" translatable="false">%1$d min</string>
+    <string name="news_age_hours" translatable="false">%1$d h</string>
+    <string name="news_age_days">%1$d d</string>
+    <string name="news_teletext_not_found">Page %1$d not found or loading failed.</string>
+    <string name="news_teletext_image_failed">Couldn\'t load the image.</string>
+    <string name="news_teletext_page">Page %1$d</string>
+    <string name="news_teletext_subpage">Subpage %1$d/%2$d</string>
+    <string name="news_teletext_prev_page">Previous page</string>
+    <string name="news_teletext_next_page">Next page</string>
+    <string name="news_teletext_prev_subpage">Previous subpage</string>
+    <string name="news_teletext_next_subpage">Next subpage</string>
+    <string name="news_teletext_quick_news">News</string>
+    <string name="news_teletext_quick_sport">Sport</string>
+    <string name="news_teletext_quick_tv">TV guide</string>
+    <string name="news_teletext_quick_weather">Weather</string>
+    <string name="news_teletext_page_image">Teletext page %1$d</string>
+    <string name="news_teletext_source">Source: Yle Teletext</string>
+</resources>

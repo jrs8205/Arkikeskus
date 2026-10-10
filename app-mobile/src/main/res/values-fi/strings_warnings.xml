@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Saavaroitukset-sivu -->
+    <string name="warning_title">Säävaroitukset</string>
+    <string name="warning_region_label">Alue</string>
+    <string name="warning_region_all">Koko Suomi</string>
+    <string name="warning_none">Ei varoituksia — %1$s, %2$s.</string>
+    <string name="warning_day_today_inline">tänään</string>
+    <string name="warning_day_tomorrow_inline">huomenna</string>
+    <string name="warning_date_pattern">EEE d.M.</string>
+    <string name="warning_period_pattern">d.M. HH:mm</string>
+    <string name="warning_period_from">Alkaen %1$s</string>
+    <string name="warning_period_until">Voimassa asti %1$s</string>
+    <string name="warning_probability">Todennäköisyys %1$d %%</string>
+    <string name="warning_marine">Veneily</string>
+    <string name="warning_sender_fmi">Ilmatieteen laitos</string>
+    <string name="warning_more_info">Lisätietoja</string>
+    <string name="warning_meta_severity">Vakavuus: %1$s</string>
+    <string name="warning_meta_certainty">Varmuus: %1$s</string>
+    <string name="warning_meta_urgency">Kiireellisyys: %1$s</string>
+
+    <!-- CAP-luokitukset (MeteoAlarm) -->
+    <string name="warning_severity_minor">Vähäinen</string>
+    <string name="warning_severity_moderate">Kohtalainen</string>
+    <string name="warning_severity_severe">Vakava</string>
+    <string name="warning_severity_extreme">Erittäin vakava</string>
+    <string name="warning_certainty_observed">Havaittu</string>
+    <string name="warning_certainty_likely">Todennäköinen</string>
+    <string name="warning_certainty_possible">Mahdollinen</string>
+    <string name="warning_certainty_unlikely">Epätodennäköinen</string>
+    <string name="warning_urgency_immediate">Välitön</string>
+    <string name="warning_urgency_expected">Odotettavissa</string>
+    <string name="warning_urgency_future">Tuleva</string>
+    <string name="warning_urgency_past">Mennyt</string>
+
+    <!-- Varoitustasot -->
+    <string name="warning_level_green">Vihreä</string>
+    <string name="warning_level_yellow">Keltainen</string>
+    <string name="warning_level_orange">Oranssi</string>
+    <string name="warning_level_red">Punainen</string>
+
+    <!-- Ilmiotyypit (MeteoAlarm awareness_type) -->
+    <string name="warning_type_wind">Tuuli</string>
+    <string name="warning_type_snow_ice">Lumi/jää</string>
+    <string name="warning_type_thunderstorm">Ukkonen</string>
+    <string name="warning_type_fog">Sumu</string>
+    <string name="warning_type_heat">Helle</string>
+    <string name="warning_type_cold">Pakkanen</string>
+    <string name="warning_type_coastal">Rannikko</string>
+    <string name="warning_type_forest_fire">Maastopalo</string>
+    <string name="warning_type_avalanche">Lumivyöry</string>
+    <string name="warning_type_rain">Sade</string>
+    <string name="warning_type_flood">Tulva</string>
+    <string name="warning_type_uv">UV</string>
+
+    <!-- FMI:n varoituslajit (GeoServer warning_context) -->
+    <string name="warning_event_forest_fire">Maastopalovaroitus</string>
+    <string name="warning_event_heat">Hellevaroitus</string>
+    <string name="warning_event_rain">Sadevaroitus</string>
+    <string name="warning_event_thunderstorm">Ukkosvaroitus</string>
+    <string name="warning_event_boaters">Huomautus veneilijöille</string>
+    <string name="warning_event_uv">UV-tiedote</string>
+    <string name="warning_event_cold">Pakkasvaroitus</string>
+    <string name="warning_event_wind">Tuulivaroitus</string>
+    <string name="warning_event_flood">Tulvavaroitus</string>
+    <string name="warning_event_generic">Varoitus</string>
+
+    <!-- FMI:n fyysinen arvo -->
+    <string name="warning_physical_temperature">Lämpötila jopa %1$s °C</string>
+    <string name="warning_physical_cold">Lämpötila jopa %1$s °C</string>
+    <string name="warning_physical_rain">Sademäärä jopa %1$s mm/h</string>
+    <string name="warning_physical_gust">Tuulen puuskat jopa %1$s m/s</string>
+    <string name="warning_physical_uv">UV-indeksi %1$s</string>
+
+    <!-- Ilmoitus kotipaikan varoituksesta -->
+    <string name="warning_notif_title">Säävaroitus: %1$s</string>
+    <string name="warning_notif_title_level">Säävaroitus: %1$s (%2$s)</string>
+    <string name="warning_notif_body_probability">%1$s (todennäköisyys %2$d %%)</string>
+    <string name="warning_notif_title_many">Säävaroituksia paikkakunnalla %1$s</string>
+    <plurals name="warning_notif_body_many">
+        <item quantity="one">%1$d voimassa oleva säävaroitus. Avaa nähdäksesi.</item>
+        <item quantity="other">%1$d voimassa olevaa säävaroitusta. Avaa nähdäksesi.</item>
+    </plurals>
+
+    <!-- Maakunnat -->
+    <string name="region_uusimaa">Uusimaa</string>
+    <string name="region_varsinais_suomi">Varsinais-Suomi</string>
+    <string name="region_satakunta">Satakunta</string>
+    <string name="region_kanta_hame">Kanta-Häme</string>
+    <string name="region_pirkanmaa">Pirkanmaa</string>
+    <string name="region_paijat_hame">Päijät-Häme</string>
+    <string name="region_kymenlaakso">Kymenlaakso</string>
+    <string name="region_etela_karjala">Etelä-Karjala</string>
+    <string name="region_etela_savo">Etelä-Savo</string>
+    <string name="region_pohjois_savo">Pohjois-Savo</string>
+    <string name="region_pohjois_karjala">Pohjois-Karjala</string>
+    <string name="region_keski_suomi">Keski-Suomi</string>
+    <string name="region_etela_pohjanmaa">Etelä-Pohjanmaa</string>
+    <string name="region_pohjanmaa">Pohjanmaa</string>
+    <string name="region_keski_pohjanmaa">Keski-Pohjanmaa</string>
+    <string name="region_pohjois_pohjanmaa">Pohjois-Pohjanmaa</string>
+    <string name="region_kainuu">Kainuu</string>
+    <string name="region_lappi">Lappi</string>
+    <string name="region_ahvenanmaa">Ahvenanmaa</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cameras_loading_all">Kaikkia kameroita ladataan…</string>
+    <string name="cameras_load_failed">Kelikameroiden haku epäonnistui.</string>
+    <string name="cameras_none">Ei kelikameroita.</string>
+    <string name="cameras_loaded">Kamerat ladattu</string>
+    <string name="cameras_search_hint">Hae tie tai paikka</string>
+    <string name="cameras_image">Kelikameran kuva: %1$s</string>
+</resources>

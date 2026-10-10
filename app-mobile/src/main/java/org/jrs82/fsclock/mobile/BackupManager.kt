@@ -1,8 +1,10 @@
 package org.jrs82.fsclock.mobile
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.BuildConfig
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.db.WorkoutEntity
 import org.jrs82.fsclock.db.WorkoutPointEntity
@@ -29,6 +31,15 @@ internal object BackupManager {
 
     data class ExportResult(val workouts: Int, val prefs: Int, val bytes: Int)
     data class RestoreResult(val workouts: Int, val prefs: Int, val skipped: Int)
+
+    /** Tiedoston tunnisteen ja version tarkistus ennen palautusta: null = kelpaa, muuten virheen
+     *  resurssi-id (argumenttina versio). Pure → testattavissa ilman Contextia. */
+    @StringRes
+    fun validationError(format: String, version: Int): Int? = when {
+        format != FORMAT -> R.string.backup_unknown_format
+        version !in 1..VERSION -> R.string.backup_newer_version
+        else -> null
+    }
 
     fun export(context: Context, out: OutputStream): ExportResult {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -120,10 +131,9 @@ internal object BackupManager {
      *  ettei lenkki ole käynnissä (WorkoutTracker IDLE). */
     fun restore(context: Context, input: InputStream): RestoreResult {
         val root = JSONObject(readAllLimited(input, MAX_RESTORE_BYTES).toString(Charsets.UTF_8))
-        require(root.optString("format") == FORMAT) { "Tuntematon tiedostomuoto" }
         val version = root.optInt("version", 0)
-        require(version in 1..VERSION) {
-            "Varmuuskopio on uudemmasta sovellusversiosta (v$version) — päivitä sovellus ensin"
+        validationError(root.optString("format"), version)?.let { res ->
+            throw IllegalArgumentException(context.getString(res, version))
         }
 
         // ---- VAIHE 1: validoi ja rakenna kaikki muistiin, EI vielä kirjoituksia ----
@@ -224,10 +234,25 @@ internal object BackupManager {
                 imported++
             }
         })
-        check(editor.commit()) { "Asetusten kirjoitus levylle epäonnistui" }
+        check(editor.commit()) { context.getString(R.string.backup_prefs_write_failed) }
         // Uudelleenkäynnistyksen jälkeinen vahvistus-toast (MobileComposeMainActivity lukee).
         // commit(): restart tappaa prosessin heti — apply() voisi hukata lipun JA palautetut arvot.
         prefs.edit().putBoolean("restore_done_pending", true).commit()
         return RestoreResult(imported, prefCount, skipped)
     }
+}
+
+/** Varmuuskopion koko näytettäväksi: yksikön resurssi (fi kt/Mt, sv/en kB/MB) + luku. */
+internal data class BackupSize(@StringRes val res: Int, val value: Number)
+
+internal fun backupSize(bytes: Long): BackupSize = when {
+    bytes < 1024 -> BackupSize(R.string.backup_size_bytes, bytes)
+    bytes < 1024 * 1024 -> BackupSize(R.string.backup_size_kb, bytes / 1024.0)
+    else -> BackupSize(R.string.backup_size_mb, bytes / (1024.0 * 1024.0))
+}
+
+/** Desimaalierotin sovelluksen kielestä, ei laitteen localesta (esim. de-laite + en-UI → piste). */
+internal fun formatBackupSize(context: Context, bytes: Long): String {
+    val size = backupSize(bytes)
+    return String.format(AppLocale.current(context), context.getString(size.res), size.value)
 }

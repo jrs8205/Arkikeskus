@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paikkakunnat -->
+    <string name="places_title">Places</string>
+    <string name="places_intro">The weather on Home uses your device\'s location automatically. You can also search for a town or pick a favourite — your choice stays until you reopen the app. You can turn automatic location off in Settings.</string>
+    <string name="places_current">Current weather location</string>
+    <string name="places_fav_add">Add to favourites</string>
+    <string name="places_fav_remove">Remove from favourites</string>
+    <string name="places_fav_added">Added to favourites</string>
+    <string name="places_fav_removed">Removed from favourites</string>
+    <string name="places_search_label">Search for a town or district</string>
+    <string name="places_status_choose">Choose a place from the list.</string>
+    <string name="places_status_searching">Searching…</string>
+    <string name="places_status_min_chars">Type at least three letters.</string>
+    <string name="places_status_none">No towns found.</string>
+    <string name="places_status_failed">Search failed.</string>
+    <string name="places_favourites_title">Favourite places</string>
+    <string name="places_favourites_empty">No favourite places yet. Add the current weather location with the heart above.</string>
+
+    <!-- Askeleet -->
+    <string name="steps_title">Steps</string>
+    <string name="steps_counter">Step counter</string>
+    <plurals name="steps_count">
+        <item quantity="one">%1$s step</item>
+        <item quantity="other">%1$s steps</item>
+    </plurals>
+    <plurals name="steps_unit">
+        <item quantity="one">step</item>
+        <item quantity="other">steps</item>
+    </plurals>
+    <plurals name="steps_today_label">
+        <item quantity="one">step today</item>
+        <item quantity="other">steps today</item>
+    </plurals>
+    <string name="steps_note_unavailable">This device has neither a step sensor nor Health Connect, so the step counter can\'t be turned on.</string>
+    <string name="steps_note_disabled">The step counter is off. Turn it on to count your steps.</string>
+    <string name="steps_note_hc">Source: Health Connect (connected devices, e.g. a watch or ring). The count is fetched automatically; if the watch or ring app hasn\'t synced to this phone yet, open it once.</string>
+    <string name="steps_note_phone">Source: the phone\'s own step counter. Steps update in real time as you walk. If you like, you can connect Health Connect (watch or ring) below.</string>
+    <string name="steps_allow_activity">Allow physical activity (phone step counter)</string>
+    <string name="steps_use_hc">Use Health Connect</string>
+    <string name="steps_hc_desc">Health Connect brings your steps and other health data together — you can connect, for example, a smartwatch, a smart ring or other health apps. It isn\'t installed by default; without it, Arkikeskus uses the phone\'s own step counter.</string>
+    <string name="steps_hc_open">Open Health Connect</string>
+    <string name="steps_hc_install">Install Health Connect</string>
+    <string name="steps_hc_read_calories">Also read calories from Health Connect</string>
+    <string name="steps_hc_refresh">Refresh from Health Connect</string>
+    <string name="steps_hc_settings_failed">Couldn\'t open Health Connect settings</string>
+    <string name="steps_tab_days">Days</string>
+    <string name="steps_tab_weeks">Weeks</string>
+    <string name="steps_tab_months">Months</string>
+    <string name="steps_distance_walked">≈ %1$s km walked</string>
+    <string name="steps_sources_title">Sources (Health Connect)</string>
+    <string name="steps_sources_empty">No app has recorded steps in this phone\'s Health Connect today. Health Connect is a per-phone data store: it doesn\'t sync from another phone through your Google account. Steps appear here once an app (e.g. the health app of your watch, ring or phone) writes them to Health Connect on this device — check the app\'s write permissions and open it once.</string>
+    <string name="steps_sources_note">The step count above is Health Connect\'s combined total with overlapping sources removed. Here is each app\'s own count (as calculated by Health Connect) — different rows may measure the same steps, so they shouldn\'t be added together. Watch or ring data only appears once its own app has synced to this phone. You can change the priority of sources in Health Connect settings.</string>
+    <string name="steps_source_phone">Phone step counter</string>
+    <string name="steps_source_phone_id">Phone step counter (%1$s)</string>
+    <string name="steps_source_phone_sensor">Phone step sensor</string>
+    <string name="steps_history_empty">No step data collected yet.</string>
+    <string name="steps_note_hc_calories">🔥 = active calories (Health Connect or estimate).</string>
+    <string name="steps_note_raw">Note: steps are counted while the app has been in use; there may be gaps when the device restarts.</string>
+    <string name="steps_note_raw_calories">%1$s 🔥 = step-based estimate of active calories.</string>
+    <string name="steps_col_steps">Steps</string>
+    <string name="steps_week_label">Week %1$d</string>
+    <string name="steps_day_pattern">EEE d MMM</string>
+    <string name="steps_date_pattern">d MMM</string>
+    <string name="steps_cal_distance">Estimated distance: %1$s km</string>
+    <string name="steps_cal_active_hc">Active energy: %1$s kcal (Health Connect)</string>
+    <string name="steps_cal_active_est">Active energy: about %1$s kcal (estimate)</string>
+    <string name="steps_cal_total_hc">Total energy today: %1$s kcal (Health Connect)</string>
+    <string name="steps_cal_total_est">Estimated total today: about %1$s kcal</string>
+    <string name="steps_cal_source_hc">Calories: Health Connect</string>
+    <string name="steps_cal_source_app">Calories: Arkikeskus estimate</string>
+    <string name="steps_profile_add">Add your height and weight for calorie and distance estimates</string>
+    <string name="steps_profile_edit">Edit profile</string>
+    <string name="steps_profile_title">Profile for calorie and distance estimates</string>
+    <string name="steps_profile_sex">Sex</string>
+    <string name="steps_profile_female">Female</string>
+    <string name="steps_profile_male">Male</string>
+    <string name="steps_profile_sex_unspecified">Prefer not to say</string>
+    <string name="steps_profile_age">Age (years)</string>
+    <string name="steps_profile_height">Height (cm)</string>
+    <string name="steps_profile_weight">Weight (kg)</string>
+    <string name="steps_profile_step_length">Step length (cm, optional)</string>
+
+    <!-- HTML-vienti -->
+    <string name="steps_export_button">Download HTML summary</string>
+    <string name="steps_exporting">Exporting…</string>
+    <string name="steps_export_failed">HTML export failed</string>
+    <string name="steps_export_saved_title">HTML saved</string>
+    <string name="steps_export_saved_text">Saved to the Download/Arkikeskus folder:\n%1$s</string>
+    <string name="steps_no_app_to_open">No app found to open the file</string>
+    <string name="steps_export_file_prefix">arkikeskus_steps</string>
+    <string name="steps_export_week">Wk %1$d/%2$d (%3$s–%4$s)</string>
+    <string name="steps_export_week_short">Wk %1$d/%2$d</string>
+    <string name="steps_export_date_pattern">d MMM yyyy</string>
+    <string name="steps_html_title">Arkikeskus – Steps and calories</string>
+    <string name="steps_html_heading">Steps &amp; calories</string>
+    <string name="steps_html_subtitle">Arkikeskus summary</string>
+    <string name="steps_html_meta">%1$s · exported %2$s · source: %3$s</string>
+    <string name="steps_html_datetime_pattern">d MMM yyyy HH:mm</string>
+    <string name="steps_html_total">Total steps</string>
+    <plurals name="steps_html_last_days">
+        <item quantity="one">last %1$d day</item>
+        <item quantity="other">last %1$d days</item>
+    </plurals>
+    <string name="steps_html_no_data">no data</string>
+    <string name="steps_html_best_day">Best day</string>
+    <string name="steps_html_avg_day">Average per day</string>
+    <string name="steps_html_calories_total">Total calories</string>
+    <string name="steps_html_active_kcal">active kcal</string>
+    <string name="steps_html_total_kcal">kcal in total</string>
+    <string name="steps_html_chip_active">%1$s active kcal</string>
+    <string name="steps_html_chip_total">%1$s kcal in total</string>
+    <plurals name="steps_html_periods">
+        <item quantity="one">%1$d period</item>
+        <item quantity="other">%1$d periods</item>
+    </plurals>
+    <string name="steps_html_empty">No data yet.</string>
+    <string name="steps_html_col_period">Period</string>
+    <string name="steps_html_col_active">Active</string>
+    <string name="steps_html_col_total">Total</string>
+    <string name="steps_html_estimate">estimate</string>
+    <string name="steps_html_footer">Created with the Arkikeskus app. Data from Health Connect or the phone\'s step sensor. The %1$s mark is Arkikeskus\'s own calorie calculation (based on steps, not exact).</string>
+
+    <!-- Askeltavoiteilmoitus -->
+    <string name="steps_goal_reached_title">Daily step goal reached!</string>
+    <plurals name="steps_goal_reached_text">
+        <item quantity="one">%1$s step today (goal %2$s).</item>
+        <item quantity="other">%1$s steps today (goal %2$s).</item>
+    </plurals>
+    <string name="steps_goal_half_title">You\'re halfway there!</string>
+    <plurals name="steps_goal_half_text">
+        <item quantity="one">Nice — you\'re halfway to your goal. Keep going! (%1$s / %2$s step)</item>
+        <item quantity="other">Nice — you\'re halfway to your goal. Keep going! (%1$s / %2$s steps)</item>
+    </plurals>
+
+    <!-- Askelwidget -->
+    <string name="steps_widget_percent">%1$d%%</string>
+    <string name="steps_widget_goal_line">Goal %1$s · each bar = %2$s</string>
+</resources>

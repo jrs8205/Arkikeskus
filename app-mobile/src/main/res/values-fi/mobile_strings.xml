@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mobile_pref_widget_order">Widgettien järjestys</string>
+    <string name="widget_weather_desc">Sää: paikkakunta ja lämpötila</string>
+    <string name="widget_electricity_desc">Pörssisähkö: nykyhinta ja taso</string>
+    <string name="widget_steps_desc">Askeleet: tämän päivän määrä ja tavoite</string>
+    <string name="widget_departure_desc">Seuraava lähtö: suosikkipysäkin lähdöt</string>
+</resources>

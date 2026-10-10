@@ -11,6 +11,7 @@ import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import org.jrs82.fsclock.BuildConfig
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.db.WorkoutEntity
 import org.jrs82.fsclock.db.WorkoutPointEntity
 import org.jrs82.fsclock.db.WorkoutSplitEntity
@@ -18,7 +19,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
@@ -51,8 +51,6 @@ internal object WorkoutShareImage {
     private const val MIN_ZOOM = 5
     private const val FETCH_BUDGET_MS = 12_000L
 
-    private val FI_IMG = Locale("fi", "FI")
-
     /** Voi kutsua mistä säikeestä vain; onDone kutsutaan main-säikeessä, bitmap aina ei-null. */
     fun render(
         context: Context,
@@ -70,7 +68,7 @@ internal object WorkoutShareImage {
                 Bitmap.createBitmap(MAP_W, MAP_H + BAND_H, Bitmap.Config.ARGB_8888).also {
                     val c = Canvas(it)
                     c.drawColor(0xFFE8EAED.toInt())
-                    drawStatsBand(c, workout, MAP_W, MAP_H, BAND_H, 1f)
+                    drawStatsBand(app, c, workout, MAP_W, MAP_H, BAND_H, 1f)
                 }
             }
             Handler(Looper.getMainLooper()).post { onDone(bmp) }
@@ -126,7 +124,7 @@ internal object WorkoutShareImage {
             } else fallbackProjector(points, MAP_W, MAP_H)
 
         drawRoute(context, c, points, splits, project, 1f)
-        drawStatsBand(c, workout, MAP_W, MAP_H, BAND_H, 1f)
+        drawStatsBand(context, c, workout, MAP_W, MAP_H, BAND_H, 1f)
         return out
     }
 
@@ -264,8 +262,9 @@ internal object WorkoutShareImage {
         }
     }
 
-    /** Valkoinen tilastokaista kartan alle: nimi, tunnusluvut, pvm + attribuutio. */
+    /** Valkoinen tilastokaista kartan alle: nimi, tunnusluvut, pvm + attribuutio (näkyvällä kielellä). */
     private fun drawStatsBand(
+        context: Context,
         c: Canvas,
         workout: WorkoutEntity,
         w: Int,
@@ -282,26 +281,28 @@ internal object WorkoutShareImage {
         text.color = 0xFF202124.toInt()
         text.textSize = 52f * s
         text.isFakeBoldText = true
-        c.drawText(workoutDisplayName(workout), left, mapH + 80f * s, text)
+        val loc = AppLocale.current(context)
+        c.drawText(workoutDisplayName(context, workout), left, mapH + 80f * s, text)
 
         text.textSize = 46f * s
         c.drawText(
-            String.format(FI_IMG, "%.2f km", workout.distanceM / 1000.0) +
+            workoutKmText(workout.distanceM, loc) +
                 "   " + formatDurationLong(workout.movingTimeMs) +
-                "   " + avgSpeedText(workout.distanceM, workout.movingTimeMs),
+                "   " + avgSpeedText(workout.distanceM, workout.movingTimeMs, loc),
             left, mapH + 158f * s, text,
         )
 
         text.color = 0xFF5F6368.toInt()
         text.textSize = 36f * s
         text.isFakeBoldText = false
-        val laji = if (workout.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"
-        val pvm = SimpleDateFormat("d.M.yyyy HH:mm", FI_IMG).format(Date(workout.startedAtMs))
+        val laji = workoutTypeLabel(context, workout.type)
+        val pvm = SimpleDateFormat(context.getString(R.string.workout_share_datetime_pattern), loc)
+            .format(Date(workout.startedAtMs))
         c.drawText("$laji · $pvm", left, mapH + 222f * s, text)
 
         // MML-lisenssi vaatii attribuution johdetuissa kuvissa.
         text.textSize = 28f * s
         text.textAlign = Paint.Align.RIGHT
-        c.drawText("Arkikeskus · © Maanmittauslaitos", w - 24f * s, mapH + bandH - 24f * s, text)
+        c.drawText(context.getString(R.string.workout_share_attribution), w - 24f * s, mapH + bandH - 24f * s, text)
     }
 }

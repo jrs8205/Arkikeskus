@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="transit_minutes" translatable="false">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
+    <plurals name="transit_delay_late" translatable="false">
+        <item quantity="one">+%1$d min</item>
+        <item quantity="other">+%1$d min</item>
+    </plurals>
+    <plurals name="transit_delay_early" translatable="false">
+        <item quantity="one">-%1$d min</item>
+        <item quantity="other">-%1$d min</item>
+    </plurals>
+
+    <!-- Kulkuvalineet ja alueet -->
+    <string name="transit_mode_bus">Bus</string>
+    <string name="transit_mode_tram">Tram</string>
+    <string name="transit_mode_train">Train</string>
+    <string name="transit_mode_metro">Metro</string>
+    <string name="transit_mode_ferry">Ferry</string>
+    <string name="transit_vehicle_bus">The bus</string>
+    <string name="transit_vehicle_tram">The tram</string>
+    <string name="transit_vehicle_train">The train</string>
+    <string name="transit_vehicle_metro">The metro</string>
+    <string name="transit_vehicle_ferry">The ferry</string>
+    <string name="transit_filter_all">All</string>
+    <string name="transit_filter_bus">Buses</string>
+    <string name="transit_filter_tram">Trams</string>
+    <string name="transit_filter_train">Trains</string>
+    <string name="transit_filter_metro">Metro</string>
+    <string name="transit_filter_ferry">Ferries</string>
+    <string name="transit_region_hsl">HSL</string>
+    <string name="transit_region_tampere">Tampere</string>
+
+    <!-- Yleiset -->
+    <string name="transit_line">Line</string>
+    <string name="transit_stop">Stop</string>
+    <string name="transit_station">Station</string>
+    <string name="transit_line_number">Line %1$s</string>
+    <string name="transit_dep_now">now</string>
+    <string name="transit_clock_label">at</string>
+    <string name="transit_clock_time">%1$s</string>
+    <string name="transit_line_at">Line %1$s at %2$s</string>
+    <string name="transit_departure_at">Departure at %1$s</string>
+    <string name="transit_alert_title">Disruption notice</string>
+
+    <!-- Lahilahdot -->
+    <string name="transit_title_nearby">Nearby departures</string>
+    <string name="transit_search_hint">Search for a line (e.g. 550), stop or station</string>
+    <string name="transit_header_lines">Lines</string>
+    <string name="transit_header_stops_stations">Stops and stations</string>
+    <string name="transit_header_favourites">Favourites</string>
+    <string name="transit_status_allow_location">Allow location access to see departures near you.</string>
+    <string name="transit_status_fetching_nearby">Finding departures near you…</string>
+    <string name="transit_status_no_location_permission">Location permission is missing.</string>
+    <string name="transit_status_location_read_failed">Couldn\'t read your location.</string>
+    <string name="transit_status_location_unavailable">Couldn\'t get your location. Try the Refresh button in a moment.</string>
+    <string name="transit_status_departures_failed">Couldn\'t load departures. Try the Refresh button.</string>
+    <string name="transit_status_location_needed">Location permission is needed to show departures near you.</string>
+    <string name="transit_toast_no_departure_info">No departure information for this place.</string>
+    <string name="transit_empty_stop">No upcoming departures from this stop.</string>
+    <string name="transit_searching">Searching for \"%1$s\"…</string>
+    <string name="transit_no_results">No results for \"%1$s\".\nTry the name or number of a stop, station or line.</string>
+    <string name="transit_empty_mode">No departures nearby for the selected mode.</string>
+    <string name="transit_reminder_tip">Tip: save a departure as a favourite and set a reminder.\nYou\'ll get a notification 1–60 minutes before it leaves.</string>
+    <string name="transit_cd_favourite">Favourite</string>
+    <string name="transit_cd_add_favourite">Add to favourites</string>
+    <string name="transit_cd_remove_favourite">Remove from favourites</string>
+    <string name="transit_full_day_link">Full day ›</string>
+    <string name="transit_toast_line_added">Line added to favourites</string>
+    <string name="transit_toast_line_removed">Line removed from favourites</string>
+    <string name="transit_toast_stop_added">Stop added to favourites</string>
+    <string name="transit_toast_stop_removed">Stop removed from favourites</string>
+    <string name="transit_toast_removed_from_favourites">Removed from favourites</string>
+
+    <!-- Suosikkidialogi ja lahtomuistutus -->
+    <string name="transit_fav_line">Favourite line</string>
+    <string name="transit_fav_stop">Favourite stop</string>
+    <string name="transit_add_reminder">Add a departure reminder</string>
+    <string name="transit_add_reminder_sub">Get a notification before departure</string>
+    <string name="transit_reminder_set">Set reminder</string>
+    <string name="transit_reminder_too_close">The departure is too soon</string>
+    <string name="transit_reminder_at">Notification at %1$s</string>
+    <string name="transit_reminder_from_stop">From %1$s</string>
+    <plurals name="transit_reminder_lead">
+        <item quantity="one">Remind me %1$d min before departure</item>
+        <item quantity="other">Remind me %1$d min before departure</item>
+    </plurals>
+    <plurals name="transit_reminder_set_toast">
+        <item quantity="one">Reminder %1$d min before departure (at %2$s)</item>
+        <item quantity="other">Reminder %1$d min before departure (at %2$s)</item>
+    </plurals>
+    <string name="transit_reminder_notif_title_line">Line %1$s leaves at %2$s</string>
+    <plurals name="transit_reminder_notif_body">
+        <item quantity="one">From %1$s in about %2$d min.</item>
+        <item quantity="other">From %1$s in about %2$d min.</item>
+    </plurals>
+    <plurals name="transit_reminder_notif_body_headsign">
+        <item quantity="one">From %1$s (%3$s) in about %2$d min.</item>
+        <item quantity="other">From %1$s (%3$s) in about %2$d min.</item>
+    </plurals>
+
+    <!-- Koko paivan aikataulu -->
+    <string name="transit_hour_header">%1$s:00</string>
+    <string name="transit_full_day_title">Full-day timetable</string>
+    <string name="transit_full_day_loading">Loading the full-day timetable…</string>
+    <string name="transit_full_day_failed">Couldn\'t load the full-day timetable.</string>
+
+    <!-- Vuoro- ja linjanakyma -->
+    <string name="transit_loading_route">Loading line details…</string>
+    <string name="transit_loading_trip">Loading trip details…</string>
+    <string name="transit_loading_timetable">Loading timetable…</string>
+    <string name="transit_line_failed">Couldn\'t load line details.</string>
+    <string name="transit_line_timetable_failed">Couldn\'t load the line timetable.</string>
+    <string name="transit_trip_failed">Couldn\'t load trip details.</string>
+    <string name="transit_choose_direction">Choose direction</string>
+    <string name="transit_eta_arriving">ARRIVING AT YOUR STOP</string>
+    <string name="transit_eta_passed">PASSED YOUR STOP</string>
+    <string name="transit_live_estimate">(estimate)</string>
+    <string name="transit_live_passed">%1$s has already passed your stop%2$s.</string>
+    <string name="transit_live_distance">%1$s is ~%2$s from your stop%3$s%4$s.</string>
+    <string name="transit_live_eta">(arrives ~%1$s)</string>
+    <plurals name="transit_live_eta_min">
+        <item quantity="one">(arrives ~%1$s, ~%2$d min)</item>
+        <item quantity="other">(arrives ~%1$s, ~%2$d min)</item>
+    </plurals>
+    <string name="transit_banner_trip_not_started">No live position — this trip hasn\'t started yet.</string>
+    <string name="transit_banner_fetching_live">Fetching live position…</string>
+    <string name="transit_banner_trip_no_live_region">Live positions aren\'t available in this area — times are as scheduled.</string>
+    <string name="transit_pos_en_route">on its way to %1$s</string>
+    <string name="transit_pos_at">at %1$s</string>
+    <plurals name="transit_banner_stops_away">
+        <item quantity="one">%1$s is %2$d stop away from your stop (now %3$s).</item>
+        <item quantity="other">%1$s is %2$d stops away from your stop (now %3$s).</item>
+    </plurals>
+    <string name="transit_banner_at_your_stop">%1$s is at your stop or very close (%2$s).</string>
+    <string name="transit_banner_passed_now">%1$s has already passed your stop (now: %2$s).</string>
+    <string name="transit_banner_en_route_to">%1$s is on its way to %2$s.</string>
+    <string name="transit_banner_at_stop">%1$s is at %2$s.</string>
+    <string name="transit_banner_route_none">No trips running right now — the route and next departures are below.</string>
+    <string name="transit_banner_route_fetching">Fetching live positions — the route and next departures are below.</string>
+    <string name="transit_banner_route_no_live_region">Live positions aren\'t available in this area — the route and next departures are below.</string>
+    <plurals name="transit_banner_route_running">
+        <item quantity="one">%1$d trip running — its position is highlighted. Times = next departure from each stop.</item>
+        <item quantity="other">%1$d trips running — positions highlighted. Times = next departure from each stop.</item>
+    </plurals>
+    <string name="transit_timeline_your_stop">your stop</string>
+    <string name="transit_timeline_bus_approaching">bus approaching</string>
+    <string name="transit_timeline_bus_here">bus here</string>
+    <string name="transit_timeline_tram_approaching">tram approaching</string>
+    <string name="transit_timeline_tram_here">tram here</string>
+    <string name="transit_timeline_train_approaching">train approaching</string>
+    <string name="transit_timeline_train_here">train here</string>
+    <string name="transit_timeline_metro_approaching">metro approaching</string>
+    <string name="transit_timeline_metro_here">metro here</string>
+    <string name="transit_timeline_ferry_approaching">ferry approaching</string>
+    <string name="transit_timeline_ferry_here">ferry here</string>
+
+    <!-- Hairiot ja muutokset -->
+    <string name="transit_title_disruptions">Disruptions and changes</string>
+    <string name="transit_disruptions_search_hint">Search for a line or stop</string>
+    <string name="transit_filter_active_only">Active only</string>
+    <string name="transit_filter_favourites_only">Favourites only</string>
+    <plurals name="transit_disruption_count">
+        <item quantity="one">%1$d disruption</item>
+        <item quantity="other">%1$d disruptions</item>
+    </plurals>
+    <string name="transit_disruptions_loading">Loading disruptions…</string>
+    <string name="transit_disruptions_failed">Couldn\'t load disruptions. Try the Refresh button.</string>
+    <string name="transit_disruptions_empty">No disruptions match the selected filters.</string>
+    <string name="transit_datetime_pattern">d MMM, HH:mm</string>
+    <string name="transit_range_from">from %1$s</string>
+    <string name="transit_range_until">until %1$s</string>
+
+    <!-- HSL-hairioilmoitus -->
+    <string name="transit_hsl_alert_title_line">HSL disruption: line %1$s</string>
+    <string name="transit_hsl_alert_title_stop">HSL disruption: %1$s</string>
+    <string name="transit_hsl_alert_multi_title">New HSL disruptions on your favourites</string>
+    <plurals name="transit_hsl_alert_multi_body">
+        <item quantity="one">%1$d new disruption on your favourite lines or stops. Open to see it.</item>
+        <item quantity="other">%1$d new disruptions on your favourite lines or stops. Open to see them.</item>
+    </plurals>
+
+    <!-- Reittihaku -->
+    <string name="transit_route_planner_title">Journey planner</string>
+    <string name="transit_route_where_to">Where are you going?</string>
+    <string name="transit_route_from_hint">From</string>
+    <string name="transit_route_to_hint">To (e.g. Central Station, address)</string>
+    <string name="transit_route_clear_origin">Clear starting point</string>
+    <string name="transit_route_clear_destination">Clear destination</string>
+    <string name="transit_route_swap">Swap direction</string>
+    <string name="transit_route_center_on_me">Centre on my location</string>
+    <string name="transit_route_title">Route</string>
+    <string name="transit_route_my_location">My location</string>
+    <string name="transit_route_my_location_sub">Your current location (GPS)</string>
+    <string name="transit_route_intro">Enter a destination and routes are found straight away.\nBy default you start from your own location.</string>
+    <string name="transit_route_need_location">Location permission is needed when starting from your location.</string>
+    <string name="transit_route_no_places">No places found for \"%1$s\".</string>
+    <string name="transit_route_choose_origin_hint">Now choose a starting point, or keep your own location.</string>
+    <string name="transit_route_choose_destination_hint">Now choose a destination.</string>
+    <string name="transit_route_leave_now">Leave now</string>
+    <string name="transit_route_depart_at_option">Depart at…</string>
+    <string name="transit_route_arrive_by_option">Arrive by…</string>
+    <string name="transit_route_leave_now_time">Leave now · %1$s</string>
+    <string name="transit_route_depart_label">Depart %1$s</string>
+    <string name="transit_route_arrive_label">Arrive by %1$s</string>
+    <string name="transit_route_time_pattern">EEE d MMM, HH:mm</string>
+    <string name="transit_route_direct_only">Direct only</string>
+    <string name="transit_route_need_destination">Choose a destination: type in the To field and pick a suggestion.</string>
+    <string name="transit_route_need_origin">Choose a starting point: type in the From field and pick a suggestion, or choose My location.</string>
+    <string name="transit_route_both_my_location">The start and destination can\'t both be your location.</string>
+    <string name="transit_route_allow_location">Allow location access so the route can start from your location.</string>
+    <string name="transit_route_locating">Finding your location…</string>
+    <string name="transit_route_location_failed">Couldn\'t get your location. Try again.</string>
+    <string name="transit_route_searching">Searching for routes…</string>
+    <string name="transit_route_search_failed">Journey search failed. Try again.</string>
+    <string name="transit_route_none">No routes for this journey or time.</string>
+    <string name="transit_route_none_direct">No direct routes for this search — allow transfers or change the mode.</string>
+    <string name="transit_route_none_mode">No routes with the selected mode.</string>
+    <string name="transit_direct_connection">direct</string>
+    <plurals name="transit_transfers">
+        <item quantity="one">%1$d transfer</item>
+        <item quantity="other">%1$d transfers</item>
+    </plurals>
+    <string name="transit_walk">Walk</string>
+    <string name="transit_walk_whole_way">Walk the whole way</string>
+    <string name="transit_leaves_at">Leaves at %1$s</string>
+    <string name="transit_leaves_at_from">Leaves at %1$s from %2$s</string>
+    <string name="transit_platform">platform %1$s</string>
+    <string name="transit_stop_code">stop %1$s</string>
+
+    <!-- Lahtowidget -->
+    <string name="transit_widget_next_departure">Next departure</string>
+    <string name="transit_widget_next_departure_label">next departure</string>
+    <string name="transit_widget_no_departures">No departures right now</string>
+    <string name="transit_widget_choose_stop">Choose a stop</string>
+    <string name="transit_widget_nearest_gps">Nearest stop (GPS)</string>
+    <string name="transit_widget_nearest">Nearest stop</string>
+    <string name="transit_widget_no_favourites">No favourite stops — add one in Nearby departures, or choose Nearest stop.</string>
+
+    <!-- Tieliikennetiedotteet (Digitraffic) -->
+    <string name="transit_traffic_all">Traffic info</string>
+    <string name="transit_traffic_accidents">Accidents</string>
+    <string name="transit_traffic_roadworks">Roadworks</string>
+    <string name="transit_traffic_weight_restrictions">Weight restrictions</string>
+    <string name="transit_traffic_incidents">Disruptions</string>
+    <string name="transit_traffic_congestion">Congestion</string>
+</resources>

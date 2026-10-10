@@ -37,7 +37,8 @@ internal object ShareFiles {
         context.startActivity(Intent.createChooser(send, title))
     }
 
-    /** Poistaa tiedostonimestä kielletyt merkit ("Koiralenkki / ilta" → "Koiralenkki _ ilta"). */
-    fun sanitizeFileName(s: String): String =
-        s.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().take(60).ifEmpty { "Lenkki" }
+    /** Poistaa tiedostonimestä kielletyt merkit ("Koiralenkki / ilta" → "Koiralenkki _ ilta").
+     *  [fallback] = kielen mukainen nimi, jos siivottu nimi jää tyhjäksi. */
+    fun sanitizeFileName(s: String, fallback: String): String =
+        s.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().take(60).ifEmpty { fallback }
 }

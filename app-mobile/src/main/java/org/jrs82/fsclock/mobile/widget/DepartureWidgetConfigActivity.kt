@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile.widget
 
+import android.content.Context
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
@@ -22,7 +23,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.preference.PreferenceManager
+import org.jrs82.fsclock.R
+import org.jrs82.fsclock.mobile.FontScaleCap
 import org.jrs82.fsclock.mobile.ArkikeskusTheme
 import org.jrs82.fsclock.mobile.TransitFavorites
 
@@ -32,6 +36,8 @@ import org.jrs82.fsclock.mobile.TransitFavorites
  * (AppWidgetProviderInfo.configure -viittaus manifestissa).
  */
 class DepartureWidgetConfigActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(FontScaleCap.wrap(newBase))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Sovella teema-asetus (light/dark/system) samoin kuin MobileThemeController.apply,
@@ -69,7 +75,7 @@ class DepartureWidgetConfigActivity : AppCompatActivity() {
                             .padding(16.dp)
                     ) {
                         Text(
-                            text = "Valitse pysäkki",
+                            text = stringResource(R.string.transit_widget_choose_stop),
                             style = MaterialTheme.typography.headlineSmall,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
@@ -77,11 +83,11 @@ class DepartureWidgetConfigActivity : AppCompatActivity() {
 
                         // "Lähin pysäkki" -vaihtoehto
                         Text(
-                            text = "Lähin pysäkki (GPS)",
+                            text = stringResource(R.string.transit_widget_nearest_gps),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    confirm(widgetId, "NEAREST", "", "Lähin pysäkki")
+                                    confirm(widgetId, "NEAREST", "", getString(R.string.transit_widget_nearest))
                                 }
                                 .padding(vertical = 14.dp),
                             style = MaterialTheme.typography.bodyLarge
@@ -105,7 +111,7 @@ class DepartureWidgetConfigActivity : AppCompatActivity() {
 
                         if (stops.isEmpty()) {
                             Text(
-                                text = "Ei suosikkipysäkkejä — lisää suosikki Lähilähdöt-näkymässä, tai valitse Lähin.",
+                                text = stringResource(R.string.transit_widget_no_favourites),
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 8.dp)
                             )

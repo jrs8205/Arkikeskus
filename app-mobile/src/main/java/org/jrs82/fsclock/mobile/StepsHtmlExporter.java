@@ -7,10 +7,13 @@ import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 
+import org.jrs82.fsclock.R;
+
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -21,7 +24,8 @@ import java.util.Locale;
  *
  *  HTML on tarkoituksella riippumaton ulkoisista resursseista (inline-CSS + inline-SVG, ei
  *  skriptejä eikä verkkofontteja), joten se aukeaa selaimessa ilman verkkoa. Teema on askel-/
- *  kalorihenkinen: vihreä askeleille, lämmin oranssi kaloreille. Kaikki teksti suomeksi.
+ *  kalorihenkinen: vihreä askeleille, lämmin oranssi kaloreille. Teksti ja numeromuoto
+ *  sovelluksen näkyvällä kielellä (resurssit + AppLocale), {@code <html lang>} sen mukaan.
  *  Kaikki dynaaminen teksti HTML-escapataan. */
 public final class StepsHtmlExporter {
 
@@ -80,7 +84,6 @@ public final class StepsHtmlExporter {
     }
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
-    private static final DateTimeFormatter HUMAN = DateTimeFormatter.ofPattern("d.M.yyyy 'klo' HH:mm");
     private static final String RELATIVE_SUBDIR = Environment.DIRECTORY_DOWNLOADS + "/Arkikeskus";
 
     // Inline-SVG-ikonit (currentColor; yksinkertaiset attribuutit, jotta Java-literaalit pysyvät siisteinä).
@@ -102,8 +105,8 @@ public final class StepsHtmlExporter {
 
     private StepsHtmlExporter() {}
 
-    public static String buildFileName() {
-        return "arkikeskus_askeleet_" + LocalDateTime.now().format(STAMP)
+    public static String buildFileName(Context context) {
+        return context.getString(R.string.steps_export_file_prefix) + "_" + LocalDateTime.now().format(STAMP)
                 + "_" + safeModel() + ".html";
     }
 
@@ -111,7 +114,7 @@ public final class StepsHtmlExporter {
     public static Result export(Context context, Report report, String fileName) {
         Uri uri = null;
         try {
-            String html = buildHtml(report);
+            String html = buildHtml(context, report);
 
             ContentValues values = new ContentValues();
             values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
@@ -122,7 +125,7 @@ public final class StepsHtmlExporter {
             Uri collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
             uri = context.getContentResolver().insert(collection, values);
             if (uri == null) {
-                return new Result(false, fileName, null, "MediaStore insert palautti null");
+                return new Result(false, fileName, null, "MediaStore insert returned null");
             }
 
             try (OutputStream os = context.getContentResolver().openOutputStream(uri);
@@ -143,7 +146,34 @@ public final class StepsHtmlExporter {
         }
     }
 
-    private static String buildHtml(Report r) {
+    /** Tekstit ja numeromuoto yhdestä paikasta, jotta apumetodit eivät tarvitse Contextia erikseen. */
+    private static final class Txt {
+        final Context ctx;
+        final Locale loc;
+        final NumberFormat nf;
+
+        Txt(Context ctx) {
+            this.ctx = ctx;
+            this.loc = AppLocale.INSTANCE.current(ctx);
+            this.nf = NumberFormat.getIntegerInstance(loc);
+        }
+
+        String s(int id, Object... args) {
+            return args.length == 0 ? ctx.getString(id) : String.format(loc, ctx.getString(id), args);
+        }
+
+        String q(int id, long quantity, Object... args) {
+            int n = (int) Math.max(0, Math.min(Integer.MAX_VALUE, quantity));
+            return ctx.getResources().getQuantityString(id, n, args);
+        }
+
+        String num(long v) {
+            return nf.format(v);
+        }
+    }
+
+    private static String buildHtml(Context ctx, Report r) {
+        Txt t = new Txt(ctx);
         // Yleiskatsausluvut tarkimmasta saatavilla olevasta jaosta (päivät).
         long totalSteps = 0, bestDay = 0, totalActive = 0, totalTotal = 0;
         for (Row row : r.days) {
@@ -156,35 +186,41 @@ public final class StepsHtmlExporter {
         long avgSteps = dayCount > 0 ? Math.round((double) totalSteps / dayCount) : 0;
 
         StringBuilder sb = new StringBuilder(16384);
-        sb.append("<!DOCTYPE html>\n<html lang=\"fi\">\n<head>\n")
+        sb.append("<!DOCTYPE html>\n<html lang=\"").append(t.loc.getLanguage()).append("\">\n<head>\n")
                 .append("<meta charset=\"utf-8\">\n")
                 .append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
-                .append("<title>Arkikeskus – Askeleet ja kalorit</title>\n")
+                .append("<title>").append(esc(t.s(R.string.steps_html_title))).append("</title>\n")
                 .append("<style>").append(CSS).append("</style>\n</head>\n<body>\n<div class=\"wrap\">\n");
 
         // Hero: otsikko + tämän päivän iso luku + kalori-chipit.
         sb.append("<header class=\"hero\">\n")
                 .append("<div class=\"htop\"><span class=\"logo\">").append(SVG_FOOT).append("</span>")
-                .append("<div><h1>Askeleet &amp; kalorit</h1>")
-                .append("<p class=\"sub\">Arkikeskus-yhteenveto</p></div></div>\n")
-                .append("<div class=\"today\"><div class=\"tnum\">").append(num(r.todaySteps))
-                .append("</div><div class=\"tlabel\">askelta tänään</div>");
-        String chips = todayChips(r);
+                .append("<div><h1>").append(esc(t.s(R.string.steps_html_heading))).append("</h1>")
+                .append("<p class=\"sub\">").append(esc(t.s(R.string.steps_html_subtitle))).append("</p></div></div>\n")
+                .append("<div class=\"today\"><div class=\"tnum\">").append(t.num(r.todaySteps))
+                .append("</div><div class=\"tlabel\">")
+                .append(esc(t.q(R.plurals.steps_today_label, r.todaySteps))).append("</div>");
+        String chips = todayChips(t, r);
         if (!chips.isEmpty()) sb.append("<div class=\"chips\">").append(chips).append("</div>");
-        sb.append("</div>\n<p class=\"meta\">").append(esc(model())).append(" · viety ")
-                .append(esc(LocalDateTime.now().format(HUMAN))).append(" · lähde: ")
-                .append(esc(r.sourceLabel)).append("</p>\n</header>\n");
+        String exported = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern(t.s(R.string.steps_html_datetime_pattern), t.loc));
+        sb.append("</div>\n<p class=\"meta\">")
+                .append(esc(t.s(R.string.steps_html_meta, model(), exported, r.sourceLabel)))
+                .append("</p>\n</header>\n");
 
         // Yleiskatsauskortit.
         sb.append("<section class=\"stats\">\n");
-        sb.append(statCard("step", num(totalSteps), "Askeleet yhteensä",
-                dayCount > 0 ? "viimeiset " + dayCount + " pv" : "ei dataa"));
-        sb.append(statCard("best", num(bestDay), "Paras päivä", "askelta"));
-        sb.append(statCard("avg", num(avgSteps), "Keskiarvo / päivä", "askelta"));
+        sb.append(statCard("step", t.num(totalSteps), t.s(R.string.steps_html_total),
+                dayCount > 0 ? t.q(R.plurals.steps_html_last_days, dayCount, dayCount)
+                        : t.s(R.string.steps_html_no_data)));
+        sb.append(statCard("best", t.num(bestDay), t.s(R.string.steps_html_best_day),
+                t.q(R.plurals.steps_unit, bestDay)));
+        sb.append(statCard("avg", t.num(avgSteps), t.s(R.string.steps_html_avg_day),
+                t.q(R.plurals.steps_unit, avgSteps)));
         if (totalActive > 0 || totalTotal > 0) {
             boolean useActive = totalActive > 0;
-            sb.append(statCard("fire", num(useActive ? totalActive : totalTotal), "Kalorit yhteensä",
-                    useActive ? "aktiiviset kcal" : "kcal yhteensä"));
+            sb.append(statCard("fire", t.num(useActive ? totalActive : totalTotal), t.s(R.string.steps_html_calories_total),
+                    t.s(useActive ? R.string.steps_html_active_kcal : R.string.steps_html_total_kcal)));
         }
         sb.append("</section>\n");
 
@@ -194,34 +230,36 @@ public final class StepsHtmlExporter {
                 .append("<input type=\"radio\" name=\"period\" id=\"t-days\" class=\"tabin\" checked>")
                 .append("<input type=\"radio\" name=\"period\" id=\"t-weeks\" class=\"tabin\">")
                 .append("<input type=\"radio\" name=\"period\" id=\"t-months\" class=\"tabin\">\n")
-                .append("<div class=\"tabbar\"><label for=\"t-days\">Päivät</label>")
-                .append("<label for=\"t-weeks\">Viikot</label>")
-                .append("<label for=\"t-months\">Kuukaudet</label></div>\n")
+                .append("<div class=\"tabbar\"><label for=\"t-days\">").append(esc(t.s(R.string.steps_tab_days)))
+                .append("</label><label for=\"t-weeks\">").append(esc(t.s(R.string.steps_tab_weeks)))
+                .append("</label><label for=\"t-months\">").append(esc(t.s(R.string.steps_tab_months)))
+                .append("</label></div>\n")
                 .append("<div class=\"panel p-days\">");
-        appendBlock(sb, "Päivät", "day", r.days);
+        appendBlock(t, sb, t.s(R.string.steps_tab_days), "day", r.days);
         sb.append("</div>\n<div class=\"panel p-weeks\">");
-        appendBlock(sb, "Viikot", "week", r.weeks);
+        appendBlock(t, sb, t.s(R.string.steps_tab_weeks), "week", r.weeks);
         sb.append("</div>\n<div class=\"panel p-months\">");
-        appendBlock(sb, "Kuukaudet", "month", r.months);
+        appendBlock(t, sb, t.s(R.string.steps_tab_months), "month", r.months);
         sb.append("</div>\n</div>\n");
 
-        sb.append("<footer>Luotu Arkikeskus-sovelluksella. Data Health Connectista tai puhelimen "
-                + "askelanturista. Merkintä <em>~arvio</em> on Arkikeskuksen oma kalorilaskelma "
-                + "(askelista, ei tarkka).</footer>\n");
+        // Alaviitteen merkintä on HTML:ää → escapoidaan teksti ensin ja upotetaan merkintä sen jälkeen.
+        String mark = "<em>~" + esc(t.s(R.string.steps_html_estimate)) + "</em>";
+        sb.append("<footer>").append(esc(ctx.getString(R.string.steps_html_footer)).replace("%1$s", mark))
+                .append("</footer>\n");
         sb.append("</div>\n</body>\n</html>\n");
         return sb.toString();
     }
 
-    private static String todayChips(Report r) {
+    private static String todayChips(Txt t, Report r) {
         StringBuilder c = new StringBuilder();
         String pre = r.todayEstimated ? "~" : "";
         if (r.todayActive > 0) {
-            c.append("<span class=\"chip\">").append(SVG_FIRE).append(pre).append(r.todayActive)
-                    .append(" kcal aktiiviset</span>");
+            c.append("<span class=\"chip\">").append(SVG_FIRE)
+                    .append(esc(t.s(R.string.steps_html_chip_active, pre + r.todayActive))).append("</span>");
         }
         if (r.todayTotal > 0) {
-            c.append("<span class=\"chip chip-tot\">").append(pre).append(r.todayTotal)
-                    .append(" kcal yhteensä</span>");
+            c.append("<span class=\"chip chip-tot\">")
+                    .append(esc(t.s(R.string.steps_html_chip_total, pre + r.todayTotal))).append("</span>");
         }
         return c.toString();
     }
@@ -232,7 +270,7 @@ public final class StepsHtmlExporter {
                 + "<div class=\"scap\">" + esc(caption) + "</div></div>";
     }
 
-    private static void appendBlock(StringBuilder sb, String title, String kind, List<Row> rows) {
+    private static void appendBlock(Txt t, StringBuilder sb, String title, String kind, List<Row> rows) {
         String icon = "day".equals(kind) ? SVG_FOOT : SVG_CAL;
         sb.append("<section class=\"block\">\n<div class=\"bhead\"><span class=\"badge badge-")
                 .append(kind).append("\">").append(icon).append("</span><h2>").append(esc(title))
@@ -240,39 +278,43 @@ public final class StepsHtmlExporter {
         if (rows != null && !rows.isEmpty()) {
             long tot = 0;
             for (Row row : rows) tot += row.steps;
-            sb.append("<span class=\"count\">").append(rows.size()).append(" kpl · ")
-                    .append(num(tot)).append(" askelta</span>");
+            sb.append("<span class=\"count\">")
+                    .append(esc(t.q(R.plurals.steps_html_periods, rows.size(), rows.size()))).append(" · ")
+                    .append(esc(t.q(R.plurals.steps_count, tot, t.num(tot)))).append("</span>");
         }
         sb.append("</div>\n");
         if (rows == null || rows.isEmpty()) {
-            sb.append("<p class=\"empty\">Ei vielä dataa.</p>\n</section>\n");
+            sb.append("<p class=\"empty\">").append(esc(t.s(R.string.steps_html_empty)))
+                    .append("</p>\n</section>\n");
             return;
         }
         long max = 1;
         for (Row row : rows) max = Math.max(max, row.steps);
-        sb.append("<div class=\"tw\"><table>\n<thead><tr><th>Ajanjakso</th><th class=\"r\">Askeleet</th>")
-                .append("<th class=\"r\">Aktiiviset</th><th class=\"r\">Yhteensä</th></tr></thead>\n<tbody>\n");
+        String colSteps = esc(t.s(R.string.steps_col_steps));
+        String colActive = esc(t.s(R.string.steps_html_col_active));
+        String colTotal = esc(t.s(R.string.steps_html_col_total));
+        sb.append("<div class=\"tw\"><table>\n<thead><tr><th>").append(esc(t.s(R.string.steps_html_col_period)))
+                .append("</th><th class=\"r\">").append(colSteps).append("</th>")
+                .append("<th class=\"r\">").append(colActive).append("</th><th class=\"r\">").append(colTotal)
+                .append("</th></tr></thead>\n<tbody>\n");
+        String estimate = esc(t.s(R.string.steps_html_estimate));
         for (Row row : rows) {
             int pct = (int) Math.round(row.steps * 100.0 / max);
             sb.append("<tr><td class=\"period\">").append(esc(row.label)).append("</td>")
-                    .append("<td class=\"r steps\" data-label=\"Askeleet\"><div class=\"bar\" style=\"width:").append(pct)
-                    .append("%\"></div><span>").append(num(row.steps)).append("</span></td>")
-                    .append("<td class=\"r kcal\" data-label=\"Aktiiviset\">").append(kcalCell(row.activeKcal, row.estimated)).append("</td>")
-                    .append("<td class=\"r\" data-label=\"Yhteensä\">").append(kcalCell(row.totalKcal, row.estimated)).append("</td>")
+                    .append("<td class=\"r steps\" data-label=\"").append(colSteps).append("\"><div class=\"bar\" style=\"width:").append(pct)
+                    .append("%\"></div><span>").append(t.num(row.steps)).append("</span></td>")
+                    .append("<td class=\"r kcal\" data-label=\"").append(colActive).append("\">").append(kcalCell(row.activeKcal, row.estimated, estimate)).append("</td>")
+                    .append("<td class=\"r\" data-label=\"").append(colTotal).append("\">").append(kcalCell(row.totalKcal, row.estimated, estimate)).append("</td>")
                     .append("</tr>\n");
         }
         sb.append("</tbody>\n</table></div>\n</section>\n");
     }
 
-    private static String kcalCell(int kcal, boolean estimated) {
+    /** [estimateHtml] = valmiiksi escapattu "arvio"-sana näkyvällä kielellä. */
+    private static String kcalCell(int kcal, boolean estimated, String estimateHtml) {
         if (kcal <= 0) return "<span class=\"muted\">–</span>";
-        if (estimated) return "~" + kcal + " <span class=\"muted\">arvio</span>";
+        if (estimated) return "~" + kcal + " <span class=\"muted\">" + estimateHtml + "</span>";
         return String.valueOf(kcal);
-    }
-
-    /** Tuhaterotin välilyönnillä (suomalainen tapa). */
-    private static String num(long v) {
-        return String.format(Locale.US, "%,d", v).replace(',', ' ');
     }
 
     private static String model() {

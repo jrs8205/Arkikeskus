@@ -14,7 +14,8 @@ import java.util.Locale
  */
 internal object WorkoutGpxExporter {
 
-    fun buildGpx(workout: WorkoutEntity, points: List<WorkoutPointEntity>): String {
+    /** [name] = näytettävä nimi (käyttäjän nimi tai kielen mukainen oletus, ks. workoutDisplayName). */
+    fun buildGpx(workout: WorkoutEntity, points: List<WorkoutPointEntity>, name: String): String {
         val sb = StringBuilder(points.size * 96 + 512)
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
         sb.append("<gpx version=\"1.1\" creator=\"Arkikeskus\" ")
@@ -24,7 +25,7 @@ internal object WorkoutGpxExporter {
             .append("http://www.topografix.com/GPX/1/1/gpx.xsd\">\n")
         sb.append("  <metadata><time>").append(iso(workout.startedAtMs)).append("</time></metadata>\n")
         sb.append("  <trk>\n")
-        sb.append("    <name>").append(xmlEscape(workoutDisplayName(workout))).append("</name>\n")
+        sb.append("    <name>").append(xmlEscape(name)).append("</name>\n")
         sb.append("    <type>")
             .append(if (workout.type == WorkoutEntity.TYPE_BIKE) "cycling" else "walking")
             .append("</type>\n")

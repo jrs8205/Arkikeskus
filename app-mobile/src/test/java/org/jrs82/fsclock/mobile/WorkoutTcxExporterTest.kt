@@ -42,7 +42,7 @@ class WorkoutTcxExporterTest {
 
     @Test
     fun `lapit kilometreittain ja vajaa loppulap`() {
-        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_WALK), line(), splits())
+        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_WALK), line(), splits(), "Testilenkki")
         // 2 täyttä km + vajaa = 3 lapia
         assertEquals(3, Regex("<Lap StartTime=").findAll(tcx).count())
         // Lap-ajat sovelluksen km-väliajoista; vajaa = 1500 − 600 − 620 = 280 s
@@ -60,13 +60,13 @@ class WorkoutTcxExporterTest {
 
     @Test
     fun `pyoraily on Biking`() {
-        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_BIKE), line(), splits())
+        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_BIKE), line(), splits(), "Testilenkki")
         assertTrue(tcx.contains("<Activity Sport=\"Biking\">"))
     }
 
     @Test
     fun `ilman splitteja yksi manual-lap koko lenkista`() {
-        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_WALK), line(), emptyList())
+        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_WALK), line(), emptyList(), "Testilenkki")
         assertEquals(1, Regex("<Lap StartTime=").findAll(tcx).count())
         assertTrue(tcx.contains("<TotalTimeSeconds>1500.0</TotalTimeSeconds>"))
         assertTrue(tcx.contains("<DistanceMeters>2500.0</DistanceMeters>"))
@@ -86,7 +86,7 @@ class WorkoutTcxExporterTest {
             },
         )
         val w = workout(WorkoutEntity.TYPE_WALK).also { it.distanceM = 3000.0 }
-        val tcx = WorkoutTcxExporter.buildTcx(w, pts, splits())
+        val tcx = WorkoutTcxExporter.buildTcx(w, pts, splits(), "Testilenkki")
         assertEquals(3, Regex("<Lap StartTime=").findAll(tcx).count())
         // Vain 2 lapilla on pisteitä → tasan 2 Track-lohkoa, ei yhtään tyhjää
         assertEquals(2, Regex("<Track>").findAll(tcx).count())
@@ -99,7 +99,7 @@ class WorkoutTcxExporterTest {
 
     @Test
     fun `roundtrip tuontiparserilla`() {
-        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_WALK), line(), splits())
+        val tcx = WorkoutTcxExporter.buildTcx(workout(WorkoutEntity.TYPE_WALK), line(), splits(), "Testilenkki")
         val parsed = WorkoutFileImporter.parseTcx(tcx, KXmlParser())
         assertEquals(26, parsed.points.size)
         assertEquals(120, parsed.kcal)
@@ -107,5 +107,14 @@ class WorkoutTcxExporterTest {
         assertEquals("Testilenkki", parsed.name)
         assertEquals(1781258400000L, parsed.points.first().tMs)
         assertEquals(20.0, parsed.points.first().altM!!, 1e-6)
+    }
+
+    @Test
+    fun `notes-kentta tulee annetusta nimesta escapeattuna`() {
+        // Nimetön lenkki: kutsuja antaa kielen mukaisen oletusnimen, vienti ei keksi omaa.
+        val w = workout(WorkoutEntity.TYPE_WALK).also { it.name = null }
+        val tcx = WorkoutTcxExporter.buildTcx(w, line(), splits(), "Walk 12 Jun & <evening>")
+        assertTrue(tcx.contains("<Notes>Walk 12 Jun &amp; &lt;evening&gt;</Notes>"))
+        assertEquals("Walk 12 Jun & <evening>", WorkoutFileImporter.parseTcx(tcx, KXmlParser()).name)
     }
 }

@@ -12,20 +12,21 @@ class WarningEnricherTest {
             "id-$event", marine, type, "Moderate", "Likely", "Future", 0L, "FMI", "")
 
     private fun det(ctx: String, from: Long, until: Long, prob: Int, pv: Double,
-                    ptext: String, text: String) =
-        FmiWarningDetail(ctx, from, until, prob, pv, ptext, text)
+                    unit: String, text: String) =
+        FmiWarningDetail(ctx, from, until, prob, pv, unit, text)
 
     @Test fun matchesByTypeAndTime_picksRepresentativeFeatureCoherently() {
         val w = warn("Hellevaroitus", WeatherWarning.AwarenessType.HIGH_TEMPERATURE, 1000L, 5000L)
         val details = listOf(
-            det("hot-weather", 1000L, 5000L, 30, 26.0, "Lämpötila jopa 26 °C", "lyhyt fmi"),
-            det("hot-weather", 1000L, 5000L, 40, 27.0, "Lämpötila jopa 27 °C", "pidempi fmi teksti tähän"),
-            det("rain", 1000L, 5000L, 99, 50.0, "Sademäärä jopa 50 mm/h", "eri tyyppi ei saa osua"),
+            det("hot-weather", 1000L, 5000L, 30, 26.0, "celsius", "lyhyt fmi"),
+            det("hot-weather", 1000L, 5000L, 40, 27.0, "celsius", "pidempi fmi teksti tähän"),
+            det("rain", 1000L, 5000L, 99, 50.0, "mm/h", "eri tyyppi ei saa osua"),
         )
         val out = WarningEnricher.enrich(listOf(w), details)
         assertEquals(1, out.size)
         assertEquals(40, out[0].details.probabilityPct)
-        assertEquals("Lämpötila jopa 27 °C", out[0].details.physicalText)  // suurin arvo
+        assertEquals(27.0, out[0].details.physicalValue, 0.0)  // suurin arvo
+        assertEquals("celsius", out[0].details.physicalUnit)
         assertEquals("pidempi fmi teksti tähän", out[0].details.detailText) // pisin
     }
 
@@ -33,25 +34,25 @@ class WarningEnricherTest {
         val w = warn("Hellevaroitus", WeatherWarning.AwarenessType.HIGH_TEMPERATURE, 1000L, 5000L)
         val details = listOf(
             // korkein todennäköisyys mutta MATALAMPI lämpötila
-            det("hot-weather", 1000L, 5000L, 90, 25.0, "Lämpötila jopa 25 °C", "a"),
+            det("hot-weather", 1000L, 5000L, 90, 25.0, "celsius", "a"),
             // edustavin: korkein lämpötila 28 → sen prob 40 pitää näkyä (ei 90)
-            det("hot-weather", 1000L, 5000L, 40, 28.0, "Lämpötila jopa 28 °C", "b"),
+            det("hot-weather", 1000L, 5000L, 40, 28.0, "celsius", "b"),
         )
         val out = WarningEnricher.enrich(listOf(w), details)
-        assertEquals("Lämpötila jopa 28 °C", out[0].details.physicalText)
+        assertEquals(28.0, out[0].details.physicalValue, 0.0)
         assertEquals(40, out[0].details.probabilityPct)   // SAMASTA featuresta kuin lämpötila, ei 90
     }
 
     @Test fun noMatchKeepsEmptyDetails() {
         val w = warn("Hellevaroitus", WeatherWarning.AwarenessType.HIGH_TEMPERATURE, 1000L, 5000L)
-        val details = listOf(det("rain", 1000L, 5000L, 30, 20.0, "Sademäärä jopa 20 mm/h", "sade"))
+        val details = listOf(det("rain", 1000L, 5000L, 30, 20.0, "mm/h", "sade"))
         val out = WarningEnricher.enrich(listOf(w), details)
         assertEquals(false, out[0].details.hasAny())
     }
 
     @Test fun nonOverlappingTimeDoesNotMatch() {
         val w = warn("Hellevaroitus", WeatherWarning.AwarenessType.HIGH_TEMPERATURE, 1000L, 2000L)
-        val details = listOf(det("hot-weather", 9000L, 9999L, 40, 27.0, "Lämpötila jopa 27 °C", "fmi"))
+        val details = listOf(det("hot-weather", 9000L, 9999L, 40, 27.0, "celsius", "fmi"))
         val out = WarningEnricher.enrich(listOf(w), details)
         assertEquals(false, out[0].details.hasAny())
     }

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paikkakunnat -->
+    <string name="places_title">Orter</string>
+    <string name="places_intro">Vädret under Hem använder enhetens plats automatiskt. Du kan också söka efter en ort eller välja en favorit — valet gäller tills du öppnar appen igen. Automatisk plats kan stängas av i Inställningar.</string>
+    <string name="places_current">Nuvarande väderort</string>
+    <string name="places_fav_add">Lägg till som favorit</string>
+    <string name="places_fav_remove">Ta bort från favoriter</string>
+    <string name="places_fav_added">Tillagd som favorit</string>
+    <string name="places_fav_removed">Borttagen från favoriter</string>
+    <string name="places_search_label">Sök efter ort eller stadsdel</string>
+    <string name="places_status_choose">Välj en ort i listan.</string>
+    <string name="places_status_searching">Söker…</string>
+    <string name="places_status_min_chars">Skriv minst tre bokstäver.</string>
+    <string name="places_status_none">Inga orter hittades.</string>
+    <string name="places_status_failed">Sökningen misslyckades.</string>
+    <string name="places_favourites_title">Favoritorter</string>
+    <string name="places_favourites_empty">Inga favoritorter ännu. Lägg till nuvarande väderort med hjärtat ovan.</string>
+
+    <!-- Askeleet -->
+    <string name="steps_title">Steg</string>
+    <string name="steps_counter">Stegräknare</string>
+    <plurals name="steps_count">
+        <item quantity="one">%1$s steg</item>
+        <item quantity="other">%1$s steg</item>
+    </plurals>
+    <plurals name="steps_unit">
+        <item quantity="one">steg</item>
+        <item quantity="other">steg</item>
+    </plurals>
+    <plurals name="steps_today_label">
+        <item quantity="one">steg i dag</item>
+        <item quantity="other">steg i dag</item>
+    </plurals>
+    <string name="steps_note_unavailable">Den här enheten har varken stegsensor eller Health Connect, så stegräknaren kan inte aktiveras.</string>
+    <string name="steps_note_disabled">Stegräknaren är avstängd. Slå på den för att räkna dina steg.</string>
+    <string name="steps_note_hc">Källa: Health Connect (anslutna enheter, t.ex. klocka eller ring). Antalet hämtas automatiskt; om klockans eller ringens app inte har synkroniserats till den här telefonen ännu, öppna den en gång.</string>
+    <string name="steps_note_phone">Källa: telefonens egen stegräknare. Stegen uppdateras i realtid när du går. Om du vill kan du ansluta Health Connect (klocka eller ring) nedan.</string>
+    <string name="steps_allow_activity">Tillåt fysisk aktivitet (telefonens stegräknare)</string>
+    <string name="steps_use_hc">Använd Health Connect</string>
+    <string name="steps_hc_desc">Health Connect samlar steg och andra hälsodata på ett ställe — du kan till exempel ansluta en smartklocka, en smart ring eller andra hälsoappar. Den är inte installerad som standard; utan den använder Arkikeskus telefonens egen stegräknare.</string>
+    <string name="steps_hc_open">Öppna Health Connect</string>
+    <string name="steps_hc_install">Installera Health Connect</string>
+    <string name="steps_hc_read_calories">Läs även kalorier från Health Connect</string>
+    <string name="steps_hc_refresh">Uppdatera från Health Connect</string>
+    <string name="steps_hc_settings_failed">Det gick inte att öppna inställningarna för Health Connect</string>
+    <string name="steps_tab_days">Dagar</string>
+    <string name="steps_tab_weeks">Veckor</string>
+    <string name="steps_tab_months">Månader</string>
+    <string name="steps_distance_walked">Gått ≈ %1$s km</string>
+    <string name="steps_sources_title">Källor (Health Connect)</string>
+    <string name="steps_sources_empty">Ingen app har registrerat steg i Health Connect på den här telefonen i dag. Health Connect är ett datalager per telefon: det synkroniseras inte från en annan telefon via ditt Google-konto. Stegen visas här när en app (t.ex. hälsoappen för din klocka, ring eller telefon) skriver dem till Health Connect på den här enheten — kontrollera appens skrivbehörigheter och öppna den en gång.</string>
+    <string name="steps_sources_note">Stegantalet ovan är Health Connects sammanlagda summa där överlappande källor har tagits bort. Här visas varje apps eget antal (beräknat av Health Connect) — olika rader kan mäta samma steg, så de ska inte räknas ihop. Data från klockan eller ringen visas först när dess egen app har synkroniserats till den här telefonen. Källornas prioritetsordning kan ändras i inställningarna för Health Connect.</string>
+    <string name="steps_source_phone">Telefonens stegräknare</string>
+    <string name="steps_source_phone_id">Telefonens stegräknare (%1$s)</string>
+    <string name="steps_source_phone_sensor">Telefonens stegsensor</string>
+    <string name="steps_history_empty">Inga stegdata insamlade ännu.</string>
+    <string name="steps_note_hc_calories">🔥 = aktiva kalorier (Health Connect eller uppskattning).</string>
+    <string name="steps_note_raw">Obs! Stegen räknas medan appen har använts; det kan bli luckor när enheten startas om.</string>
+    <string name="steps_note_raw_calories">%1$s 🔥 = stegbaserad uppskattning av aktiva kalorier.</string>
+    <string name="steps_col_steps">Steg</string>
+    <string name="steps_week_label">Vecka %1$d</string>
+    <string name="steps_day_pattern">EEE d.M.</string>
+    <string name="steps_date_pattern">d.M.</string>
+    <string name="steps_cal_distance">Uppskattad sträcka: %1$s km</string>
+    <string name="steps_cal_active_hc">Aktiv förbrukning: %1$s kcal (Health Connect)</string>
+    <string name="steps_cal_active_est">Aktiv förbrukning: cirka %1$s kcal (uppskattning)</string>
+    <string name="steps_cal_total_hc">Dagens totala förbrukning: %1$s kcal (Health Connect)</string>
+    <string name="steps_cal_total_est">Dagens totala uppskattning: cirka %1$s kcal</string>
+    <string name="steps_cal_source_hc">Kalorier: Health Connect</string>
+    <string name="steps_cal_source_app">Kalorier: uppskattning av Arkikeskus</string>
+    <string name="steps_profile_add">Lägg till längd och vikt för att uppskatta kalorier och sträcka</string>
+    <string name="steps_profile_edit">Redigera profil</string>
+    <string name="steps_profile_title">Profil för uppskattning av kalorier och sträcka</string>
+    <string name="steps_profile_sex">Kön</string>
+    <string name="steps_profile_female">Kvinna</string>
+    <string name="steps_profile_male">Man</string>
+    <string name="steps_profile_sex_unspecified">Vill inte uppge</string>
+    <string name="steps_profile_age">Ålder (år)</string>
+    <string name="steps_profile_height">Längd (cm)</string>
+    <string name="steps_profile_weight">Vikt (kg)</string>
+    <string name="steps_profile_step_length">Steglängd (cm, valfritt)</string>
+
+    <!-- HTML-vienti -->
+    <string name="steps_export_button">Ladda ned HTML-sammanfattning</string>
+    <string name="steps_exporting">Exporterar…</string>
+    <string name="steps_export_failed">HTML-exporten misslyckades</string>
+    <string name="steps_export_saved_title">HTML sparad</string>
+    <string name="steps_export_saved_text">Sparad i mappen Download/Arkikeskus:\n%1$s</string>
+    <string name="steps_no_app_to_open">Ingen app hittades för att öppna filen</string>
+    <string name="steps_export_file_prefix">arkikeskus_steg</string>
+    <string name="steps_export_week">V. %1$d/%2$d (%3$s–%4$s)</string>
+    <string name="steps_export_week_short">V. %1$d/%2$d</string>
+    <string name="steps_export_date_pattern">d.M.yyyy</string>
+    <string name="steps_html_title">Arkikeskus – Steg och kalorier</string>
+    <string name="steps_html_heading">Steg &amp; kalorier</string>
+    <string name="steps_html_subtitle">Sammanfattning från Arkikeskus</string>
+    <string name="steps_html_meta">%1$s · exporterad %2$s · källa: %3$s</string>
+    <string name="steps_html_datetime_pattern">d.M.yyyy \'kl.\' HH:mm</string>
+    <string name="steps_html_total">Steg totalt</string>
+    <plurals name="steps_html_last_days">
+        <item quantity="one">senaste %1$d dagen</item>
+        <item quantity="other">senaste %1$d dagarna</item>
+    </plurals>
+    <string name="steps_html_no_data">inga data</string>
+    <string name="steps_html_best_day">Bästa dag</string>
+    <string name="steps_html_avg_day">Medeltal per dag</string>
+    <string name="steps_html_calories_total">Kalorier totalt</string>
+    <string name="steps_html_active_kcal">aktiva kcal</string>
+    <string name="steps_html_total_kcal">kcal totalt</string>
+    <string name="steps_html_chip_active">%1$s aktiva kcal</string>
+    <string name="steps_html_chip_total">%1$s kcal totalt</string>
+    <plurals name="steps_html_periods">
+        <item quantity="one">%1$d period</item>
+        <item quantity="other">%1$d perioder</item>
+    </plurals>
+    <string name="steps_html_empty">Inga data ännu.</string>
+    <string name="steps_html_col_period">Period</string>
+    <string name="steps_html_col_active">Aktiva</string>
+    <string name="steps_html_col_total">Totalt</string>
+    <string name="steps_html_estimate">uppskattning</string>
+    <string name="steps_html_footer">Skapad med appen Arkikeskus. Data från Health Connect eller telefonens stegsensor. Markeringen %1$s är Arkikeskus egen kaloriberäkning (utifrån steg, inte exakt).</string>
+
+    <!-- Askeltavoiteilmoitus -->
+    <string name="steps_goal_reached_title">Dagens stegmål är nått!</string>
+    <plurals name="steps_goal_reached_text">
+        <item quantity="one">%1$s steg i dag (mål %2$s).</item>
+        <item quantity="other">%1$s steg i dag (mål %2$s).</item>
+    </plurals>
+    <string name="steps_goal_half_title">Du är halvvägs!</string>
+    <plurals name="steps_goal_half_text">
+        <item quantity="one">Bra — du är halvvägs till målet. Försök nå det! (%1$s / %2$s steg)</item>
+        <item quantity="other">Bra — du är halvvägs till målet. Försök nå det! (%1$s / %2$s steg)</item>
+    </plurals>
+
+    <!-- Askelwidget -->
+    <string name="steps_widget_percent">%1$d %%</string>
+    <string name="steps_widget_goal_line">Mål %1$s · varje stapel = %2$s</string>
+</resources>

@@ -8,6 +8,9 @@ package org.jrs82.fsclock.mobile
  *
  * Kunnat: Manner-Suomi + Ahvenanmaa (tilanne 2024). Jos kotipaikka ei ole listassa (esim. kylä),
  * palautetaan null → notifier nojaa kuntanimi-matchiin (pohjoisen kuntalistaukset).
+ *
+ * Palautettu nimi on suomenkielinen konetunniste (MeteoAlarm-osuma, tallennettu valinta); näyttönimi
+ * kielen mukaan [org.jrs82.fsclock.FmiCounties.nameRes] / [regionDisplayName].
  */
 object FinnishRegions {
 
@@ -33,6 +36,9 @@ object FinnishRegions {
         "Lappi" to "Enontekiö;Inari;Kemi;Kemijärvi;Keminmaa;Kittilä;Kolari;Muonio;Pelkosenniemi;Pello;Posio;Ranua;Rovaniemi;Salla;Savukoski;Simo;Sodankylä;Tervola;Tornio;Utsjoki;Ylitornio",
         "Ahvenanmaa" to "Brändö;Eckerö;Finström;Föglö;Geta;Hammarland;Jomala;Kumlinge;Kökar;Lemland;Lumparland;Maarianhamina;Saltvik;Sottunga;Sund;Vårdö",
     )
+
+    /** Kaikki maakunnat (suomenkieliset tunnisteet). */
+    internal val regions: Set<String> get() = BY_REGION.keys
 
     private val MUNI_TO_REGION: Map<String, String> = buildMap {
         for ((region, munis) in BY_REGION) {

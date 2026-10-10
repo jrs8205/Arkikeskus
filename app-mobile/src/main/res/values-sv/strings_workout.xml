@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Seurantapalvelun ilmoitukset -->
+    <string name="workout_channel_tracking_name">Spårning av träningspass</string>
+    <string name="workout_channel_tracking_desc">Status och kontroller för pågående träningspass</string>
+    <string name="workout_channel_km_name">Kilometertider under träningspass</string>
+    <string name="workout_channel_km_desc">Avisering varje gång du har klarat en hel kilometer under träningspasset</string>
+    <string name="workout_notif_walk_active">Promenad pågår</string>
+    <string name="workout_notif_walk_paused">Promenaden är pausad</string>
+    <string name="workout_notif_bike_active">Cykeltur pågår</string>
+    <string name="workout_notif_bike_paused">Cykelturen är pausad</string>
+    <string name="workout_action_pause">Paus</string>
+    <string name="workout_action_resume">Fortsätt</string>
+    <string name="workout_action_stop">Avsluta</string>
+    <string name="workout_notif_auto_stopped_title">Träningspasset avslutades automatiskt</string>
+    <string name="workout_notif_auto_stopped_text">Ingen rörelse på 10 minuter — träningspasset sparades.</string>
+    <string name="workout_km_title">Kilometer %1$d</string>
+    <string name="workout_km_stats">tempo %1$s/km · tid %2$s · snitt %3$.1f km/h</string>
+
+    <!-- Aloitusnäkymä ja historia -->
+    <string name="workout_title">Träningspass</string>
+    <string name="workout_intro">Följ en promenad eller cykeltur: sträcka, hastighet, kilometertider och rutt. Spårningen fortsätter även när du låser skärmen.</string>
+    <string name="workout_type_walk">Promenad</string>
+    <string name="workout_type_bike">Cykling</string>
+    <string name="workout_start_walk">Starta promenad</string>
+    <string name="workout_start_bike">Starta cykeltur</string>
+    <string name="workout_auto_stop_hint">Träningspasset avslutas automatiskt efter 10 minuter utan rörelse.</string>
+    <string name="workout_need_fine_location">Träningsspårningen behöver behörighet till exakt plats.</string>
+    <string name="workout_stats_button">Vecko- och månadsstatistik</string>
+    <string name="workout_history_walk">Tidigare promenader</string>
+    <string name="workout_history_bike">Tidigare cykelturer</string>
+    <string name="workout_history_walk_empty">Inga promenader ännu.</string>
+    <string name="workout_history_bike_empty">Inga cykelturer ännu.</string>
+    <string name="workout_shared_title">Delade träningspass</string>
+    <string name="workout_shared_badge">Delat</string>
+    <string name="workout_import_button">Importera träningspass från fil (GPX/TCX)</string>
+    <string name="workout_import_none">Inget träningspass hittades i filen (GPX/TCX).</string>
+    <string name="workout_import_exists">Träningspasset finns redan på enheten: %1$s</string>
+    <string name="workout_import_done">Delat träningspass importerat: %1$s</string>
+    <string name="workout_file_too_large">Filen är för stor (över %1$d MB)</string>
+
+    <!-- GPS-lähtölaskenta -->
+    <string name="workout_countdown_go">Kör!</string>
+    <string name="workout_gps_found_starting">GPS hittad — träningspasset börjar!</string>
+    <string name="workout_starting_gps_pending">Träningspasset börjar — GPS-positionen blir noggrannare under tiden</string>
+    <string name="workout_gps_found">GPS hittad!</string>
+    <string name="workout_gps_searching">Söker GPS-signal…</string>
+
+    <!-- Aktiivinen lenkki -->
+    <string name="workout_active_walk">Promenad</string>
+    <string name="workout_active_bike">Cykeltur</string>
+    <string name="workout_paused_badge">PAUS</string>
+    <string name="workout_no_gps">Ingen GPS-signal</string>
+    <string name="workout_detail_avg">Snitt %1$s</string>
+    <string name="workout_detail_max">max %1$s</string>
+    <string name="workout_recenter">Centrera</string>
+    <string name="workout_stop_confirm_title">Avsluta träningspasset?</string>
+    <string name="workout_stop_confirm_text">Träningspasset sparas och du ser en sammanfattning.</string>
+
+    <!-- Tilastot -->
+    <string name="workout_stats_title">Statistik</string>
+    <string name="workout_stats_weeks">Veckor</string>
+    <string name="workout_stats_months">Månader</string>
+    <string name="workout_stats_empty">Inga egna träningspass ännu.</string>
+    <string name="workout_stats_week">Vecka %1$d</string>
+    <plurals name="workout_count">
+        <item quantity="one">%1$d träningspass</item>
+        <item quantity="other">%1$d träningspass</item>
+    </plurals>
+    <plurals name="workout_walk_count">
+        <item quantity="one">%1$d promenad</item>
+        <item quantity="other">%1$d promenader</item>
+    </plurals>
+    <plurals name="workout_bike_count">
+        <item quantity="one">%1$d cykeltur</item>
+        <item quantity="other">%1$d cykelturer</item>
+    </plurals>
+    <plurals name="workout_split_count">
+        <item quantity="one">%1$d kilometertid</item>
+        <item quantity="other">%1$d kilometertider</item>
+    </plurals>
+
+    <!-- Yhteenveto -->
+    <string name="workout_summary_title">Sammanfattning av träningspasset</string>
+    <string name="workout_rename">Byt namn på träningspasset</string>
+    <string name="workout_rename_hint">t.ex. Hundpromenad</string>
+    <string name="workout_shared_imported">Delat träningspass (importerat från fil)</string>
+    <string name="workout_auto_stopped">Avslutades automatiskt (ingen rörelse på 10 min)</string>
+    <string name="workout_tap_to_enlarge">Tryck för att förstora</string>
+    <string name="workout_stat_type">Aktivitet</string>
+    <string name="workout_stat_started">Startade</string>
+    <string name="workout_stat_ended">Avslutades</string>
+    <string name="workout_stat_distance">Sträcka</string>
+    <string name="workout_stat_moving">Tid i rörelse</string>
+    <string name="workout_stat_avg_speed">Medelhastighet</string>
+    <string name="workout_stat_pace">Tempo</string>
+    <string name="workout_stat_steps">Steg</string>
+    <string name="workout_stat_max_speed">Maxhastighet</string>
+    <string name="workout_stat_calories">Kalorier (uppskattning)</string>
+    <string name="workout_stat_ascent">Stigning (GPS-uppskattning)</string>
+    <string name="workout_stat_descent">Nedstigning (GPS-uppskattning)</string>
+    <string name="workout_splits_title">Kilometertider</string>
+    <string name="workout_split_label">Km %1$d</string>
+    <string name="workout_done">Klar</string>
+    <string name="workout_delete_title">Ta bort träningspasset?</string>
+    <string name="workout_delete_text">Träningspasset och dess rutt tas bort permanent.</string>
+
+    <!-- Jako -->
+    <string name="workout_share_button">Dela träningspass…</string>
+    <string name="workout_share_title">Dela träningspass</string>
+    <string name="workout_share_creating">Skapar fil för delning…</string>
+    <string name="workout_share_failed">Delningen misslyckades.</string>
+    <string name="workout_share_png_title">Bild med karta (PNG)</string>
+    <string name="workout_share_png_desc">För sociala medier och meddelanden</string>
+    <string name="workout_share_gpx_title">GPX-ruttfil</string>
+    <string name="workout_share_tcx_title">TCX-träningsfil</string>
+    <string name="workout_share_tcx_desc">Med mellantider och kalorier</string>
+    <string name="workout_share_attribution">Arkikeskus · © Lantmäteriverket</string>
+    <string name="workout_file_fallback">Träningspass</string>
+
+    <!-- Oletusnimet ja päivämäärien muodot (kellonaika aina HH:mm) -->
+    <string name="workout_default_name_walk">Promenad %1$s</string>
+    <string name="workout_default_name_bike">Cykeltur %1$s</string>
+    <string name="workout_date_pattern">d.M.</string>
+    <string name="workout_datetime_pattern">d.M. HH:mm</string>
+    <string name="workout_share_datetime_pattern">d.M.yyyy HH:mm</string>
+</resources>

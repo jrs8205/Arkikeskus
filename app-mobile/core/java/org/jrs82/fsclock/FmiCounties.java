@@ -1,5 +1,7 @@
 package org.jrs82.fsclock;
 
+import androidx.annotation.StringRes;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -7,7 +9,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** FMI GeoServerin county-koodi (Suomen viralliset maakuntakoodit) → maakuntanimi.
- *  Lähde varmistettu ristiintarkistamalla MeteoAlarmin maakuntanimiin. */
+ *  Lähde varmistettu ristiintarkistamalla MeteoAlarmin maakuntanimiin. Suomenkielinen nimi on
+ *  konetunniste (MeteoAlarmin areaDesc, kotipaikan maakunta, tallennettu valinta); näyttönimi
+ *  kielen mukaan {@link #nameRes}. */
 public final class FmiCounties {
 
     private FmiCounties() {}
@@ -18,6 +22,17 @@ public final class FmiCounties {
         "Uusimaa","Varsinais-Suomi","Satakunta","Kanta-Häme","Pirkanmaa","Päijät-Häme",
         "Kymenlaakso","Etelä-Karjala","Etelä-Savo","Pohjois-Savo","Pohjois-Karjala","Keski-Suomi",
         "Etelä-Pohjanmaa","Pohjanmaa","Keski-Pohjanmaa","Pohjois-Pohjanmaa","Kainuu","Lappi","Ahvenanmaa"
+    };
+
+    // Näyttönimet samassa järjestyksessä kuin NAMES.
+    private static final int[] NAME_RES = {
+        R.string.region_uusimaa, R.string.region_varsinais_suomi, R.string.region_satakunta,
+        R.string.region_kanta_hame, R.string.region_pirkanmaa, R.string.region_paijat_hame,
+        R.string.region_kymenlaakso, R.string.region_etela_karjala, R.string.region_etela_savo,
+        R.string.region_pohjois_savo, R.string.region_pohjois_karjala, R.string.region_keski_suomi,
+        R.string.region_etela_pohjanmaa, R.string.region_pohjanmaa, R.string.region_keski_pohjanmaa,
+        R.string.region_pohjois_pohjanmaa, R.string.region_kainuu, R.string.region_lappi,
+        R.string.region_ahvenanmaa
     };
 
     /** Maakunnat virallisessa koodijärjestyksessä (sama kuin NAMES). */
@@ -44,5 +59,12 @@ public final class FmiCounties {
     /** Indeksi ALL_REGIONS-listassa, -1 jos ei. */
     public static int indexOf(String region) {
         return ALL_REGIONS.indexOf(region);
+    }
+
+    /** Suomenkielisen maakuntanimen näyttönimi-resurssi, 0 jos nimi ei ole maakunta. */
+    @StringRes
+    public static int nameRes(String region) {
+        int i = indexOf(region);
+        return i < 0 ? 0 : NAME_RES[i];
     }
 }

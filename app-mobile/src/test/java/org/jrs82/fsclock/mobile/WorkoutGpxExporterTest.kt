@@ -34,7 +34,7 @@ class WorkoutGpxExporterTest {
 
     @Test
     fun `gpx rakenne ja escapeukset`() {
-        val gpx = WorkoutGpxExporter.buildGpx(workout(WorkoutEntity.TYPE_WALK, "Koira & <ilta>"), points)
+        val gpx = WorkoutGpxExporter.buildGpx(workout(WorkoutEntity.TYPE_WALK, "Koira & <ilta>"), points, "Koira & <ilta>")
         assertTrue(gpx.startsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"))
         assertTrue(gpx.contains("creator=\"Arkikeskus\""))
         assertTrue(gpx.contains("<name>Koira &amp; &lt;ilta&gt;</name>"))
@@ -51,13 +51,13 @@ class WorkoutGpxExporterTest {
 
     @Test
     fun `pyoraily merkitaan cycling-tyypiksi`() {
-        val gpx = WorkoutGpxExporter.buildGpx(workout(WorkoutEntity.TYPE_BIKE, "Pyörä"), points)
+        val gpx = WorkoutGpxExporter.buildGpx(workout(WorkoutEntity.TYPE_BIKE, "Pyörä"), points, "Pyörä")
         assertTrue(gpx.contains("<type>cycling</type>"))
     }
 
     @Test
     fun `roundtrip vienti-tuonti sailyttaa tiedot`() {
-        val gpx = WorkoutGpxExporter.buildGpx(workout(WorkoutEntity.TYPE_BIKE, "Koira & <ilta>"), points)
+        val gpx = WorkoutGpxExporter.buildGpx(workout(WorkoutEntity.TYPE_BIKE, "Koira & <ilta>"), points, "Koira & <ilta>")
         val parsed = WorkoutFileImporter.parseGpx(gpx, KXmlParser())
         assertEquals("Koira & <ilta>", parsed.name)
         assertEquals(WorkoutEntity.TYPE_BIKE, parsed.type)
@@ -68,5 +68,12 @@ class WorkoutGpxExporterTest {
         // Segmenttijako säilyy (tauko ei yhdisty)
         assertEquals(2, parsed.points.map { it.segment }.distinct().size)
         assertTrue(parsed.points[2].altM == null)
+    }
+
+    @Test
+    fun `nimeton lenkki saa kutsujan antaman oletusnimen`() {
+        val gpx = WorkoutGpxExporter.buildGpx(workout(WorkoutEntity.TYPE_WALK, null), points, "Promenad 12.6.")
+        assertTrue(gpx.contains("<name>Promenad 12.6.</name>"))
+        assertEquals("Promenad 12.6.", WorkoutFileImporter.parseGpx(gpx, KXmlParser()).name)
     }
 }

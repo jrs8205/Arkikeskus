@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="main_section_home">Etusivu</string>
+    <string name="main_section_forecast">Sääennuste 7 vrk</string>
+    <string name="main_section_weather_warnings">Säävaroitukset</string>
+    <string name="main_section_places">Paikkakunnat</string>
+    <string name="main_section_sensors">Anturit</string>
+    <string name="main_section_traffic_accidents">Onnettomuudet</string>
+    <string name="main_section_traffic_roadworks">Tietyöt</string>
+    <string name="main_section_traffic_weight">Painorajoitukset</string>
+    <string name="main_section_traffic_incidents">Liikennetiedotteet</string>
+    <string name="main_section_traffic_congestion">Ruuhkat</string>
+    <string name="main_section_road_cameras">Kelikamerat</string>
+    <string name="main_section_transit">Lähilähdöt</string>
+    <string name="main_section_route_planner">Reittihaku</string>
+    <string name="main_section_hsl_disruptions">Häiriöt ja muutokset</string>
+    <string name="main_section_speedometer">GPS-nopeus</string>
+    <string name="main_section_steps">Askeleet</string>
+    <string name="main_section_workout">Lenkki</string>
+    <string name="main_section_news">Kotimaiset</string>
+    <string name="main_section_news_foreign">Ulkomaat</string>
+    <string name="main_section_own_feeds">Omat syötteet</string>
+    <string name="main_section_electricity">Pörssisähkö</string>
+    <string name="main_section_teletext">Teksti-TV</string>
+    <string name="main_section_tv_guide">TV-ohjelmat</string>
+    <string name="main_section_device_info">Puhelimen tiedot</string>
+    <string name="main_section_flights">Lennot</string>
+    <string name="main_nav_home">Koti</string>
+    <string name="main_menu">Valikko</string>
+    <string name="main_drawer_weather">Sää</string>
+    <string name="main_drawer_traffic">Liikennetiedot</string>
+    <string name="main_drawer_transit">Joukkoliikenne (HSL/Tampere)</string>
+    <string name="main_drawer_news">Uutiset</string>
+    <string name="main_drawer_fitness">Liikunta</string>
+    <string name="main_drawer_other">Muut</string>
+    <string name="main_update_available">Uusi versio %1$s on saatavilla</string>
+    <string name="main_update_whats_new">Mitä uutta</string>
+    <string name="main_update_whats_new_title">Mitä uutta – %1$s</string>
+    <string name="main_update_install">Päivitä</string>
+    <string name="main_update_downloading">Ladataan päivitystä…</string>
+    <string name="main_backup_restored">Varmuuskopio palautettu.</string>
+    <string name="main_workout_import_none">Tiedostosta ei löytynyt lenkkiä (GPX/TCX).</string>
+    <string name="main_workout_import_exists">Lenkki on jo laitteella: %1$s</string>
+    <string name="main_workout_import_done">Jaettu lenkki tuotu: %1$s</string>
+    <string name="main_search_clear">Tyhjennä haku</string>
+</resources>

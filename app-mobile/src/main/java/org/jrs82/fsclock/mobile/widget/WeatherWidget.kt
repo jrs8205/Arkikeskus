@@ -10,6 +10,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -87,13 +88,13 @@ private fun weatherIcon(condType: String, isNight: Boolean): Pair<Int, ColorProv
 
 class WeatherWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        provideContent { WeatherContent(context) }
+        provideContent { RenderRevision { WeatherContent(context) } }
     }
 }
 
 @Composable
 private fun WeatherContent(context: Context) {
-    val place = WidgetCache.weatherPlace(context).ifBlank { "Sää" }
+    val place = WidgetCache.weatherPlace(context).ifBlank { context.getString(R.string.home_title_weather) }
     val fmiNow = WidgetCache.weatherTempC(context)
     val omNow = WidgetCache.weatherOmTempC(context)
     val heroTemp = if (fmiNow.isFinite()) fmiNow else omNow
@@ -104,8 +105,13 @@ private fun WeatherContent(context: Context) {
                     else WidgetCache.weatherOmCondNight(context)
     val (iconRes, iconColor) = weatherIcon(condType, condNight)
     val atMs = WidgetCache.weatherUpdatedAt(context).takeIf { it > 0 } ?: WidgetCache.weatherOmUpdatedAt(context)
-    val hourLabel = if (atMs > 0)
-        " · klo " + Instant.ofEpochMilli(atMs).atZone(ZoneId.of("Europe/Helsinki")).hour else ""
+    val hourLabel = if (atMs > 0) {
+        " · " + context.getString(
+            R.string.home_widget_at_hour, Instant.ofEpochMilli(atMs).atZone(ZoneId.of("Europe/Helsinki")).hour,
+        )
+    } else {
+        ""
+    }
     val hours = parseWeatherHours(WidgetCache.weatherHoursJson(context))
 
     GlanceTheme(colors = WidgetColors.providers) {
@@ -130,7 +136,7 @@ private fun WeatherContent(context: Context) {
                 Spacer(GlanceModifier.width(8.dp))
                 Text(
                     "$place$hourLabel",
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                    style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(14), fontWeight = FontWeight.Bold),
                     maxLines = 1,
                 )
             }
@@ -146,7 +152,7 @@ private fun WeatherContent(context: Context) {
                 Spacer(GlanceModifier.width(16.dp))
                 Text(
                     wxTemp(heroTemp),
-                    style = TextStyle(color = WidgetColors.strong, fontSize = 54.sp, fontWeight = FontWeight.Bold),
+                    style = TextStyle(color = WidgetColors.strong, fontSize = widgetSp(54), fontWeight = FontWeight.Bold),
                     maxLines = 1,
                 )
             }
@@ -166,7 +172,7 @@ private fun WeatherContent(context: Context) {
                 ) {
                     Image(
                         provider = ImageProvider(R.drawable.mobile_ic_refresh_24),
-                        contentDescription = "Päivitä",
+                        contentDescription = context.getString(R.string.common_refresh),
                         colorFilter = ColorFilter.tint(WidgetColors.c1),
                         modifier = GlanceModifier.size(18.dp),
                     )
@@ -175,15 +181,15 @@ private fun WeatherContent(context: Context) {
             Spacer(GlanceModifier.height(12.dp))
             // Sarakeotsikot: Ilmatieteen laitos (c1) | Open-Meteo (c2)
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
-                ColumnHeader(GlanceModifier.defaultWeight(), "Ilmatieteen laitos", WidgetColors.c1)
+                ColumnHeader(GlanceModifier.defaultWeight(), context.getString(R.string.home_widget_fmi), WidgetColors.c1)
                 ColumnHeader(GlanceModifier.defaultWeight(), "Open-Meteo", WidgetColors.c2)
             }
             Spacer(GlanceModifier.height(6.dp))
             // Tuntiennuste: seuraavat 24 h, kaksi saraketta, vierittyy
             if (hours.isEmpty()) {
                 Text(
-                    "Tuntiennustetta ei juuri nyt saatavilla",
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                    context.getString(R.string.home_widget_no_hourly),
+                    style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(13), fontWeight = FontWeight.Medium),
                     maxLines = 1,
                 )
             } else {
@@ -214,7 +220,7 @@ private fun ColumnHeader(modifier: GlanceModifier, title: String, color: ColorPr
         Spacer(GlanceModifier.width(6.dp))
         Text(
             title,
-            style = TextStyle(color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+            style = TextStyle(color = color, fontSize = widgetSp(12), fontWeight = FontWeight.Bold),
             maxLines = 1,
         )
     }
@@ -233,8 +239,8 @@ private fun WxHalf(
     val (icon, iconColor) = weatherIcon(condType, night)
     Row(modifier = modifier, verticalAlignment = Alignment.Vertical.CenterVertically) {
         Text(
-            "klo %02d".format(hour),
-            style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+            LocalContext.current.getString(R.string.home_widget_hour, hour),
+            style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(13), fontWeight = FontWeight.Medium),
             maxLines = 1,
         )
         Spacer(GlanceModifier.defaultWeight())
@@ -247,7 +253,7 @@ private fun WxHalf(
         Spacer(GlanceModifier.width(8.dp))
         Text(
             wxTemp(temp),
-            style = TextStyle(color = tempColor, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+            style = TextStyle(color = tempColor, fontSize = widgetSp(14), fontWeight = FontWeight.Bold),
             maxLines = 1,
         )
     }

@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -51,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.preference.PreferenceManager
@@ -72,6 +74,8 @@ import java.util.Collections
  * Tallennus pysyy automaattisena (ei erillistä Tallenna-painiketta).
  */
 class MobileWidgetOrderActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(FontScaleCap.wrap(newBase))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         MobileThemeController.apply(this)
@@ -131,7 +135,7 @@ private fun WidgetOrderScreen(onBack: () -> Unit) {
                 add(
                     WidgetRowData(
                         id,
-                        homeWidgetTitleForId(prefs, id),
+                        homeWidgetTitleForId(context, prefs, id),
                         prefs.getBoolean(KEY_HOME_SHOW_PREFIX + id, defaultVisibleForId(id)),
                     ),
                 )
@@ -167,14 +171,20 @@ private fun WidgetOrderScreen(onBack: () -> Unit) {
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var didReorder by remember { mutableStateOf(false) }
+    // Snackbar-tekstit luetaan komposition aikana: raahaus- ja checkbox-callbackit eivät ole composableja.
+    val orderSavedText = stringResource(R.string.settings_home_cards_order_saved)
+    val savedText = stringResource(R.string.settings_home_cards_saved)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Etusivun kortit") },
+                title = { Text(stringResource(R.string.settings_home_cards_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.mobile_ic_arrow_back), contentDescription = "Takaisin")
+                        Icon(
+                            painterResource(R.drawable.mobile_ic_arrow_back),
+                            contentDescription = stringResource(R.string.common_back),
+                        )
                     }
                 },
             )
@@ -189,7 +199,7 @@ private fun WidgetOrderScreen(onBack: () -> Unit) {
                 .padding(horizontal = 8.dp),
         ) {
             Text(
-                "Vedä kahvasta järjestääksesi. Valinta näyttää kortin etusivulla.",
+                stringResource(R.string.settings_home_cards_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 6.dp),
@@ -233,14 +243,14 @@ private fun WidgetOrderScreen(onBack: () -> Unit) {
                             if (reordered) {
                                 persist()
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showSaved("Järjestys tallennettu")
+                                showSaved(orderSavedText)
                             }
                         },
                         onToggle = { v ->
                             row.visible = v
                             persist()
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            showSaved("Tallennettu")
+                            showSaved(savedText)
                         },
                     )
                 }
@@ -317,7 +327,7 @@ private fun WidgetOrderRow(
             ) {
                 Icon(
                     painterResource(R.drawable.mobile_ic_drag_indicator_24),
-                    contentDescription = "Raahaa järjestääksesi",
+                    contentDescription = stringResource(R.string.settings_home_cards_drag),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

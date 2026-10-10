@@ -35,9 +35,11 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import org.jrs82.fsclock.R
 
 /**
  * Jaetut Compose-palikat (kelikamerat / lähilähdöt / reittihaku). Moodivärit/-ikonit
@@ -181,7 +183,7 @@ internal fun SearchTextField(
         trailingIcon = if (value.isNotEmpty()) {
             {
                 IconButton(onClick = { if (onClear != null) onClear() else onValueChange("") }) {
-                    Icon(Icons.Filled.Clear, contentDescription = "Tyhjennä haku")
+                    Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.main_search_clear))
                 }
             }
         } else {

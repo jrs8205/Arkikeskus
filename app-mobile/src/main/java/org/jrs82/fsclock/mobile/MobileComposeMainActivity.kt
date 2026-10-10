@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import android.content.Context
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -10,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.preference.PreferenceManager
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.mobile.widget.WidgetDeepLink
 
@@ -48,6 +50,8 @@ class MobileComposeMainActivity : AppCompatActivity() {
             resetAutoLocationThrottle()
         }
 
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(FontScaleCap.wrap(newBase))
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Käynnistyskuva (bränditausta + sovelluksen ikoni). Asennettava ennen super.onCreatea;
         // postSplashScreenTheme vaihtaa varsinaiseen teemaan kun ensimmäinen ruutu on valmis.
@@ -82,7 +86,7 @@ class MobileComposeMainActivity : AppCompatActivity() {
         if (prefs.getBoolean("restore_done_pending", false)) {
             prefs.edit().remove("restore_done_pending").apply()
             android.widget.Toast.makeText(
-                this, "Varmuuskopio palautettu.", android.widget.Toast.LENGTH_LONG).show()
+                this, getString(R.string.main_backup_restored), android.widget.Toast.LENGTH_LONG).show()
         }
         // Kertamigraatio: vanha SAF-pohjainen automaattivarmuuskopio on korvattu Drive-varmuuskopiolla
         // -> perutaan upgrade-kayttajien vanha ajastettu tyo kerran, ettei se jaa roikkumaan taustalle.
@@ -167,7 +171,7 @@ class MobileComposeMainActivity : AppCompatActivity() {
                     WorkoutFileImporter.importStream(this, it)
                 }
             } catch (e: FileTooLargeException) {
-                tooLarge = e.message
+                tooLarge = e.userMessage(this)
                 null
             } catch (e: Exception) {
                 android.util.Log.w("WorkoutImport", "Tuonti epäonnistui", e)
@@ -176,13 +180,13 @@ class MobileComposeMainActivity : AppCompatActivity() {
             runOnUiThread {
                 if (res == null) {
                     android.widget.Toast.makeText(
-                        this, tooLarge ?: "Tiedostosta ei löytynyt lenkkiä (GPX/TCX).",
+                        this, tooLarge ?: getString(R.string.main_workout_import_none),
                         android.widget.Toast.LENGTH_LONG).show()
                 } else {
                     android.widget.Toast.makeText(
                         this,
-                        if (res.alreadyExists) "Lenkki on jo laitteella: ${res.name}"
-                        else "Jaettu lenkki tuotu: ${res.name}",
+                        if (res.alreadyExists) getString(R.string.main_workout_import_exists, res.name)
+                        else getString(R.string.main_workout_import_done, res.name),
                         android.widget.Toast.LENGTH_LONG).show()
                     externalSection.value = "WORKOUT"
                 }
