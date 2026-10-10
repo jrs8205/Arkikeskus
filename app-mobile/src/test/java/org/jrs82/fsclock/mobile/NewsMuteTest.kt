@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import org.jrs82.fsclock.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -162,6 +163,19 @@ class NewsMuteTest {
         NewsProfile.setPackActive(p, "urheilu", true)
         assertTrue(NewsProfile.isPackActive(p, "urheilu"))
         assertEquals(listOf("urheilu"), NewsProfile.activePacks(p).map { it.id })
+    }
+
+    @Test
+    fun `aihepakettien nimet tulevat resursseista ja id pysyy prefs-avaimena`() {
+        assertEquals(R.string.news_pack_sport, pack("urheilu").labelRes)
+        assertEquals(R.string.news_pack_crime, pack("rikokset").labelRes)
+        val labels = NewsProfile.MUTE_PACKS.map { it.labelRes }
+        assertEquals(labels.size, labels.toSet().size)
+        // id:t ovat tallennettujen kytkimien avaimia → eivät saa muuttua käännöksen myötä
+        assertEquals(
+            listOf("urheilu", "politiikka", "viihde", "talous", "rikokset"),
+            NewsProfile.MUTE_PACKS.map { it.id },
+        )
     }
 
     @Test

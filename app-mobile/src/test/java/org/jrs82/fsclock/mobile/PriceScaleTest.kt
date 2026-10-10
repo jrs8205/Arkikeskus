@@ -5,6 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PriceScaleTest {
+    private val fi = AppLocale.FINNISH
+
     @Test fun fraction_isRelativeToDayRange() {
         assertEquals(0.5f, PriceScale.fraction(4.0, 1.0, 7.0)!!, 1e-6f)
         assertEquals(0.25f, PriceScale.fraction(2.5, 1.0, 7.0)!!, 1e-6f)
@@ -40,21 +42,25 @@ class PriceScaleTest {
     }
 
     @Test fun labels_startMiddleEnd_withVat() {
-        assertEquals(Triple("1,255", "5,020", "8,785"), PriceScale.labels(1.0, 7.0, true))
+        assertEquals(Triple("1,255", "5,020", "8,785"), PriceScale.labels(1.0, 7.0, true, fi))
     }
 
     @Test fun labels_startMiddleEnd_withoutVat() {
-        assertEquals(Triple("1,000", "4,000", "7,000"), PriceScale.labels(1.0, 7.0, false))
+        assertEquals(Triple("1,000", "4,000", "7,000"), PriceScale.labels(1.0, 7.0, false, fi))
     }
 
     @Test fun labels_middleIsHalfwayBetweenShownEnds_whenDayMinIsNegative() {
         // Halvin −2 pysyy verottomana, kallein 4 → 5,020; janan keskikohta on näiden puolivälissä.
-        val labels = PriceScale.labels(-2.0, 4.0, true)
+        val labels = PriceScale.labels(-2.0, 4.0, true, fi)
         assertEquals("1,510", labels.second)
         assertEquals("5,020", labels.third)
     }
 
+    @Test fun labels_followLocaleDecimalSeparator() {
+        assertEquals(Triple("1.255", "5.020", "8.785"), PriceScale.labels(1.0, 7.0, true, AppLocale.ENGLISH))
+    }
+
     @Test fun labels_dashWithoutData() {
-        assertEquals(Triple("–", "–", "–"), PriceScale.labels(Double.NaN, Double.NaN, true))
+        assertEquals(Triple("–", "–", "–"), PriceScale.labels(Double.NaN, Double.NaN, true, fi))
     }
 }

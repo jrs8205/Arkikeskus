@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="electricity_title">Börsel</string>
+    <string name="electricity_widget_title">Börsel nu</string>
+    <string name="electricity_vat_label_incl" formatted="false">inkl. moms 25,5 %</string>
+    <string name="electricity_vat_label_zero" formatted="false">moms 0 %</string>
+    <string name="electricity_vat_note_incl" formatted="false">Priset innehåller moms 25,5 %</string>
+    <string name="electricity_vat_note_excl" formatted="false">Priset innehåller inte moms (moms 0 %)</string>
+    <string name="electricity_vat_widget_excl">utan moms</string>
+    <string name="electricity_level_cheap">Billigt</string>
+    <string name="electricity_level_normal">Normalt</string>
+    <string name="electricity_level_expensive">Dyrt</string>
+    <string name="electricity_cheapest">Billigast</string>
+    <string name="electricity_most_expensive">Dyrast</string>
+    <string name="electricity_no_current_price">Det aktuella kvartspriset är inte tillgängligt än</string>
+    <string name="electricity_quarter_range">Kvart kl. %1$s–%2$s · nästa %3$s</string>
+    <string name="electricity_quarter_range_short">Kvart kl. %1$s–%2$s</string>
+    <string name="electricity_quarter_time">kl. %1$s–%2$s</string>
+    <string name="electricity_dst_summer">sommartid</string>
+    <string name="electricity_dst_winter">vintertid</string>
+    <string name="electricity_now_at">Nu kl. %1$s</string>
+    <string name="electricity_tab_compare">Jämförelse</string>
+    <string name="electricity_tomorrow_pending">Morgondagens priser uppdateras varje dag ca kl. 14:30.</string>
+    <string name="electricity_today_unavailable">Dagens kvartspriser är inte tillgängliga.</string>
+    <string name="electricity_source_footer">Källa: Elering/Nord Pool. Priserna %1$s.</string>
+    <string name="electricity_heatmap_hour">kl.</string>
+    <string name="electricity_dst_footnote">* Klockan ställs om till vintertid, så timmen 03 förekommer två gånger. Raden med asterisk är den senare (vintertid).</string>
+    <string name="electricity_compare_header">Börselns medelpriser (%1$s). Källa: Elering/Nord Pool.</string>
+    <string name="electricity_compare_year_avg">Medelpris %1$d</string>
+    <string name="electricity_compare_month_section">Månadsmedelpriser %1$d</string>
+    <string name="electricity_compare_month_partial">%1$s (hittills)</string>
+    <string name="electricity_compare_loading">Hämtar medelpriser…</string>
+    <string name="electricity_compare_empty">Medelpriserna är inte tillgängliga än. Uppdatera igen när du har nätanslutning.</string>
+    <string name="electricity_cheap_notice_now">Elen är billig nu: allt under %1$s c/kWh, högst %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_rest_of_day">Elen är billig resten av dagen: allt under %1$s c/kWh, högst %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_all_day">Elen är billig hela dagen: allt under %1$s c/kWh, högst %2$s c/kWh</string>
+    <string name="electricity_notify_title">Morgondagens elpriser har kommit</string>
+    <string name="electricity_notify_text">Billigast kl. %1$s (%2$s c), dyrast kl. %3$s (%4$s c). Medelpris %5$s c/kWh, %6$s.</string>
+    <string name="electricity_tomorrow_not_yet">Morgondagens priser är inte tillgängliga än.\nNord Pool publicerar dem vanligen ca kl. 14.\nUppdateras automatiskt…</string>
+    <string name="electricity_cheapest_at">Billigast: %1$s %2$s c/kWh</string>
+    <string name="electricity_most_expensive_at">Dyrast: %1$s %2$s c/kWh</string>
+</resources>

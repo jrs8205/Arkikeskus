@@ -51,6 +51,8 @@ public final class SettingsManager {
 
     private static SettingsManager instance;
     private SharedPreferences prefs;
+    // Contextittomat singletonit (varoitusvälimuisti) lukevat tästä sovelluksen kielen.
+    private volatile Context appContext;
 
     private SettingsManager() {}
 
@@ -63,6 +65,12 @@ public final class SettingsManager {
         if (prefs == null) {
             prefs = PreferenceManager.getDefaultSharedPreferences(appCtx.getApplicationContext());
         }
+        if (appContext == null) appContext = appCtx.getApplicationContext();
+    }
+
+    /** Sovelluskonteksti, null jos init()-kutsua ei ole vielä tehty. */
+    public Context appContextOrNull() {
+        return appContext;
     }
 
     private SharedPreferences sp() {

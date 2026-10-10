@@ -1,6 +1,9 @@
 package org.jrs82.fsclock.mobile
 
+import org.jrs82.fsclock.FmiCounties
+import org.jrs82.fsclock.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -25,6 +28,15 @@ class FinnishRegionsTest {
 
     @Test fun compoundPlaceUsesFirstPart() {
         assertEquals("Uusimaa", FinnishRegions.regionForPlace("Vantaa, Tikkurila"))
+    }
+
+    @Test fun everyRegionHasDisplayName() {
+        // regionForPlace-tulos näytetään FmiCountiesin nimiresurssilla → avainten pitää täsmätä
+        assertEquals(19, FinnishRegions.regions.size)
+        for (r in FinnishRegions.regions) {
+            assertNotEquals(r, 0, FmiCounties.nameRes(r))
+        }
+        assertEquals(R.string.region_pirkanmaa, FmiCounties.nameRes(FinnishRegions.regionForPlace("Tampere")))
     }
 
     @Test fun unknownPlaceReturnsNull() {

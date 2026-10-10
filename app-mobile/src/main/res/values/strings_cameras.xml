@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cameras_loading_all">Loading all cameras…</string>
+    <string name="cameras_load_failed">Couldn\'t load road cameras.</string>
+    <string name="cameras_none">No road cameras.</string>
+    <string name="cameras_loaded">Cameras loaded</string>
+    <string name="cameras_search_hint">Search for a road or place</string>
+    <string name="cameras_image">Road camera image: %1$s</string>
+</resources>

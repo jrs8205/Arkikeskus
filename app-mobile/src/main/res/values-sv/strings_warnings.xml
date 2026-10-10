@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Saavaroitukset-sivu -->
+    <string name="warning_title">Vädervarningar</string>
+    <string name="warning_region_label">Område</string>
+    <string name="warning_region_all">Hela Finland</string>
+    <string name="warning_none">Inga varningar – %1$s, %2$s.</string>
+    <string name="warning_day_today_inline">i dag</string>
+    <string name="warning_day_tomorrow_inline">i morgon</string>
+    <string name="warning_date_pattern">EEE d.M.</string>
+    <string name="warning_period_pattern">d.M. HH:mm</string>
+    <string name="warning_period_from">Från %1$s</string>
+    <string name="warning_period_until">Gäller till %1$s</string>
+    <string name="warning_probability">Sannolikhet %1$d %%</string>
+    <string name="warning_marine">Båtliv</string>
+    <string name="warning_sender_fmi">Meteorologiska institutet</string>
+    <string name="warning_more_info">Läs mer</string>
+    <string name="warning_meta_severity">Allvarlighetsgrad: %1$s</string>
+    <string name="warning_meta_certainty">Säkerhet: %1$s</string>
+    <string name="warning_meta_urgency">Brådska: %1$s</string>
+
+    <!-- CAP-luokitukset (MeteoAlarm) -->
+    <string name="warning_severity_minor">Ringa</string>
+    <string name="warning_severity_moderate">Måttlig</string>
+    <string name="warning_severity_severe">Allvarlig</string>
+    <string name="warning_severity_extreme">Extrem</string>
+    <string name="warning_certainty_observed">Observerad</string>
+    <string name="warning_certainty_likely">Sannolik</string>
+    <string name="warning_certainty_possible">Möjlig</string>
+    <string name="warning_certainty_unlikely">Osannolik</string>
+    <string name="warning_urgency_immediate">Omedelbar</string>
+    <string name="warning_urgency_expected">Förväntad</string>
+    <string name="warning_urgency_future">Framtida</string>
+    <string name="warning_urgency_past">Passerad</string>
+
+    <!-- Varoitustasot -->
+    <string name="warning_level_green">Grön</string>
+    <string name="warning_level_yellow">Gul</string>
+    <string name="warning_level_orange">Orange</string>
+    <string name="warning_level_red">Röd</string>
+
+    <!-- Ilmiotyypit (MeteoAlarm awareness_type) -->
+    <string name="warning_type_wind">Vind</string>
+    <string name="warning_type_snow_ice">Snö/is</string>
+    <string name="warning_type_thunderstorm">Åska</string>
+    <string name="warning_type_fog">Dimma</string>
+    <string name="warning_type_heat">Värme</string>
+    <string name="warning_type_cold">Köld</string>
+    <string name="warning_type_coastal">Kust</string>
+    <string name="warning_type_forest_fire">Terrängbrand</string>
+    <string name="warning_type_avalanche">Lavin</string>
+    <string name="warning_type_rain">Regn</string>
+    <string name="warning_type_flood">Översvämning</string>
+    <string name="warning_type_uv">UV</string>
+
+    <!-- FMI:n varoituslajit (GeoServer warning_context) -->
+    <string name="warning_event_forest_fire">Varning för terrängbrand</string>
+    <string name="warning_event_heat">Värmevarning</string>
+    <string name="warning_event_rain">Nederbördsvarning</string>
+    <string name="warning_event_thunderstorm">Åskvarning</string>
+    <string name="warning_event_boaters">Meddelande för båtfarare</string>
+    <string name="warning_event_uv">UV-meddelande</string>
+    <string name="warning_event_cold">Köldvarning</string>
+    <string name="warning_event_wind">Vindvarning</string>
+    <string name="warning_event_flood">Översvämningsvarning</string>
+    <string name="warning_event_generic">Varning</string>
+
+    <!-- FMI:n fyysinen arvo -->
+    <string name="warning_physical_temperature">Temperatur upp till %1$s °C</string>
+    <string name="warning_physical_cold">Temperatur ned till %1$s °C</string>
+    <string name="warning_physical_rain">Nederbörd upp till %1$s mm/h</string>
+    <string name="warning_physical_gust">Vindbyar upp till %1$s m/s</string>
+    <string name="warning_physical_uv">UV-index %1$s</string>
+
+    <!-- Ilmoitus kotipaikan varoituksesta -->
+    <string name="warning_notif_title">Vädervarning: %1$s</string>
+    <string name="warning_notif_title_level">Vädervarning: %1$s (%2$s)</string>
+    <string name="warning_notif_body_probability">%1$s (sannolikhet %2$d %%)</string>
+    <string name="warning_notif_title_many">Vädervarningar för %1$s</string>
+    <plurals name="warning_notif_body_many">
+        <item quantity="one">%1$d vädervarning gäller. Öppna för att se den.</item>
+        <item quantity="other">%1$d vädervarningar gäller. Öppna för att se dem.</item>
+    </plurals>
+
+    <!-- Maakunnat (viralliset ruotsinkieliset nimet) -->
+    <string name="region_uusimaa">Nyland</string>
+    <string name="region_varsinais_suomi">Egentliga Finland</string>
+    <string name="region_satakunta">Satakunta</string>
+    <string name="region_kanta_hame">Egentliga Tavastland</string>
+    <string name="region_pirkanmaa">Birkaland</string>
+    <string name="region_paijat_hame">Päijänne-Tavastland</string>
+    <string name="region_kymenlaakso">Kymmenedalen</string>
+    <string name="region_etela_karjala">Södra Karelen</string>
+    <string name="region_etela_savo">Södra Savolax</string>
+    <string name="region_pohjois_savo">Norra Savolax</string>
+    <string name="region_pohjois_karjala">Norra Karelen</string>
+    <string name="region_keski_suomi">Mellersta Finland</string>
+    <string name="region_etela_pohjanmaa">Södra Österbotten</string>
+    <string name="region_pohjanmaa">Österbotten</string>
+    <string name="region_keski_pohjanmaa">Mellersta Österbotten</string>
+    <string name="region_pohjois_pohjanmaa">Norra Österbotten</string>
+    <string name="region_kainuu">Kajanaland</string>
+    <string name="region_lappi">Lappland</string>
+    <string name="region_ahvenanmaa">Åland</string>
+</resources>

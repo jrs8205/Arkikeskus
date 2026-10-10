@@ -1,5 +1,8 @@
 package org.jrs82.fsclock.mobile
 
+import android.content.Context
+import androidx.annotation.StringRes
+import org.jrs82.fsclock.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -40,12 +43,19 @@ object ElectricityTime {
         return Instant.ofEpochMilli(start).atZone(HELSINKI) to Instant.ofEpochMilli(start + QUARTER_MS).atZone(HELSINKI)
     }
 
-    /** Kellonajan tarkenne toistuvalla tunnilla, muuten tyhjä. */
-    fun dstSuffix(ms: Long): String = when (overlapPass(ms)) {
-        1 -> " (kesäaikaa)"
-        2 -> " (talviaikaa)"
-        else -> ""
+    /** Kellonajan tarkenne toistuvalla tunnilla (kesä-/talviaikaa), muuten null. */
+    @StringRes
+    fun dstSuffixRes(ms: Long): Int? = when (overlapPass(ms)) {
+        1 -> R.string.electricity_dst_summer
+        2 -> R.string.electricity_dst_winter
+        else -> null
     }
+
+    /** Tarkenne kellonajan perään muodossa " (talviaikaa)"; tavallisella hetkellä tyhjä. */
+    fun dstSuffixText(context: Context, @StringRes res: Int?): String =
+        if (res == null) "" else " (" + context.getString(res) + ")"
+
+    fun dstSuffix(context: Context, ms: Long): String = dstSuffixText(context, dstSuffixRes(ms))
 
     /** 0 = tavallinen hetki, 1 = toistuvan tunnin ensimmäinen kierros, 2 = jälkimmäinen. */
     private fun overlapPass(ms: Long): Int {

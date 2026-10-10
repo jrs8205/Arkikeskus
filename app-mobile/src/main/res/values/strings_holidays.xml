@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="holiday_next_holiday">Next public holiday</string>
+    <string name="holiday_next_flag_day">Next flag day</string>
+    <plurals name="holiday_days_until">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <string name="holiday_nameday_source">Name days: University of Helsinki Almanac Office</string>
+    <string name="holiday_almanac_attribution">Calendar and name day data provided by the University of Helsinki Almanac Office</string>
+    <string name="holiday_new_years_day">New Year\'s Day</string>
+    <string name="holiday_epiphany">Epiphany</string>
+    <string name="holiday_good_friday">Good Friday</string>
+    <string name="holiday_easter_sunday">Easter Sunday</string>
+    <string name="holiday_easter_monday">Easter Monday</string>
+    <string name="holiday_may_day_eve">May Day Eve</string>
+    <string name="holiday_may_day">May Day</string>
+    <string name="holiday_mothers_day">Mother\'s Day</string>
+    <string name="holiday_ascension">Ascension Day</string>
+    <string name="holiday_whit_sunday">Whit Sunday</string>
+    <string name="holiday_midsummer_eve">Midsummer Eve</string>
+    <string name="holiday_midsummer_day">Midsummer Day</string>
+    <string name="holiday_all_saints">All Saints\' Day</string>
+    <string name="holiday_fathers_day">Father\'s Day</string>
+    <string name="holiday_independence">Independence Day</string>
+    <string name="holiday_first_advent">First Sunday of Advent</string>
+    <string name="holiday_christmas_eve">Christmas Eve</string>
+    <string name="holiday_christmas_day">Christmas Day</string>
+    <string name="holiday_boxing_day">Boxing Day</string>
+    <string name="holiday_new_years_eve">New Year\'s Eve</string>
+    <string name="holiday_runeberg">Runeberg Day</string>
+    <string name="holiday_kalevala">Kalevala Day, Day of Finnish Culture</string>
+    <string name="holiday_minna_canth">Minna Canth Day, Day of Equality</string>
+    <string name="holiday_agricola">Mikael Agricola Day, Day of the Finnish Language</string>
+    <string name="holiday_veterans">National Veterans\' Day</string>
+    <string name="holiday_europe">Europe Day</string>
+    <string name="holiday_snellman">Snellman Day, Day of Finnish Heritage</string>
+    <string name="holiday_memorial">Memorial Day</string>
+    <string name="holiday_defence_forces">Flag Day of the Defence Forces</string>
+    <string name="holiday_eino_leino">Eino Leino Day, Day of Poetry and Summer</string>
+    <string name="holiday_nature">Finnish Nature Day</string>
+    <string name="holiday_miina_sillanpaa">Miina Sillanpää Day, Day of Civic Participation</string>
+    <string name="holiday_aleksis_kivi">Aleksis Kivi Day, Day of Finnish Literature</string>
+    <string name="holiday_un">UN Day</string>
+    <string name="holiday_swedish_heritage">Swedish Heritage Day, Gustavus Adolphus Day</string>
+    <string name="holiday_childrens_rights">Children\'s Rights Day</string>
+    <string name="holiday_sibelius">Sibelius Day, Day of Finnish Music</string>
+</resources>

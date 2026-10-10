@@ -1,5 +1,9 @@
 package org.jrs82.fsclock.mobile.widget
 
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.glance.LocalContext
+import org.jrs82.fsclock.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -7,10 +11,11 @@ import java.util.Locale
 
 enum class PriceLevel { CHEAP, NORMAL, EXPENSIVE }
 
-/** Puhtaat muotoilu-/johdantafunktiot widgeteille (yksikkötestattavia, ei Androidia). */
+/** Puhtaat muotoilu-/johdantafunktiot widgeteille (yksikkötestattavia, ei Androidia). Tekstit
+ *  palautetaan resurssi-id:inä tai valmiiksi käännettyinä parametreina. */
 object WidgetFormat {
     private const val EXPENSIVE_THRESHOLD = 15.0 // c/kWh, sama kuin etusivun kortti
-    private val HHMM = DateTimeFormatter.ofPattern("HH.mm", Locale("fi", "FI"))
+    private val HHMM = DateTimeFormatter.ofPattern("HH.mm", Locale.ROOT)
 
     fun priceLevel(snt: Double, cheapThreshold: Double): PriceLevel = when {
         snt.isNaN() -> PriceLevel.NORMAL
@@ -19,10 +24,11 @@ object WidgetFormat {
         else -> PriceLevel.NORMAL
     }
 
-    fun priceLabel(level: PriceLevel): String = when (level) {
-        PriceLevel.CHEAP -> "Halpaa"
-        PriceLevel.NORMAL -> "Normaali"
-        PriceLevel.EXPENSIVE -> "Kallista"
+    @StringRes
+    fun priceLabelRes(level: PriceLevel): Int = when (level) {
+        PriceLevel.CHEAP -> R.string.electricity_level_cheap
+        PriceLevel.NORMAL -> R.string.electricity_level_normal
+        PriceLevel.EXPENSIVE -> R.string.electricity_level_expensive
     }
 
     fun stepsPercent(steps: Int, goal: Int): Int {
@@ -36,7 +42,12 @@ object WidgetFormat {
         return (diff / 60L).toInt()
     }
 
-    fun minutesLabel(minutes: Int): String = if (minutes <= 0) "nyt" else "$minutes min"
+    fun minutesLabel(minutes: Int, nowText: String): String = if (minutes <= 0) nowText else "$minutes min"
+
+    /** Glance-kompositiosta kutsuttava muoto: "nyt"-teksti widgetin kielellä. */
+    @Composable
+    fun minutesLabel(minutes: Int): String =
+        minutesLabel(minutes, LocalContext.current.getString(R.string.home_now))
 
     fun tempLabel(celsius: Double): String {
         if (celsius.isNaN()) return "–"

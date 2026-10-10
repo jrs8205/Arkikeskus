@@ -19,6 +19,7 @@ import org.jrs82.fsclock.SettingsManager;
 import org.jrs82.fsclock.db.DailyStat;
 import org.jrs82.fsclock.db.FsClockDb;
 import org.jrs82.fsclock.db.HistoryRepository;
+import org.jrs82.fsclock.mobile.AppLocale;
 
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -30,8 +31,7 @@ import java.util.Set;
 
 public class HistoryActivity extends AppCompatActivity {
 
-    private static final Locale FI = new Locale("fi", "FI");
-    private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("LLLL yyyy", FI);
+    private DateTimeFormatter monthFmt;
 
     private HistoryRepository repo;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -55,6 +55,7 @@ public class HistoryActivity extends AppCompatActivity {
         setTheme(R.style.SettingsTheme);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
+        monthFmt = DateTimeFormatter.ofPattern("LLLL yyyy", AppLocale.INSTANCE.current(this));
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle(R.string.history_title);
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -140,7 +141,7 @@ public class HistoryActivity extends AppCompatActivity {
     }
 
     private static void addIfNotNull(Set<String> set, String mac) {
-        if (mac != null && !mac.isEmpty()) set.add(mac.toUpperCase(FI));
+        if (mac != null && !mac.isEmpty()) set.add(mac.toUpperCase(Locale.ROOT));
     }
 
     private String ruuviDisplayName(SettingsManager sm, String mac) {
@@ -151,7 +152,7 @@ public class HistoryActivity extends AppCompatActivity {
     }
 
     private void refresh() {
-        monthLabel.setText(currentMonth.format(MONTH_FMT));
+        monthLabel.setText(currentMonth.format(monthFmt));
         final String channel = currentChannel;
         final YearMonth month = currentMonth;
         if (channel == null) return;

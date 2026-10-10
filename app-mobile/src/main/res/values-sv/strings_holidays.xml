@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="holiday_next_holiday">Nästa helgdag</string>
+    <string name="holiday_next_flag_day">Nästa flaggdag</string>
+    <plurals name="holiday_days_until">
+        <item quantity="one">%1$d dag</item>
+        <item quantity="other">%1$d dagar</item>
+    </plurals>
+    <string name="holiday_nameday_source">Namnsdagar: Helsingfors universitets almanacksbyrå</string>
+    <string name="holiday_almanac_attribution">Kalender- och namnsdagsuppgifterna tillhandahålls av Universitetets almanacksbyrå</string>
+    <string name="holiday_new_years_day">Nyårsdagen</string>
+    <string name="holiday_epiphany">Trettondagen</string>
+    <string name="holiday_good_friday">Långfredagen</string>
+    <string name="holiday_easter_sunday">Påskdagen</string>
+    <string name="holiday_easter_monday">Annandag påsk</string>
+    <string name="holiday_may_day_eve">Valborgsmässoafton</string>
+    <string name="holiday_may_day">Första maj</string>
+    <string name="holiday_mothers_day">Mors dag</string>
+    <string name="holiday_ascension">Kristi himmelsfärdsdag</string>
+    <string name="holiday_whit_sunday">Pingstdagen</string>
+    <string name="holiday_midsummer_eve">Midsommarafton</string>
+    <string name="holiday_midsummer_day">Midsommardagen</string>
+    <string name="holiday_all_saints">Alla helgons dag</string>
+    <string name="holiday_fathers_day">Fars dag</string>
+    <string name="holiday_independence">Självständighetsdagen</string>
+    <string name="holiday_first_advent">Första advent</string>
+    <string name="holiday_christmas_eve">Julafton</string>
+    <string name="holiday_christmas_day">Juldagen</string>
+    <string name="holiday_boxing_day">Annandag jul</string>
+    <string name="holiday_new_years_eve">Nyårsafton</string>
+    <string name="holiday_runeberg">Runebergsdagen</string>
+    <string name="holiday_kalevala">Kalevaladagen, den finska kulturens dag</string>
+    <string name="holiday_minna_canth">Minna Canth-dagen, jämställdhetsdagen</string>
+    <string name="holiday_agricola">Mikael Agricola-dagen, det finska språkets dag</string>
+    <string name="holiday_veterans">Nationella veterandagen</string>
+    <string name="holiday_europe">Europadagen</string>
+    <string name="holiday_snellman">Snellmansdagen, finskhetens dag</string>
+    <string name="holiday_memorial">De stupades dag</string>
+    <string name="holiday_defence_forces">Försvarsmaktens fanfest</string>
+    <string name="holiday_eino_leino">Eino Leino-dagen, poesins och sommarens dag</string>
+    <string name="holiday_nature">Finska naturens dag</string>
+    <string name="holiday_miina_sillanpaa">Miina Sillanpää-dagen, medborgarinflytandets dag</string>
+    <string name="holiday_aleksis_kivi">Aleksis Kivi-dagen, den finska litteraturens dag</string>
+    <string name="holiday_un">FN-dagen</string>
+    <string name="holiday_swedish_heritage">Svenska dagen, Gustav Adolfsdagen</string>
+    <string name="holiday_childrens_rights">Barnens rättigheters dag</string>
+    <string name="holiday_sibelius">Sibeliusdagen, den finländska musikens dag</string>
+</resources>

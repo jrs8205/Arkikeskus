@@ -39,7 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -54,6 +56,18 @@ private val FLIGHT_HM = java.text.SimpleDateFormat("HH:mm", java.util.Locale.get
 }
 
 private fun timeHm(ms: Long): String = FLIGHT_HM.format(java.util.Date(ms))
+
+/** [FlightText] näkyväksi tekstiksi nykyisellä kielellä. */
+@Composable
+internal fun FlightText.text(): String = when (this) {
+    is FlightText.Res -> stringResource(id, *args.toTypedArray())
+    is FlightText.Raw -> text
+}
+
+/** Lennon tila näytettäväksi (suomeksi Finavian oma teksti, muilla kielillä käännös). Myös etusivun kortille. */
+@Composable
+internal fun flightStatusText(f: Flight): String =
+    FlightDisplay.statusText(f, AppLocale.language(LocalContext.current)).text()
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -84,22 +98,23 @@ internal fun FlightsSection() {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Lennot", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.main_section_flights), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             val updated = data?.updatedMs ?: 0L
             if (updated > 0L) {
                 val stale = System.currentTimeMillis() - updated > 5 * 60_000L
                 Text(
-                    "Päivitetty ${timeHm(updated)}" + if (stale) " · ei tuore" else "",
+                    stringResource(R.string.common_updated_at, timeHm(updated)) +
+                        if (stale) " · " + stringResource(R.string.common_stale) else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = if (stale) Color(0xFFE08A00) else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(onClick = { FlightsRepository.refreshNow() }) {
-                Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = "Päivitä")
+                Icon(painterResource(R.drawable.mobile_ic_refresh_24), contentDescription = stringResource(R.string.common_refresh))
             }
         }
         Text(
-            "Päivittyy automaattisesti minuutin välein",
+            stringResource(R.string.flights_auto_refresh),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -109,7 +124,7 @@ internal fun FlightsSection() {
                 OutlinedTextField(
                     value = "${FinaviaAirports.name(airport)} ($airport)",
                     onValueChange = {}, readOnly = true,
-                    label = { Text("Lentokenttä") },
+                    label = { Text(stringResource(R.string.flights_airport)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuOpen) },
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                 )
@@ -121,23 +136,29 @@ internal fun FlightsSection() {
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = dir == FlightDir.DEP, onClick = { dir = FlightDir.DEP }, label = { Text("Lähtevät") })
-                FilterChip(selected = dir == FlightDir.ARR, onClick = { dir = FlightDir.ARR }, label = { Text("Saapuvat") })
+                FilterChip(selected = dir == FlightDir.DEP, onClick = { dir = FlightDir.DEP }, label = { Text(stringResource(R.string.flights_departures)) })
+                FilterChip(selected = dir == FlightDir.ARR, onClick = { dir = FlightDir.ARR }, label = { Text(stringResource(R.string.flights_arrivals)) })
             }
             Spacer(Modifier.height(8.dp))
         }
-        SearchTextField(value = query, onValueChange = { query = it }, placeholder = "Hae lentonumerolla (esim. AY1731)", onClear = { query = "" })
+        SearchTextField(value = query, onValueChange = { query = it }, placeholder = stringResource(R.string.flights_search_hint), onClear = { query = "" })
         if (query.isNotBlank()) {
             Spacer(Modifier.height(4.dp))
-            Text("Haku kattaa koko Suomen", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.flights_search_scope), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(12.dp))
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
-                data == null -> Text("Ladataan lentoja…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                data == null -> Text(stringResource(R.string.flights_loading), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 list.isEmpty() -> Text(
-                    if (query.isNotBlank()) "Ei osumia haulle \"$query\"."
-                    else "Ei lentoja — ${FinaviaAirports.name(airport)}, ${if (dir == FlightDir.DEP) "lähtevät" else "saapuvat"}.",
+                    if (query.isNotBlank()) {
+                        stringResource(R.string.flights_no_results, query)
+                    } else {
+                        stringResource(
+                            if (dir == FlightDir.DEP) R.string.flights_none_departures else R.string.flights_none_arrivals,
+                            FinaviaAirports.name(airport),
+                        )
+                    },
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 else -> LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -148,12 +169,12 @@ internal fun FlightsSection() {
         }
         Column(modifier = Modifier.padding(vertical = 6.dp)) {
             Text(
-                "Tiedot: Finavia",
+                stringResource(R.string.flights_source),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "Lähtevien ja saapuvien lentojen tiedot toimitetaan ainoastaan matkustajamukavuuden parantamiseksi. Aikatauluissa voi esiintyä muutoksia, jotka eivät ilmene toimitetuista tiedoista. Lähtöportti- ja tuloaulatiedot sekä reaaliaikaiset lähtö- ja tuloajat on aina tarkistettava lentoaseman aikataulumonitoreista.",
+                stringResource(R.string.flights_disclaimer),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 3.dp),
@@ -190,18 +211,18 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                 Column(Modifier.weight(1f)) {
                     Text(f.flightNo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     val place = if (f.city.isNotBlank()) "${f.city} (${f.otherAirport})" else f.otherAirport
-                    Text((if (f.dir == FlightDir.ARR) "Saapuu: " else "Määränpää: ") + place,
+                    Text(stringResource(if (f.dir == FlightDir.ARR) R.string.flights_from else R.string.flights_to, place),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (showAirport) {
-                        Text("Kenttä: ${FinaviaAirports.name(f.airport)} (${f.airport})",
+                        Text(stringResource(R.string.flights_airport_line, FinaviaAirports.name(f.airport), f.airport),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                if (f.status.isNotBlank()) FlightStatusPill(f.status, cat)
+                if (f.status.isNotBlank()) FlightStatusPill(flightStatusText(f), cat)
             }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (expanded) "Piilota tiedot" else "Lisätiedot",
+                    stringResource(if (expanded) R.string.flights_hide_details else R.string.flights_show_details),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
@@ -216,41 +237,41 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 6.dp)) {
                     val gateVal = f.gate?.let {
-                        if (!f.gatePrev.isNullOrBlank() && f.gatePrev != f.gate) "$it  (ennen ${f.gatePrev})" else it
+                        if (!f.gatePrev.isNullOrBlank() && f.gatePrev != f.gate) {
+                            stringResource(R.string.flights_gate_changed, it, f.gatePrev)
+                        } else {
+                            it
+                        }
                     }
-                    DetailRow("Portti", gateVal)
-                    DetailRow("Terminaali", f.terminal)
+                    DetailRow(stringResource(R.string.flights_gate), gateVal)
+                    DetailRow(stringResource(R.string.flights_terminal), f.terminal)
                     if (f.dir == FlightDir.ARR) {
-                        val beltStatusFi = when (f.beltStatus) {
-                            "not-started" -> "Ei vielä alkanut"
-                            "started" -> "Alkanut"
-                            "completed" -> "Päättynyt"
-                            else -> null
+                        val baggage = FlightDisplay.baggage(f)?.let { b ->
+                            if (b.belt != null) {
+                                stringResource(R.string.flights_belt, b.belt) +
+                                    (b.beltStatusRes?.let { " — " + stringResource(it) } ?: "") +
+                                    (b.area?.let { "\n" + stringResource(R.string.flights_area_paren, it) } ?: "")
+                            } else {
+                                stringResource(R.string.flights_area, b.area.orEmpty())
+                            }
                         }
-                        val baggage = when {
-                            !f.belt.isNullOrBlank() -> "Hihna ${f.belt}" +
-                                (beltStatusFi?.let { " — $it" } ?: "") +
-                                (f.baggageArea?.let { "\n(alue $it)" } ?: "")
-                            !f.baggageArea.isNullOrBlank() -> "Alue ${f.baggageArea}"
-                            else -> null
-                        }
-                        DetailRow("Matkalaukat", baggage)
+                        DetailRow(stringResource(R.string.flights_baggage), baggage)
                     } else {
-                        DetailRow("Lähtöselvitystiski", f.checkin)
+                        DetailRow(stringResource(R.string.flights_checkin), f.checkin)
                     }
-                    DetailRow("Reitin jatko", f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
-                    DetailRow("Kone", f.aircraft?.let { ac -> if (!f.aircraftReg.isNullOrBlank()) "$ac · ${f.aircraftReg}" else ac })
+                    DetailRow(stringResource(R.string.flights_via), f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
+                    DetailRow(stringResource(R.string.flights_aircraft), f.aircraft?.let { ac -> if (!f.aircraftReg.isNullOrBlank()) "$ac · ${f.aircraftReg}" else ac })
                     val calls = listOfNotNull(
-                        f.callGateMs?.let { "Portille ${timeHm(it)}" },
-                        f.callBoardingMs?.let { "Koneeseen ${timeHm(it)}" },
-                        f.callFinalMs?.let { "Viim. kuulutus ${timeHm(it)}" },
-                        f.callClosedMs?.let { "Suljettu ${timeHm(it)}" },
+                        f.callGateMs?.let { stringResource(R.string.flights_call_gate, timeHm(it)) },
+                        f.callBoardingMs?.let { stringResource(R.string.flights_call_boarding, timeHm(it)) },
+                        f.callFinalMs?.let { stringResource(R.string.flights_call_final, timeHm(it)) },
+                        f.callClosedMs?.let { stringResource(R.string.flights_call_closed, timeHm(it)) },
                     )
-                    DetailRow("Kuulutukset", calls.takeIf { it.isNotEmpty() }?.joinToString("  ·  "))
-                    DetailRow("Aikataulu", timeHm(f.scheduledMs))
-                    DetailRow("Arvio", f.estimatedMs?.let { timeHm(it) })
-                    DetailRow("Toteutunut", f.actualMs?.let { timeHm(it) })
-                    DetailRow("Codeshare", f.codeshares.takeIf { it.isNotEmpty() }?.joinToString(", "))
+                    DetailRow(stringResource(R.string.flights_calls), calls.takeIf { it.isNotEmpty() }?.joinToString("  ·  "))
+                    DetailRow(stringResource(R.string.flights_scheduled), timeHm(f.scheduledMs))
+                    DetailRow(stringResource(R.string.flights_estimated), f.estimatedMs?.let { timeHm(it) })
+                    DetailRow(stringResource(R.string.flights_actual), f.actualMs?.let { timeHm(it) })
+                    DetailRow(stringResource(R.string.flights_codeshare), f.codeshares.takeIf { it.isNotEmpty() }?.joinToString(", "))
                 }
             }
         }

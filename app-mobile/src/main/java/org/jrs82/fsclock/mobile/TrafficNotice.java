@@ -1,21 +1,25 @@
 package org.jrs82.fsclock.mobile;
 
+import androidx.annotation.StringRes;
+
+import org.jrs82.fsclock.R;
+
 final class TrafficNotice {
 
     enum Kind {
-        ALL("", "Liikennetiedot"),
-        ACCIDENT("traffic-announcements", "Onnettomuudet"),
-        ROAD_WORK("roadworks", "Tietyöt"),
-        WEIGHT_RESTRICTION("weight-restrictions", "Painorajoitukset"),
-        INCIDENT("traffic-announcements", "Häiriöt"),
-        CONGESTION("traffic-announcements", "Ruuhkat");
+        ALL("", R.string.transit_traffic_all),
+        ACCIDENT("traffic-announcements", R.string.transit_traffic_accidents),
+        ROAD_WORK("roadworks", R.string.transit_traffic_roadworks),
+        WEIGHT_RESTRICTION("weight-restrictions", R.string.transit_traffic_weight_restrictions),
+        INCIDENT("traffic-announcements", R.string.transit_traffic_incidents),
+        CONGESTION("traffic-announcements", R.string.transit_traffic_congestion);
 
         final String endpoint;
-        final String title;
+        @StringRes final int titleRes;
 
-        Kind(String endpoint, String title) {
+        Kind(String endpoint, @StringRes int titleRes) {
             this.endpoint = endpoint;
-            this.title = title;
+            this.titleRes = titleRes;
         }
 
         boolean isConcrete() {

@@ -1,7 +1,9 @@
 package org.jrs82.fsclock.mobile
 
+import org.jrs82.fsclock.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
@@ -70,10 +72,16 @@ class ElectricityTimeTest {
     }
 
     @Test fun dstSuffix_onlyOnRepeatedHour() {
-        assertEquals(" (kesäaikaa)", ElectricityTime.dstSuffix(autumn0300Summer + quarter))
-        assertEquals(" (talviaikaa)", ElectricityTime.dstSuffix(autumn0300Winter + quarter))
-        assertEquals("", ElectricityTime.dstSuffix(ms(2026, 10, 25, 2, 45)))
-        assertEquals("", ElectricityTime.dstSuffix(ms(2026, 10, 25, 4, 0)))
-        assertEquals("", ElectricityTime.dstSuffix(ms(2026, 10, 1, 3, 15)))
+        assertEquals(R.string.electricity_dst_summer, ElectricityTime.dstSuffixRes(autumn0300Summer + quarter))
+        assertEquals(R.string.electricity_dst_winter, ElectricityTime.dstSuffixRes(autumn0300Winter + quarter))
+        assertNull(ElectricityTime.dstSuffixRes(ms(2026, 10, 25, 2, 45)))
+        assertNull(ElectricityTime.dstSuffixRes(ms(2026, 10, 25, 4, 0)))
+        assertNull(ElectricityTime.dstSuffixRes(ms(2026, 10, 1, 3, 15)))
+    }
+
+    @Test fun dstSuffix_springForwardHasNoRepeatedHour() {
+        // Kesäaikaan siirryttäessä mikään tunti ei toistu → tarkennetta ei tarvita koko päivänä.
+        val rows = ElectricityTime.dayHours(ms(2027, 3, 28, 12, 0))
+        assertTrue(rows.all { ElectricityTime.dstSuffixRes(it.startMs) == null })
     }
 }

@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import org.jrs82.fsclock.R
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -111,6 +112,16 @@ object AppUpdater {
     private fun versionParts(v: String): List<Int> =
         v.trimStart('v', 'V').substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
 
+    enum class DownloadCheck { OK, INCOMPLETE, EMPTY }
+
+    /** Latauksen eheys: jos palvelin ILMOITTI pituuden eikä se täsmää, lataus katkesi → ei asenneta
+     *  vajaata. Kun pituutta ei ilmoiteta (expected <= 0), tarkistus ohitetaan ettei kelvollinen lataus esty. */
+    fun checkDownload(written: Long, expected: Long): DownloadCheck = when {
+        expected > 0L && written != expected -> DownloadCheck.INCOMPLETE
+        written <= 0L -> DownloadCheck.EMPTY
+        else -> DownloadCheck.OK
+    }
+
     /** Lataa APK:n taustasäikeessä ja käynnistää asennuksen; callback pääsäikeessä (tilateksti).
      *  Kutsuttava pääsäikeestä (UI-painike). */
     fun downloadAndInstall(context: Context, apkUrl: String, cb: (String) -> Unit) {
@@ -129,7 +140,7 @@ object AppUpdater {
             } catch (e: Exception) {
                 // Joillain laitteilla asetusnäkymää ei ole — annetaan vain ohjeteksti.
             }
-            cb("Salli ensin asennus tuntemattomista lähteistä, sitten yritä uudelleen.")
+            cb(app.getString(R.string.settings_update_allow_unknown_sources))
             return
         }
         Thread {
@@ -141,9 +152,9 @@ object AppUpdater {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 app.startActivity(intent)
-                "Avataan asennus…"
+                app.getString(R.string.settings_update_opening_installer)
             } catch (e: Exception) {
-                "Lataus epäonnistui: " + (e.message ?: e.javaClass.simpleName)
+                app.getString(R.string.settings_update_download_failed, e.message ?: e.javaClass.simpleName)
             }
             main.post { cb(msg) }
         }.start()
@@ -178,15 +189,16 @@ object AppUpdater {
         } finally {
             conn.disconnect()
         }
-        // Eheys: jos palvelin ILMOITTI pituuden eikä se täsmää, lataus katkesi → ei asenneta vajaata.
-        // Kun pituutta ei ilmoiteta (expected <= 0), tarkistus ohitetaan ettei kelvollinen lataus esty.
-        if (expected > 0L && written != expected) {
-            part.delete()
-            throw Exception("Epätäydellinen lataus ($written/$expected tavua)")
-        }
-        if (written <= 0L) {
-            part.delete()
-            throw Exception("Tyhjä lataus")
+        when (checkDownload(written, expected)) {
+            DownloadCheck.INCOMPLETE -> {
+                part.delete()
+                throw Exception(context.getString(R.string.settings_update_incomplete, written, expected))
+            }
+            DownloadCheck.EMPTY -> {
+                part.delete()
+                throw Exception(context.getString(R.string.settings_update_empty))
+            }
+            DownloadCheck.OK -> Unit
         }
         file.delete()
         if (!part.renameTo(file)) {

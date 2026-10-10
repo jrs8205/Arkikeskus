@@ -1567,7 +1567,7 @@ public class ClockController {
                     dayFmt.format(cEx.getTime()),
                     timeFmt.format(cEx.getTime()));
         }
-        String levelWord = w.level.fiName;
+        String levelWord = w.level.nameRes != 0 ? ctx.getString(w.level.nameRes) : "";
         if (levelWord == null || levelWord.isEmpty()) return range;
         return levelWord + " · " + range;
     }

@@ -7,6 +7,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -36,6 +37,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +46,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -78,7 +82,6 @@ import org.jrs82.fsclock.SettingsManager
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -89,7 +92,6 @@ import java.util.TimeZone
  * Fragment-sillan takana (päätös 5.3-A, ks. reititys alla).
  */
 
-private val FI_MAIN = Locale("fi", "FI")
 private val HELSINKI: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
 /**
@@ -210,13 +212,13 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
     if (showNotes) {
         AlertDialog(
             onDismissRequest = { showNotes = false },
-            title = { Text("Mitä uutta – " + info.versionName) },
+            title = { Text(stringResource(R.string.main_update_whats_new_title, info.versionName)) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(info.notes, style = MaterialTheme.typography.bodyMedium)
                 }
             },
-            confirmButton = { TextButton(onClick = { showNotes = false }) { Text("Sulje") } },
+            confirmButton = { TextButton(onClick = { showNotes = false }) { Text(stringResource(R.string.common_close)) } },
         )
     }
     ArkiCard(
@@ -227,7 +229,7 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 2.dp)) {
             Text(
-                "Uusi versio " + info.versionName + " on saatavilla",
+                stringResource(R.string.main_update_available, info.versionName),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -243,13 +245,13 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }
-                }) { Text("Mitä uutta") }
+                }) { Text(stringResource(R.string.main_update_whats_new)) }
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text("Hylkää") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_dismiss)) }
                 TextButton(onClick = {
                     val url = info.apkUrl
                     if (url != null) {
-                        status = "Ladataan päivitystä…"
+                        status = context.getString(R.string.main_update_downloading)
                         AppUpdater.downloadAndInstall(context, url) { status = it }
                     } else {
                         // Releasella ei APK-liitettä → avaa julkaisusivu selaimeen.
@@ -258,39 +260,39 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }
-                }) { Text("Päivitä") }
+                }) { Text(stringResource(R.string.main_update_install)) }
             }
         }
     }
 }
 
-/** Päänäkymän sektiot (vastaavat nykyisen valikon kohtia). */
-enum class HomeSection(val title: String) {
-    HOME("Arkikeskus"),
-    FORECAST("Sää-ennuste 7vrk"),
-    WEATHER_WARNINGS("Säävaroitukset"),
-    PLACES("Paikkakunnat"),
-    SENSORS("Anturit"),
-    TRAFFIC_ACCIDENTS("Onnettomuudet"),
-    TRAFFIC_ROADWORKS("Tietyöt"),
-    TRAFFIC_WEIGHT("Painorajoitukset"),
-    TRAFFIC_INCIDENTS("Liikennetiedotteet"),
-    TRAFFIC_CONGESTION("Ruuhkat"),
-    ROAD_CAMERAS("Kelikamerat"),
-    TRANSIT("Lähilähdöt"),
-    ROUTE_PLANNER("Reittihaku"),
-    HSL_DISRUPTIONS("Häiriöt ja muutokset"),
-    SPEEDOMETER("GPS-nopeus"),
-    STEPS("Askeleet"),
-    WORKOUT("Lenkki"),
-    NEWS("Kotimaiset"),
-    NEWS_FOREIGN("Ulkomaat"),
-    OWN_FEEDS("Omat syötteet"),
-    ELECTRICITY("Pörssisähkö"),
-    TELETEXT("Teksti-TV"),
-    TV_GUIDE("TV-ohjelmat"),
-    DEVICE_INFO("Puhelimen tiedot"),
-    FLIGHTS("Lennot"),
+/** Päänäkymän sektiot (vastaavat nykyisen valikon kohtia). Enumin nimi on deep-link-avain, ei näkyvä teksti. */
+enum class HomeSection(@StringRes val titleRes: Int) {
+    HOME(R.string.main_section_home),
+    FORECAST(R.string.main_section_forecast),
+    WEATHER_WARNINGS(R.string.main_section_weather_warnings),
+    PLACES(R.string.main_section_places),
+    SENSORS(R.string.main_section_sensors),
+    TRAFFIC_ACCIDENTS(R.string.main_section_traffic_accidents),
+    TRAFFIC_ROADWORKS(R.string.main_section_traffic_roadworks),
+    TRAFFIC_WEIGHT(R.string.main_section_traffic_weight),
+    TRAFFIC_INCIDENTS(R.string.main_section_traffic_incidents),
+    TRAFFIC_CONGESTION(R.string.main_section_traffic_congestion),
+    ROAD_CAMERAS(R.string.main_section_road_cameras),
+    TRANSIT(R.string.main_section_transit),
+    ROUTE_PLANNER(R.string.main_section_route_planner),
+    HSL_DISRUPTIONS(R.string.main_section_hsl_disruptions),
+    SPEEDOMETER(R.string.main_section_speedometer),
+    STEPS(R.string.main_section_steps),
+    WORKOUT(R.string.main_section_workout),
+    NEWS(R.string.main_section_news),
+    NEWS_FOREIGN(R.string.main_section_news_foreign),
+    OWN_FEEDS(R.string.main_section_own_feeds),
+    ELECTRICITY(R.string.main_section_electricity),
+    TELETEXT(R.string.main_section_teletext),
+    TV_GUIDE(R.string.main_section_tv_guide),
+    DEVICE_INFO(R.string.main_section_device_info),
+    FLIGHTS(R.string.main_section_flights),
 }
 
 /** Sektion talletus Activityn uudelleenluontiin (rememberSaveable): enum → nimi → enum. */
@@ -487,9 +489,9 @@ fun ComposeMainScreen(
                             settingsOpen = false
                         },
                         icon = {
-                            Icon(painterResource(R.drawable.ic_home_24), contentDescription = "Etusivu")
+                            Icon(painterResource(R.drawable.ic_home_24), contentDescription = stringResource(R.string.main_section_home))
                         },
-                        label = { Text("Koti") },
+                        label = { NavLabel(stringResource(R.string.main_nav_home)) },
                     )
                     NavigationBarItem(
                         selected = false,
@@ -509,11 +511,11 @@ fun ComposeMainScreen(
                         icon = {
                             Icon(
                                 painterResource(R.drawable.mobile_ic_refresh_24),
-                                contentDescription = "Päivitä",
+                                contentDescription = stringResource(R.string.common_refresh),
                                 modifier = Modifier.rotate(refreshRotation.value),
                             )
                         },
-                        label = { Text("Päivitä") },
+                        label = { NavLabel(stringResource(R.string.common_refresh)) },
                     )
                     NavigationBarItem(
                         selected = menuOpen,
@@ -523,9 +525,9 @@ fun ComposeMainScreen(
                             settingsOpen = false
                         },
                         icon = {
-                            Icon(painterResource(R.drawable.mobile_ic_menu_24), contentDescription = "Valikko")
+                            Icon(painterResource(R.drawable.mobile_ic_menu_24), contentDescription = stringResource(R.string.main_menu))
                         },
-                        label = { Text("Valikko") },
+                        label = { NavLabel(stringResource(R.string.main_menu)) },
                     )
                     // Asetukset suoraan alapalkissa (käyttäjän toive: valikon perällä sitä ei löydä).
                     // Avautuu overlayna kuten valikko (aina keskussivulle); alasivulla napautus tekee
@@ -545,9 +547,9 @@ fun ComposeMainScreen(
                             }
                         },
                         icon = {
-                            Icon(painterResource(R.drawable.mobile_ic_settings_24), contentDescription = "Asetukset")
+                            Icon(painterResource(R.drawable.mobile_ic_settings_24), contentDescription = stringResource(R.string.common_settings))
                         },
-                        label = { Text("Asetukset") },
+                        label = { NavLabel(stringResource(R.string.common_settings)) },
                     )
                 }
                 // Puhelimen oman navigaatiopalkin (koti/takaisin/nuolet) alue: oma sävy + erotinviiva.
@@ -572,6 +574,7 @@ fun ComposeMainScreen(
                     LocalHomeDataRevision provides homeDataRevision,
                     LocalHomeNewsRevision provides homeNewsRevision,
                 ) {
+                val sectionTitle = stringResource(section.titleRes)
                 when (section) {
                     HomeSection.HOME -> Column(modifier = Modifier.fillMaxSize()) {
                         updateInfo?.let { info ->
@@ -600,8 +603,8 @@ fun ComposeMainScreen(
                     HomeSection.OWN_FEEDS -> OwnFeedsScreen()
                     // TV-ohjelmat = Teksti-TV:n ohjelmaopassivut 300– (kattaa myös MTV3/Nelosen;
                     // Ylen julkinen API ei tarjoa erillistä EPG:tä, ja tämä on lisenssin mukainen).
-                    HomeSection.TELETEXT -> TeletextScreen(100, section.title)
-                    HomeSection.TV_GUIDE -> TeletextScreen(300, section.title)
+                    HomeSection.TELETEXT -> TeletextScreen(100, sectionTitle)
+                    HomeSection.TV_GUIDE -> TeletextScreen(300, sectionTitle)
                     HomeSection.DEVICE_INFO -> DeviceInfoSection()
                     HomeSection.ROAD_CAMERAS -> RoadCamerasScreen()
                     HomeSection.TRANSIT -> TransitScreen()
@@ -613,11 +616,11 @@ fun ComposeMainScreen(
                     HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
                     HomeSection.HSL_DISRUPTIONS -> HslDisruptionsScreen()
                     HomeSection.SPEEDOMETER -> SpeedometerSection()
-                    HomeSection.TRAFFIC_ACCIDENTS -> TrafficSection(TrafficNotice.Kind.ACCIDENT, section.title)
-                    HomeSection.TRAFFIC_ROADWORKS -> TrafficSection(TrafficNotice.Kind.ROAD_WORK, section.title)
-                    HomeSection.TRAFFIC_WEIGHT -> TrafficSection(TrafficNotice.Kind.WEIGHT_RESTRICTION, section.title)
-                    HomeSection.TRAFFIC_INCIDENTS -> TrafficSection(TrafficNotice.Kind.INCIDENT, section.title)
-                    HomeSection.TRAFFIC_CONGESTION -> TrafficSection(TrafficNotice.Kind.CONGESTION, section.title)
+                    HomeSection.TRAFFIC_ACCIDENTS -> TrafficSection(TrafficNotice.Kind.ACCIDENT, sectionTitle)
+                    HomeSection.TRAFFIC_ROADWORKS -> TrafficSection(TrafficNotice.Kind.ROAD_WORK, sectionTitle)
+                    HomeSection.TRAFFIC_WEIGHT -> TrafficSection(TrafficNotice.Kind.WEIGHT_RESTRICTION, sectionTitle)
+                    HomeSection.TRAFFIC_INCIDENTS -> TrafficSection(TrafficNotice.Kind.INCIDENT, sectionTitle)
+                    HomeSection.TRAFFIC_CONGESTION -> TrafficSection(TrafficNotice.Kind.CONGESTION, sectionTitle)
                 }
                 }
 
@@ -667,7 +670,7 @@ private fun DrawerContent(
         ) {
             Spacer(Modifier.height(16.dp))
             Text(
-                "Valikko",
+                stringResource(R.string.main_menu),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
@@ -676,13 +679,13 @@ private fun DrawerContent(
 
             // Valikko ryhmitelty otsikoiden alle selkeyden vuoksi (käyttäjän toive):
             // säähän liittyvät, liikenne, joukkoliikenne ja loput "Muut"-otsikon alle.
-            DrawerHeader("Sää", R.drawable.mobile_ic_weather_24)
+            DrawerHeader(stringResource(R.string.main_drawer_weather), R.drawable.mobile_ic_weather_24)
             DrawerItem(HomeSection.FORECAST, current, onSelect)
             DrawerItem(HomeSection.WEATHER_WARNINGS, current, onSelect)
             DrawerItem(HomeSection.PLACES, current, onSelect)
             DrawerItem(HomeSection.SENSORS, current, onSelect)
 
-            DrawerHeader("Liikennetiedot", R.drawable.mobile_ic_car_24)
+            DrawerHeader(stringResource(R.string.main_drawer_traffic), R.drawable.mobile_ic_car_24)
             DrawerItem(HomeSection.TRAFFIC_ACCIDENTS, current, onSelect)
             DrawerItem(HomeSection.TRAFFIC_ROADWORKS, current, onSelect)
             DrawerItem(HomeSection.TRAFFIC_WEIGHT, current, onSelect)
@@ -690,26 +693,26 @@ private fun DrawerContent(
             DrawerItem(HomeSection.TRAFFIC_CONGESTION, current, onSelect)
             DrawerItem(HomeSection.ROAD_CAMERAS, current, onSelect)
 
-            DrawerHeader("Joukkoliikenne (HSL/Tampere)", R.drawable.mobile_ic_bus_24)
+            DrawerHeader(stringResource(R.string.main_drawer_transit), R.drawable.mobile_ic_bus_24)
             DrawerItem(HomeSection.TRANSIT, current, onSelect)
             DrawerItem(HomeSection.ROUTE_PLANNER, current, onSelect)
             DrawerItem(HomeSection.HSL_DISRUPTIONS, current, onSelect)
 
-            DrawerHeader("TV", R.drawable.mobile_ic_apps_24)
+            DrawerHeader(stringResource(R.string.main_drawer_tv), R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.TELETEXT, current, onSelect)
             DrawerItem(HomeSection.TV_GUIDE, current, onSelect)
 
-            DrawerHeader("Uutiset", R.drawable.mobile_ic_news_24)
+            DrawerHeader(stringResource(R.string.main_drawer_news), R.drawable.mobile_ic_news_24)
             DrawerItem(HomeSection.NEWS, current, onSelect)
             DrawerItem(HomeSection.NEWS_FOREIGN, current, onSelect)
             DrawerItem(HomeSection.OWN_FEEDS, current, onSelect)
 
-            DrawerHeader("Liikunta", R.drawable.mobile_ic_apps_24)
+            DrawerHeader(stringResource(R.string.main_drawer_fitness), R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.WORKOUT, current, onSelect)
             DrawerItem(HomeSection.STEPS, current, onSelect)
             DrawerItem(HomeSection.SPEEDOMETER, current, onSelect)
 
-            DrawerHeader("Muut", R.drawable.mobile_ic_apps_24)
+            DrawerHeader(stringResource(R.string.main_drawer_other), R.drawable.mobile_ic_apps_24)
             DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
             DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
             DrawerItem(HomeSection.FLIGHTS, current, onSelect)
@@ -741,7 +744,7 @@ private fun DrawerItem(section: HomeSection, current: HomeSection, onSelect: (Ho
         },
     ) {
         Text(
-            section.title,
+            stringResource(section.titleRes),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
@@ -771,4 +774,19 @@ private fun DrawerHeader(text: String, iconRes: Int? = null) {
             fontWeight = FontWeight.Bold,
         )
     }
+}
+
+/** Alapalkin teksti yhdellä rivillä: pitkä käännös (sv "Inställningar") isolla fonttikoolla
+ *  kutistetaan mahtumaan, muuten se rivittyisi ja nostaisi ikonin eri tasolle kuin muiden. */
+@Composable
+private fun NavLabel(text: String) {
+    val style = LocalTextStyle.current
+    var scale by remember(text) { mutableFloatStateOf(1f) }
+    Text(
+        text,
+        style = style.copy(fontSize = style.fontSize * scale),
+        maxLines = 1,
+        softWrap = false,
+        onTextLayout = { if (it.didOverflowWidth && scale > 0.7f) scale -= 0.05f },
+    )
 }

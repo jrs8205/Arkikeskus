@@ -46,7 +46,7 @@ class DepartureWidget : GlanceAppWidget() {
             WidgetCache.departureUpdatedAt(context, appWidgetId) == 0L) {
             WidgetUpdateWorker.refreshNowForce(context)
         }
-        provideContent { DepartureContent(context, appWidgetId) }
+        provideContent { RenderRevision { DepartureContent(context, appWidgetId) } }
     }
 }
 
@@ -55,7 +55,7 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
     val rawName = WidgetCache.departureStopLabel(context, appWidgetId)
     val code = WidgetCache.departureStopCode(context, appWidgetId)
     val stop = when {
-        rawName.isBlank() -> "Seuraava lähtö"
+        rawName.isBlank() -> context.getString(R.string.transit_widget_next_departure)
         code.isBlank() -> rawName
         else -> "$rawName $code"
     }
@@ -73,20 +73,20 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
         ) {
             Text(
                 stop,
-                style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(13), fontWeight = FontWeight.Bold),
                 maxLines = 1,
             )
             Spacer(GlanceModifier.height(14.dp))
 
             if (deps.isEmpty()) {
                 Text(
-                    "Ei lähtöjä juuri nyt",
-                    style = TextStyle(color = WidgetColors.text, fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                    context.getString(R.string.transit_widget_no_departures),
+                    style = TextStyle(color = WidgetColors.text, fontSize = widgetSp(14), fontWeight = FontWeight.Medium),
                 )
             } else {
                 // Hero: seuraava lahto
                 val first = deps.first()
-                val firstMin = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(first.epochSec, now))
+                val firstMin = departureMinutesLabel(context, WidgetFormat.minutesUntil(first.epochSec, now))
                 Box(
                     modifier = GlanceModifier.fillMaxWidth().cornerRadius(18.dp)
                         .background(WidgetColors.transitModeTint(first.mode)).padding(16.dp),
@@ -102,20 +102,20 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                         ) {
                             Text(
                                 first.line,
-                                style = TextStyle(color = WidgetColors.transitOnMode(first.mode), fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                                style = TextStyle(color = WidgetColors.transitOnMode(first.mode), fontSize = widgetSp(20), fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }
                         Spacer(GlanceModifier.width(14.dp))
                         Column(modifier = GlanceModifier.defaultWeight()) {
                             Text(
-                                "seuraava lähtö",
-                                style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                                context.getString(R.string.transit_widget_next_departure_label),
+                                style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(12), fontWeight = FontWeight.Medium),
                                 maxLines = 1,
                             )
                             Text(
                                 firstMin,
-                                style = TextStyle(color = WidgetColors.transitMode(first.mode), fontSize = 34.sp, fontWeight = FontWeight.Bold),
+                                style = TextStyle(color = WidgetColors.transitMode(first.mode), fontSize = widgetSp(34), fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }
@@ -132,7 +132,7 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                 // tayttyisi muuten (hero + 4×(viiva+rivi) + Paivitetty > 10 -> osa tippuisi).
                 Column(modifier = GlanceModifier.fillMaxWidth()) {
                     deps.drop(1).take(4).forEach { d ->
-                        val m = WidgetFormat.minutesLabel(WidgetFormat.minutesUntil(d.epochSec, now))
+                        val m = departureMinutesLabel(context, WidgetFormat.minutesUntil(d.epochSec, now))
                         Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(WidgetColors.rowline)) {}
                         Row(
                             modifier = GlanceModifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -152,14 +152,14 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                             ) {
                                 Text(
                                     d.line,
-                                    style = TextStyle(color = WidgetColors.transitOnMode(d.mode), fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                                    style = TextStyle(color = WidgetColors.transitOnMode(d.mode), fontSize = widgetSp(14), fontWeight = FontWeight.Bold),
                                     maxLines = 1,
                                 )
                             }
                             Spacer(GlanceModifier.defaultWeight())
                             Text(
                                 m,
-                                style = TextStyle(color = WidgetColors.strong, fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                                style = TextStyle(color = WidgetColors.strong, fontSize = widgetSp(16), fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                             )
                         }
@@ -182,8 +182,11 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                     )
                     Spacer(GlanceModifier.width(6.dp))
                     Text(
-                        "Päivitetty ${WidgetFormat.clockLabel(updated, ZoneId.of("Europe/Helsinki"))}",
-                        style = TextStyle(color = WidgetColors.dim, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                        context.getString(
+                            R.string.common_updated_at,
+                            WidgetFormat.clockLabel(updated, ZoneId.of("Europe/Helsinki")),
+                        ),
+                        style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(12), fontWeight = FontWeight.Medium),
                         maxLines = 1,
                     )
                 }
@@ -196,7 +199,7 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
                 ) {
                     Image(
                         provider = ImageProvider(R.drawable.mobile_ic_refresh_24),
-                        contentDescription = "Päivitä",
+                        contentDescription = context.getString(R.string.common_refresh),
                         colorFilter = ColorFilter.tint(WidgetColors.c1),
                         modifier = GlanceModifier.size(18.dp),
                     )
@@ -205,6 +208,15 @@ private fun DepartureContent(context: Context, appWidgetId: Int) {
         }
     }
 }
+
+/** "nyt"/"nu"/"now" tai "N min" sovelluksen kielellä — WidgetFormat.minutesLabel on Context-vapaa
+ *  eikä siksi voi lukea käännöstä. */
+private fun departureMinutesLabel(context: Context, minutes: Int): String =
+    if (minutes <= 0) {
+        context.getString(R.string.transit_dep_now)
+    } else {
+        context.resources.getQuantityString(R.plurals.transit_minutes, minutes, minutes)
+    }
 
 /** Refresh-napin toiminto: ajaa widget-workerin heti (hakee lähdöt uudelleen + updateAll). */
 class DepartureRefreshAction : ActionCallback {

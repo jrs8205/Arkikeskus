@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Asetusten varmuuskopiorivit ja tiedostovarmuuskopio -->
+    <string name="backup_title">Säkerhetskopiering</string>
+    <string name="backup_drive_row">Säkerhetskopiering till Drive</string>
+    <string name="backup_drive_row_sub">Säkerhetskopiering till Google Drive i WhatsApp-stil</string>
+    <string name="backup_export_row">Exportera säkerhetskopia (till fil)</string>
+    <string name="backup_export_row_sub">Inställningar och träningspass i en fil (t.ex. på Drive)</string>
+    <string name="backup_import_row">Återställ säkerhetskopia (från fil)</string>
+    <string name="backup_import_row_sub">Importera en tidigare exporterad säkerhetskopia</string>
+    <string name="backup_file_name">Arkikeskus-backup-%1$s.json</string>
+    <string name="backup_saved_file">Säkerhetskopian har sparats: %1$s, %2$s (%3$s).</string>
+    <string name="backup_save_failed">Det gick inte att spara.</string>
+    <string name="backup_failed_reason">Säkerhetskopieringen misslyckades: %1$s</string>
+    <string name="backup_stop_workout_first">Avsluta det pågående träningspasset innan du återställer.</string>
+    <string name="backup_restore_failed">Återställningen misslyckades.</string>
+    <string name="backup_restore_failed_reason">Återställningen misslyckades: %1$s</string>
+
+    <!-- Palautuksen yhteenveto -->
+    <string name="backup_restored_title">Säkerhetskopian har återställts</string>
+    <string name="backup_restored_summary">Återställde %1$s och %2$s.</string>
+    <plurals name="backup_workouts">
+        <item quantity="one">%1$d träningspass</item>
+        <item quantity="other">%1$d träningspass</item>
+    </plurals>
+    <plurals name="backup_settings">
+        <item quantity="one">%1$d inställning</item>
+        <item quantity="other">%1$d inställningar</item>
+    </plurals>
+    <plurals name="backup_skipped">
+        <item quantity="one">%1$d träningspass fanns redan på enheten.</item>
+        <item quantity="other">%1$d träningspass fanns redan på enheten.</item>
+    </plurals>
+    <string name="backup_restart_note_full">Appen startas om så att temat och inställningarna börjar gälla. Sensornamnen visas efter nästa sökning.</string>
+    <string name="backup_restart_note">Appen startas om.</string>
+    <string name="backup_restart">Starta om</string>
+
+    <!-- Drive-varmuuskopio -->
+    <string name="backup_drive_intro">Säkerhetskopiera dina träningspass, steg och inställningar till Google Drive så att du inte förlorar dem när du byter telefon. Kopian sparas i en dold appmapp på ditt konto.</string>
+    <string name="backup_sign_in_prompt">Logga in med ditt Google-konto så sparas säkerhetskopiorna på din Drive.</string>
+    <string name="backup_sign_in">Logga in med Google</string>
+    <string name="backup_signed_in_as">Inloggad som %1$s</string>
+    <string name="backup_drive_access_denied">Åtkomst till Drive beviljades inte.</string>
+    <string name="backup_sign_in_failed">Inloggningen misslyckades (%1$d).</string>
+    <string name="backup_signed_out">Utloggad.</string>
+    <string name="backup_last">Senaste säkerhetskopia</string>
+    <string name="backup_date_pattern">d.M. HH:mm</string>
+    <string name="backup_none_yet">Ingen säkerhetskopia ännu</string>
+    <string name="backup_now">Säkerhetskopiera</string>
+    <string name="backup_saved_drive">Säkerhetskopian har sparats på Drive (%1$s).</string>
+    <string name="backup_google_account">Google-konto</string>
+    <string name="backup_auto">Automatisk säkerhetskopiering</string>
+    <string name="backup_freq_daily">Dagligen</string>
+    <string name="backup_freq_weekly">Varje vecka</string>
+    <string name="backup_freq_monthly">Varje månad</string>
+    <string name="backup_freq_manual">Bara manuellt</string>
+    <string name="backup_freq_off">Av</string>
+    <string name="backup_restore">Återställ säkerhetskopia</string>
+    <string name="backup_restore_sub">Hämta från Drive och ersätt nuvarande data</string>
+    <string name="backup_restore_confirm">Säkerhetskopian på Drive hämtas och slås ihop med dina nuvarande uppgifter. Appen startas om efter återställningen. Vill du fortsätta?</string>
+    <string name="backup_restore_action">Återställ</string>
+    <string name="backup_sign_out">Logga ut</string>
+
+    <!-- Koot: fi kt/Mt, sv ja en kB/MB -->
+    <string name="backup_size_bytes">%1$d B</string>
+    <string name="backup_size_kb">%1$.0f kB</string>
+    <string name="backup_size_mb">%1$.1f MB</string>
+
+    <!-- Virheet (näkyvät virhetoastissa) -->
+    <string name="backup_drive_no_account">Inget Drive-konto</string>
+    <string name="backup_drive_no_android_account">Kunde inte läsa Google-kontot på enheten</string>
+    <string name="backup_drive_no_backup">Ingen säkerhetskopia har sparats på Drive</string>
+    <string name="backup_unknown_format">Okänt filformat</string>
+    <string name="backup_newer_version">Säkerhetskopian är från en nyare appversion (v%1$d) – uppdatera appen först</string>
+    <string name="backup_prefs_write_failed">Det gick inte att skriva inställningarna till lagringen</string>
+</resources>

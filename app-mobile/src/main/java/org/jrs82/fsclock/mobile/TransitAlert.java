@@ -18,6 +18,8 @@ public final class TransitAlert {
     final String routeShortName; // häiriön koskema linja (esim. "63"), "" jos yleinen
     final String mode;           // linjan moodi (BUS/TRAM/…) badge-väriä varten, "" jos ei
     final String stopName;       // häiriön koskema pysäkki, "" jos ei
+    // Pysäkin nimi riippuu Accept-Language-kielestä → suosikkivertailu ensisijaisesti id:llä.
+    final String stopGtfsId;     // häiriön koskeman pysäkin gtfsId, "" jos ei
 
     TransitAlert(String header, String description, String severity, String effect,
                  long startEpochSec, long endEpochSec) {
@@ -27,6 +29,13 @@ public final class TransitAlert {
     TransitAlert(String header, String description, String severity, String effect,
                  long startEpochSec, long endEpochSec,
                  String routeShortName, String mode, String stopName) {
+        this(header, description, severity, effect, startEpochSec, endEpochSec,
+                routeShortName, mode, stopName, "");
+    }
+
+    TransitAlert(String header, String description, String severity, String effect,
+                 long startEpochSec, long endEpochSec,
+                 String routeShortName, String mode, String stopName, String stopGtfsId) {
         this.header = header == null ? "" : header;
         this.description = description == null ? "" : description;
         this.severity = severity == null ? "" : severity;
@@ -36,6 +45,7 @@ public final class TransitAlert {
         this.routeShortName = routeShortName == null ? "" : routeShortName;
         this.mode = mode == null ? "" : mode;
         this.stopName = stopName == null ? "" : stopName;
+        this.stopGtfsId = stopGtfsId == null ? "" : stopGtfsId;
     }
 
     /** Onko häiriö voimassa annettuna hetkenä (sekunteina). 0-alku/-loppu = ei rajaa kyseiseen suuntaan. */
@@ -53,6 +63,12 @@ public final class TransitAlert {
             case "INFO": return 1;
             default: return 0;     // UNKNOWN_SEVERITY / tyhjä
         }
+    }
+
+    /** Osuuko häiriö suosikkipysäkkiin: id ensin (kieliriippumaton), nimi varalla. */
+    boolean matchesStop(java.util.Set<String> favStopIds, java.util.Set<String> favStopNames) {
+        if (!stopGtfsId.isEmpty() && favStopIds != null && favStopIds.contains(stopGtfsId)) return true;
+        return !stopName.isEmpty() && favStopNames != null && favStopNames.contains(stopName);
     }
 
     /** Näytettävä teksti: otsikko jos on, muuten kuvaus. */

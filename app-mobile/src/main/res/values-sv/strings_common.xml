@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_cancel">Avbryt</string>
+    <string name="common_save">Spara</string>
+    <string name="common_close">Stäng</string>
+    <string name="common_delete">Ta bort</string>
+    <string name="common_add">Lägg till</string>
+    <string name="common_yes">Ja</string>
+    <string name="common_no">Nej</string>
+    <string name="common_refresh">Uppdatera</string>
+    <string name="common_open">Öppna</string>
+    <string name="common_back">Tillbaka</string>
+    <string name="common_loading">Laddar…</string>
+    <string name="common_stale">inaktuell</string>
+    <string name="common_updated_at">Uppdaterad kl. %1$s</string>
+    <string name="common_today">I dag</string>
+    <string name="common_tomorrow">I morgon</string>
+    <string name="common_dismiss">Avvisa</string>
+    <string name="common_settings">Inställningar</string>
+    <string name="common_unknown">Okänd</string>
+</resources>

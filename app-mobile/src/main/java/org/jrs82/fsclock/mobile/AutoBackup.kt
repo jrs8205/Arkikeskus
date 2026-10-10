@@ -70,7 +70,8 @@ internal object AutoBackup {
         if (!hasWritePermission(context, Uri.parse(uriStr))) {
             android.util.Log.w("AutoBackup", "Persistoitu lupa puuttuu ($uriStr) — kytketään pois")
             disable(context)
-            p.edit().putString(KEY_ERROR, "lupa puuttuu").apply()
+            // Konemuotoinen koodi kuten muissakin virheissä (luokkanimi); ei näy käyttäjälle.
+            p.edit().putString(KEY_ERROR, "PermissionMissing").apply()
             return false
         }
         return true

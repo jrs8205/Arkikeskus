@@ -1,5 +1,7 @@
 package org.jrs82.fsclock.mobile
 
+import java.util.Locale
+
 /**
  * Hintajanan asteikko = päivän halvin–kallein vartti. Etusivun kortti, sähkösivu ja widget laskevat
  * osoittimen paikan ja asteikon hinnat täältä, jotta kaikki kolme janaa näyttävät saman.
@@ -17,14 +19,14 @@ object PriceScale {
         ElectricityVat.apply(current, vat), ElectricityVat.apply(min, vat), ElectricityVat.apply(max, vat),
     )
 
-    /** Janan alun, keskikohdan ja lopun hinnat ALV-asetuksen mukaan. */
-    fun labels(min: Double, max: Double, vat: Boolean): Triple<String, String, String> {
+    /** Janan alun, keskikohdan ja lopun hinnat ALV-asetuksen mukaan, desimaalit [locale]n mukaan. */
+    fun labels(min: Double, max: Double, vat: Boolean, locale: Locale): Triple<String, String, String> {
         val shownMin = ElectricityVat.apply(min, vat)
         val shownMax = ElectricityVat.apply(max, vat)
         return Triple(
-            ElectricityVat.format(shownMin),
-            ElectricityVat.format((shownMin + shownMax) / 2.0),
-            ElectricityVat.format(shownMax),
+            ElectricityVat.format(shownMin, locale),
+            ElectricityVat.format((shownMin + shownMax) / 2.0, locale),
+            ElectricityVat.format(shownMax, locale),
         )
     }
 }

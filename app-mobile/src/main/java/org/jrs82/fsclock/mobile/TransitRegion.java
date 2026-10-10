@@ -1,5 +1,9 @@
 package org.jrs82.fsclock.mobile;
 
+import androidx.annotation.StringRes;
+
+import org.jrs82.fsclock.R;
+
 /**
  * Joukkoliikennealue Digitransit-reitittimelle. Sama GraphQL-rajapinta ja sama tilausavain
  * ({@link org.jrs82.fsclock.BuildConfig#DIGITRANSIT_KEY}) kaikille — vain reititin-endpoint,
@@ -9,8 +13,8 @@ package org.jrs82.fsclock.mobile;
  * suoralla avaintestillä (waltti-reititin: feeds → "tampere"; stopsByRadius + geocoding sources=gtfstampere).
  */
 public enum TransitRegion {
-    HSL("https://api.digitransit.fi/routing/v2/hsl/gtfs/v1", "gtfshsl", "HSL", "HSL", 60.17, 24.94, true, false),
-    TAMPERE("https://api.digitransit.fi/routing/v2/waltti/gtfs/v1", "gtfstampere", "tampere", "Tampere", 61.498, 23.761, false, true);
+    HSL("https://api.digitransit.fi/routing/v2/hsl/gtfs/v1", "gtfshsl", "HSL", R.string.transit_region_hsl, 60.17, 24.94, true, false),
+    TAMPERE("https://api.digitransit.fi/routing/v2/waltti/gtfs/v1", "gtfstampere", "tampere", R.string.transit_region_tampere, 61.498, 23.761, false, true);
 
     /** Reititin-endpoint (GraphQL POST). */
     public final String endpoint;
@@ -18,8 +22,8 @@ public enum TransitRegion {
     public final String geocodeSources;
     /** Häiriösyötteen feedId ({@code alerts(feeds:[...])}). */
     public final String alertFeed;
-    /** Käyttäjälle näytettävä nimi (aluevalitsin). */
-    public final String label;
+    /** Käyttäjälle näytettävä nimi (aluevalitsin), sv:ssä HRT/Tammerfors. */
+    @StringRes public final int labelRes;
     /** Geokoodauksen focus-piste kun laitteen sijaintia ei vielä ole luettu (alueen keskusta). */
     public final double focusLat;
     public final double focusLon;
@@ -39,12 +43,12 @@ public enum TransitRegion {
      */
     public final boolean liveViaMqtt;
 
-    TransitRegion(String endpoint, String geocodeSources, String alertFeed, String label,
+    TransitRegion(String endpoint, String geocodeSources, String alertFeed, @StringRes int labelRes,
                   double focusLat, double focusLon, boolean liveVehiclePositions, boolean liveViaMqtt) {
         this.endpoint = endpoint;
         this.geocodeSources = geocodeSources;
         this.alertFeed = alertFeed;
-        this.label = label;
+        this.labelRes = labelRes;
         this.focusLat = focusLat;
         this.focusLon = focusLon;
         this.liveVehiclePositions = liveVehiclePositions;

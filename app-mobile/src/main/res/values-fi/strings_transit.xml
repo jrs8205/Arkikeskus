@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Kulkuvalineet ja alueet -->
+    <string name="transit_mode_bus">Bussi</string>
+    <string name="transit_mode_tram">Ratikka</string>
+    <string name="transit_mode_train">Juna</string>
+    <string name="transit_mode_metro">Metro</string>
+    <string name="transit_mode_ferry">Lautta</string>
+    <string name="transit_vehicle_bus">Bussi</string>
+    <string name="transit_vehicle_tram">Ratikka</string>
+    <string name="transit_vehicle_train">Juna</string>
+    <string name="transit_vehicle_metro">Metro</string>
+    <string name="transit_vehicle_ferry">Lautta</string>
+    <string name="transit_filter_all">Kaikki</string>
+    <string name="transit_filter_bus">Bussit</string>
+    <string name="transit_filter_tram">Ratikat</string>
+    <string name="transit_filter_train">Junat</string>
+    <string name="transit_filter_metro">Metro</string>
+    <string name="transit_filter_ferry">Lautat</string>
+    <string name="transit_region_hsl">HSL</string>
+    <string name="transit_region_tampere">Tampere</string>
+
+    <!-- Yleiset -->
+    <string name="transit_line">Linja</string>
+    <string name="transit_stop">Pysäkki</string>
+    <string name="transit_station">Asema</string>
+    <string name="transit_line_number">Linja %1$s</string>
+    <string name="transit_dep_now">nyt</string>
+    <string name="transit_clock_label">klo</string>
+    <string name="transit_clock_time">klo %1$s</string>
+    <string name="transit_line_at">Linja %1$s klo %2$s</string>
+    <string name="transit_departure_at">Lähtö klo %1$s</string>
+    <string name="transit_alert_title">Häiriötiedote</string>
+
+    <!-- Lahilahdot -->
+    <string name="transit_title_nearby">Lähilähdöt</string>
+    <string name="transit_search_hint">Hae linja (esim. 550), pysäkki tai asema</string>
+    <string name="transit_header_lines">Linjat</string>
+    <string name="transit_header_stops_stations">Pysäkit ja asemat</string>
+    <string name="transit_header_favourites">Suosikit</string>
+    <string name="transit_status_allow_location">Salli sijainti nähdäksesi lähimmät lähdöt.</string>
+    <string name="transit_status_fetching_nearby">Haetaan lähimpiä lähtöjä…</string>
+    <string name="transit_status_no_location_permission">Sijaintilupa puuttuu.</string>
+    <string name="transit_status_location_read_failed">Sijaintia ei voitu lukea.</string>
+    <string name="transit_status_location_unavailable">Sijaintia ei saatu. Kokeile Päivitä-nappia hetken päästä.</string>
+    <string name="transit_status_departures_failed">Lähtöjen haku epäonnistui. Kokeile Päivitä-nappia.</string>
+    <string name="transit_status_location_needed">Sijaintilupa tarvitaan lähimpien lähtöjen näyttämiseen.</string>
+    <string name="transit_toast_no_departure_info">Tälle kohteelle ei ole lähtötietoja.</string>
+    <string name="transit_empty_stop">Ei tulevia lähtöjä tältä pysäkiltä.</string>
+    <string name="transit_searching">Haetaan \"%1$s\"…</string>
+    <string name="transit_no_results">Ei osumia haulla \"%1$s\".\nKokeile pysäkin, aseman tai linjan nimeä/numeroa.</string>
+    <string name="transit_empty_mode">Ei valitun kulkuvälineen lähtöjä lähistöllä.</string>
+    <string name="transit_reminder_tip">Vinkki: tallenna lähtö suosikiksi ja aseta muistutus.\nSaat ilmoituksen 1–60 minuuttia ennen lähtöä.</string>
+    <string name="transit_cd_favourite">Suosikki</string>
+    <string name="transit_cd_add_favourite">Lisää suosikiksi</string>
+    <string name="transit_cd_remove_favourite">Poista suosikeista</string>
+    <string name="transit_full_day_link">Koko päivä ›</string>
+    <string name="transit_toast_line_added">Linja lisätty suosikkeihin</string>
+    <string name="transit_toast_line_removed">Linja poistettu suosikeista</string>
+    <string name="transit_toast_stop_added">Pysäkki lisätty suosikkeihin</string>
+    <string name="transit_toast_stop_removed">Pysäkki poistettu suosikeista</string>
+    <string name="transit_toast_removed_from_favourites">Poistettu suosikeista</string>
+
+    <!-- Suosikkidialogi ja lahtomuistutus -->
+    <string name="transit_fav_line">Suosikkilinja</string>
+    <string name="transit_fav_stop">Suosikkipysäkki</string>
+    <string name="transit_add_reminder">Lisää muistutus lähtöajasta</string>
+    <string name="transit_add_reminder_sub">Saat ilmoituksen ennen lähtöä</string>
+    <string name="transit_reminder_set">Aseta muistutus</string>
+    <string name="transit_reminder_too_close">Lähtö on jo liian lähellä</string>
+    <string name="transit_reminder_at">Ilmoitus klo %1$s</string>
+    <string name="transit_reminder_from_stop">Pysäkiltä %1$s</string>
+    <plurals name="transit_reminder_lead">
+        <item quantity="one">Muistuta %1$d min ennen lähtöä</item>
+        <item quantity="other">Muistuta %1$d min ennen lähtöä</item>
+    </plurals>
+    <plurals name="transit_reminder_set_toast">
+        <item quantity="one">Muistutus %1$d min ennen lähtöä (klo %2$s)</item>
+        <item quantity="other">Muistutus %1$d min ennen lähtöä (klo %2$s)</item>
+    </plurals>
+    <string name="transit_reminder_notif_title_line">Linja %1$s lähtee klo %2$s</string>
+    <plurals name="transit_reminder_notif_body">
+        <item quantity="one">Pysäkiltä %1$s noin %2$d min kuluttua.</item>
+        <item quantity="other">Pysäkiltä %1$s noin %2$d min kuluttua.</item>
+    </plurals>
+    <plurals name="transit_reminder_notif_body_headsign">
+        <item quantity="one">Pysäkiltä %1$s (%3$s) noin %2$d min kuluttua.</item>
+        <item quantity="other">Pysäkiltä %1$s (%3$s) noin %2$d min kuluttua.</item>
+    </plurals>
+
+    <!-- Koko paivan aikataulu -->
+    <string name="transit_hour_header">klo %1$s</string>
+    <string name="transit_full_day_title">Koko päivän aikataulu</string>
+    <string name="transit_full_day_loading">Haetaan koko päivän aikataulua…</string>
+    <string name="transit_full_day_failed">Koko päivän aikataulua ei saatu.</string>
+
+    <!-- Vuoro- ja linjanakyma -->
+    <string name="transit_loading_route">Haetaan linjan tietoja…</string>
+    <string name="transit_loading_trip">Haetaan vuoron tietoja…</string>
+    <string name="transit_loading_timetable">Haetaan aikataulua…</string>
+    <string name="transit_line_failed">Linjan tietoja ei saatu.</string>
+    <string name="transit_line_timetable_failed">Linjan aikataulua ei saatu.</string>
+    <string name="transit_trip_failed">Vuoron tietoja ei saatu.</string>
+    <string name="transit_choose_direction">Valitse suunta</string>
+    <string name="transit_eta_arriving">SAAPUU PYSÄKILLESI</string>
+    <string name="transit_eta_passed">OHITTANUT PYSÄKKISI</string>
+    <string name="transit_live_estimate">(arvio)</string>
+    <string name="transit_live_passed">%1$s on jo ohittanut pysäkkisi%2$s.</string>
+    <string name="transit_live_distance">%1$s ~%2$s ennen pysäkkiäsi%3$s%4$s.</string>
+    <string name="transit_live_eta">(saapuu ~klo %1$s)</string>
+    <plurals name="transit_live_eta_min">
+        <item quantity="one">(saapuu ~klo %1$s, ~%2$d min)</item>
+        <item quantity="other">(saapuu ~klo %1$s, ~%2$d min)</item>
+    </plurals>
+    <string name="transit_banner_trip_not_started">Ei live-sijaintia — vuoro ei ole vielä liikkeellä.</string>
+    <string name="transit_banner_fetching_live">Haetaan live-sijaintia…</string>
+    <string name="transit_banner_trip_no_live_region">Live-sijainti ei ole saatavilla tällä alueella — ajat ovat aikataulun mukaiset.</string>
+    <string name="transit_pos_en_route">matkalla pysäkille %1$s</string>
+    <string name="transit_pos_at">pysäkillä %1$s</string>
+    <plurals name="transit_banner_stops_away">
+        <item quantity="one">%1$s on %2$d pysäkin päässä pysäkistäsi (nyt %3$s).</item>
+        <item quantity="other">%1$s on %2$d pysäkin päässä pysäkistäsi (nyt %3$s).</item>
+    </plurals>
+    <string name="transit_banner_at_your_stop">%1$s on pysäkilläsi tai aivan vieressä (%2$s).</string>
+    <string name="transit_banner_passed_now">%1$s on jo ohittanut pysäkkisi (nyt: %2$s).</string>
+    <string name="transit_banner_en_route_to">%1$s on matkalla pysäkille %2$s.</string>
+    <string name="transit_banner_at_stop">%1$s on pysäkillä %2$s.</string>
+    <string name="transit_banner_route_none">Ei liikkeellä olevia vuoroja juuri nyt — alla reitti ja seuraavat lähtöajat.</string>
+    <string name="transit_banner_route_fetching">Haetaan live-sijaintia — alla reitti ja seuraavat lähtöajat.</string>
+    <string name="transit_banner_route_no_live_region">Live-sijainti ei ole saatavilla tällä alueella — alla reitti ja seuraavat lähtöajat.</string>
+    <plurals name="transit_banner_route_running">
+        <item quantity="one">%1$d vuoro liikkeellä — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä.</item>
+        <item quantity="other">%1$d vuoroa liikkeellä — sijainti korostettu. Ajat = seuraava lähtö kultakin pysäkiltä.</item>
+    </plurals>
+    <string name="transit_timeline_your_stop">oma pysäkki</string>
+    <string name="transit_timeline_bus_approaching">bussi tulossa</string>
+    <string name="transit_timeline_bus_here">bussi tässä</string>
+    <string name="transit_timeline_tram_approaching">ratikka tulossa</string>
+    <string name="transit_timeline_tram_here">ratikka tässä</string>
+    <string name="transit_timeline_train_approaching">juna tulossa</string>
+    <string name="transit_timeline_train_here">juna tässä</string>
+    <string name="transit_timeline_metro_approaching">metro tulossa</string>
+    <string name="transit_timeline_metro_here">metro tässä</string>
+    <string name="transit_timeline_ferry_approaching">lautta tulossa</string>
+    <string name="transit_timeline_ferry_here">lautta tässä</string>
+
+    <!-- Hairiot ja muutokset -->
+    <string name="transit_title_disruptions">Häiriöt ja muutokset</string>
+    <string name="transit_disruptions_search_hint">Hae linja tai pysäkki</string>
+    <string name="transit_filter_active_only">Vain voimassa olevat</string>
+    <string name="transit_filter_favourites_only">Vain suosikit</string>
+    <plurals name="transit_disruption_count">
+        <item quantity="one">%1$d häiriö</item>
+        <item quantity="other">%1$d häiriötä</item>
+    </plurals>
+    <string name="transit_disruptions_loading">Haetaan häiriöitä…</string>
+    <string name="transit_disruptions_failed">Häiriöiden haku epäonnistui. Kokeile Päivitä-nappia.</string>
+    <string name="transit_disruptions_empty">Ei häiriöitä valituilla suodattimilla.</string>
+    <string name="transit_datetime_pattern">d.M. \'klo\' HH:mm</string>
+    <string name="transit_range_from">alkaen %1$s</string>
+    <string name="transit_range_until">%1$s asti</string>
+
+    <!-- HSL-hairioilmoitus -->
+    <string name="transit_hsl_alert_title_line">HSL-häiriö: linja %1$s</string>
+    <string name="transit_hsl_alert_title_stop">HSL-häiriö: %1$s</string>
+    <string name="transit_hsl_alert_multi_title">Uusia HSL-häiriöitä suosikeillasi</string>
+    <plurals name="transit_hsl_alert_multi_body">
+        <item quantity="one">%1$d uusi häiriö suosikkilinjoillasi tai -pysäkeilläsi. Avaa nähdäksesi.</item>
+        <item quantity="other">%1$d uutta häiriötä suosikkilinjoillasi tai -pysäkeilläsi. Avaa nähdäksesi.</item>
+    </plurals>
+
+    <!-- Reittihaku -->
+    <string name="transit_route_planner_title">Reittihaku</string>
+    <string name="transit_route_where_to">Minne olet matkalla?</string>
+    <string name="transit_route_from_hint">Mistä</string>
+    <string name="transit_route_to_hint">Minne (esim. Rautatieasema, osoite)</string>
+    <string name="transit_route_clear_origin">Tyhjennä lähtö</string>
+    <string name="transit_route_clear_destination">Tyhjennä määränpää</string>
+    <string name="transit_route_swap">Vaihda suunta</string>
+    <string name="transit_route_center_on_me">Keskitä omaan sijaintiin</string>
+    <string name="transit_route_title">Reitti</string>
+    <string name="transit_route_my_location">Oma sijainti</string>
+    <string name="transit_route_my_location_sub">Nykyinen sijaintisi (GPS)</string>
+    <string name="transit_route_intro">Anna määränpää — reitit haetaan heti.\nLähtö on oletuksena oma sijaintisi.</string>
+    <string name="transit_route_need_location">Sijaintilupa tarvitaan, kun lähtö on oma sijainti.</string>
+    <string name="transit_route_no_places">Ei paikkoja haulla \"%1$s\".</string>
+    <string name="transit_route_choose_origin_hint">Valitse vielä lähtö, tai jätä se omaan sijaintiisi.</string>
+    <string name="transit_route_choose_destination_hint">Valitse vielä määränpää.</string>
+    <string name="transit_route_leave_now">Lähtö nyt</string>
+    <string name="transit_route_depart_at_option">Lähtö klo…</string>
+    <string name="transit_route_arrive_by_option">Perillä klo…</string>
+    <string name="transit_route_leave_now_time">Lähtö nyt · %1$s</string>
+    <string name="transit_route_depart_label">Lähtö %1$s</string>
+    <string name="transit_route_arrive_label">Perillä %1$s</string>
+    <string name="transit_route_time_pattern">EEE d.M. \'klo\' HH:mm</string>
+    <string name="transit_route_direct_only">Vain suorat</string>
+    <string name="transit_route_need_destination">Valitse määränpää: kirjoita Minne-kenttään ja valitse ehdotus.</string>
+    <string name="transit_route_need_origin">Valitse lähtö: kirjoita Mistä-kenttään ja valitse ehdotus, tai valitse Oma sijainti.</string>
+    <string name="transit_route_both_my_location">Lähtö ja määränpää eivät voi molemmat olla oma sijainti.</string>
+    <string name="transit_route_allow_location">Salli sijainti, jotta reitti voidaan laskea omasta sijainnistasi.</string>
+    <string name="transit_route_locating">Haetaan sijaintia…</string>
+    <string name="transit_route_location_failed">Sijaintia ei saatu. Yritä uudelleen.</string>
+    <string name="transit_route_searching">Haetaan reittejä…</string>
+    <string name="transit_route_search_failed">Reittihaku epäonnistui. Yritä uudelleen.</string>
+    <string name="transit_route_none">Ei reittejä tälle välille tai ajalle.</string>
+    <string name="transit_route_none_direct">Ei suoria reittejä tällä haulla — salli vaihdot tai vaihda kulkuvälinettä.</string>
+    <string name="transit_route_none_mode">Ei reittejä valitulla kulkuvälineellä.</string>
+    <string name="transit_direct_connection">suora yhteys</string>
+    <plurals name="transit_transfers">
+        <item quantity="one">%1$d vaihto</item>
+        <item quantity="other">%1$d vaihtoa</item>
+    </plurals>
+    <string name="transit_walk">Kävely</string>
+    <string name="transit_walk_whole_way">Kävely koko matka</string>
+    <string name="transit_leaves_at">Lähtee %1$s</string>
+    <string name="transit_leaves_at_from">Lähtee %1$s pysäkiltä %2$s</string>
+    <string name="transit_platform">laituri %1$s</string>
+    <string name="transit_stop_code">pysäkki %1$s</string>
+
+    <!-- Lahtowidget -->
+    <string name="transit_widget_next_departure">Seuraava lähtö</string>
+    <string name="transit_widget_next_departure_label">seuraava lähtö</string>
+    <string name="transit_widget_no_departures">Ei lähtöjä juuri nyt</string>
+    <string name="transit_widget_choose_stop">Valitse pysäkki</string>
+    <string name="transit_widget_nearest_gps">Lähin pysäkki (GPS)</string>
+    <string name="transit_widget_nearest">Lähin pysäkki</string>
+    <string name="transit_widget_no_favourites">Ei suosikkipysäkkejä — lisää suosikki Lähilähdöt-näkymässä, tai valitse Lähin.</string>
+
+    <!-- Tieliikennetiedotteet (Digitraffic) -->
+    <string name="transit_traffic_all">Liikennetiedot</string>
+    <string name="transit_traffic_accidents">Onnettomuudet</string>
+    <string name="transit_traffic_roadworks">Tietyöt</string>
+    <string name="transit_traffic_weight_restrictions">Painorajoitukset</string>
+    <string name="transit_traffic_incidents">Häiriöt</string>
+    <string name="transit_traffic_congestion">Ruuhkat</string>
+</resources>

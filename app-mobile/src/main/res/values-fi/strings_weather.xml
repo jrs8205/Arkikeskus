@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Saahistorian paivarivi (viikonpaiva + paivays) -->
+    <string name="weather_history_day_pattern">EEE d.M.</string>
+</resources>

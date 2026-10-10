@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile.widget
 
+import org.jrs82.fsclock.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.ZoneId
@@ -13,9 +14,9 @@ class WidgetFormatTest {
         assertEquals(PriceLevel.NORMAL, WidgetFormat.priceLevel(Double.NaN, 5.0))
     }
     @Test fun priceLabel_text() {
-        assertEquals("Halpaa", WidgetFormat.priceLabel(PriceLevel.CHEAP))
-        assertEquals("Normaali", WidgetFormat.priceLabel(PriceLevel.NORMAL))
-        assertEquals("Kallista", WidgetFormat.priceLabel(PriceLevel.EXPENSIVE))
+        assertEquals(R.string.electricity_level_cheap, WidgetFormat.priceLabelRes(PriceLevel.CHEAP))
+        assertEquals(R.string.electricity_level_normal, WidgetFormat.priceLabelRes(PriceLevel.NORMAL))
+        assertEquals(R.string.electricity_level_expensive, WidgetFormat.priceLabelRes(PriceLevel.EXPENSIVE))
     }
     @Test fun stepsPercent_capsAt100_andZeroGoal() {
         assertEquals(50, WidgetFormat.stepsPercent(5000, 10000))
@@ -27,8 +28,13 @@ class WidgetFormatTest {
         assertEquals(0, WidgetFormat.minutesUntil(1000, 1000))
         assertEquals(0, WidgetFormat.minutesUntil(1000, 2000))     // past -> 0, never negative
         assertEquals(5, WidgetFormat.minutesUntil(1000 + 5 * 60, 1000))
-        assertEquals("nyt", WidgetFormat.minutesLabel(0))
-        assertEquals("7 min", WidgetFormat.minutesLabel(7))
+        assertEquals("nyt", WidgetFormat.minutesLabel(0, "nyt"))
+        assertEquals("7 min", WidgetFormat.minutesLabel(7, "nyt"))
+    }
+    @Test fun minutesLabel_usesGivenNowText_forDepartedOrDueNow() {
+        assertEquals("now", WidgetFormat.minutesLabel(0, "now"))
+        assertEquals("nu", WidgetFormat.minutesLabel(-3, "nu"))
+        assertEquals("1 min", WidgetFormat.minutesLabel(1, "now"))
     }
     @Test fun tempLabel_roundsAndHandlesNaN() {
         assertEquals("17 °C", WidgetFormat.tempLabel(17.4))

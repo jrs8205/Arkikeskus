@@ -17,8 +17,10 @@ import java.util.List;
 import java.util.Locale;
 
 /** Hakee MeteoAlarm-feedin Suomen sääoitukset JSON-muodossa.
- *  Endpoint sisältää FMI:n viralliset CAP-varoitukset, kuvaus suomeksi.
- *  Suodatetaan fi-FI, status=Actual, expires > nyt ja onset < nyt+24h. */
+ *  Endpoint sisältää FMI:n viralliset CAP-varoitukset kolmella kielellä (fi-FI, sv-SE, en-GB).
+ *  Suodatetaan status=Actual, expires > nyt ja onset < nyt+24h. Ajat, taso, tyyppi ja alueet
+ *  luetaan fi-FI-lohkosta (alueiden nimet ovat suomeksi kaikissa lohkoissa ja merivaroituksen
+ *  tunnistus nojaa suomenkieliseen tekstiin); näytettävät tekstit valitun kielen lohkosta. */
 public class WarningsClient {
 
     private static final String TAG = "WarningsClient";
@@ -26,7 +28,8 @@ public class WarningsClient {
     private static final int TIMEOUT_MS = 15000;
     private static final long LOOKAHEAD_MS = 24L * 60L * 60_000L;
 
-    public List<WeatherWarning> fetch() throws Exception {
+    /** @param language sovelluksen kieli {@code fi|sv|en} (AppLocale.language). */
+    public List<WeatherWarning> fetch(String language) throws Exception {
         HttpURLConnection conn = null;
         InputStream in = null;
         try {
@@ -41,14 +44,14 @@ public class WarningsClient {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
             String line;
             while ((line = br.readLine()) != null) sb.append(line);
-            return parse(sb.toString());
+            return parse(sb.toString(), language);
         } finally {
             if (in != null) try { in.close(); } catch (Exception ignored) {}
             if (conn != null) conn.disconnect();
         }
     }
 
-    List<WeatherWarning> parse(String json) throws Exception {
+    List<WeatherWarning> parse(String json, String language) throws Exception {
         long now = System.currentTimeMillis();
         long cutoff = now + LOOKAHEAD_MS;
         SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US);
@@ -71,16 +74,10 @@ public class WarningsClient {
 
             JSONArray infos = alert.optJSONArray("info");
             if (infos == null) continue;
-            JSONObject info = null;
-            for (int j = 0; j < infos.length(); j++) {
-                JSONObject c = infos.optJSONObject(j);
-                if (c == null) continue;
-                if ("fi-FI".equalsIgnoreCase(c.optString("language", ""))) {
-                    info = c;
-                    break;
-                }
-            }
+            JSONObject info = infoFor(infos, "fi");
             if (info == null) continue;
+            JSONObject shown = infoFor(infos, language);
+            if (shown == null) shown = info;
 
             long onset = parseIso(iso, info.optString("onset", null));
             long expires = parseIso(iso, info.optString("expires", null));
@@ -127,19 +124,19 @@ public class WarningsClient {
                     }
                 }
             }
-            String event = info.optString("event", "");
             String areaStr = areas.toString();
-            boolean marine = WeatherWarning.detectMarine(event, areaStr, emmaIds);
+            boolean marine = WeatherWarning.detectMarine(info.optString("event", ""), areaStr, emmaIds);
             long effective = parseIso(iso, info.optString("effective", null));
             String severity = info.optString("severity", "");
             String certainty = info.optString("certainty", "");
             String urgency = info.optString("urgency", "");
-            String senderName = info.optString("senderName", "");
-            String web = info.optString("web", "");
+            String event = textOr(shown, info, "event");
+            String senderName = textOr(shown, info, "senderName");
+            String web = textOr(shown, info, "web");
 
             WeatherWarning w = new WeatherWarning(
                     event,
-                    info.optString("description", ""),
+                    textOr(shown, info, "description"),
                     areaStr,
                     onset,
                     expires,
@@ -155,8 +152,27 @@ public class WarningsClient {
                     web);
             out.add(w);
         }
-        Log.d(TAG, "Parsed " + out.size() + " active fi-FI warnings");
+        Log.d(TAG, "Parsed " + out.size() + " active warnings (" + language + ")");
         return out;
+    }
+
+    /** Info-lohko kielikoodin alun perusteella (sv osuu sv-SE:hen ja sv-FI:hin), null jos ei ole. */
+    static JSONObject infoFor(JSONArray infos, String language) {
+        String want = language == null || language.isEmpty() ? "fi" : language.toLowerCase(Locale.ROOT);
+        for (int j = 0; j < infos.length(); j++) {
+            JSONObject c = infos.optJSONObject(j);
+            if (c == null) continue;
+            String lang = c.optString("language", "").toLowerCase(Locale.ROOT);
+            if (lang.equals(want) || lang.startsWith(want + "-")) return c;
+        }
+        return null;
+    }
+
+    /** Valitun kielen kenttä; tyhjä → fi-FI-lohkon arvo, jottei kortti jää tyhjäksi. */
+    private static String textOr(JSONObject shown, JSONObject fi, String key) {
+        String v = shown.isNull(key) ? "" : shown.optString(key, "");
+        if (v.trim().isEmpty() && shown != fi) v = fi.isNull(key) ? "" : fi.optString(key, "");
+        return v;
     }
 
     private static long parseIso(SimpleDateFormat iso, String s) {

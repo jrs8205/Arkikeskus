@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paikkakunnat -->
+    <string name="places_title">Paikkakunnat</string>
+    <string name="places_intro">Etusivun sää käyttää laitteen sijaintia automaattisesti. Voit myös hakea kaupungin tai valita suosikin — valinta näkyy, kunnes avaat sovelluksen uudelleen. Automaattisen sijainnin voi kytkeä pois Asetuksista.</string>
+    <string name="places_current">Nykyinen sääpaikka</string>
+    <string name="places_fav_add">Lisää suosikiksi</string>
+    <string name="places_fav_remove">Poista suosikeista</string>
+    <string name="places_fav_added">Lisätty suosikiksi</string>
+    <string name="places_fav_removed">Poistettu suosikeista</string>
+    <string name="places_search_label">Hae kaupunkia tai kaupunginosaa</string>
+    <string name="places_status_choose">Valitse paikka listalta.</string>
+    <string name="places_status_searching">Haetaan…</string>
+    <string name="places_status_min_chars">Kirjoita vähintään kolme kirjainta.</string>
+    <string name="places_status_none">Kaupunkeja ei löytynyt.</string>
+    <string name="places_status_failed">Haku epäonnistui.</string>
+    <string name="places_favourites_title">Suosikkipaikat</string>
+    <string name="places_favourites_empty">Ei suosikkipaikkoja. Lisää nykyinen sääpaikka yllä olevasta sydämestä.</string>
+
+    <!-- Askeleet -->
+    <string name="steps_title">Askeleet</string>
+    <string name="steps_counter">Askelmittari</string>
+    <plurals name="steps_count">
+        <item quantity="one">%1$s askel</item>
+        <item quantity="other">%1$s askelta</item>
+    </plurals>
+    <plurals name="steps_unit">
+        <item quantity="one">askel</item>
+        <item quantity="other">askelta</item>
+    </plurals>
+    <plurals name="steps_today_label">
+        <item quantity="one">askel tänään</item>
+        <item quantity="other">askelta tänään</item>
+    </plurals>
+    <string name="steps_note_unavailable">Tässä laitteessa ei ole askelanturia eikä Health Connectia, joten askelmittaria ei voi ottaa käyttöön.</string>
+    <string name="steps_note_disabled">Askelmittari on pois päältä. Kytke päälle laskeaksesi askeleet.</string>
+    <string name="steps_note_hc">Lähde: Health Connect (yhdistetyt laitteet, esim. kello/sormus). Luku haetaan automaattisesti; jos kellon/sormuksen sovellus ei ole vielä synkannut tähän puhelimeen, avaa se kerran.</string>
+    <string name="steps_note_phone">Lähde: puhelimen oma askelmittari. Kävellessä askeleet kasvavat reaaliajassa. Halutessasi voit yhdistää Health Connectin (kello/sormus) alta.</string>
+    <string name="steps_allow_activity">Salli liikunta-aktiivisuus (puhelimen askelmittari)</string>
+    <string name="steps_use_hc">Käytä Health Connectia</string>
+    <string name="steps_hc_desc">Health Connect kokoaa askeleet ja muut terveystiedot yhteen — voit yhdistää esim. älykellon, -sormuksen tai muut terveyssovellukset. Se ei ole oletuksena asennettuna; ilman sitä Arkikeskus käyttää puhelimen omaa askelmittaria.</string>
+    <string name="steps_hc_open">Avaa Health Connect</string>
+    <string name="steps_hc_install">Asenna Health Connect</string>
+    <string name="steps_hc_read_calories">Lue myös kalorit Health Connectista</string>
+    <string name="steps_hc_refresh">Päivitä Health Connectista</string>
+    <string name="steps_hc_settings_failed">Health Connect -asetuksia ei voitu avata</string>
+    <string name="steps_tab_days">Päivät</string>
+    <string name="steps_tab_weeks">Viikot</string>
+    <string name="steps_tab_months">Kuukaudet</string>
+    <string name="steps_distance_walked">≈ %1$s km kävelty</string>
+    <string name="steps_sources_title">Lähteet (Health Connect)</string>
+    <string name="steps_sources_empty">Yksikään sovellus ei ole kirjannut askeleita tämän puhelimen Health Connectiin tänään. Health Connect on puhelinkohtainen tietovarasto: se ei synkkaudu Google-tilin kautta toisesta puhelimesta. Askeleet ilmestyvät tähän, kun jokin sovellus (esim. kellon, sormuksen tai puhelimen terveyssovellus) kirjoittaa ne tämän laitteen Health Connectiin — tarkista sovelluksen kirjoitusluvat ja avaa se kerran.</string>
+    <string name="steps_sources_note">Askelluku yllä on Health Connectin yhdistämä summa, josta päällekkäiset lähteet on poistettu. Tässä kunkin sovelluksen oma luku (Health Connectin laskemana) — eri rivit voivat mitata samoja askelia, joten niitä ei kuulu laskea yhteen. Kellon tai sormuksen data näkyy vasta, kun sen oma sovellus on synkannut tähän puhelimeen. Lähteiden tärkeysjärjestystä voi muuttaa Health Connectin asetuksista.</string>
+    <string name="steps_source_phone">Puhelimen askellaskuri</string>
+    <string name="steps_source_phone_id">Puhelimen askellaskuri (%1$s)</string>
+    <string name="steps_source_phone_sensor">Puhelimen askelanturi</string>
+    <string name="steps_history_empty">Ei vielä kertynyttä askeldataa.</string>
+    <string name="steps_note_hc_calories">🔥 = aktiiviset kalorit (Health Connect tai arvio).</string>
+    <string name="steps_note_raw">Huom: laskenta kerää askelia kun sovellus on ollut käytössä; katkoja voi tulla laitteen uudelleenkäynnistyksessä.</string>
+    <string name="steps_note_raw_calories">%1$s 🔥 = askelpohjainen aktiivinen kaloriarvio.</string>
+    <string name="steps_col_steps">Askeleet</string>
+    <string name="steps_week_label">Viikko %1$d</string>
+    <string name="steps_day_pattern">EEE d.M.</string>
+    <string name="steps_date_pattern">d.M.</string>
+    <string name="steps_cal_distance">Matka-arvio: %1$s km</string>
+    <string name="steps_cal_active_hc">Aktiivinen kulutus: %1$s kcal (Health Connect)</string>
+    <string name="steps_cal_active_est">Aktiivinen kulutus: noin %1$s kcal (arvio)</string>
+    <string name="steps_cal_total_hc">Päivän kokonaiskulutus: %1$s kcal (Health Connect)</string>
+    <string name="steps_cal_total_est">Päivän kokonaisarvio: noin %1$s kcal</string>
+    <string name="steps_cal_source_hc">Kalorit: Health Connect</string>
+    <string name="steps_cal_source_app">Kalorit: Arkikeskus-arvio</string>
+    <string name="steps_profile_add">Lisää pituus ja paino kalori- ja matka-arviota varten</string>
+    <string name="steps_profile_edit">Muokkaa profiilia</string>
+    <string name="steps_profile_title">Profiili kalori- ja matka-arviota varten</string>
+    <string name="steps_profile_sex">Sukupuoli</string>
+    <string name="steps_profile_female">Nainen</string>
+    <string name="steps_profile_male">Mies</string>
+    <string name="steps_profile_sex_unspecified">En halua kertoa</string>
+    <string name="steps_profile_age">Ikä (v)</string>
+    <string name="steps_profile_height">Pituus (cm)</string>
+    <string name="steps_profile_weight">Paino (kg)</string>
+    <string name="steps_profile_step_length">Askelpituus (cm, valinnainen)</string>
+
+    <!-- HTML-vienti -->
+    <string name="steps_export_button">Lataa HTML-yhteenveto</string>
+    <string name="steps_exporting">Viedään…</string>
+    <string name="steps_export_failed">HTML-vienti epäonnistui</string>
+    <string name="steps_export_saved_title">HTML tallennettu</string>
+    <string name="steps_export_saved_text">Tallennettu kansioon Download/Arkikeskus:\n%1$s</string>
+    <string name="steps_no_app_to_open">Avaamiseen ei löytynyt sovellusta</string>
+    <string name="steps_export_file_prefix">arkikeskus_askeleet</string>
+    <string name="steps_export_week">Vk %1$d/%2$d (%3$s–%4$s)</string>
+    <string name="steps_export_week_short">Vk %1$d/%2$d</string>
+    <string name="steps_export_date_pattern">d.M.yyyy</string>
+    <string name="steps_html_title">Arkikeskus – Askeleet ja kalorit</string>
+    <string name="steps_html_heading">Askeleet &amp; kalorit</string>
+    <string name="steps_html_subtitle">Arkikeskus-yhteenveto</string>
+    <string name="steps_html_meta">%1$s · viety %2$s · lähde: %3$s</string>
+    <string name="steps_html_datetime_pattern">d.M.yyyy \'klo\' HH:mm</string>
+    <string name="steps_html_total">Askeleet yhteensä</string>
+    <plurals name="steps_html_last_days">
+        <item quantity="one">viimeinen %1$d pv</item>
+        <item quantity="other">viimeiset %1$d pv</item>
+    </plurals>
+    <string name="steps_html_no_data">ei dataa</string>
+    <string name="steps_html_best_day">Paras päivä</string>
+    <string name="steps_html_avg_day">Keskiarvo / päivä</string>
+    <string name="steps_html_calories_total">Kalorit yhteensä</string>
+    <string name="steps_html_active_kcal">aktiiviset kcal</string>
+    <string name="steps_html_total_kcal">kcal yhteensä</string>
+    <string name="steps_html_chip_active">%1$s kcal aktiiviset</string>
+    <string name="steps_html_chip_total">%1$s kcal yhteensä</string>
+    <plurals name="steps_html_periods">
+        <item quantity="one">%1$d kpl</item>
+        <item quantity="other">%1$d kpl</item>
+    </plurals>
+    <string name="steps_html_empty">Ei vielä dataa.</string>
+    <string name="steps_html_col_period">Ajanjakso</string>
+    <string name="steps_html_col_active">Aktiiviset</string>
+    <string name="steps_html_col_total">Yhteensä</string>
+    <string name="steps_html_estimate">arvio</string>
+    <string name="steps_html_footer">Luotu Arkikeskus-sovelluksella. Data Health Connectista tai puhelimen askelanturista. Merkintä %1$s on Arkikeskuksen oma kalorilaskelma (askelista, ei tarkka).</string>
+
+    <!-- Askeltavoiteilmoitus -->
+    <string name="steps_goal_reached_title">Päivän askeltavoite saavutettu!</string>
+    <plurals name="steps_goal_reached_text">
+        <item quantity="one">%1$s askel tänään (tavoite %2$s).</item>
+        <item quantity="other">%1$s askelta tänään (tavoite %2$s).</item>
+    </plurals>
+    <string name="steps_goal_half_title">Olet puolimatkassa!</string>
+    <plurals name="steps_goal_half_text">
+        <item quantity="one">Hyvä — olet puolivälissä tavoitetta. Koita vielä saavuttaa se! (%1$s / %2$s askel)</item>
+        <item quantity="other">Hyvä — olet puolivälissä tavoitetta. Koita vielä saavuttaa se! (%1$s / %2$s askelta)</item>
+    </plurals>
+
+    <!-- Askelwidget -->
+    <string name="steps_widget_percent">%1$d %%</string>
+    <string name="steps_widget_goal_line">Tavoite %1$s · joka palkki = %2$s</string>
+</resources>

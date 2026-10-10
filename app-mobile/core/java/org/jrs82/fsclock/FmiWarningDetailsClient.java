@@ -18,8 +18,8 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /** Hakee FMI:n oman GeoServerin varoituslayerin (alert:weather_finland_active_all) ja parsii
- *  per-feature-detaljit (todennäköisyys, fyysinen arvo, info_fi). Käytetään MeteoAlarm-varoitusten
- *  RIKASTAMISEEN (ei korvaa MeteoAlarmia: maakuntanimet/tyyppi/taso tulevat sieltä). */
+ *  per-feature-detaljit (todennäköisyys, fyysinen arvo, info_fi/info_sv/info_en). Käytetään
+ *  MeteoAlarm-varoitusten RIKASTAMISEEN (ei korvaa MeteoAlarmia: maakuntanimet/tyyppi/taso tulevat sieltä). */
 public class FmiWarningDetailsClient {
 
     private static final String TAG = "FmiWarnDetails";
@@ -27,8 +27,10 @@ public class FmiWarningDetailsClient {
         "https://www.ilmatieteenlaitos.fi/geoserver/alert/ows?service=WFS&version=2.0.0"
         + "&request=GetFeature&typeName=alert:weather_finland_active_all&outputFormat=application/json";
     private static final int TIMEOUT_MS = 15000;
+    public static final String INFO_FI = "info_fi";
 
-    public List<FmiWarningDetail> fetch() throws Exception {
+    /** @param infoKey tekstikenttä {@code info_fi|info_sv|info_en} (AppLocale.fmiInfoKey). */
+    public List<FmiWarningDetail> fetch(String infoKey) throws Exception {
         HttpURLConnection conn = null;
         InputStream in = null;
         try {
@@ -44,14 +46,14 @@ public class FmiWarningDetailsClient {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
             String line;
             while ((line = br.readLine()) != null) sb.append(line);
-            return parse(sb.toString());
+            return parse(sb.toString(), infoKey);
         } finally {
             if (in != null) try { in.close(); } catch (Exception ignored) {}
             if (conn != null) conn.disconnect();
         }
     }
 
-    List<FmiWarningDetail> parse(String json) throws Exception {
+    List<FmiWarningDetail> parse(String json, String infoKey) throws Exception {
         List<FmiWarningDetail> out = new ArrayList<>();
         JSONObject root = new JSONObject(json);
         JSONArray feats = root.optJSONArray("features");
@@ -67,28 +69,28 @@ public class FmiWarningDetailsClient {
                     ? p.optInt("actualization_probability", -1) : -1;
             double pv = p.has("physical_value") && !p.isNull("physical_value")
                     ? p.optDouble("physical_value", Double.NaN) : Double.NaN;
-            String unit = p.optString("physical_unit", "");
-            String physicalText = formatPhysical(pv, unit);
-            String detailText = decodeEntities(p.optString("info_fi", ""));
+            String unit = p.isNull("physical_unit") ? "" : p.optString("physical_unit", "");
+            String detailText = infoText(p, infoKey);
             long from = parseIsoUtc(p.optString("effective_from", null));
             long until = parseIsoUtc(p.optString("effective_until", null));
-            out.add(new FmiWarningDetail(context, from, until, prob, pv, physicalText, detailText));
+            out.add(new FmiWarningDetail(context, from, until, prob, pv, unit, detailText));
         }
         Log.d(TAG, "Parsed " + out.size() + " FMI warning details");
         return out;
     }
 
-    /** Muotoilee fyysisen arvon suomeksi yksikön perusteella. */
-    public static String formatPhysical(double value, String unit) {
-        if (Double.isNaN(value) || unit == null || unit.isEmpty()) return "";
-        String v = (value == Math.rint(value)) ? String.valueOf((long) value) : String.valueOf(value);
-        switch (unit) {
-            case "celsius": return "Lämpötila jopa " + v + " °C";
-            case "mm/h":    return "Sademäärä jopa " + v + " mm/h";
-            case "m/s":     return "Tuulen puuskat jopa " + v + " m/s";
-            case "index":   return "UV-indeksi " + v;
-            default:        return v + " " + unit;
-        }
+    /** Valitun kielen kuvausteksti. Puuttuva, null tai tyhjä kenttä putoaa info_fi:hin,
+     *  jottei kortti jää tyhjäksi, jos FMI ei ole kääntänyt jotain varoitusta. */
+    public static String infoText(JSONObject p, String infoKey) {
+        String key = (infoKey == null || infoKey.isEmpty()) ? INFO_FI : infoKey;
+        String v = rawText(p, key);
+        if (v.trim().isEmpty() && !INFO_FI.equals(key)) v = rawText(p, INFO_FI);
+        return decodeEntities(v);
+    }
+
+    // isNull-tarkistus ennen optStringiä: Androidin org.json palauttaa JSON-nullista merkkijonon "null".
+    private static String rawText(JSONObject p, String key) {
+        return p.isNull(key) ? "" : p.optString(key, "");
     }
 
     /** Purkaa FMI:n käyttämät HTML-entiteetit (suomalaiset + perus + numeeriset). */

@@ -13,8 +13,11 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 final class MobileHolidayProvider {
@@ -24,7 +27,10 @@ final class MobileHolidayProvider {
     private static final int TIMEOUT_MS = 10000;
     private static final long CACHE_TTL_MS = 12L * 60L * 60_000L;
     private static final TimeZone HELSINKI = TimeZone.getTimeZone("Europe/Helsinki");
+    // Kalenterilaskentaan (viikon alku), ei näkyvään muotoiluun.
     private static final Locale FI = new Locale("fi", "FI");
+    /** Rajapinnan muut nimikielet, jotka UI osaa näyttää (fi on aina avain). */
+    private static final String[] LOCALIZED_LANGS = {"sv", "en"};
 
     private static List<HolidayEvent> cached;
     private static int cachedYear;
@@ -88,7 +94,7 @@ final class MobileHolidayProvider {
                 String name = names == null ? "" : names.optString("fi", "");
                 if (date.length() == 10 && !name.isEmpty()) {
                     out.add(new HolidayEvent(name, date, item.optBoolean("official", false),
-                            item.optBoolean("weekend", false)));
+                            item.optBoolean("weekend", false), localizedNames(names)));
                 }
             }
             return out;
@@ -98,6 +104,16 @@ final class MobileHolidayProvider {
             }
             if (conn != null) conn.disconnect();
         }
+    }
+
+    /** Rajapinnan sv/en-nimet tyhjät pois suodatettuina (testattava). */
+    static Map<String, String> localizedNames(JSONObject names) {
+        Map<String, String> out = new HashMap<>();
+        for (String lang : LOCALIZED_LANGS) {
+            String v = names.optString(lang, "").trim();
+            if (!v.isEmpty()) out.put(lang, v);
+        }
+        return out;
     }
 
     private static String readFully(InputStream in) throws Exception {
@@ -120,7 +136,7 @@ final class MobileHolidayProvider {
             if (h.year != year || h.type != FinnishHolidays.EventType.HOLIDAY) continue;
             out.add(new HolidayEvent(h.name,
                     String.format(Locale.US, "%04d-%02d-%02d", h.year, h.month, h.day),
-                    true, false));
+                    true, false, Collections.<String, String>emptyMap()));
         }
         return out;
     }
@@ -139,16 +155,21 @@ final class MobileHolidayProvider {
     }
 
     static final class HolidayEvent {
+        /** Suomenkielinen nimi = käännösavain ({@link HolidayNames}). */
         final String name;
         final String date;
         final boolean official;
         final boolean weekend;
+        /** Lähteen omat käännökset (kieli → nimi) tuntemattomien nimien varalle. */
+        final Map<String, String> localized;
 
-        HolidayEvent(String name, String date, boolean official, boolean weekend) {
+        HolidayEvent(String name, String date, boolean official, boolean weekend,
+                     Map<String, String> localized) {
             this.name = name;
             this.date = date;
             this.official = official;
             this.weekend = weekend;
+            this.localized = localized;
         }
 
         int sortKey() {

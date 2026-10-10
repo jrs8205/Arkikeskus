@@ -19,7 +19,10 @@ class FmiWarningDetailsParseTest {
         "physical_value":20,"physical_unit":"mm/h","physical_direction":null,
         "effective_from":"2026-06-28T02:00:00Z","effective_until":"2026-06-28T10:00:00Z",
         "info_fi":"Sadevaroitus: Aamuy&ouml;st&auml; alkaen voi sataa rankasti, yli 20 mm tunnissa.",
-        "severity":"level-2"}}
+        "severity":"level-2"}},
+      {"type":"Feature","properties":{
+        "warning_context":"traffic-weather","physical_value":null,"physical_unit":null,
+        "info_fi":"Liikennes&auml;&auml;: huono ajokeli.","severity":"level-2"}}
     ]}
     """.trimIndent()
 
@@ -27,23 +30,26 @@ class FmiWarningDetailsParseTest {
         assertEquals("Lähivuorokauden ää", FmiWarningDetailsClient.decodeEntities("L&auml;hivuorokauden &auml;&auml;"))
         assertEquals("ö å &", FmiWarningDetailsClient.decodeEntities("&ouml; &aring; &amp;"))
         assertEquals("a b", FmiWarningDetailsClient.decodeEntities("a&nbsp;b"))
+        assertEquals("Varning för sjögång", FmiWarningDetailsClient.decodeEntities("Varning f&ouml;r sj&ouml;g&aring;ng"))
     }
 
-    @Test fun formatsPhysicalByUnit() {
-        assertEquals("Lämpötila jopa 27 °C", FmiWarningDetailsClient.formatPhysical(27.0, "celsius"))
-        assertEquals("Sademäärä jopa 20 mm/h", FmiWarningDetailsClient.formatPhysical(20.0, "mm/h"))
-        assertEquals("Tuulen puuskat jopa 15 m/s", FmiWarningDetailsClient.formatPhysical(15.0, "m/s"))
-        assertEquals("UV-indeksi 6", FmiWarningDetailsClient.formatPhysical(6.0, "index"))
-        assertEquals("", FmiWarningDetailsClient.formatPhysical(Double.NaN, "celsius"))
+    @Test fun keepsPhysicalAsValueAndUnit() {
+        val list = FmiWarningDetailsClient().parse(json, "info_fi")
+        assertEquals(27.0, list[0].physicalValue, 0.0)
+        assertEquals("celsius", list[0].physicalUnit)
+        assertEquals(20.0, list[1].physicalValue, 0.0)
+        assertEquals("mm/h", list[1].physicalUnit)
+        // JSON-null ei saa muuttua yksiköksi "null"
+        assertTrue(list[2].physicalValue.isNaN())
+        assertEquals("", list[2].physicalUnit)
     }
 
     @Test fun parsesFeatures() {
-        val list = FmiWarningDetailsClient().parse(json)
-        assertEquals(2, list.size)
+        val list = FmiWarningDetailsClient().parse(json, "info_fi")
+        assertEquals(3, list.size)
         val hot = list[0]
         assertEquals("hot-weather", hot.context)
         assertEquals(40, hot.probabilityPct)
-        assertEquals("Lämpötila jopa 27 °C", hot.physicalText)
         assertTrue(hot.detailText.contains("tukalaa hellettä"))
         assertTrue(hot.fromMs > 0L && hot.untilMs > hot.fromMs)
     }

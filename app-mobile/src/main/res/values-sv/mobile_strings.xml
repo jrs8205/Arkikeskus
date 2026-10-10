@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mobile_pref_widget_order">Widgetordning</string>
+    <string name="widget_weather_desc">Väder: ort och temperatur</string>
+    <string name="widget_electricity_desc">Börsel: aktuellt pris och nivå</string>
+    <string name="widget_steps_desc">Steg: dagens antal och mål</string>
+    <string name="widget_departure_desc">Nästa avgång: avgångar från en favorithållplats</string>
+</resources>

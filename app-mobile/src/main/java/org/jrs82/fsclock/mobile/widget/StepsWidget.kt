@@ -31,12 +31,12 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import org.jrs82.fsclock.R
+import org.jrs82.fsclock.mobile.AppLocale
 import java.text.NumberFormat
-import java.util.Locale
 
 class StepsWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        provideContent { StepsContent(context) }
+        provideContent { RenderRevision { StepsContent(context) } }
     }
 }
 
@@ -45,7 +45,7 @@ private fun StepsContent(context: Context) {
     val steps = WidgetCache.steps(context)
     val goal = WidgetCache.stepsGoal(context).coerceAtLeast(1)
     val pct = WidgetFormat.stepsPercent(steps, goal)
-    val fiFmt = NumberFormat.getInstance(Locale("fi", "FI"))
+    val numFmt = NumberFormat.getInstance(AppLocale.current(context))
     // Dynaaminen palkitus: aina 10 palkkia, joka palkki = tavoite/10 (skaalautuu 7 t..20 t).
     val perBar = (goal / 10).coerceAtLeast(1)
     val filled = (steps / perBar).coerceIn(0, 10)
@@ -77,8 +77,8 @@ private fun StepsContent(context: Context) {
                 }
                 Spacer(GlanceModifier.width(11.dp))
                 Text(
-                    "Askeleet",
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                    context.getString(R.string.steps_title),
+                    style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(14), fontWeight = FontWeight.Bold),
                     maxLines = 1,
                 )
                 Spacer(GlanceModifier.defaultWeight())
@@ -87,8 +87,8 @@ private fun StepsContent(context: Context) {
                         .padding(horizontal = 10.dp, vertical = 5.dp),
                 ) {
                     Text(
-                        "$pct %",
-                        style = TextStyle(color = WidgetColors.c2, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                        context.getString(R.string.steps_widget_percent, pct),
+                        style = TextStyle(color = WidgetColors.c2, fontSize = widgetSp(12), fontWeight = FontWeight.Bold),
                         maxLines = 1,
                     )
                 }
@@ -97,14 +97,14 @@ private fun StepsContent(context: Context) {
             // Iso luku / tavoite
             Row(verticalAlignment = Alignment.Vertical.Bottom) {
                 Text(
-                    fiFmt.format(steps),
-                    style = TextStyle(color = WidgetColors.strong, fontSize = 40.sp, fontWeight = FontWeight.Bold),
+                    numFmt.format(steps),
+                    style = TextStyle(color = WidgetColors.strong, fontSize = widgetSp(40), fontWeight = FontWeight.Bold),
                     maxLines = 1,
                 )
                 Spacer(GlanceModifier.width(8.dp))
                 Text(
-                    "/ ${fiFmt.format(goal)}",
-                    style = TextStyle(color = WidgetColors.dim, fontSize = 15.sp, fontWeight = FontWeight.Medium),
+                    "/ ${numFmt.format(goal)}",
+                    style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(15), fontWeight = FontWeight.Medium),
                     maxLines = 1,
                 )
             }
@@ -125,8 +125,8 @@ private fun StepsContent(context: Context) {
             }
             Spacer(GlanceModifier.height(12.dp))
             Text(
-                "Tavoite ${fiFmt.format(goal)} · joka palkki = ${fiFmt.format(perBar)}",
-                style = TextStyle(color = WidgetColors.dim, fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                context.getString(R.string.steps_widget_goal_line, numFmt.format(goal), numFmt.format(perBar)),
+                style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(13), fontWeight = FontWeight.Medium),
                 maxLines = 1,
             )
         }

@@ -2,6 +2,7 @@ package org.jrs82.fsclock.mobile
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.StringRes
 import com.google.android.gms.auth.GoogleAuthException
 import com.google.android.gms.auth.GoogleAuthUtil
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -17,6 +18,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import org.jrs82.fsclock.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
@@ -131,8 +133,10 @@ internal object DriveBackup {
 
     // ---------- OAuth-token ----------
     private fun token(context: Context): String {
-        val acc = account(context) ?: throw IllegalStateException("Ei Drive-tiliä")
-        val androidAcc = acc.account ?: throw IllegalStateException("Tilillä ei Account-objektia")
+        val acc = account(context)
+            ?: throw IllegalStateException(context.getString(R.string.backup_drive_no_account))
+        val androidAcc = acc.account
+            ?: throw IllegalStateException(context.getString(R.string.backup_drive_no_android_account))
         return GoogleAuthUtil.getToken(context, androidAcc, "oauth2:$SCOPE")
     }
 
@@ -180,7 +184,7 @@ internal object DriveBackup {
     fun restore(context: Context): BackupManager.RestoreResult {
         val data = withToken(context) { tok ->
             val id = findFileId(tok)
-                ?: throw IllegalStateException("Driveen ei ole tallennettu varmuuskopiota")
+                ?: throw IllegalStateException(context.getString(R.string.backup_drive_no_backup))
             downloadFile(tok, id)
         }
         return BackupManager.restore(context, ByteArrayInputStream(data))
@@ -305,6 +309,16 @@ internal object DriveBackup {
         }
         return conn.inputStream.use { it.readBytes() }
     }
+}
+
+/** Automaattisen varmuuskopioinnin frekvenssin näkyvä nimi; tuntematon arvo = pois käytöstä. */
+@StringRes
+internal fun driveFrequencyLabelRes(freq: String): Int = when (freq) {
+    DriveBackup.FREQ_DAILY -> R.string.backup_freq_daily
+    DriveBackup.FREQ_WEEKLY -> R.string.backup_freq_weekly
+    DriveBackup.FREQ_MONTHLY -> R.string.backup_freq_monthly
+    DriveBackup.FREQ_MANUAL -> R.string.backup_freq_manual
+    else -> R.string.backup_freq_off
 }
 
 /**

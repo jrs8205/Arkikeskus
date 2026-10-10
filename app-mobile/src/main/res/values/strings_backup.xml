@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Asetusten varmuuskopiorivit ja tiedostovarmuuskopio -->
+    <string name="backup_title">Backup</string>
+    <string name="backup_drive_row">Back up to Drive</string>
+    <string name="backup_drive_row_sub">WhatsApp-style Google Drive backup</string>
+    <string name="backup_export_row">Export backup (to file)</string>
+    <string name="backup_export_row_sub">Settings and workouts in one file (e.g. on Drive)</string>
+    <string name="backup_import_row">Restore backup (from file)</string>
+    <string name="backup_import_row_sub">Import a previously exported backup file</string>
+    <string name="backup_file_name">Arkikeskus-backup-%1$s.json</string>
+    <string name="backup_saved_file">Backup saved: %1$s, %2$s (%3$s).</string>
+    <string name="backup_save_failed">Saving failed.</string>
+    <string name="backup_failed_reason">Backup failed: %1$s</string>
+    <string name="backup_stop_workout_first">Finish the ongoing workout before restoring.</string>
+    <string name="backup_restore_failed">Restore failed.</string>
+    <string name="backup_restore_failed_reason">Restore failed: %1$s</string>
+
+    <!-- Palautuksen yhteenveto -->
+    <string name="backup_restored_title">Backup restored</string>
+    <string name="backup_restored_summary">Restored %1$s and %2$s.</string>
+    <plurals name="backup_workouts">
+        <item quantity="one">%1$d workout</item>
+        <item quantity="other">%1$d workouts</item>
+    </plurals>
+    <plurals name="backup_settings">
+        <item quantity="one">%1$d setting</item>
+        <item quantity="other">%1$d settings</item>
+    </plurals>
+    <plurals name="backup_skipped">
+        <item quantity="one">%1$d workout was already on the device.</item>
+        <item quantity="other">%1$d workouts were already on the device.</item>
+    </plurals>
+    <string name="backup_restart_note_full">The app will restart so the theme and settings take effect. Sensor names appear after the next scan.</string>
+    <string name="backup_restart_note">The app will restart.</string>
+    <string name="backup_restart">Restart</string>
+
+    <!-- Drive-varmuuskopio -->
+    <string name="backup_drive_intro">Back up your workouts, steps and settings to Google Drive so you don\'t lose them when you get a new phone. The copy is saved in a hidden app folder in your account.</string>
+    <string name="backup_sign_in_prompt">Sign in with your Google account to save backups to your Drive.</string>
+    <string name="backup_sign_in">Sign in with Google</string>
+    <string name="backup_signed_in_as">Signed in as %1$s</string>
+    <string name="backup_drive_access_denied">Drive access wasn\'t granted.</string>
+    <string name="backup_sign_in_failed">Sign-in failed (%1$d).</string>
+    <string name="backup_signed_out">Signed out.</string>
+    <string name="backup_last">Last backup</string>
+    <string name="backup_date_pattern">d MMM HH:mm</string>
+    <string name="backup_none_yet">No backup yet</string>
+    <string name="backup_now">Back up</string>
+    <string name="backup_saved_drive">Backup saved to Drive (%1$s).</string>
+    <string name="backup_google_account">Google account</string>
+    <string name="backup_auto">Automatic backup</string>
+    <string name="backup_freq_daily">Daily</string>
+    <string name="backup_freq_weekly">Weekly</string>
+    <string name="backup_freq_monthly">Monthly</string>
+    <string name="backup_freq_manual">Manual only</string>
+    <string name="backup_freq_off">Off</string>
+    <string name="backup_restore">Restore backup</string>
+    <string name="backup_restore_sub">Download from Drive and replace current data</string>
+    <string name="backup_restore_confirm">This downloads the backup saved on Drive and merges it with your current data. The app will restart after restoring. Continue?</string>
+    <string name="backup_restore_action">Restore</string>
+    <string name="backup_sign_out">Sign out</string>
+
+    <!-- Koot: fi kt/Mt, sv ja en kB/MB -->
+    <string name="backup_size_bytes">%1$d B</string>
+    <string name="backup_size_kb">%1$.0f kB</string>
+    <string name="backup_size_mb">%1$.1f MB</string>
+
+    <!-- Virheet (näkyvät virhetoastissa) -->
+    <string name="backup_drive_no_account">No Drive account</string>
+    <string name="backup_drive_no_android_account">Couldn\'t access the Google account on this device</string>
+    <string name="backup_drive_no_backup">No backup has been saved to Drive</string>
+    <string name="backup_unknown_format">Unknown file format</string>
+    <string name="backup_newer_version">The backup is from a newer app version (v%1$d) – update the app first</string>
+    <string name="backup_prefs_write_failed">Couldn\'t write the settings to storage</string>
+</resources>

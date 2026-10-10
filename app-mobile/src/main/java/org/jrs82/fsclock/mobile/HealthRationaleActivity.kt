@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.jrs82.fsclock.R
@@ -33,6 +35,8 @@ import org.jrs82.fsclock.R
  * Korvasi 5000-rivisen legacy-MobileMainActivityn tässä roolissa (Compose-migraatio).
  */
 class HealthRationaleActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(FontScaleCap.wrap(newBase))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         MobileThemeController.apply(this)
@@ -52,10 +56,13 @@ private fun HealthRationaleScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             androidx.compose.material3.TopAppBar(
-                title = { Text("Terveystietojen käyttö") },
+                title = { Text(stringResource(R.string.settings_health_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.mobile_ic_arrow_back), contentDescription = "Takaisin")
+                        Icon(
+                            painterResource(R.drawable.mobile_ic_arrow_back),
+                            contentDescription = stringResource(R.string.common_back),
+                        )
                     }
                 },
             )
@@ -71,28 +78,23 @@ private fun HealthRationaleScreen(onBack: () -> Unit) {
             ArkiCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Miksi Arkikeskus pyytää Health Connect -oikeuksia?",
+                        stringResource(R.string.settings_health_why),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Arkikeskus lukee Health Connectista askeleet ja kalorit (aktiiviset ja " +
-                            "kokonaiskulutuksen), jotta Askeleet-sivu voi näyttää päivän askelmäärän, " +
-                            "kaloriarvion sekä päivä-, viikko- ja kuukausihistorian.",
+                        stringResource(R.string.settings_health_reads),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Tietoja käytetään vain näyttämiseen tässä sovelluksessa ja paikalliseen " +
-                            "HTML-vientiin, jonka teet itse. Tietoja ei lähetetä verkkoon eikä jaeta " +
-                            "kolmansille osapuolille. Sovellus ei kirjoita mitään Health Connectiin.",
+                        stringResource(R.string.settings_health_privacy),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Voit perua oikeudet milloin tahansa Health Connectin asetuksista — " +
-                            "askelmittari toimii silloin puhelimen oman anturin varassa.",
+                        stringResource(R.string.settings_health_revoke),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }

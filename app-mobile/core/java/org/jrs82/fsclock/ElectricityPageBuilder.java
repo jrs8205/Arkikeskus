@@ -20,6 +20,9 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 
+import org.jrs82.fsclock.mobile.AppLocale;
+import org.jrs82.fsclock.mobile.ElectricityVat;
+
 public final class ElectricityPageBuilder {
 
     private static final long POLL_INTERVAL_MS = 30L * 60_000L;
@@ -59,8 +62,8 @@ public final class ElectricityPageBuilder {
         tabs.setGravity(Gravity.CENTER);
         int tabPadTop = dp(8);
         tabs.setPadding(0, tabPadTop, 0, 0);
-        tabTodayBtn = buildTab("Tänään");
-        tabTomorrowBtn = buildTab("Huomenna");
+        tabTodayBtn = buildTab(ctx.getString(R.string.common_today));
+        tabTomorrowBtn = buildTab(ctx.getString(R.string.common_tomorrow));
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tabs.addView(tabTodayBtn, tp);
@@ -149,14 +152,14 @@ public final class ElectricityPageBuilder {
         if (qs.isEmpty()) {
             if (showingTomorrow) {
                 contentContainer.addView(buildEmptyText(
-                        "Huomisen hinnat eivät vielä saatavilla.\nNordPool julkaisee yleensä klo 14.\nPäivitetään automaattisesti…"));
+                        ctx.getString(R.string.electricity_tomorrow_not_yet)));
                 if (!firedFetchForTomorrow) {
                     firedFetchForTomorrow = true;
                     triggerFetch();
                 }
                 ensureTomorrowPollScheduled();
             } else {
-                contentContainer.addView(buildEmptyText("Ladataan…"));
+                contentContainer.addView(buildEmptyText(ctx.getString(R.string.common_loading)));
                 if (!firedFetchForToday) {
                     firedFetchForToday = true;
                     triggerFetch();
@@ -219,8 +222,9 @@ public final class ElectricityPageBuilder {
         row.setPadding(dp(8), dp(6), dp(8), dp(6));
 
         TextView cheapTv = new TextView(ctx);
-        cheapTv.setText(String.format(new Locale("fi", "FI"),
-                "Halvin: %02d:%02d  %.3f c/kWh", cheapest.hour, cheapest.minute, cheapest.sntPerKwh));
+        Locale locale = AppLocale.INSTANCE.current(ctx);
+        cheapTv.setText(ctx.getString(R.string.electricity_cheapest_at,
+                hm(cheapest), ElectricityVat.INSTANCE.format(cheapest.sntPerKwh, locale)));
         cheapTv.setTextColor(priceColor(cheapest.sntPerKwh));
         cheapTv.setTextSize(TypedValue.COMPLEX_UNIT_PX,
                 ctx.getResources().getDimension(R.dimen.page_body_text_size));
@@ -230,8 +234,8 @@ public final class ElectricityPageBuilder {
         row.addView(cheapTv, lp);
 
         TextView costTv = new TextView(ctx);
-        costTv.setText(String.format(new Locale("fi", "FI"),
-                "Kallein: %02d:%02d  %.3f c/kWh", costliest.hour, costliest.minute, costliest.sntPerKwh));
+        costTv.setText(ctx.getString(R.string.electricity_most_expensive_at,
+                hm(costliest), ElectricityVat.INSTANCE.format(costliest.sntPerKwh, locale)));
         costTv.setTextColor(priceColor(costliest.sntPerKwh));
         costTv.setTextSize(TypedValue.COMPLEX_UNIT_PX,
                 ctx.getResources().getDimension(R.dimen.page_body_text_size));
@@ -250,9 +254,14 @@ public final class ElectricityPageBuilder {
         dest.addView(div, dlp);
     }
 
+    private static String hm(ElectricityData.Quarter q) {
+        return String.format(Locale.US, "%02d:%02d", q.hour, q.minute);
+    }
+
     private void addQuartersToContainer(LinearLayout dest, List<ElectricityData.Quarter> qs,
                                         boolean highlightCurrent) {
         boolean tablet = UiMetrics.isTabletLike(ctx.getResources());
+        Locale locale = AppLocale.INSTANCE.current(ctx);
         long now = System.currentTimeMillis();
         currentRow = null;
         for (ElectricityData.Quarter q : qs) {
@@ -272,7 +281,7 @@ public final class ElectricityPageBuilder {
             float pricePx = isCurrent ? bodyLargePx * 1.4f : bodyLargePx;
 
             TextView time = new TextView(ctx);
-            time.setText(String.format(Locale.US, "%02d:%02d", q.hour, q.minute));
+            time.setText(hm(q));
             time.setTextColor(isCurrent ? 0xFFFFFFFF : 0xFFD0D0D0);
             time.setTextSize(TypedValue.COMPLEX_UNIT_PX, timePx);
             time.setTypeface(Typeface.MONOSPACE, isCurrent ? Typeface.BOLD : Typeface.NORMAL);
@@ -281,7 +290,7 @@ public final class ElectricityPageBuilder {
             row.addView(time, tlp);
 
             TextView price = new TextView(ctx);
-            price.setText(String.format(new Locale("fi", "FI"), "%.3f c/kWh", q.sntPerKwh));
+            price.setText(ElectricityVat.INSTANCE.format(q.sntPerKwh, locale) + " c/kWh");
             price.setTextSize(TypedValue.COMPLEX_UNIT_PX, pricePx);
             price.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
             price.setTextColor(priceColor(q.sntPerKwh));

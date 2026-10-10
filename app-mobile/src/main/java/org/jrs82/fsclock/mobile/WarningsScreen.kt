@@ -36,15 +36,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.FmiCounties
+import org.jrs82.fsclock.FmiWarningsClient
 import org.jrs82.fsclock.FmiWarningsRepository
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import org.jrs82.fsclock.WeatherWarning
 
 private const val KEY_WARN5_REGION = "warn5_region"
+// Koko maan valinnan tunniste prefsissä (vanha tallennettu arvo); näyttöteksti resursseista.
+private const val REGION_ALL = "Koko Suomi"
 
 /** "Sää" → Säävaroitukset: FMI:n 5 vrk -näkymä. Valitse päivä (ylärivi) + maakunta (pudotusvalikko),
  *  näytä valitun päivän + maakunnan varoitukset (Koko Suomi = kaikki maakunnat koottuna). */
@@ -55,59 +60,65 @@ internal fun WarningsSection() {
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
     val repo = remember { FmiWarningsRepository.get() }
+    val locale = AppLocale.current(context)
+    val infoKey = AppLocale.fmiInfoKey(locale)
+    val datePattern = stringResource(R.string.warning_date_pattern)
 
     var tick by remember { mutableStateOf(0) }
-    DisposableEffect(Unit) {
+    DisposableEffect(infoKey) {
         val main = Handler(Looper.getMainLooper())
         val l = FmiWarningsRepository.Listener { main.post { tick++ } }
         repo.addListener(l)
-        repo.refreshIfStale()
+        repo.refreshIfStale(infoKey)
         onDispose { repo.removeListener(l) }
     }
-    LaunchedEffect(refresh) { if (refresh > 0) repo.refreshNow() }
+    LaunchedEffect(refresh) { if (refresh > 0) repo.refreshNow(infoKey) }
 
-    val all = remember(tick) { repo.getLatest() }
-    val days = remember(tick) { daysFrom(System.currentTimeMillis()) }
+    val all = remember(tick, infoKey) { repo.getLatest(infoKey) }
+    val days = remember(tick, datePattern, locale) { daysFrom(System.currentTimeMillis(), datePattern, locale) }
     var dayIndex by remember { mutableStateOf(0) }
 
-    // maakuntavaihtoehdot: "Koko Suomi" + 19 maakuntaa
-    val regions = remember { listOf("Koko Suomi") + FmiCounties.ALL_REGIONS }
+    // maakuntavaihtoehdot: koko maa + 19 maakuntaa (suomenkieliset tunnisteet, näyttönimi erikseen)
+    val regions = remember { listOf(REGION_ALL) + FmiCounties.ALL_REGIONS }
     val homeRegion = remember { FinnishRegions.regionForPlace(SettingsManager.get().homePlace) }
     var region by remember {
         val saved = prefs.getString(KEY_WARN5_REGION, null)
-        val initial = saved?.takeIf { it in regions } ?: homeRegion?.takeIf { it in regions } ?: "Koko Suomi"
+        val initial = saved?.takeIf { it in regions } ?: homeRegion?.takeIf { it in regions } ?: REGION_ALL
         mutableStateOf(initial)
     }
     var menuOpen by remember { mutableStateOf(false) }
+    val allLabel = stringResource(R.string.warning_region_all)
+    fun regionLabel(r: String): String = if (r == REGION_ALL) allLabel else regionDisplayName(context, r)
 
     val day = days.getOrNull(dayIndex) ?: days.first()
     val shown = remember(all, dayIndex, region, tick) {
-        warningsFor(all, day, if (region == "Koko Suomi") null else region)
+        warningsFor(all, day, if (region == REGION_ALL) null else region)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(12.dp))
-        Text("Säävaroitukset", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.warning_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(10.dp))
         // Päivärivi
         Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             days.forEachIndexed { i, d ->
-                FilterChip(selected = i == dayIndex, onClick = { dayIndex = i }, label = { Text(d.label) })
+                FilterChip(selected = i == dayIndex, onClick = { dayIndex = i },
+                    label = { Text(d.chipLabel().resolve(context)) })
             }
         }
         Spacer(Modifier.height(10.dp))
         // Maakunta-pudotusvalikko
         ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = it }) {
             OutlinedTextField(
-                value = region, onValueChange = {}, readOnly = true,
-                label = { Text("Alue") },
+                value = regionLabel(region), onValueChange = {}, readOnly = true,
+                label = { Text(stringResource(R.string.warning_region_label)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuOpen) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
             )
             ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 regions.forEach { r ->
-                    DropdownMenuItem(text = { Text(r) }, onClick = {
+                    DropdownMenuItem(text = { Text(regionLabel(r)) }, onClick = {
                         region = r; menuOpen = false
                         prefs.edit().putString(KEY_WARN5_REGION, r).apply()
                     })
@@ -117,7 +128,7 @@ internal fun WarningsSection() {
         Spacer(Modifier.height(12.dp))
         if (shown.isEmpty()) {
             Text(
-                "Ei varoituksia — $region, ${day.label.lowercase()}.",
+                stringResource(R.string.warning_none, regionLabel(region), day.inlineLabel().resolve(context)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -134,6 +145,7 @@ internal fun WarningsSection() {
 private fun WarningCard(context: Context, w: WeatherWarning) {
     val arki = ArkiTheme.colors
     val levelColor = Color(w.level.color)
+    val locale = AppLocale.current(context)
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -141,25 +153,27 @@ private fun WarningCard(context: Context, w: WeatherWarning) {
                 Spacer(Modifier.width(11.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        if (w.event.isNotEmpty()) w.event else w.awarenessType.fiName.ifEmpty { "Varoitus" },
+                        // event = FMI:n warning_context; tuntematon laji saa yleisnimen
+                        stringResource(FmiWarningsClient.eventFor(w.event).nameRes),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     if (w.areaDesc.isNotEmpty()) {
                         Text(
-                            w.areaDesc,
+                            localizedAreaDesc(context, w.areaDesc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-                if (w.level.fiName.isNotEmpty()) ArkiPill(w.level.fiName, levelColor)
+                if (w.level.nameRes != 0) ArkiPill(stringResource(w.level.nameRes), levelColor)
             }
             if (w.marine) {
                 Spacer(Modifier.height(8.dp))
-                ArkiPill("Veneily", arki.weatherAccent)
+                ArkiPill(stringResource(R.string.warning_marine), arki.weatherAccent)
             }
-            val period = warningPeriod(w.onsetMs, w.expiresMs)
+            val period = warningPeriod(w.onsetMs, w.expiresMs, stringResource(R.string.warning_period_pattern), locale)
+                ?.resolve(context).orEmpty()
             if (period.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
                 Text(period, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -170,12 +184,10 @@ private fun WarningCard(context: Context, w: WeatherWarning) {
                 Spacer(Modifier.height(6.dp))
                 Text(bodyText, style = MaterialTheme.typography.bodyMedium)
             }
-            if (w.details.probabilityPct >= 0 || w.details.physicalText.isNotEmpty()) {
+            val highlight = listOfNotNull(physicalText(w, locale), probabilityText(w.details.probabilityPct))
+                .joinToString("  ·  ") { it.resolve(context) }
+            if (highlight.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                val highlight = buildList {
-                    if (w.details.physicalText.isNotEmpty()) add(w.details.physicalText)
-                    if (w.details.probabilityPct >= 0) add("Todennäköisyys ${w.details.probabilityPct} %")
-                }.joinToString("  ·  ")
                 Text(
                     highlight,
                     style = MaterialTheme.typography.bodyMedium,
@@ -184,10 +196,11 @@ private fun WarningCard(context: Context, w: WeatherWarning) {
                 )
             }
             val meta = listOf(
-                severityFi(w.severity).let { if (it.isNotEmpty()) "Vakavuus: $it" else "" },
-                certaintyFi(w.certainty).let { if (it.isNotEmpty()) "Varmuus: $it" else "" },
-                urgencyFi(w.urgency).let { if (it.isNotEmpty()) "Kiireellisyys: $it" else "" },
-            ).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                R.string.warning_meta_severity to severityRes(w.severity),
+                R.string.warning_meta_certainty to certaintyRes(w.certainty),
+                R.string.warning_meta_urgency to urgencyRes(w.urgency),
+            ).mapNotNull { (label, value) -> value?.let { context.getString(label, context.getString(it)) } }
+                .joinToString("  ·  ")
             if (meta.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -195,14 +208,14 @@ private fun WarningCard(context: Context, w: WeatherWarning) {
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (w.senderName.isNotEmpty()) w.senderName else "Ilmatieteen laitos",
+                    w.senderName.ifEmpty { stringResource(R.string.warning_sender_fmi) },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 if (w.web.isNotEmpty()) {
                     Text(
-                        "Lisätietoja",
+                        stringResource(R.string.warning_more_info),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,

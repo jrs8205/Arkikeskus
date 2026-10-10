@@ -2,6 +2,7 @@ package org.jrs82.fsclock.mobile;
 
 import android.content.Context;
 
+import org.jrs82.fsclock.R;
 import org.jrs82.fsclock.db.DailyStepsEntity;
 import org.jrs82.fsclock.db.FsClockDb;
 
@@ -20,11 +21,6 @@ import java.util.Map;
  *  ([StepCalorieEstimator.activeKcal]); kcal = 0 (ei profiilia/askelia) → UI jättää kalorit pois. */
 final class StepsHistory {
 
-    private static final Locale FI = new Locale("fi");
-    private static final String[] MONTHS_FI = {
-            "Tammikuu", "Helmikuu", "Maaliskuu", "Huhtikuu", "Toukokuu", "Kesäkuu",
-            "Heinäkuu", "Elokuu", "Syyskuu", "Lokakuu", "Marraskuu", "Joulukuu"};
-
     private StepsHistory() {}
 
     /** Yksi historiarivi (lista uusin ensin). kcal = aktiivinen kaloriarvio (0 = ei näytetä). */
@@ -39,12 +35,6 @@ final class StepsHistory {
         }
     }
 
-    /** Suomenkielinen kuukauden nimi (1 = tammikuu). Jaettu HC-historian otsikoinnin kanssa. */
-    static String monthNameFi(int monthValue) {
-        if (monthValue < 1 || monthValue > 12) return "?";
-        return MONTHS_FI[monthValue - 1];
-    }
-
     /** Historiarivit raw-lähteelle. [heightCm]/[weightKg]/[stepCm] = profiili kaloriarviolle
      *  (puuttuva pituus/paino → kcal = 0). tab: 1 = päivät, 2 = viikot, muu = kuukaudet. */
     static List<Row> buildRows(Context ctx, int tab, double heightCm, double weightKg, double stepCm) {
@@ -52,11 +42,11 @@ final class StepsHistory {
         Calendar now = Calendar.getInstance();
         List<Row> rows = new ArrayList<>();
         if (tab == 1) {
-            buildDays(db, now, rows, heightCm, weightKg, stepCm);
+            buildDays(ctx, db, now, rows, heightCm, weightKg, stepCm);
         } else if (tab == 2) {
-            buildWeeks(db, now, rows, heightCm, weightKg, stepCm);
+            buildWeeks(ctx, db, now, rows, heightCm, weightKg, stepCm);
         } else {
-            buildMonths(db, now, rows, heightCm, weightKg, stepCm);
+            buildMonths(ctx, db, now, rows, heightCm, weightKg, stepCm);
         }
         return rows;
     }
@@ -75,11 +65,12 @@ final class StepsHistory {
         return map;
     }
 
-    private static void buildDays(FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
+    private static void buildDays(Context ctx, FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
         Calendar from = (Calendar) now.clone();
         from.add(Calendar.DAY_OF_MONTH, -13);
         Map<Integer, Integer> map = rangeMap(db, StepCounter.dateKey(from), StepCounter.dateKey(now));
-        SimpleDateFormat fmt = new SimpleDateFormat("EEE d.M.", FI);
+        // Viikonpäivä + päivä kielen kuviolla (fi "ma 9.10.", sv "mån 9.10.", en "Mon 9 Oct").
+        SimpleDateFormat fmt = new SimpleDateFormat(ctx.getString(R.string.steps_day_pattern), AppLocale.INSTANCE.current(ctx));
         Calendar c = (Calendar) now.clone();
         for (int i = 0; i < 14; i++) {
             Integer steps = map.get(StepCounter.dateKey(c));
@@ -89,7 +80,7 @@ final class StepsHistory {
         }
     }
 
-    private static void buildWeeks(FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
+    private static void buildWeeks(Context ctx, FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
         // Kohdista ikkunan alku 7 viikkoa taakse JA viikon alkuun (maanantai), jotta kaikki 8 viikkoa
         // ovat täysiä eikä reunapäiviä putoa eri (9.) viikolle, jonka numeroa ei ole listassa.
         Calendar from = (Calendar) now.clone();
@@ -121,11 +112,12 @@ final class StepsHistory {
             d.add(Calendar.DAY_OF_MONTH, 1);
         }
         for (int w = 0; w < 8; w++) {
-            out.add(new Row("Viikko " + weekNum[w], weekSum[w], kcalFor(weekSum[w], h, wKg, stepCm)));
+            out.add(new Row(ctx.getString(R.string.steps_week_label, weekNum[w]), weekSum[w],
+                    kcalFor(weekSum[w], h, wKg, stepCm)));
         }
     }
 
-    private static void buildMonths(FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
+    private static void buildMonths(Context ctx, FsClockDb db, Calendar now, List<Row> out, double h, double wKg, double stepCm) {
         Calendar from = (Calendar) now.clone();
         from.add(Calendar.MONTH, -5);
         from.set(Calendar.DAY_OF_MONTH, 1);
@@ -152,8 +144,11 @@ final class StepsHistory {
             }
             d.add(Calendar.DAY_OF_MONTH, 1);
         }
+        Locale loc = AppLocale.INSTANCE.current(ctx);
         for (int m = 0; m < 6; m++) {
-            out.add(new Row(MONTHS_FI[month[m]] + " " + year[m], sums[m], kcalFor(sums[m], h, wKg, stepCm)));
+            // Calendar.MONTH on 0-pohjainen, java.time 1-pohjainen.
+            out.add(new Row(WorkoutStats.monthLabel(year[m], month[m] + 1, loc), sums[m],
+                    kcalFor(sums[m], h, wKg, stepCm)));
         }
     }
 }

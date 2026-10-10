@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cameras_loading_all">Alla kameror läses in…</string>
+    <string name="cameras_load_failed">Det gick inte att hämta väglagskamerorna.</string>
+    <string name="cameras_none">Inga väglagskameror.</string>
+    <string name="cameras_loaded">Kamerorna har lästs in</string>
+    <string name="cameras_search_hint">Sök väg eller ort</string>
+    <string name="cameras_image">Bild från väglagskamera: %1$s</string>
+</resources>

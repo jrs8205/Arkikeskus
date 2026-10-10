@@ -2,6 +2,8 @@ package org.jrs82.fsclock;
 
 import android.util.Log;
 
+import androidx.annotation.StringRes;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -15,17 +17,34 @@ import java.util.List;
 
 /** Hakee FMI:n GeoServerin 5 vrk:n varoitukset ja parsii JOKAISEN featuren WeatherWarningiksi
  *  (areaDesc=maakunta, level=severity, event/awarenessType=warning_context, details=prob/physical).
- *  Sivun varoituslähde (korvaa MeteoAlarmin sivulla; MeteoAlarm jää ilmoituksiin). */
+ *  Sivun varoituslähde (korvaa MeteoAlarmin sivulla; MeteoAlarm jää ilmoituksiin).
+ *  {@code event} on FMI:n konetunniste (esim. "hot-weather"); näyttönimi {@link #eventFor}.nameRes. */
 public class FmiWarningsClient {
 
     private static final String TAG = "FmiWarnings";
     private static final String URL =
         "https://www.ilmatieteenlaitos.fi/geoserver/alert/ows?service=WFS&version=2.0.0"
         + "&request=GetFeature&typeName=alert:weather_finland_active_all&outputFormat=application/json";
-    private static final String FMI_WEB = "https://www.ilmatieteenlaitos.fi/varoitukset";
+    private static final String FMI_WEB_FI = "https://www.ilmatieteenlaitos.fi/varoitukset";
+    private static final String FMI_WEB_SV = "https://sv.ilmatieteenlaitos.fi/varningar";
+    private static final String FMI_WEB_EN = "https://en.ilmatieteenlaitos.fi/warnings";
     private static final int TIMEOUT_MS = 15000;
 
-    public List<WeatherWarning> fetch() throws Exception {
+    /** FMI-varoituslaji: näyttönimi, ilmiötyyppi ja merivaroituslippu. */
+    public static final class FmiEvent {
+        @StringRes public final int nameRes;
+        public final WeatherWarning.AwarenessType type;
+        public final boolean marine;
+
+        FmiEvent(int nameRes, WeatherWarning.AwarenessType type, boolean marine) {
+            this.nameRes = nameRes;
+            this.type = type;
+            this.marine = marine;
+        }
+    }
+
+    /** @param infoKey tekstikenttä {@code info_fi|info_sv|info_en} (AppLocale.fmiInfoKey). */
+    public List<WeatherWarning> fetch(String infoKey) throws Exception {
         HttpURLConnection conn = null;
         InputStream in = null;
         try {
@@ -41,15 +60,16 @@ public class FmiWarningsClient {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
             String line;
             while ((line = br.readLine()) != null) sb.append(line);
-            return parse(sb.toString());
+            return parse(sb.toString(), infoKey);
         } finally {
             if (in != null) try { in.close(); } catch (Exception ignored) {}
             if (conn != null) conn.disconnect();
         }
     }
 
-    List<WeatherWarning> parse(String json) throws Exception {
+    List<WeatherWarning> parse(String json, String infoKey) throws Exception {
         List<WeatherWarning> out = new ArrayList<>();
+        String web = webFor(infoKey);
         JSONObject root = new JSONObject(json);
         JSONArray feats = root.optJSONArray("features");
         if (feats == null) return out;
@@ -61,9 +81,7 @@ public class FmiWarningsClient {
             String context = p.optString("warning_context", "");
             if (context.isEmpty()) continue;
 
-            String[] ev = eventFor(context); // {event, awarenessTypeName, marineFlag}
-            WeatherWarning.AwarenessType type = WeatherWarning.AwarenessType.valueOf(ev[1]);
-            boolean marine = "1".equals(ev[2]);
+            FmiEvent ev = eventFor(context);
             WeatherWarning.Level level = WeatherWarning.Level.fromFmiSeverity(p.optString("severity", ""));
             String area = FmiCounties.regionForRef(p.optString("reference", ""));
 
@@ -71,35 +89,42 @@ public class FmiWarningsClient {
                     ? p.optInt("actualization_probability", -1) : -1;
             double pv = p.has("physical_value") && !p.isNull("physical_value")
                     ? p.optDouble("physical_value", Double.NaN) : Double.NaN;
-            String physicalText = FmiWarningDetailsClient.formatPhysical(pv, p.optString("physical_unit", ""));
-            String desc = FmiWarningDetailsClient.decodeEntities(p.optString("info_fi", ""));
+            String unit = p.isNull("physical_unit") ? "" : p.optString("physical_unit", "");
+            String desc = FmiWarningDetailsClient.infoText(p, infoKey);
             long onset = FmiWarningDetailsClient.parseIsoUtc(p.optString("effective_from", null));
             long expires = FmiWarningDetailsClient.parseIsoUtc(p.optString("effective_until", null));
             String id = p.optString("identifier", context + "|" + area + "|" + onset);
 
             WeatherWarning w = new WeatherWarning(
-                    ev[0], desc, area, onset, expires, level, id, marine,
-                    type, "", "", "", 0L, "Ilmatieteen laitos", FMI_WEB,
-                    new WarningDetails(prob, physicalText, ""));
+                    context, desc, area, onset, expires, level, id, ev.marine,
+                    ev.type, "", "", "", 0L, "", web,
+                    new WarningDetails(prob, pv, unit, ""));
             out.add(w);
         }
         Log.d(TAG, "Parsed " + out.size() + " FMI 5d warnings");
         return out;
     }
 
-    /** warning_context → {event, AwarenessType.name(), marine("1"/"0")}. */
-    static String[] eventFor(String context) {
-        switch (context) {
-            case "forest-fire-weather": return new String[]{"Maastopalovaroitus", "FOREST_FIRE", "0"};
-            case "hot-weather":         return new String[]{"Hellevaroitus", "HIGH_TEMPERATURE", "0"};
-            case "rain":                return new String[]{"Sadevaroitus", "RAIN", "0"};
-            case "thunder-storm":       return new String[]{"Ukkosvaroitus", "THUNDERSTORM", "0"};
-            case "sea-thunder-storm":   return new String[]{"Huomautus veneilijöille", "THUNDERSTORM", "1"};
-            case "uv-note":             return new String[]{"UV-tiedote", "UV", "0"};
-            case "cold-weather":        return new String[]{"Pakkasvaroitus", "LOW_TEMPERATURE", "0"};
-            case "wind":                return new String[]{"Tuulivaroitus", "WIND", "0"};
-            case "flood":               return new String[]{"Tulvavaroitus", "FLOOD", "0"};
-            default:                    return new String[]{"Varoitus", "UNKNOWN", "0"};
+    /** warning_context → näyttönimi + tyyppi + merilippu. Tuntematon laji → yleinen "Varoitus". */
+    public static FmiEvent eventFor(String context) {
+        switch (context == null ? "" : context) {
+            case "forest-fire-weather": return new FmiEvent(R.string.warning_event_forest_fire, WeatherWarning.AwarenessType.FOREST_FIRE, false);
+            case "hot-weather":         return new FmiEvent(R.string.warning_event_heat, WeatherWarning.AwarenessType.HIGH_TEMPERATURE, false);
+            case "rain":                return new FmiEvent(R.string.warning_event_rain, WeatherWarning.AwarenessType.RAIN, false);
+            case "thunder-storm":       return new FmiEvent(R.string.warning_event_thunderstorm, WeatherWarning.AwarenessType.THUNDERSTORM, false);
+            case "sea-thunder-storm":   return new FmiEvent(R.string.warning_event_boaters, WeatherWarning.AwarenessType.THUNDERSTORM, true);
+            case "uv-note":             return new FmiEvent(R.string.warning_event_uv, WeatherWarning.AwarenessType.UV, false);
+            case "cold-weather":        return new FmiEvent(R.string.warning_event_cold, WeatherWarning.AwarenessType.LOW_TEMPERATURE, false);
+            case "wind":                return new FmiEvent(R.string.warning_event_wind, WeatherWarning.AwarenessType.WIND, false);
+            case "flood":               return new FmiEvent(R.string.warning_event_flood, WeatherWarning.AwarenessType.FLOOD, false);
+            default:                    return new FmiEvent(R.string.warning_event_generic, WeatherWarning.AwarenessType.UNKNOWN, false);
         }
+    }
+
+    /** FMI:n varoitussivu samalla kielellä kuin teksti. */
+    static String webFor(String infoKey) {
+        if ("info_sv".equals(infoKey)) return FMI_WEB_SV;
+        if ("info_en".equals(infoKey)) return FMI_WEB_EN;
+        return FMI_WEB_FI;
     }
 }

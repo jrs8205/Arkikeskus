@@ -17,6 +17,16 @@ class FmiCountiesTest {
         assertEquals("", FmiCounties.regionForRef("nonsense"))
     }
     @Test fun allRegionsHas19() { assertEquals(19, FmiCounties.ALL_REGIONS.size) }
+    @Test fun displayNamesAreResources() {
+        assertEquals(R.string.region_uusimaa, FmiCounties.nameRes("Uusimaa"))
+        assertEquals(R.string.region_ahvenanmaa, FmiCounties.nameRes("Ahvenanmaa"))
+        assertEquals(0, FmiCounties.nameRes("Suomenlahden itäosa"))
+        assertEquals(0, FmiCounties.nameRes(null))
+        val all = FmiCounties.ALL_REGIONS.map { FmiCounties.nameRes(it) }
+        assertTrue(all.none { it == 0 })
+        assertEquals(19, all.toSet().size)
+    }
+
     @Test fun indexOfOrdersByList() {
         assertTrue(FmiCounties.indexOf("Uusimaa") < FmiCounties.indexOf("Lappi"))
         assertEquals(-1, FmiCounties.indexOf("Mordor"))

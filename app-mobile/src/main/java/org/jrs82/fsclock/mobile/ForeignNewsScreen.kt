@@ -1,6 +1,8 @@
 package org.jrs82.fsclock.mobile
 
+import android.content.Context
 import android.widget.ImageView
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,6 +57,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,23 +71,32 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
 
-/** Kategoriat (API-tagi → suomenkielinen nappi). null = kaikki (lomitettu + personoitu). */
-private val FOREIGN_CATEGORIES: List<Pair<String?, String>> = listOf(
-    null to "Kaikki",
-    "world" to "Maailma",
-    "tech" to "Teknologia",
-    "mobile" to "Mobiili",
-    "sport" to "Urheilu",
-    "culture" to "Kulttuuri",
-    "entertainment" to "Viihde",
-    "science" to "Tiede",
-    "nature" to "Luonto",
-    "fashion" to "Kauneus & muoti",
+/** Kategoriat (API-tagi → napin nimi). null = kaikki (lomitettu + personoitu). */
+private val FOREIGN_CATEGORIES: List<Pair<String?, Int>> = listOf(
+    null to R.string.news_cat_all,
+    "world" to R.string.news_cat_world,
+    "tech" to R.string.news_cat_tech,
+    "mobile" to R.string.news_cat_mobile,
+    "sport" to R.string.news_cat_sport,
+    "culture" to R.string.news_cat_culture,
+    "entertainment" to R.string.news_cat_entertainment,
+    "science" to R.string.news_cat_science,
+    "nature" to R.string.news_cat_nature,
+    "fashion" to R.string.news_cat_fashion,
 )
 
+/** Uutiskategoria: API-tagi + nimen resurssi. */
+internal class NewsCategory(val tag: String, @StringRes val labelRes: Int) {
+    // Pair-muotoiset nimet säilytetään, jotta asetusnäkymän (SettingsScreen) .first/.second-kutsut
+    // kääntyvät ennallaan; nimi luetaan resursseista, joten .second vaatii kompositiokontekstin.
+    val first: String get() = tag
+    val second: String
+        @Composable get() = stringResource(labelRes)
+}
+
 /** Kaikki oikeat kategoriatagit (ilman "Kaikki"-näkymää). Käytetään myös asetusten valikossa. */
-internal val FOREIGN_CATEGORY_TAGS: List<Pair<String, String>> =
-    FOREIGN_CATEGORIES.mapNotNull { (tag, label) -> tag?.let { it to label } }
+internal val FOREIGN_CATEGORY_TAGS: List<NewsCategory> =
+    FOREIGN_CATEGORIES.mapNotNull { (tag, label) -> tag?.let { NewsCategory(it, label) } }
 
 private const val FOREIGN_LIMIT = 100
 
@@ -96,6 +109,9 @@ private const val READ_TAG = "__read__"
  * pysyvät tuoreusjärjestyksessä. Napautus kirjaa klikin + avaa jutun selaimeen (Custom Tabs).
  * Yläpalkin suodatin-ikoni avaa mykistyssanat-paneelin ([NewsFilterSheet]).
  */
+/** Ulkomaat-otsikoiden oletuskieli: suomeksi suomennos, muille alkuperäinen (yleensä englanti). */
+internal fun originalTitlesByDefault(context: Context): Boolean = AppLocale.language(context) != "fi"
+
 @Composable
 internal fun NewsCategoryScreen(domestic: Boolean) {
     val context = LocalContext.current
@@ -103,7 +119,8 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
     // Uutisten oma tick: ei hae paluulla selaimesta/taustalta, vain kylmästart/Päivitä/väli.
     val refresh = LocalNewsRefreshTick.current
     var selectedTopic by remember { mutableStateOf<String?>(null) }
-    var showOriginal by remember { mutableStateOf(false) }
+    // Ulkomaat: backend suomentaa otsikot; muunkieliselle kayttajalle alkuperainen (yleensa englanti) on luontevampi.
+    var showOriginal by remember { mutableStateOf(!domestic && originalTitlesByDefault(context)) }
     var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     // Kategorianäkymä, jossa kaikki haetut on jo luettu → erota "kaikki luettu" tyhjästä hausta (B3).
@@ -217,7 +234,7 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (domestic) "Kotimaat" else "Ulkomaat",
+                stringResource(if (domestic) R.string.news_title_domestic else R.string.news_title_foreign),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -226,7 +243,9 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
             // otsikoita; jutut avautuvat selaimeen alkukielellä. Nappi näyttää kohdekielen.
             if (!domestic) {
                 Pill(
-                    text = if (showOriginal) "Otsikot suomeksi" else "Otsikot englanniksi",
+                    text = stringResource(
+                        if (showOriginal) R.string.news_titles_in_finnish else R.string.news_titles_in_english,
+                    ),
                     selected = false,
                 ) { showOriginal = !showOriginal }
                 Spacer(Modifier.width(8.dp))
@@ -243,21 +262,25 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
         ) {
             FOREIGN_CATEGORIES.forEach { (tag, label) ->
                 if (tag == null || tag in visibleCats) {
-                    Pill(text = label, selected = tag == selectedTopic) { selectedTopic = tag }
+                    Pill(text = stringResource(label), selected = tag == selectedTopic) { selectedTopic = tag }
                     Spacer(Modifier.width(8.dp))
                 }
             }
             // "Luetut" aina viimeisenä siruna — jo luetut jutut, ei kategorianäkyvyyden alainen.
-            Pill(text = "Luetut", selected = selectedTopic == READ_TAG) { selectedTopic = READ_TAG }
+            Pill(text = stringResource(R.string.news_tab_read), selected = selectedTopic == READ_TAG) { selectedTopic = READ_TAG }
             Spacer(Modifier.width(8.dp))
         }
         Spacer(Modifier.height(10.dp))
         // "Kaikki"-näkymä on personoitu (tuoreus + sinua kiinnostavat) → selitä järjestys.
         // Kategorianäkymät ovat puhdas aikajärjestys. Suodattimen piilottamat näytetään statusrivillä.
-        val muteNote = if (muteEnabled && mutedHidden > 0) "$mutedHidden piilotettu suodattimella" else ""
+        val muteNote = if (muteEnabled && mutedHidden > 0) {
+            pluralStringResource(R.plurals.news_hidden_by_filter, mutedHidden, mutedHidden)
+        } else {
+            ""
+        }
         if (selectedTopic == null) {
             Text(
-                "Tuoreimmat ensin · järjestys mukautuu lukemiisi aiheisiin" +
+                stringResource(R.string.news_order_personal) +
                     if (muteNote.isNotEmpty()) " · $muteNote" else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -265,14 +288,14 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
             Spacer(Modifier.height(8.dp))
         } else if (selectedTopic == READ_TAG) {
             Text(
-                "Viimeksi lukemasi · uusin ylimpänä (enintään 100)",
+                stringResource(R.string.news_order_read),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
         } else if (muteNote.isNotEmpty()) {
             Text(
-                "Tuoreimmat ensin · $muteNote",
+                stringResource(R.string.news_order_newest) + " · " + muteNote,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -280,17 +303,19 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
         }
         when {
             loading -> Text(
-                "Haetaan uutisia…",
+                stringResource(R.string.news_loading),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             items.isEmpty() -> Text(
-                when {
-                    selectedTopic == READ_TAG -> "Et ole vielä lukenut uutisia."
-                    allFilteredRead -> "Olet lukenut tämän kategorian tuoreet uutiset."
-                    muteNote.isNotEmpty() -> "Kaikki tämän näkymän uutiset on piilotettu suodattimella."
-                    else -> "Ei uutisia juuri nyt. Päivitä alapalkin painikkeesta."
-                },
+                stringResource(
+                    when {
+                        selectedTopic == READ_TAG -> R.string.news_empty_read
+                        allFilteredRead -> R.string.news_empty_all_read
+                        muteNote.isNotEmpty() -> R.string.news_empty_filtered
+                        else -> R.string.news_empty
+                    },
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -352,7 +377,7 @@ private fun FilterIconButton(active: Boolean, count: Int, onClick: () -> Unit) {
     ) {
         Icon(
             painterResource(R.drawable.mobile_ic_tune_24),
-            contentDescription = "Uutissuodatin",
+            contentDescription = stringResource(R.string.news_filter),
             tint = if (active) ArkiTheme.colors.newsAccent else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(23.dp),
         )
@@ -423,9 +448,9 @@ private fun NewsFilterSheet(
                 }
                 Spacer(Modifier.width(11.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Mykistetyt sanat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.news_mute_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        "Piilota uutiset, joiden otsikossa on sana",
+                        stringResource(R.string.news_mute_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -440,7 +465,7 @@ private fun NewsFilterSheet(
                 ) {
                     Icon(
                         painterResource(R.drawable.mobile_ic_close_24),
-                        contentDescription = "Sulje",
+                        contentDescription = stringResource(R.string.common_close),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
@@ -457,9 +482,9 @@ private fun NewsFilterSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Suodatus käytössä", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.news_mute_enabled), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        if (enabled) "Mykistetyt sanat piilotetaan" else "Kaikki uutiset näkyvät",
+                        stringResource(if (enabled) R.string.news_mute_enabled_on else R.string.news_mute_enabled_off),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -469,7 +494,7 @@ private fun NewsFilterSheet(
             Spacer(Modifier.height(18.dp))
             // Aihepaketit
             Text(
-                "AIHEET",
+                stringResource(R.string.news_mute_topics),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -480,7 +505,7 @@ private fun NewsFilterSheet(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(pack.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(pack.labelRes), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     Switch(
                         checked = pack.id in activePackIds,
                         onCheckedChange = { onTogglePack(pack.id, it) },
@@ -490,7 +515,7 @@ private fun NewsFilterSheet(
             Spacer(Modifier.height(16.dp))
             // Sanat (N)
             Text(
-                "SANAT (${words.size})",
+                stringResource(R.string.news_mute_words, words.size),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -498,7 +523,7 @@ private fun NewsFilterSheet(
             Spacer(Modifier.height(10.dp))
             if (words.isEmpty()) {
                 Text(
-                    "Ei mykistettyjä sanoja vielä.",
+                    stringResource(R.string.news_mute_no_words),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -517,7 +542,7 @@ private fun NewsFilterSheet(
                 TextField(
                     value = input,
                     onValueChange = { input = it },
-                    placeholder = { Text("Lisää sana, esim. huhu") },
+                    placeholder = { Text(stringResource(R.string.news_mute_add_hint)) },
                     singleLine = true,
                     leadingIcon = {
                         Icon(painterResource(R.drawable.mobile_ic_add_24), contentDescription = null, modifier = Modifier.size(19.dp))
@@ -544,7 +569,7 @@ private fun NewsFilterSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "Lisää",
+                        stringResource(R.string.common_add),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimary,
@@ -553,8 +578,7 @@ private fun NewsFilterSheet(
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                "Vihje: mykistys osuu otsikon sanoihin. Kategoriat tuovat aiheen sisään, " +
-                    "mykistetyt sanat poistavat tarkasti.",
+                stringResource(R.string.news_mute_tip),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -577,7 +601,7 @@ private fun MutedWordChip(word: String, onRemove: () -> Unit) {
         Spacer(Modifier.width(7.dp))
         Icon(
             painterResource(R.drawable.mobile_ic_close_24),
-            contentDescription = "Poista",
+            contentDescription = stringResource(R.string.news_mute_remove, word),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(17.dp),
         )
@@ -590,18 +614,17 @@ internal fun NewsOnboardingDialog(onDone: (List<String>) -> Unit, onSkip: () -> 
     val selected = remember { mutableStateListOf<String>() }
     AlertDialog(
         onDismissRequest = onSkip,
-        title = { Text("Mitkä aiheet kiinnostavat?") },
+        title = { Text(stringResource(R.string.news_onboarding_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    "Valitse aiheet joista haluat uutisia — näytämme vain valitsemiasi kategorioita " +
-                        "(sekä koti- että ulkomaat). Jos et valitse mitään, näytetään kaikki. " +
-                        "Voit muuttaa valintoja myöhemmin asetuksista.",
+                    stringResource(R.string.news_onboarding_body),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
-                FOREIGN_CATEGORY_TAGS.forEach { (tag, label) ->
+                FOREIGN_CATEGORY_TAGS.forEach { cat ->
+                    val tag = cat.tag
                     val checked = tag in selected
                     Row(
                         modifier = Modifier
@@ -610,13 +633,13 @@ internal fun NewsOnboardingDialog(onDone: (List<String>) -> Unit, onSkip: () -> 
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Checkbox(checked = checked, onCheckedChange = { if (checked) selected.remove(tag) else selected.add(tag) })
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(cat.labelRes), style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onDone(selected.toList()) }) { Text("Valmis") } },
-        dismissButton = { TextButton(onClick = onSkip) { Text("Ohita") } },
+        confirmButton = { TextButton(onClick = { onDone(selected.toList()) }) { Text(stringResource(R.string.news_onboarding_done)) } },
+        dismissButton = { TextButton(onClick = onSkip) { Text(stringResource(R.string.news_onboarding_skip)) } },
     )
 }
 
@@ -686,7 +709,7 @@ private fun ForeignNewsRow(a: ForeignArticle, showOriginal: Boolean, boosted: Bo
                 }
                 if (boosted) {
                     Text(
-                        " · suositeltu",
+                        " · " + stringResource(R.string.news_recommended),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = ArkiTheme.colors.newsAccent,
@@ -695,7 +718,7 @@ private fun ForeignNewsRow(a: ForeignArticle, showOriginal: Boolean, boosted: Bo
             }
             if (a.relatedCount > 0) {
                 Text(
-                    "+ ${a.relatedCount} muuta lähdettä",
+                    pluralStringResource(R.plurals.news_related_sources, a.relatedCount, a.relatedCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp),
@@ -706,15 +729,16 @@ private fun ForeignNewsRow(a: ForeignArticle, showOriginal: Boolean, boosted: Bo
 }
 
 /** Suhteellinen ikä ("12 min", "3 h", "2 pv"). Tyhjä jos aikaleima puuttuu. */
+@Composable
 private fun foreignAge(ms: Long): String {
     if (ms <= 0L) return ""
     val diff = System.currentTimeMillis() - ms
     if (diff < 0L) return ""
     val min = diff / 60_000L
     return when {
-        min < 1L -> "juuri nyt"
-        min < 60L -> "$min min"
-        min < 1440L -> "${min / 60L} h"
-        else -> "${min / 1440L} pv"
+        min < 1L -> stringResource(R.string.news_age_just_now)
+        min < 60L -> stringResource(R.string.news_age_minutes, min.toInt())
+        min < 1440L -> stringResource(R.string.news_age_hours, (min / 60L).toInt())
+        else -> stringResource(R.string.news_age_days, (min / 1440L).toInt())
     }
 }

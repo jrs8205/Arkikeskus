@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Asetusten varmuuskopiorivit ja tiedostovarmuuskopio -->
+    <string name="backup_title">Varmuuskopiointi</string>
+    <string name="backup_drive_row">Varmuuskopiointi Driveen</string>
+    <string name="backup_drive_row_sub">WhatsApp-tyylinen Google Drive -varmuuskopio</string>
+    <string name="backup_export_row">Vie varmuuskopio (tiedostoon)</string>
+    <string name="backup_export_row_sub">Asetukset ja lenkit yhteen tiedostoon (esim. Driveen)</string>
+    <string name="backup_import_row">Palauta varmuuskopio (tiedostosta)</string>
+    <string name="backup_import_row_sub">Tuo aiemmin viety varmuuskopiotiedosto</string>
+    <string name="backup_file_name">Arkikeskus-varmuuskopio-%1$s.json</string>
+    <string name="backup_saved_file">Varmuuskopio tallennettu: %1$s, %2$s (%3$s).</string>
+    <string name="backup_save_failed">Tallennus epäonnistui.</string>
+    <string name="backup_failed_reason">Varmuuskopiointi epäonnistui: %1$s</string>
+    <string name="backup_stop_workout_first">Lopeta käynnissä oleva lenkki ennen palautusta.</string>
+    <string name="backup_restore_failed">Palautus epäonnistui.</string>
+    <string name="backup_restore_failed_reason">Palautus epäonnistui: %1$s</string>
+
+    <!-- Palautuksen yhteenveto -->
+    <string name="backup_restored_title">Varmuuskopio palautettu</string>
+    <string name="backup_restored_summary">Palautettu %1$s ja %2$s.</string>
+    <plurals name="backup_workouts">
+        <item quantity="one">%1$d lenkki</item>
+        <item quantity="other">%1$d lenkkiä</item>
+    </plurals>
+    <plurals name="backup_settings">
+        <item quantity="one">%1$d asetus</item>
+        <item quantity="other">%1$d asetusta</item>
+    </plurals>
+    <plurals name="backup_skipped">
+        <item quantity="one">%1$d lenkki oli jo laitteella.</item>
+        <item quantity="other">%1$d lenkkiä oli jo laitteella.</item>
+    </plurals>
+    <string name="backup_restart_note_full">Sovellus käynnistetään uudelleen, jotta teema ja asetukset tulevat voimaan. Anturien nimet näkyvät seuraavasta skannauksesta.</string>
+    <string name="backup_restart_note">Sovellus käynnistetään uudelleen.</string>
+    <string name="backup_restart">Käynnistä uudelleen</string>
+
+    <!-- Drive-varmuuskopio -->
+    <string name="backup_drive_intro">Varmuuskopioi lenkit, askeleet ja asetukset Google Driveen, jotta et menetä niitä uudella puhelimella. Kopio tallentuu tilisi piilotettuun sovelluskansioon.</string>
+    <string name="backup_sign_in_prompt">Kirjaudu Google-tilillä, jotta varmuuskopiot tallentuvat Driveesi.</string>
+    <string name="backup_sign_in">Kirjaudu Google-tilillä</string>
+    <string name="backup_signed_in_as">Kirjauduttu: %1$s</string>
+    <string name="backup_drive_access_denied">Drive-oikeutta ei myönnetty.</string>
+    <string name="backup_sign_in_failed">Kirjautuminen epäonnistui (%1$d).</string>
+    <string name="backup_signed_out">Kirjauduttu ulos.</string>
+    <string name="backup_last">Viimeisin varmuuskopio</string>
+    <string name="backup_date_pattern">d.M. HH:mm</string>
+    <string name="backup_none_yet">Ei vielä varmuuskopiota</string>
+    <string name="backup_now">Varmuuskopioi</string>
+    <string name="backup_saved_drive">Varmuuskopio tallennettu Driveen (%1$s).</string>
+    <string name="backup_google_account">Google-tili</string>
+    <string name="backup_auto">Automaattinen varmuuskopiointi</string>
+    <string name="backup_freq_daily">Päivittäin</string>
+    <string name="backup_freq_weekly">Viikoittain</string>
+    <string name="backup_freq_monthly">Kuukausittain</string>
+    <string name="backup_freq_manual">Vain napautettaessa</string>
+    <string name="backup_freq_off">Ei käytössä</string>
+    <string name="backup_restore">Palauta varmuuskopio</string>
+    <string name="backup_restore_sub">Lataa Drivestä ja korvaa nykyiset tiedot</string>
+    <string name="backup_restore_confirm">Tämä lataa Driveen tallennetun varmuuskopion ja yhdistää sen nykyisiin tietoihin. Sovellus käynnistetään uudelleen palautuksen jälkeen. Jatketaanko?</string>
+    <string name="backup_restore_action">Palauta</string>
+    <string name="backup_sign_out">Kirjaudu ulos</string>
+
+    <!-- Koot: fi kt/Mt, sv ja en kB/MB -->
+    <string name="backup_size_bytes">%1$d t</string>
+    <string name="backup_size_kb">%1$.0f kt</string>
+    <string name="backup_size_mb">%1$.1f Mt</string>
+
+    <!-- Virheet (näkyvät virhetoastissa) -->
+    <string name="backup_drive_no_account">Ei Drive-tiliä</string>
+    <string name="backup_drive_no_android_account">Tilillä ei Account-objektia</string>
+    <string name="backup_drive_no_backup">Driveen ei ole tallennettu varmuuskopiota</string>
+    <string name="backup_unknown_format">Tuntematon tiedostomuoto</string>
+    <string name="backup_newer_version">Varmuuskopio on uudemmasta sovellusversiosta (v%1$d) — päivitä sovellus ensin</string>
+    <string name="backup_prefs_write_failed">Asetusten kirjoitus levylle epäonnistui</string>
+</resources>

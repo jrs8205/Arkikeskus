@@ -7,6 +7,7 @@ import java.util.TimeZone;
 
 public final class Astronomy {
 
+    // Vain kalenterilaskentaan; näkyvät kellonajat ovat pelkkiä numeroita (Locale.ROOT).
     private static final Locale FI = new Locale("fi", "FI");
     private static final double ZENITH = 90.833;
     private static final double SYNODIC_MONTH_DAYS = 29.53058867;
@@ -72,7 +73,7 @@ public final class Astronomy {
         double phase = days / SYNODIC_MONTH_DAYS;
         phase = phase - Math.floor(phase);
         double illumination = (1.0 - Math.cos(2.0 * Math.PI * phase)) / 2.0;
-        return new MoonPhase(phase, illumination, moonLabel(phase));
+        return new MoonPhase(phase, illumination);
     }
 
     /** Muotoilee auringon nousun, laskun ja paivan pituuden kolmelle riville.
@@ -84,32 +85,21 @@ public final class Astronomy {
         if (sun.sunsetMinutes == SunTimes.NEVER_SETS) {
             return ctx.getString(R.string.sun_never_sets);
         }
-        return String.format(FI, ctx.getString(R.string.sun_line_format),
+        return String.format(Locale.ROOT, ctx.getString(R.string.sun_line_format),
                 formatMinutes(sun.sunriseMinutes),
                 formatMinutes(sun.sunsetMinutes),
                 formatDuration(sun.dayLengthMinutes()));
     }
 
-    private static String moonLabel(double phase) {
-        if (phase < 0.03 || phase >= 0.97) return "uusikuu";
-        if (phase < 0.22) return "kasvava sirppi";
-        if (phase < 0.28) return "ens. neljännes";
-        if (phase < 0.47) return "kasvava kuu";
-        if (phase < 0.53) return "täysikuu";
-        if (phase < 0.72) return "vähenevä kuu";
-        if (phase < 0.78) return "viim. neljännes";
-        return "vähenevä sirppi";
-    }
-
     static String formatMinutes(int minutes) {
         int h = minutes / 60;
         int m = minutes % 60;
-        return String.format(FI, "%02d:%02d", h, m);
+        return String.format(Locale.ROOT, "%02d:%02d", h, m);
     }
 
     static String formatDuration(int minutes) {
         if (minutes < 0) minutes += 1440;
-        return String.format(FI, "%d h %02d min", minutes / 60, minutes % 60);
+        return String.format(Locale.ROOT, "%d h %02d min", minutes / 60, minutes % 60);
     }
 
     public static String formatSunrise(SunTimes sun) {
@@ -178,15 +168,14 @@ public final class Astronomy {
         }
     }
 
+    /** Kuun vaihe ilman tekstinimeä: kuu poistettiin näkymästä (Vaihe 4C), joten nimeä ei käännetä. */
     public static final class MoonPhase {
         public final double phase;
         public final double illumination;
-        public final String label;
 
-        MoonPhase(double phase, double illumination, String label) {
+        MoonPhase(double phase, double illumination) {
             this.phase = phase;
             this.illumination = illumination;
-            this.label = label;
         }
     }
 }

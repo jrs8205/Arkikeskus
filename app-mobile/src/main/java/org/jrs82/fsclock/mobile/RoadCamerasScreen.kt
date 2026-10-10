@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -148,11 +149,13 @@ internal fun RoadCamerasScreen() {
         if (!ready.isNullOrEmpty()) {
             stations = ready
         } else {
-            status = "Kaikkia kameroita ladataan…"
+            status = context.getString(R.string.cameras_loading_all)
         }
         WeathercamRepository.get().load(context, false) { result, error ->
             if (result.isNullOrEmpty()) {
-                status = if (error != null) "Kelikameroiden haku epäonnistui." else "Ei kelikameroita."
+                status = context.getString(
+                    if (error != null) R.string.cameras_load_failed else R.string.cameras_none,
+                )
             } else {
                 stations = result
             }
@@ -176,7 +179,7 @@ internal fun RoadCamerasScreen() {
             FeatureCollection.fromFeatures(feats)
         }
         src.setGeoJson(fc)
-        status = "Kamerat ladattu"
+        status = context.getString(R.string.cameras_loaded)
         statusAutoHide++
     }
 
@@ -216,7 +219,7 @@ internal fun RoadCamerasScreen() {
                     // Pelkkä tilan päivitys; varsinainen haku tehdään debouncatusti LaunchedEffectissä.
                     query = q
                 },
-                placeholder = "Hae tie tai paikka",
+                placeholder = stringResource(R.string.cameras_search_hint),
                 onClear = {
                     // Tyhjennys palauttaa koko Suomen yleisnäkymään (kuten View-versiossa).
                     query = ""
@@ -325,7 +328,7 @@ private fun CameraImageOverlay(img: CamImage, onClose: () -> Unit) {
             if (b != null) {
                 Image(
                     bitmap = b.asImageBitmap(),
-                    contentDescription = "Kelikameran kuva: " + img.title,
+                    contentDescription = stringResource(R.string.cameras_image, img.title),
                     modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.FillWidth,
                 )
@@ -340,7 +343,7 @@ private fun CameraImageOverlay(img: CamImage, onClose: () -> Unit) {
                 }
             }
             Text(
-                "Sulje",
+                stringResource(R.string.common_close),
                 color = colorResource(R.color.mobile_accent),
                 fontSize = 16.sp,
                 modifier = Modifier

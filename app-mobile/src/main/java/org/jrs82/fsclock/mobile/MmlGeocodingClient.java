@@ -27,6 +27,10 @@ final class MmlGeocodingClient {
     private static final String TAG = "MmlGeocodingClient";
     private static final String BASE = "https://avoin-paikkatieto.maanmittauslaitos.fi/geocoding/v2";
     private static final int TIMEOUT_MS = 8000;
+    /** Aina suomi, myös sv-käyttöliittymässä: tuloksen kuntanimi (MmlPlace.dataPlace) tallentuu
+     *  kotipaikaksi, jota FinnishRegions/varoitusalueet vertaavat suomenkielisiin nimiin
+     *  (lang=sv antaisi "Helsingfors"). Haku löytää silti ruotsinkielisillä nimillä ("Kervo" → Kerava). */
+    private static final String DATA_LANGUAGE = "fi";
     private static final long SEARCH_CACHE_TTL_MS = 5L * 60_000L;
     private static final int SEARCH_CACHE_MAX = 60;
     /** Kokorajattu LRU (access-order) — estää rajattoman kasvun (yksi merkintä per uniikki kysely). */
@@ -76,7 +80,7 @@ final class MmlGeocodingClient {
     static MmlPlace reversePlace(double latitude, double longitude) throws Exception {
         if (!isConfigured()) return null;
         String url = BASE + "/pelias/reverse"
-                + "?lang=fi"
+                + "?lang=" + DATA_LANGUAGE
                 + "&sources=administrative-units,addresses,geographic-names"
                 + "&boundary.circle.radius=2000"
                 + "&point.lon=" + enc(String.format(Locale.US, "%.7f", longitude))
@@ -131,7 +135,7 @@ final class MmlGeocodingClient {
 
     private static List<MmlPlace> searchPelias(String query, int size) throws Exception {
         String url = BASE + "/pelias/search"
-                + "?lang=fi"
+                + "?lang=" + DATA_LANGUAGE
                 + "&sources=geographic-names,administrative-units"
                 + "&sort=placetypegroup"
                 + "&size=" + Math.max(1, Math.min(20, size))

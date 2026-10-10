@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Alasivujen otsikot -->
+    <string name="settings_page_weather">Weather &amp; location</string>
+    <string name="settings_page_electricity">Spot electricity</string>
+    <string name="settings_page_news">News</string>
+    <string name="settings_page_transit">Public transport</string>
+    <string name="settings_page_fitness">Workouts &amp; steps</string>
+    <string name="settings_page_ruuvi">Ruuvi sensors</string>
+    <string name="settings_page_appearance">Appearance</string>
+    <string name="settings_page_app_data">App &amp; data</string>
+    <string name="settings_page_about">About</string>
+
+    <!-- Keskussivu -->
+    <string name="settings_hub_home">Home</string>
+    <string name="settings_hub_home_sub">Visible cards and their order</string>
+    <string name="settings_hub_weather_sub">Location · weather warnings</string>
+    <string name="settings_hub_electricity_sub">Cheap electricity notice and threshold</string>
+    <string name="settings_hub_news_sub">10 sources · 9 categories · my feeds</string>
+    <string name="settings_hub_transit_sub">HSL disruption alerts for favourites</string>
+    <string name="settings_hub_fitness_sub">Kilometre announcement · step goal</string>
+    <string name="settings_hub_ruuvi_find">Find sensors via Bluetooth</string>
+    <plurals name="settings_hub_ruuvi_sensors">
+        <item quantity="one">%1$d sensor · find more</item>
+        <item quantity="other">%1$d sensors · find more</item>
+    </plurals>
+    <string name="settings_hub_appearance_sub">Theme · device colours</string>
+    <string name="settings_hub_app_data_sub">Update interval · backup</string>
+    <string name="settings_hub_about_sub">Version %1$s · GitHub</string>
+    <string name="settings_notifications_header">Notifications</string>
+    <string name="settings_notif_permission_needed">Allow notifications so the app can send them.</string>
+
+    <!-- Sää ja sijainti -->
+    <string name="settings_location_header">Location</string>
+    <string name="settings_auto_location">Automatic location</string>
+    <string name="settings_auto_location_sub">Update your place from the device location if permission has been granted</string>
+    <string name="settings_auto_location_on">Automatic location is on.</string>
+    <string name="settings_precise_location_denied">Precise location permission wasn\'t granted. City search works as usual.</string>
+    <string name="settings_bg_widgets">Widgets in the background</string>
+    <string name="settings_bg_widgets_sub">Allow location \"all the time\" so home screen widgets can update your location even when the app is closed</string>
+    <string name="settings_bg_location_granted">Background location allowed – widgets update your location in the background too.</string>
+    <string name="settings_bg_location_denied">Choose \"Allow all the time\" for location so the home screen widgets update in the background.</string>
+    <string name="settings_last_weather_update">Last weather update</string>
+    <string name="settings_datetime_pattern">d MMM yyyy HH:mm</string>
+    <string name="settings_notify_warnings">Weather warnings (home area)</string>
+    <string name="settings_notify_warnings_sub">Get notified of FMI weather warnings for your home area</string>
+
+    <!-- Pörssisähkö -->
+    <string name="settings_prices_header">Prices</string>
+    <string name="settings_vat_title" formatted="false">VAT 25.5%</string>
+    <string name="settings_vat_on">Included in prices</string>
+    <string name="settings_vat_off">Prices without VAT</string>
+    <string name="settings_cheap_header">Cheap electricity</string>
+    <string name="settings_cheap_notice">Cheap electricity notice</string>
+    <string name="settings_cheap_notice_sub">Show a notice on the Home page when electricity is cheap</string>
+    <string name="settings_cheap_threshold">Cheap electricity threshold</string>
+    <string name="settings_threshold_label_vat" formatted="false">c/kWh (incl. VAT 25.5%)</string>
+    <string name="settings_threshold_label_no_vat" formatted="false">c/kWh (VAT 0%)</string>
+    <string name="settings_threshold_invalid">Enter a number, e.g. 5.0</string>
+    <string name="settings_cheap_mode">When to show the notice</string>
+    <string name="settings_cheap_mode_current">Current quarter hour</string>
+    <string name="settings_cheap_mode_rest_of_day">Rest of the day</string>
+    <string name="settings_cheap_mode_all_day">Whole day</string>
+    <string name="settings_notify_tomorrow_prices">Tomorrow\'s prices</string>
+    <string name="settings_notify_tomorrow_prices_sub">Get notified when tomorrow\'s electricity prices arrive (at about 14:00)</string>
+
+    <!-- Uutiset -->
+    <string name="settings_news_sources_header">News sources · %1$d</string>
+    <string name="settings_custom_feeds_header">My news feeds</string>
+    <string name="settings_add_feed">Add a feed</string>
+    <string name="settings_add_feed_sub">Add your own RSS or Atom feed (name + address)</string>
+    <string name="settings_edit_feed">Edit feed</string>
+    <string name="settings_feed_name_label">Name (e.g. My blog)</string>
+    <string name="settings_feed_url_label">Address (https://…)</string>
+    <string name="settings_delete_feed">Delete feed</string>
+    <string name="settings_feed_invalid_url">Invalid address. Use an address starting with http(s)://.</string>
+    <string name="settings_news_categories_header">News categories (Domestic + World) · %1$d</string>
+
+    <!-- Joukkoliikenne -->
+    <string name="settings_transit_desc">HSL disruption alerts for your favourite lines and stops.</string>
+    <string name="settings_notify_hsl">HSL disruptions on favourites</string>
+    <string name="settings_notify_hsl_sub">Get notified when a favourite line or stop has a new disruption</string>
+
+    <!-- Lenkki ja askeleet -->
+    <string name="settings_step_goal">Step goal</string>
+    <string name="settings_goal">Goal</string>
+    <plurals name="settings_step_goal_steps">
+        <item quantity="one">%1$s step</item>
+        <item quantity="other">%1$s steps</item>
+    </plurals>
+    <string name="settings_km_announcement">Kilometre announcement</string>
+    <string name="settings_km_announcement_sub">Voice announcement at every full kilometre during a workout</string>
+    <string name="settings_notify_step_goal">Step goal reached</string>
+    <string name="settings_notify_step_goal_sub">Get notified when you reach your daily step goal</string>
+
+    <!-- Ruuvi-anturit -->
+    <string name="settings_ruuvi_desc">Scan for and name RuuviTag sensors. Readings appear on the Home page and in the Sensors view.</string>
+    <string name="settings_sensors_header">Sensors</string>
+    <string name="settings_find_sensors_bt">Find sensors (Bluetooth)</string>
+    <string name="settings_find_sensors_sub">Scan for nearby RuuviTags and tap to name them</string>
+    <string name="settings_sensors_empty">You can name any number of sensors. Named sensors appear here.</string>
+    <string name="settings_no_sensor">No sensor</string>
+    <string name="settings_sensor_name_title">Sensor name (%1$s)</string>
+    <string name="settings_sensor_name_label">Name (leave empty to remove)</string>
+    <string name="settings_scan_title">Find sensors</string>
+    <string name="settings_scan_hint">Tap a sensor to give it a name. You can name any number of sensors.</string>
+    <string name="settings_scan_searching">Searching for RuuviTags…</string>
+    <string name="settings_bt_off">Bluetooth is off. Turn it on and try again.</string>
+    <string name="settings_bt_scan_permission">Bluetooth scan permission is needed to find sensors.</string>
+
+    <!-- Ulkoasu -->
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System default</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Use device colours</string>
+    <string name="settings_dynamic_color_sub">Material You colours from your wallpaper. Off: the app\'s own bright brand palette.</string>
+
+    <!-- Sovellus ja data -->
+    <string name="settings_data_update_header">Data updates</string>
+    <string name="settings_update_interval">Data update interval</string>
+    <string name="settings_update_interval_sub">All data (weather, electricity, news…)</string>
+    <plurals name="settings_interval_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="settings_notify_app_update">App updates</string>
+    <string name="settings_notify_app_update_sub">Get notified when a new version of Arkikeskus is available</string>
+
+    <!-- Tietoja ja sovelluspäivitys -->
+    <string name="settings_app_header">App</string>
+    <string name="settings_app_version">App version</string>
+    <string name="settings_check_updates">Check for updates</string>
+    <string name="settings_checking_updates">Checking for updates…</string>
+    <string name="settings_update_check_failed">Update check failed. Check your network connection.</string>
+    <string name="settings_update_available">Newer version %1$s is available.</string>
+    <string name="settings_up_to_date">The app is up to date.</string>
+    <string name="settings_download_install">Download and install %1$s</string>
+    <string name="settings_downloading_installing">Downloading and installing…</string>
+    <string name="settings_download_install_sub">Downloaded from the GitHub release. Installing requires permission to install apps from unknown sources.</string>
+    <string name="settings_github">GitHub – source code and releases</string>
+    <string name="settings_no_browser">No browser found</string>
+    <string name="settings_update_allow_unknown_sources">First allow installing from unknown sources, then try again.</string>
+    <string name="settings_update_opening_installer">Opening the installer…</string>
+    <string name="settings_update_download_failed">Download failed: %1$s</string>
+    <string name="settings_update_incomplete">Incomplete download (%1$d/%2$d bytes)</string>
+    <string name="settings_update_empty">Empty download</string>
+    <string name="settings_update_notif_title">New version %1$s available</string>
+    <string name="settings_update_notif_text">Open to update Arkikeskus.</string>
+
+    <!-- Etusivun kortit -->
+    <string name="settings_home_cards_title">Home page cards</string>
+    <string name="settings_home_cards_hint">Drag the handle to reorder. Ticked cards are shown on the Home page.</string>
+    <string name="settings_home_cards_drag">Drag to reorder</string>
+    <string name="settings_home_cards_order_saved">Order saved</string>
+    <string name="settings_home_cards_saved">Saved</string>
+
+    <!-- Health Connect -perustelu -->
+    <string name="settings_health_title">Use of health data</string>
+    <string name="settings_health_why">Why does Arkikeskus ask for Health Connect permissions?</string>
+    <string name="settings_health_reads">Arkikeskus reads steps and calories (active and total burned) from Health Connect so the Steps page can show your daily step count, a calorie estimate and daily, weekly and monthly history.</string>
+    <string name="settings_health_privacy">The data is only used for display in this app and for the local HTML export that you create yourself. It is not sent over the network or shared with third parties. The app doesn\'t write anything to Health Connect.</string>
+    <string name="settings_health_revoke">You can revoke the permissions at any time in Health Connect settings – the step counter then relies on the phone\'s own sensor.</string>
+</resources>

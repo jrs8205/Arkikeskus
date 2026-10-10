@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="main_section_home">Home</string>
+    <string name="main_section_forecast">7-day forecast</string>
+    <string name="main_section_weather_warnings">Weather warnings</string>
+    <string name="main_section_places">Places</string>
+    <string name="main_section_sensors">Sensors</string>
+    <string name="main_section_traffic_accidents">Accidents</string>
+    <string name="main_section_traffic_roadworks">Roadworks</string>
+    <string name="main_section_traffic_weight">Weight restrictions</string>
+    <string name="main_section_traffic_incidents">Traffic notices</string>
+    <string name="main_section_traffic_congestion">Congestion</string>
+    <string name="main_section_road_cameras">Road cameras</string>
+    <string name="main_section_transit">Nearby departures</string>
+    <string name="main_section_route_planner">Journey planner</string>
+    <string name="main_section_hsl_disruptions">Disruptions and changes</string>
+    <string name="main_section_speedometer">GPS speed</string>
+    <string name="main_section_steps">Steps</string>
+    <string name="main_section_workout">Workout</string>
+    <string name="main_section_news">Domestic</string>
+    <string name="main_section_news_foreign">World</string>
+    <string name="main_section_own_feeds">My feeds</string>
+    <string name="main_section_electricity">Spot electricity</string>
+    <string name="main_section_teletext">Teletext</string>
+    <string name="main_section_tv_guide">TV guide</string>
+    <string name="main_section_device_info">Phone info</string>
+    <string name="main_section_flights">Flights</string>
+    <string name="main_nav_home">Home</string>
+    <string name="main_menu">Menu</string>
+    <string name="main_drawer_weather">Weather</string>
+    <string name="main_drawer_traffic">Traffic info</string>
+    <string name="main_drawer_transit">Public transport (HSL/Tampere)</string>
+    <string name="main_drawer_tv" translatable="false">TV</string>
+    <string name="main_drawer_news">News</string>
+    <string name="main_drawer_fitness">Fitness</string>
+    <string name="main_drawer_other">Other</string>
+    <string name="main_update_available">New version %1$s is available</string>
+    <string name="main_update_whats_new">What\'s new</string>
+    <string name="main_update_whats_new_title">What\'s new – %1$s</string>
+    <string name="main_update_install">Update</string>
+    <string name="main_update_downloading">Downloading update…</string>
+    <string name="main_backup_restored">Backup restored.</string>
+    <string name="main_workout_import_none">No workout found in the file (GPX/TCX).</string>
+    <string name="main_workout_import_exists">This workout is already on the device: %1$s</string>
+    <string name="main_workout_import_done">Shared workout imported: %1$s</string>
+    <string name="main_search_clear">Clear search</string>
+</resources>

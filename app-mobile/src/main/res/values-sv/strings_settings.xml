@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Alasivujen otsikot -->
+    <string name="settings_page_weather">Väder &amp; plats</string>
+    <string name="settings_page_electricity">Börsel</string>
+    <string name="settings_page_news">Nyheter</string>
+    <string name="settings_page_transit">Kollektivtrafik</string>
+    <string name="settings_page_fitness">Träning &amp; steg</string>
+    <string name="settings_page_ruuvi">Ruuvi-sensorer</string>
+    <string name="settings_page_appearance">Utseende</string>
+    <string name="settings_page_app_data">App &amp; data</string>
+    <string name="settings_page_about">Om appen</string>
+
+    <!-- Keskussivu -->
+    <string name="settings_hub_home">Hem</string>
+    <string name="settings_hub_home_sub">Synliga kort och deras ordning</string>
+    <string name="settings_hub_weather_sub">Plats · vädervarningar</string>
+    <string name="settings_hub_electricity_sub">Notis och gräns för billig el</string>
+    <string name="settings_hub_news_sub">10 källor · 9 kategorier · egna flöden</string>
+    <string name="settings_hub_transit_sub">HRT-störningsaviseringar för favoriter</string>
+    <string name="settings_hub_fitness_sub">Kilometermeddelande · stegmål</string>
+    <string name="settings_hub_ruuvi_find">Sök sensorer via Bluetooth</string>
+    <plurals name="settings_hub_ruuvi_sensors">
+        <item quantity="one">%1$d sensor · sök fler</item>
+        <item quantity="other">%1$d sensorer · sök fler</item>
+    </plurals>
+    <string name="settings_hub_appearance_sub">Tema · enhetens färger</string>
+    <string name="settings_hub_app_data_sub">Uppdateringsintervall · säkerhetskopiering</string>
+    <string name="settings_hub_about_sub">Version %1$s · GitHub</string>
+    <string name="settings_notifications_header">Aviseringar</string>
+    <string name="settings_notif_permission_needed">Tillåt aviseringar så att appen kan skicka dem.</string>
+
+    <!-- Sää ja sijainti -->
+    <string name="settings_location_header">Plats</string>
+    <string name="settings_auto_location">Automatisk plats</string>
+    <string name="settings_auto_location_sub">Uppdatera orten utifrån enhetens plats om behörighet har getts</string>
+    <string name="settings_auto_location_on">Automatisk plats är på.</string>
+    <string name="settings_precise_location_denied">Behörighet till exakt plats gavs inte. Sökningen efter ort fungerar som vanligt.</string>
+    <string name="settings_bg_widgets">Widgetar i bakgrunden</string>
+    <string name="settings_bg_widgets_sub">Tillåt plats \"alltid\" så att widgetarna på hemskärmen kan uppdatera platsen även när appen är stängd</string>
+    <string name="settings_bg_location_granted">Plats i bakgrunden tillåten – widgetarna uppdaterar platsen även i bakgrunden.</string>
+    <string name="settings_bg_location_denied">Välj \"Tillåt alltid\" för plats så uppdateras widgetarna på hemskärmen i bakgrunden.</string>
+    <string name="settings_last_weather_update">Senaste väderuppdatering</string>
+    <string name="settings_datetime_pattern">d.M.yyyy HH:mm</string>
+    <string name="settings_notify_warnings">Vädervarningar (egen ort)</string>
+    <string name="settings_notify_warnings_sub">Få aviseringar om FMI:s vädervarningar för din hemort</string>
+
+    <!-- Pörssisähkö -->
+    <string name="settings_prices_header">Priser</string>
+    <string name="settings_vat_title" formatted="false">Moms 25,5 %</string>
+    <string name="settings_vat_on">Ingår i priserna</string>
+    <string name="settings_vat_off">Priser utan moms</string>
+    <string name="settings_cheap_header">Billig el</string>
+    <string name="settings_cheap_notice">Notis om billig el</string>
+    <string name="settings_cheap_notice_sub">Visa en notis på Hem-sidan när elen är billig</string>
+    <string name="settings_cheap_threshold">Gräns för billig el</string>
+    <string name="settings_threshold_label_vat" formatted="false">c/kWh (inkl. moms 25,5 %)</string>
+    <string name="settings_threshold_label_no_vat" formatted="false">c/kWh (moms 0 %)</string>
+    <string name="settings_threshold_invalid">Ange ett tal, t.ex. 5,0</string>
+    <string name="settings_cheap_mode">När notisen visas</string>
+    <string name="settings_cheap_mode_current">Aktuell kvart</string>
+    <string name="settings_cheap_mode_rest_of_day">Resten av dagen</string>
+    <string name="settings_cheap_mode_all_day">Hela dagen</string>
+    <string name="settings_notify_tomorrow_prices">Morgondagens priser</string>
+    <string name="settings_notify_tomorrow_prices_sub">Få en avisering när morgondagens elpriser kommer (ca kl. 14)</string>
+
+    <!-- Uutiset -->
+    <string name="settings_news_sources_header">Nyhetskällor · %1$d</string>
+    <string name="settings_custom_feeds_header">Egna nyhetsflöden</string>
+    <string name="settings_add_feed">Lägg till eget flöde</string>
+    <string name="settings_add_feed_sub">Lägg till ett eget RSS- eller Atom-flöde (namn + adress)</string>
+    <string name="settings_edit_feed">Redigera flöde</string>
+    <string name="settings_feed_name_label">Namn (t.ex. Min blogg)</string>
+    <string name="settings_feed_url_label">Adress (https://…)</string>
+    <string name="settings_delete_feed">Ta bort flöde</string>
+    <string name="settings_feed_invalid_url">Ogiltig adress. Använd en adress som börjar med http(s)://.</string>
+    <string name="settings_news_categories_header">Nyhetskategorier (Inrikes + Utrikes) · %1$d</string>
+
+    <!-- Joukkoliikenne -->
+    <string name="settings_transit_desc">HRT-störningsaviseringar för dina favoritlinjer och -hållplatser.</string>
+    <string name="settings_notify_hsl">HRT-störningar för favoriter</string>
+    <string name="settings_notify_hsl_sub">Få en avisering när en favoritlinje eller -hållplats får en ny störning</string>
+
+    <!-- Lenkki ja askeleet -->
+    <string name="settings_step_goal">Stegmål</string>
+    <string name="settings_goal">Mål</string>
+    <plurals name="settings_step_goal_steps">
+        <item quantity="one">%1$s steg</item>
+        <item quantity="other">%1$s steg</item>
+    </plurals>
+    <string name="settings_km_announcement">Kilometermeddelande</string>
+    <string name="settings_km_announcement_sub">Röstmeddelande vid varje hel kilometer under träningspasset</string>
+    <string name="settings_notify_step_goal">Stegmålet nått</string>
+    <string name="settings_notify_step_goal_sub">Få en avisering när du når dagens stegmål</string>
+
+    <!-- Ruuvi-anturit -->
+    <string name="settings_ruuvi_desc">Sök efter och namnge RuuviTag-sensorer. Mätvärdena visas på Hem-sidan och i vyn Sensorer.</string>
+    <string name="settings_sensors_header">Sensorer</string>
+    <string name="settings_find_sensors_bt">Sök sensorer (Bluetooth)</string>
+    <string name="settings_find_sensors_sub">Sök efter RuuviTag-sensorer i närheten och tryck för att namnge dem</string>
+    <string name="settings_sensors_empty">Du kan namnge hur många sensorer som helst. Namngivna sensorer visas här.</string>
+    <string name="settings_no_sensor">Ingen sensor</string>
+    <string name="settings_sensor_name_title">Sensorns namn (%1$s)</string>
+    <string name="settings_sensor_name_label">Namn (lämna tomt för att ta bort)</string>
+    <string name="settings_scan_title">Sök sensorer</string>
+    <string name="settings_scan_hint">Tryck på en sensor för att ge den ett namn. Du kan namnge hur många sensorer som helst.</string>
+    <string name="settings_scan_searching">Söker efter RuuviTag-sensorer…</string>
+    <string name="settings_bt_off">Bluetooth är avstängt. Slå på det och försök igen.</string>
+    <string name="settings_bt_scan_permission">Behörighet för Bluetooth-sökning behövs för att hitta sensorer.</string>
+
+    <!-- Ulkoasu -->
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_system">Följ systemet</string>
+    <string name="settings_theme_light">Ljust</string>
+    <string name="settings_theme_dark">Mörkt</string>
+    <string name="settings_dynamic_color">Använd enhetens färger</string>
+    <string name="settings_dynamic_color_sub">Material You-färger från bakgrundsbilden. Av: appens egen klara färgpalett.</string>
+
+    <!-- Sovellus ja data -->
+    <string name="settings_data_update_header">Datauppdatering</string>
+    <string name="settings_update_interval">Uppdateringsintervall</string>
+    <string name="settings_update_interval_sub">Alla uppgifter (väder, el, nyheter…)</string>
+    <plurals name="settings_interval_minutes">
+        <item quantity="one">%1$d minut</item>
+        <item quantity="other">%1$d minuter</item>
+    </plurals>
+    <string name="settings_notify_app_update">Appuppdateringar</string>
+    <string name="settings_notify_app_update_sub">Få en avisering när det finns en ny version av Arkikeskus</string>
+
+    <!-- Tietoja ja sovelluspäivitys -->
+    <string name="settings_app_header">Appen</string>
+    <string name="settings_app_version">Appversion</string>
+    <string name="settings_check_updates">Sök efter uppdateringar</string>
+    <string name="settings_checking_updates">Söker efter uppdateringar…</string>
+    <string name="settings_update_check_failed">Det gick inte att söka efter uppdateringar. Kontrollera nätverksanslutningen.</string>
+    <string name="settings_update_available">En nyare version, %1$s, finns tillgänglig.</string>
+    <string name="settings_up_to_date">Appen är uppdaterad.</string>
+    <string name="settings_download_install">Ladda ner och installera %1$s</string>
+    <string name="settings_downloading_installing">Laddar ner och installerar…</string>
+    <string name="settings_download_install_sub">Hämtas från GitHub-utgåvan. Installationen kräver behörighet att installera appar från okända källor.</string>
+    <string name="settings_github">GitHub – källkod och utgåvor</string>
+    <string name="settings_no_browser">Ingen webbläsare hittades</string>
+    <string name="settings_update_allow_unknown_sources">Tillåt först installation från okända källor och försök sedan igen.</string>
+    <string name="settings_update_opening_installer">Öppnar installationen…</string>
+    <string name="settings_update_download_failed">Hämtningen misslyckades: %1$s</string>
+    <string name="settings_update_incomplete">Ofullständig hämtning (%1$d/%2$d byte)</string>
+    <string name="settings_update_empty">Tom hämtning</string>
+    <string name="settings_update_notif_title">Ny version %1$s tillgänglig</string>
+    <string name="settings_update_notif_text">Öppna för att uppdatera Arkikeskus.</string>
+
+    <!-- Etusivun kortit -->
+    <string name="settings_home_cards_title">Kort på Hem-sidan</string>
+    <string name="settings_home_cards_hint">Dra i handtaget för att ändra ordningen. Markerade kort visas på Hem-sidan.</string>
+    <string name="settings_home_cards_drag">Dra för att ändra ordning</string>
+    <string name="settings_home_cards_order_saved">Ordningen har sparats</string>
+    <string name="settings_home_cards_saved">Sparat</string>
+
+    <!-- Health Connect -perustelu -->
+    <string name="settings_health_title">Användning av hälsodata</string>
+    <string name="settings_health_why">Varför ber Arkikeskus om behörigheter i Health Connect?</string>
+    <string name="settings_health_reads">Arkikeskus läser steg samt aktiv och total kaloriförbrukning från Health Connect så att sidan Steg kan visa dagens antal steg, en uppskattning av kalorierna samt historik per dag, vecka och månad.</string>
+    <string name="settings_health_privacy">Uppgifterna används bara för att visas i den här appen och för den lokala HTML-exporten som du gör själv. De skickas inte över nätet och delas inte med tredje part. Appen skriver ingenting till Health Connect.</string>
+    <string name="settings_health_revoke">Du kan när som helst återkalla behörigheterna i inställningarna för Health Connect – stegräknaren använder då telefonens egen sensor.</string>
+</resources>

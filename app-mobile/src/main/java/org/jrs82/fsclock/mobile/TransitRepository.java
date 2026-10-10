@@ -17,12 +17,14 @@ final class TransitRepository {
     private long cachedAt;
     private double cachedLat, cachedLon;
     private TransitRegion cachedRegion;
+    private String cachedLanguage;   // pysäkkinimet ovat kielikohtaisia (Accept-Language)
 
     private TransitRepository() {}
 
     List<NearbyStop> fetch(double lat, double lon, TransitRegion region) throws Exception {
+        String language = DigitransitApi.language();
         synchronized (this) {
-            if (cached != null && cachedRegion == region
+            if (cached != null && cachedRegion == region && language.equals(cachedLanguage)
                     && System.currentTimeMillis() - cachedAt < CACHE_MS
                     && haversineMeters(lat, lon, cachedLat, cachedLon) < CACHE_DIST_M) {
                 // Puolustuskopio: kutsuja voi lajitella/suodattaa listaa rikkomatta välimuistia.
@@ -36,6 +38,7 @@ final class TransitRepository {
             cachedLat = lat;
             cachedLon = lon;
             cachedRegion = region;
+            cachedLanguage = language;
         }
         return new ArrayList<>(fresh);
     }

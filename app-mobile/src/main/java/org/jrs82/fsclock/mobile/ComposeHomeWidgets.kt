@@ -1,9 +1,11 @@
 package org.jrs82.fsclock.mobile
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -36,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,11 +67,10 @@ import java.util.TimeZone
  * vanhan View-pohjaisen widget-järjestelmän kanssa (joka oli sidottu vanhaan etusivuun).
  */
 
-private val FI_W = Locale("fi", "FI")
 private val HELSINKI_W: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
-// Jaetut formatterit (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
-private val HM_W = SimpleDateFormat("HH:mm", FI_W).apply { timeZone = HELSINKI_W }
-private val DM_HM_W = SimpleDateFormat("d.M. HH:mm", FI_W).apply { timeZone = HELSINKI_W }
+// Jaettu formatter (vain pääsäie/kompositio → turvallinen jakaa; vrt. TransitScreen TR_CLOCK).
+// Kellonaika on pelkkiä numeroita, joten kieli ei vaikuta siihen.
+private val HM_W = SimpleDateFormat("HH:mm", Locale.ROOT).apply { timeZone = HELSINKI_W }
 
 // Etusivun UUTISKORTTIEN PROSESSITASON välimuisti: uutiset säilyvät kun siirrytään sivulta toiselle
 // (ei "katoa ja lataudu uudelleen" joka kerta), ja haetaan uudelleen vain sovelluksen avauksessa
@@ -95,20 +98,20 @@ internal fun invalidateHomeNewsCache() {
 
 // ===================== Widget-malli + asetukset =====================
 
-/** Kiinteät etusivun kortit. id = talletusavain, title = muokkausnäkymän nimi, defaultVisible = oletusnäkyvyys.
+/** Kiinteät etusivun kortit. id = talletusavain, titleRes = muokkausnäkymän nimi, defaultVisible = oletusnäkyvyys.
  *  Näiden lisäksi etusivulla on dynaamisia per-lähde-uutiskortteja ("news:<feedId>", oletuksena piilossa). */
-enum class HomeWidget(val id: String, val title: String, val defaultVisible: Boolean) {
-    CLOCK("clock", "Kello ja päivämäärä", true),
-    HOLIDAY("holiday", "Pyhä- ja liputuspäivät", true),
-    WEATHER("weather", "Sää", true),
-    ELECTRICITY("electricity", "Pörssisähkö", true),
-    WARNINGS("warnings", "Säävaroitukset", true),
-    SENSORS("sensors", "Anturit", true),
-    TRAFFIC("traffic", "Liikennetiedot", true),
-    NEWS("news", "Kotimaan uutiset", true),
-    NEWS_FOREIGN("news_foreign", "Ulkomaan uutiset", true),
-    TRANSIT("transit", "Lähilähdöt", true),
-    FLIGHTS("flights", "Lennot", true),
+enum class HomeWidget(val id: String, @StringRes val titleRes: Int, val defaultVisible: Boolean) {
+    CLOCK("clock", R.string.home_title_clock, true),
+    HOLIDAY("holiday", R.string.home_title_holidays, true),
+    WEATHER("weather", R.string.home_title_weather, true),
+    ELECTRICITY("electricity", R.string.electricity_title, true),
+    WARNINGS("warnings", R.string.home_title_warnings, true),
+    SENSORS("sensors", R.string.home_title_sensors, true),
+    TRAFFIC("traffic", R.string.home_title_traffic, true),
+    NEWS("news", R.string.home_title_news_domestic, true),
+    NEWS_FOREIGN("news_foreign", R.string.home_title_news_foreign, true),
+    TRANSIT("transit", R.string.home_title_transit, true),
+    FLIGHTS("flights", R.string.home_title_flights, true),
 }
 
 // Julkisia, jotta View-pohjainen MobileWidgetOrderActivity (raahausjärjestely) lukee/kirjoittaa samat avaimet.
@@ -194,14 +197,14 @@ internal fun isHomeWidgetVisibleId(prefs: SharedPreferences, id: String): Boolea
 internal fun visibleHomeWidgetIds(prefs: SharedPreferences): List<String> =
     homeWidgetIds(prefs).filter { isHomeWidgetVisibleId(prefs, it) }
 
-/** Otsikko muokkausnäkymälle (MobileWidgetOrderActivity, Java). Per-lähde: "Uutiset: <nimi>". */
-fun homeWidgetTitleForId(prefs: SharedPreferences, id: String): String {
+/** Otsikko muokkausnäkymälle (MobileWidgetOrderActivity). Per-lähde: "Uutiset: <nimi>". */
+fun homeWidgetTitleForId(context: Context, prefs: SharedPreferences, id: String): String {
     val w = HomeWidget.entries.firstOrNull { it.id == id }
-    if (w != null) return w.title
+    if (w != null) return context.getString(w.titleRes)
     if (id.startsWith(HOME_NEWS_FEED_PREFIX)) {
         val feedId = id.substring(HOME_NEWS_FEED_PREFIX.length)
         val feed = NewsFeedStore.feedById(prefs, feedId)
-        return "Uutiset: " + (feed?.name?.ifEmpty { feedId } ?: feedId)
+        return context.getString(R.string.home_title_news_source, feed?.name?.ifEmpty { feedId } ?: feedId)
     }
     return id
 }
@@ -292,21 +295,21 @@ internal fun HomeNewsCard(onOpenNews: () -> Unit) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_rss_24),
                 accent = ArkiTheme.colors.newsAccent,
-                title = "Kotimaan uutiset",
+                title = stringResource(R.string.home_title_news_domestic),
                 trailing = if (items.isNotEmpty()) {
-                    { TextButton(onClick = onOpenNews) { Text("Kaikki") } }
+                    { TextButton(onClick = onOpenNews) { Text(stringResource(R.string.home_see_all)) } }
                 } else {
                     null
                 },
             )
             when {
                 loading -> Text(
-                    "Haetaan uutisia…",
+                    stringResource(R.string.home_news_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 items.isEmpty() -> Text(
-                    "Ei uutisia juuri nyt.",
+                    stringResource(R.string.home_news_none_now),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -357,7 +360,7 @@ private fun CompactNewsRow(item: NewsItem) {
                 )
                 if (item.pubTimeMs > 0) {
                     Text(
-                        " · " + relAge(item.pubTimeMs),
+                        " · " + homeAgeText(context, item.pubTimeMs),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -415,21 +418,21 @@ internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_rss_24),
                 accent = ArkiTheme.colors.newsAccent,
-                title = "Ulkomaan uutiset",
+                title = stringResource(R.string.home_title_news_foreign),
                 trailing = if (items.isNotEmpty()) {
-                    { TextButton(onClick = onOpenForeign) { Text("Kaikki") } }
+                    { TextButton(onClick = onOpenForeign) { Text(stringResource(R.string.home_see_all)) } }
                 } else {
                     null
                 },
             )
             when {
                 loading -> Text(
-                    "Haetaan uutisia…",
+                    stringResource(R.string.home_news_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 items.isEmpty() -> Text(
-                    "Ei uutisia juuri nyt.",
+                    stringResource(R.string.home_news_none_now),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -465,7 +468,7 @@ private fun CompactForeignNewsRow(a: ForeignArticle) {
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                a.titleFi,
+                if (originalTitlesByDefault(context)) a.titleOrig else a.titleFi,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
@@ -480,7 +483,7 @@ private fun CompactForeignNewsRow(a: ForeignArticle) {
                 )
                 if (a.publishedAtMs > 0) {
                     Text(
-                        " · " + relAge(a.publishedAtMs),
+                        " · " + homeAgeText(context, a.publishedAtMs),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -535,17 +538,17 @@ internal fun HomeNewsSourceCard(feedId: String) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_rss_24),
                 accent = ArkiTheme.colors.newsAccent,
-                title = feed.name.ifEmpty { "Uutiset" },
+                title = feed.name.ifEmpty { stringResource(R.string.home_news) },
             )
             val list = items
             when {
                 list == null -> Text(
-                    "Haetaan uutisia…",
+                    stringResource(R.string.home_news_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 list.isEmpty() -> Text(
-                    "Ei uutisia tästä lähteestä juuri nyt.",
+                    stringResource(R.string.home_news_none_source),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -563,6 +566,7 @@ internal fun HomeNewsSourceCard(feedId: String) {
 /** Säävaroitukset etusivulla — näkyy vain kun voimassa olevia varoituksia on (kuten 1.15.1). */
 @Composable
 internal fun HomeWarningsCard(onOpenWarnings: () -> Unit) {
+    val context = LocalContext.current
     val repo = remember { WarningsRepository.get() }
     var tick by remember { mutableStateOf(0) }
     DisposableEffect(Unit) {
@@ -580,20 +584,20 @@ internal fun HomeWarningsCard(onOpenWarnings: () -> Unit) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_warning_24),
                 accent = arki.warning,
-                title = "Säävaroitukset",
-                subtitle = "${warnings.size} voimassa",
-                trailing = { TextButton(onClick = onOpenWarnings) { Text("Kaikki") } },
+                title = stringResource(R.string.home_title_warnings),
+                subtitle = stringResource(R.string.home_warnings_in_force, warnings.size),
+                trailing = { TextButton(onClick = onOpenWarnings) { Text(stringResource(R.string.home_see_all)) } },
             )
             warnings.take(4).forEach { w ->
                 RowDivider()
-                WarningRow(w)
+                WarningRow(context, w)
             }
         }
     }
 }
 
 @Composable
-private fun WarningRow(w: WeatherWarning) {
+private fun WarningRow(context: Context, w: WeatherWarning) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -604,7 +608,7 @@ private fun WarningRow(w: WeatherWarning) {
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                if (w.event.isNotEmpty()) w.event else w.level.fiName,
+                if (w.event.isNotEmpty()) w.event else if (w.level.nameRes != 0) stringResource(w.level.nameRes) else "",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
@@ -612,13 +616,13 @@ private fun WarningRow(w: WeatherWarning) {
         }
         if (w.areaDesc.isNotEmpty()) {
             Text(
-                w.areaDesc,
+                localizedAreaDesc(context, w.areaDesc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
-        val v = warningValidity(w)
+        val v = remember(w, context) { warningValidity(context, w) }
         if (v.isNotEmpty()) {
             Text(
                 v,
@@ -629,13 +633,17 @@ private fun WarningRow(w: WeatherWarning) {
     }
 }
 
-private fun warningValidity(w: WeatherWarning): String {
-    if (w.onsetMs <= 0L && w.expiresMs <= 0L) return ""
-    val dt = DM_HM_W
+private fun warningValidity(context: Context, w: WeatherWarning): String =
+    homeValidityText(context, w.onsetMs, w.expiresMs, R.string.home_date_pattern_date_time)
+
+/** Voimassaoloaika "alku – loppu", "voimassa loppu asti" tai "alkaen alku" kielen päivämäärämuodolla. */
+internal fun homeValidityText(context: Context, startMs: Long, endMs: Long, @StringRes pattern: Int): String {
+    if (startMs <= 0L && endMs <= 0L) return ""
+    val dt = SimpleDateFormat(context.getString(pattern), AppLocale.current(context)).apply { timeZone = HELSINKI_W }
     return when {
-        w.onsetMs <= 0L -> "voimassa asti " + dt.format(Date(w.expiresMs))
-        w.expiresMs <= 0L -> "alkaen " + dt.format(Date(w.onsetMs))
-        else -> dt.format(Date(w.onsetMs)) + " – " + dt.format(Date(w.expiresMs))
+        startMs <= 0L -> context.getString(R.string.home_valid_until, dt.format(Date(endMs)))
+        endMs <= 0L -> context.getString(R.string.home_valid_from, dt.format(Date(startMs)))
+        else -> dt.format(Date(startMs)) + " – " + dt.format(Date(endMs))
     }
 }
 
@@ -654,7 +662,7 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
     LaunchedEffect(refresh, rev) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
-            note = "Salli sijainti, niin lähialueen liikennetiedot näkyvät."
+            note = context.getString(R.string.home_traffic_need_location)
             notices = emptyList()
             return@LaunchedEffect
         }
@@ -666,7 +674,7 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
             }
         }
         if (result == null) {
-            note = "Liikennetietojen haku epäonnistui."
+            note = context.getString(R.string.home_traffic_failed)
             notices = emptyList()
         } else {
             note = null
@@ -678,9 +686,9 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_construction_24),
                 accent = ArkiTheme.colors.warning,
-                title = "Liikennetiedot",
+                title = stringResource(R.string.home_title_traffic),
                 trailing = if (!notices.isNullOrEmpty()) {
-                    { TextButton(onClick = onOpenTraffic) { Text("Kaikki") } }
+                    { TextButton(onClick = onOpenTraffic) { Text(stringResource(R.string.home_see_all)) } }
                 } else {
                     null
                 },
@@ -688,12 +696,12 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
             val list = notices
             when {
                 list == null -> Text(
-                    "Haetaan liikennetietoja…",
+                    stringResource(R.string.home_traffic_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 list.isEmpty() -> Text(
-                    note ?: "Ei tiedotteita lähistöllä juuri nyt.",
+                    note ?: stringResource(R.string.home_traffic_none_nearby),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -705,7 +713,7 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
                     if (list.size > 3) {
                         RowDivider()
                         Text(
-                            "+ ${list.size - 3} lisää",
+                            pluralStringResource(R.plurals.home_more_count, list.size - 3, list.size - 3),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -723,9 +731,11 @@ internal fun HomeTrafficCard(onOpenTraffic: () -> Unit) {
 
 @Composable
 private fun CompactTrafficRow(n: TrafficNotice) {
+    val loc = AppLocale.current(LocalContext.current)
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        val kindTitle = stringResource(n.kind.titleRes)
         Text(
-            n.title.ifEmpty { n.kind.title },
+            n.title.ifEmpty { kindTitle },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = ArkiTheme.colors.warning,
@@ -733,8 +743,8 @@ private fun CompactTrafficRow(n: TrafficNotice) {
             overflow = TextOverflow.Ellipsis,
         )
         val meta = buildList {
-            add(n.kind.title)
-            if (!n.distanceMeters.isNaN()) add(distanceText(n.distanceMeters))
+            add(kindTitle)
+            if (!n.distanceMeters.isNaN()) add(homeDistanceText(loc, n.distanceMeters))
         }.joinToString("  ·  ")
         Text(
             meta,
@@ -760,7 +770,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
     LaunchedEffect(refresh, rev) {
         val ref = referenceCoordinates(context)
         if (ref == null) {
-            note = "Salli sijainti tai aseta kotipaikka, niin lähilähdöt näkyvät."
+            note = context.getString(R.string.home_transit_need_location)
             deps = emptyList()
             return@LaunchedEffect
         }
@@ -776,7 +786,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
             }
         }
         if (result == null) {
-            note = "Lähtöjen haku epäonnistui."
+            note = context.getString(R.string.home_transit_failed)
             deps = emptyList()
         } else {
             note = null
@@ -788,18 +798,18 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_bus_24),
                 accent = MaterialTheme.colorScheme.primary,
-                title = "Lähilähdöt",
-                trailing = { TextButton(onClick = onOpenTransit) { Text("Kaikki") } },
+                title = stringResource(R.string.home_title_transit),
+                trailing = { TextButton(onClick = onOpenTransit) { Text(stringResource(R.string.home_see_all)) } },
             )
             val list = deps
             when {
                 list == null -> Text(
-                    "Haetaan lähtöjä…",
+                    stringResource(R.string.home_transit_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 list.isEmpty() -> Text(
-                    note ?: "Ei lähtöjä lähistöllä juuri nyt.",
+                    note ?: stringResource(R.string.home_transit_none),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -816,7 +826,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
                     if (list.size > 5) {
                         RowDivider()
                         Text(
-                            "+ ${list.size - 5} lähtöä lisää",
+                            pluralStringResource(R.plurals.home_transit_more, list.size - 5, list.size - 5),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -834,6 +844,7 @@ internal fun HomeTransitCard(onOpenTransit: () -> Unit) {
 
 @Composable
 private fun DepartureRow(d: Departure, expanded: Boolean, onToggle: () -> Unit) {
+    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -864,7 +875,7 @@ private fun DepartureRow(d: Departure, expanded: Boolean, onToggle: () -> Unit) 
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    departureSub(d),
+                    departureSub(context, d),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -873,7 +884,7 @@ private fun DepartureRow(d: Departure, expanded: Boolean, onToggle: () -> Unit) 
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                departureTimeText(d),
+                departureTimeText(context, d),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (d.realtime) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
@@ -913,12 +924,12 @@ private fun TripTimelineInline(d: Departure) {
         val tl = timeline
         when {
             loading -> Text(
-                "Haetaan reittiä…",
+                stringResource(R.string.home_transit_route_loading),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             tl == null || tl.stops.isEmpty() -> Text(
-                "Reittiä ei saatu juuri nyt.",
+                stringResource(R.string.home_transit_route_failed),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -988,8 +999,8 @@ private fun transitModeColorRes(mode: String?): Int = when (mode) {
     else -> R.color.mobile_accent
 }
 
-private fun departureSub(d: Departure): String {
-    val dist = distanceText(d.distanceMeters)
+private fun departureSub(context: Context, d: Departure): String {
+    val dist = homeDistanceText(AppLocale.current(context), d.distanceMeters)
     val stop = d.stopName ?: ""
     return when {
         stop.isEmpty() -> dist
@@ -998,28 +1009,13 @@ private fun departureSub(d: Departure): String {
     }
 }
 
-private fun distanceText(meters: Double): String = when {
-    meters.isNaN() || meters < 0 -> ""
-    meters < 1000.0 -> "${Math.round(meters)} m"
-    else -> String.format(FI_W, "%.1f km", meters / 1000.0)
-}
-
-private fun departureTimeText(d: Departure): String {
+private fun departureTimeText(context: Context, d: Departure): String {
     val nowSec = System.currentTimeMillis() / 1000L
     val diff = d.departureEpochSec - nowSec
-    if (diff <= 30) return "nyt"
+    if (diff <= 30) return context.getString(R.string.home_now)
     val min = diff / 60L
     if (min < 60) return "$min min"
     return HM_W.format(Date(d.departureEpochSec * 1000L))
-}
-
-private fun relAge(timestamp: Long): String {
-    val ageMin = Math.max(0L, (System.currentTimeMillis() - timestamp) / 60_000L)
-    return when {
-        ageMin < 1L -> "nyt"
-        ageMin < 60L -> "$ageMin min sitten"
-        else -> "${ageMin / 60L} h sitten"
-    }
 }
 
 // ===================== Lennot-kortti (etusivulle) =====================
@@ -1048,12 +1044,12 @@ internal fun HomeFlightsCard(onOpenFlights: () -> Unit) {
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_flight_24),
                 accent = arki.weatherAccent,
-                title = "Lennot",
-                subtitle = "Helsinki-Vantaa · lähtevät",
-                trailing = { TextButton(onClick = onOpenFlights) { Text("Kaikki") } },
+                title = stringResource(R.string.home_title_flights),
+                subtitle = stringResource(R.string.home_flights_subtitle),
+                trailing = { TextButton(onClick = onOpenFlights) { Text(stringResource(R.string.home_see_all)) } },
             )
             if (data == null) {
-                Text("Ladataan…", modifier = Modifier.padding(top = 10.dp),
+                Text(stringResource(R.string.common_loading), modifier = Modifier.padding(top = 10.dp),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 next.forEach { f ->
@@ -1068,7 +1064,7 @@ internal fun HomeFlightsCard(onOpenFlights: () -> Unit) {
 @Composable
 private fun HomeFlightRow(f: Flight) {
     val timeFmt = remember {
-        java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).apply {
+        java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).apply {
             timeZone = java.util.TimeZone.getTimeZone("Europe/Helsinki")
         }
     }
@@ -1084,7 +1080,7 @@ private fun HomeFlightRow(f: Flight) {
             Text(place, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (f.status.isNotBlank()) {
-            Text(f.status, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(flightStatusText(f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

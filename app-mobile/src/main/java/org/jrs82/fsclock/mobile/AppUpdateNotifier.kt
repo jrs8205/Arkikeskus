@@ -3,6 +3,7 @@ package org.jrs82.fsclock.mobile
 import android.content.Context
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.BuildConfig
+import org.jrs82.fsclock.R
 
 /**
  * 4b-ilmoitus #7: ilmoittaa kun Arkikeskuksesta on uusi versio GitHubissa (nyt vain in-app-banneri).
@@ -36,12 +37,16 @@ object AppUpdateNotifier {
             .putString(AppUpdater.PREF_AVAILABLE_NOTES, rel.notes)
             .putString(KEY_LAST_VERSION, rel.versionName)
             .apply()
-        val firstLine = rel.notes.lineSequence().firstOrNull { it.isNotBlank() }?.trim()
         Notifications.post(
             context, Notifications.CHANNEL_UPDATE, Notifications.NOTIF_ID_UPDATE,
-            "Uusi versio ${rel.versionName} saatavilla",
-            if (!firstLine.isNullOrEmpty()) firstLine.take(160) else "Avaa päivittääksesi Arkikeskuksen.",
+            context.getString(R.string.settings_update_notif_title, rel.versionName),
+            notesPreview(rel.notes) ?: context.getString(R.string.settings_update_notif_text),
             null,
         )
     }
+
+    /** Ilmoituksen teksti julkaisukuvauksesta (releasetekstit ovat suomeksi): ensimmäinen ei-tyhjä rivi,
+     *  enintään 160 merkkiä; null → yleinen käännetty teksti. */
+    fun notesPreview(notes: String): String? =
+        notes.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(160)
 }

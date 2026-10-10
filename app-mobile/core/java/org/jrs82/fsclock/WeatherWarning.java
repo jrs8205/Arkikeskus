@@ -1,5 +1,7 @@
 package org.jrs82.fsclock;
 
+import androidx.annotation.StringRes;
+
 import java.util.Locale;
 
 /** Yksittäinen FMI/MeteoAlarm-sääoitus. Yksi instanssi vastaa yhtä alert-objektia
@@ -7,15 +9,18 @@ import java.util.Locale;
 public class WeatherWarning {
 
     public enum Level {
-        GREEN(0xFF3FA34D, "Vihreä"),
-        YELLOW(0xFFE6C32E, "Keltainen"),
-        ORANGE(0xFFE89B2C, "Oranssi"),
-        RED(0xFFD0413B, "Punainen"),
-        UNKNOWN(0xFF888888, "");
+        GREEN(0xFF3FA34D, R.string.warning_level_green),
+        YELLOW(0xFFE6C32E, R.string.warning_level_yellow),
+        ORANGE(0xFFE89B2C, R.string.warning_level_orange),
+        RED(0xFFD0413B, R.string.warning_level_red),
+        UNKNOWN(0xFF888888, 0);
 
         public final int color;
-        public final String fiName;
-        Level(int color, String fiName) { this.color = color; this.fiName = fiName; }
+        /** Tason nimi kielen mukaan; 0 = ei nimeä (UNKNOWN). */
+        @StringRes public final int nameRes;
+        Level(int color, int nameRes) {
+            this.color = color; this.nameRes = nameRes;
+        }
 
         /** Parsii MeteoAlarmin awareness_level-stringistä esim. "2; yellow; Moderate". */
         public static Level fromAwareness(String raw) {
@@ -49,23 +54,24 @@ public class WeatherWarning {
     }
 
     public enum AwarenessType {
-        WIND(1, "Tuuli"),
-        SNOW_ICE(2, "Lumi/jää"),
-        THUNDERSTORM(3, "Ukkonen"),
-        FOG(4, "Sumu"),
-        HIGH_TEMPERATURE(5, "Helle"),
-        LOW_TEMPERATURE(6, "Pakkanen"),
-        COASTAL(7, "Rannikko"),
-        FOREST_FIRE(8, "Maastopalo"),
-        AVALANCHE(9, "Lumivyöry"),
-        RAIN(10, "Sade"),
-        FLOOD(11, "Tulva"),
-        UV(90, "UV"),
-        UNKNOWN(0, "");
+        WIND(1, R.string.warning_type_wind),
+        SNOW_ICE(2, R.string.warning_type_snow_ice),
+        THUNDERSTORM(3, R.string.warning_type_thunderstorm),
+        FOG(4, R.string.warning_type_fog),
+        HIGH_TEMPERATURE(5, R.string.warning_type_heat),
+        LOW_TEMPERATURE(6, R.string.warning_type_cold),
+        COASTAL(7, R.string.warning_type_coastal),
+        FOREST_FIRE(8, R.string.warning_type_forest_fire),
+        AVALANCHE(9, R.string.warning_type_avalanche),
+        RAIN(10, R.string.warning_type_rain),
+        FLOOD(11, R.string.warning_type_flood),
+        UV(90, R.string.warning_type_uv),
+        UNKNOWN(0, 0);
 
         public final int code;
-        public final String fiName;
-        AwarenessType(int code, String fiName) { this.code = code; this.fiName = fiName; }
+        /** Ilmiön nimi kielen mukaan; 0 = tuntematon. */
+        @StringRes public final int nameRes;
+        AwarenessType(int code, int nameRes) { this.code = code; this.nameRes = nameRes; }
 
         /** Parsii MeteoAlarmin awareness_type-stringin, esim. "8; forest-fire". */
         public static AwarenessType fromParam(String raw) {
@@ -112,7 +118,7 @@ public class WeatherWarning {
     public final String urgency;
     /** Julkaisuhetki (effective) millisekunteina, 0 jos ei tiedossa. */
     public final long effectiveMs;
-    /** Lähettäjän nimi, esim. "Ilmatieteen laitos". */
+    /** Lähettäjän nimi syötteen kielellä; "" → UI näyttää FMI:n nimen resurssista. */
     public final String senderName;
     /** Linkki lisätietoihin (FMI:n varoitussivu). */
     public final String web;

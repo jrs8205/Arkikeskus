@@ -1,9 +1,11 @@
 package org.jrs82.fsclock.mobile
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.ElectricityClient
 import org.jrs82.fsclock.ElectricityData
+import org.jrs82.fsclock.R
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
@@ -19,13 +21,15 @@ object ElectricityNotifier {
     const val KEY_ENABLED = "notify_electricity"
     private const val KEY_LAST_DAY = "notify_electricity_last_day"
     private const val PUBLISH_HOUR = 14 // huomisen hinnat NordPoolista n. klo 14
-    private val FI = Locale("fi", "FI")
     private val HEL: TimeZone = TimeZone.getTimeZone("Europe/Helsinki")
 
+    /** [minDstRes]/[maxDstRes] = kesä-/talviaikatarkenne toistuvalla tunnilla (ks. [ElectricityTime.dstSuffixRes]). */
     data class DayStats(
         val minSnt: Double, val minHm: String,
         val maxSnt: Double, val maxHm: String,
         val avgSnt: Double,
+        @StringRes val minDstRes: Int? = null,
+        @StringRes val maxDstRes: Int? = null,
     )
 
     /** Halvin/kallein vartti + keskihinta annetuista varteista näytettävinä hintoina (puhdas,
@@ -45,21 +49,34 @@ object ElectricityNotifier {
             ElectricityVat.apply(min.sntPerKwh, vat), hm(min),
             ElectricityVat.apply(max.sntPerKwh, vat), hm(max),
             sum / quarters.size,
+            ElectricityTime.dstSuffixRes(min.timestamp),
+            ElectricityTime.dstSuffixRes(max.timestamp),
         )
     }
 
-    /** Ilmoitusteksti [summarize]n näytettävistä hinnoista, aina kolmella desimaalilla; [vat] valitsee
-     *  vain ALV-merkinnän (puhdas, yksikkötestattava). */
-    fun message(stats: DayStats, vat: Boolean): String = String.format(
-        FI,
-        "Halvin klo %s (%s snt), kallein klo %s (%s snt). Keskihinta %s snt/kWh, %s.",
-        stats.minHm, ElectricityVat.format(stats.minSnt),
-        stats.maxHm, ElectricityVat.format(stats.maxSnt),
-        ElectricityVat.format(stats.avgSnt), ElectricityVat.label(vat),
+    @StringRes val TITLE_RES: Int = R.string.electricity_notify_title
+    @StringRes val MESSAGE_RES: Int = R.string.electricity_notify_text
+
+    /** Ilmoitustekstin hinnat (halvin, kallein, keskihinta) aina kolmella desimaalilla kielen
+     *  desimaalierottimella (puhdas, yksikkötestattava). */
+    fun messagePrices(stats: DayStats, locale: Locale): List<String> = listOf(
+        ElectricityVat.format(stats.minSnt, locale),
+        ElectricityVat.format(stats.maxSnt, locale),
+        ElectricityVat.format(stats.avgSnt, locale),
     )
 
-    private fun hm(q: ElectricityData.Quarter) =
-        String.format(Locale.US, "%02d:%02d", q.hour, q.minute) + ElectricityTime.dstSuffix(q.timestamp)
+    /** Ilmoitusteksti [summarize]n näytettävistä hinnoista; [vat] valitsee vain ALV-merkinnän. */
+    fun message(context: Context, stats: DayStats, vat: Boolean): String {
+        val prices = messagePrices(stats, AppLocale.current(context))
+        return context.getString(
+            MESSAGE_RES,
+            stats.minHm + ElectricityTime.dstSuffixText(context, stats.minDstRes), prices[0],
+            stats.maxHm + ElectricityTime.dstSuffixText(context, stats.maxDstRes), prices[1],
+            prices[2], ElectricityVat.label(context, vat),
+        )
+    }
+
+    private fun hm(q: ElectricityData.Quarter) = String.format(Locale.US, "%02d:%02d", q.hour, q.minute)
 
     private fun dateKey(c: Calendar) = String.format(
         Locale.US, "%04d-%02d-%02d",
@@ -98,8 +115,8 @@ object ElectricityNotifier {
         )
         Notifications.post(
             context, Notifications.CHANNEL_ELECTRICITY, Notifications.NOTIF_ID_ELECTRICITY,
-            "Huomisen sähköhinnat saapuivat",
-            message(stats, vat),
+            context.getString(TITLE_RES),
+            message(context, stats, vat),
             "ELECTRICITY",
         )
         prefs.edit().putString(KEY_LAST_DAY, tomorrowKey).apply()

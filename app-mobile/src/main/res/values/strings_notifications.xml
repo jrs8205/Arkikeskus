@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notif_channel_hsl_name">HSL disruptions</string>
+    <string name="notif_channel_hsl_desc">Notifies you when a new disruption affects a favourite line or stop</string>
+    <string name="notif_channel_weather_name">Weather warnings</string>
+    <string name="notif_channel_weather_desc">Finnish Meteorological Institute (FMI) weather warnings for your home area</string>
+    <string name="notif_channel_electricity_name">Spot electricity</string>
+    <string name="notif_channel_electricity_desc">Notifies you when tomorrow\'s spot electricity prices arrive</string>
+    <string name="notif_channel_steps_name">Step goal</string>
+    <string name="notif_channel_steps_desc">Notifies you when you reach today\'s step goal</string>
+    <string name="notif_channel_departure_name">Departure reminders</string>
+    <string name="notif_channel_departure_desc">Reminds you of a chosen public transport departure before it leaves</string>
+    <string name="notif_channel_update_name">App updates</string>
+    <string name="notif_channel_update_desc">Notifies you when a new version of Arkikeskus is available</string>
+</resources>

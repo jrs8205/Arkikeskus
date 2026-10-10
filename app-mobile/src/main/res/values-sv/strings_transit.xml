@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Kulkuvalineet ja alueet -->
+    <string name="transit_mode_bus">Buss</string>
+    <string name="transit_mode_tram">Spårvagn</string>
+    <string name="transit_mode_train">Tåg</string>
+    <string name="transit_mode_metro">Metro</string>
+    <string name="transit_mode_ferry">Färja</string>
+    <string name="transit_vehicle_bus">Bussen</string>
+    <string name="transit_vehicle_tram">Spårvagnen</string>
+    <string name="transit_vehicle_train">Tåget</string>
+    <string name="transit_vehicle_metro">Metron</string>
+    <string name="transit_vehicle_ferry">Färjan</string>
+    <string name="transit_filter_all">Alla</string>
+    <string name="transit_filter_bus">Bussar</string>
+    <string name="transit_filter_tram">Spårvagnar</string>
+    <string name="transit_filter_train">Tåg</string>
+    <string name="transit_filter_metro">Metro</string>
+    <string name="transit_filter_ferry">Färjor</string>
+    <string name="transit_region_hsl">HRT</string>
+    <string name="transit_region_tampere">Tammerfors</string>
+
+    <!-- Yleiset -->
+    <string name="transit_line">Linje</string>
+    <string name="transit_stop">Hållplats</string>
+    <string name="transit_station">Station</string>
+    <string name="transit_line_number">Linje %1$s</string>
+    <string name="transit_dep_now">nu</string>
+    <string name="transit_clock_label">kl.</string>
+    <string name="transit_clock_time">kl. %1$s</string>
+    <string name="transit_line_at">Linje %1$s kl. %2$s</string>
+    <string name="transit_departure_at">Avgång kl. %1$s</string>
+    <string name="transit_alert_title">Störningsmeddelande</string>
+
+    <!-- Lahilahdot -->
+    <string name="transit_title_nearby">Avgångar nära dig</string>
+    <string name="transit_search_hint">Sök linje (t.ex. 550), hållplats eller station</string>
+    <string name="transit_header_lines">Linjer</string>
+    <string name="transit_header_stops_stations">Hållplatser och stationer</string>
+    <string name="transit_header_favourites">Favoriter</string>
+    <string name="transit_status_allow_location">Tillåt platsåtkomst för att se avgångar nära dig.</string>
+    <string name="transit_status_fetching_nearby">Hämtar avgångar nära dig…</string>
+    <string name="transit_status_no_location_permission">Platsbehörighet saknas.</string>
+    <string name="transit_status_location_read_failed">Det gick inte att läsa av platsen.</string>
+    <string name="transit_status_location_unavailable">Platsen kunde inte hämtas. Prova Uppdatera-knappen om en stund.</string>
+    <string name="transit_status_departures_failed">Det gick inte att hämta avgångar. Prova Uppdatera-knappen.</string>
+    <string name="transit_status_location_needed">Platsbehörighet behövs för att visa avgångar nära dig.</string>
+    <string name="transit_toast_no_departure_info">Det finns inga avgångsuppgifter för den här platsen.</string>
+    <string name="transit_empty_stop">Inga kommande avgångar från den här hållplatsen.</string>
+    <string name="transit_searching">Söker efter \"%1$s\"…</string>
+    <string name="transit_no_results">Inga träffar för \"%1$s\".\nProva namnet eller numret på en hållplats, station eller linje.</string>
+    <string name="transit_empty_mode">Inga avgångar i närheten med valt trafikslag.</string>
+    <string name="transit_reminder_tip">Tips: spara en avgång som favorit och ställ in en påminnelse.\nDu får en avisering 1–60 minuter före avgången.</string>
+    <string name="transit_cd_favourite">Favorit</string>
+    <string name="transit_cd_add_favourite">Lägg till som favorit</string>
+    <string name="transit_cd_remove_favourite">Ta bort från favoriter</string>
+    <string name="transit_full_day_link">Hela dagen ›</string>
+    <string name="transit_toast_line_added">Linjen har lagts till i favoriter</string>
+    <string name="transit_toast_line_removed">Linjen har tagits bort från favoriter</string>
+    <string name="transit_toast_stop_added">Hållplatsen har lagts till i favoriter</string>
+    <string name="transit_toast_stop_removed">Hållplatsen har tagits bort från favoriter</string>
+    <string name="transit_toast_removed_from_favourites">Borttagen från favoriter</string>
+
+    <!-- Suosikkidialogi ja lahtomuistutus -->
+    <string name="transit_fav_line">Favoritlinje</string>
+    <string name="transit_fav_stop">Favorithållplats</string>
+    <string name="transit_add_reminder">Lägg till en avgångspåminnelse</string>
+    <string name="transit_add_reminder_sub">Du får en avisering före avgången</string>
+    <string name="transit_reminder_set">Ställ in påminnelse</string>
+    <string name="transit_reminder_too_close">Avgången är redan för nära</string>
+    <string name="transit_reminder_at">Avisering kl. %1$s</string>
+    <string name="transit_reminder_from_stop">Från hållplatsen %1$s</string>
+    <plurals name="transit_reminder_lead">
+        <item quantity="one">Påminn %1$d min före avgången</item>
+        <item quantity="other">Påminn %1$d min före avgången</item>
+    </plurals>
+    <plurals name="transit_reminder_set_toast">
+        <item quantity="one">Påminnelse %1$d min före avgången (kl. %2$s)</item>
+        <item quantity="other">Påminnelse %1$d min före avgången (kl. %2$s)</item>
+    </plurals>
+    <string name="transit_reminder_notif_title_line">Linje %1$s avgår kl. %2$s</string>
+    <plurals name="transit_reminder_notif_body">
+        <item quantity="one">Från hållplatsen %1$s om cirka %2$d min.</item>
+        <item quantity="other">Från hållplatsen %1$s om cirka %2$d min.</item>
+    </plurals>
+    <plurals name="transit_reminder_notif_body_headsign">
+        <item quantity="one">Från hållplatsen %1$s (%3$s) om cirka %2$d min.</item>
+        <item quantity="other">Från hållplatsen %1$s (%3$s) om cirka %2$d min.</item>
+    </plurals>
+
+    <!-- Koko paivan aikataulu -->
+    <string name="transit_hour_header">kl. %1$s</string>
+    <string name="transit_full_day_title">Dagens tidtabell</string>
+    <string name="transit_full_day_loading">Hämtar dagens tidtabell…</string>
+    <string name="transit_full_day_failed">Det gick inte att hämta dagens tidtabell.</string>
+
+    <!-- Vuoro- ja linjanakyma -->
+    <string name="transit_loading_route">Hämtar linjeuppgifter…</string>
+    <string name="transit_loading_trip">Hämtar turens uppgifter…</string>
+    <string name="transit_loading_timetable">Hämtar tidtabell…</string>
+    <string name="transit_line_failed">Det gick inte att hämta linjeuppgifterna.</string>
+    <string name="transit_line_timetable_failed">Det gick inte att hämta linjens tidtabell.</string>
+    <string name="transit_trip_failed">Det gick inte att hämta turens uppgifter.</string>
+    <string name="transit_choose_direction">Välj riktning</string>
+    <string name="transit_eta_arriving">ANKOMMER TILL DIN HÅLLPLATS</string>
+    <string name="transit_eta_passed">HAR PASSERAT DIN HÅLLPLATS</string>
+    <string name="transit_live_estimate">(uppskattning)</string>
+    <string name="transit_live_passed">%1$s har redan passerat din hållplats%2$s.</string>
+    <string name="transit_live_distance">%1$s är ~%2$s från din hållplats%3$s%4$s.</string>
+    <string name="transit_live_eta">(ankommer ~kl. %1$s)</string>
+    <plurals name="transit_live_eta_min">
+        <item quantity="one">(ankommer ~kl. %1$s, ~%2$d min)</item>
+        <item quantity="other">(ankommer ~kl. %1$s, ~%2$d min)</item>
+    </plurals>
+    <string name="transit_banner_trip_not_started">Ingen realtidsposition — turen har inte startat ännu.</string>
+    <string name="transit_banner_fetching_live">Hämtar realtidsposition…</string>
+    <string name="transit_banner_trip_no_live_region">Realtidspositioner finns inte i det här området — tiderna följer tidtabellen.</string>
+    <string name="transit_pos_en_route">på väg till %1$s</string>
+    <string name="transit_pos_at">vid %1$s</string>
+    <plurals name="transit_banner_stops_away">
+        <item quantity="one">%1$s är %2$d hållplats från din hållplats (nu %3$s).</item>
+        <item quantity="other">%1$s är %2$d hållplatser från din hållplats (nu %3$s).</item>
+    </plurals>
+    <string name="transit_banner_at_your_stop">%1$s är vid din hållplats eller alldeles intill (%2$s).</string>
+    <string name="transit_banner_passed_now">%1$s har redan passerat din hållplats (nu: %2$s).</string>
+    <string name="transit_banner_en_route_to">%1$s är på väg till %2$s.</string>
+    <string name="transit_banner_at_stop">%1$s är vid %2$s.</string>
+    <string name="transit_banner_route_none">Inga turer i trafik just nu — nedan finns rutten och nästa avgångstider.</string>
+    <string name="transit_banner_route_fetching">Hämtar realtidspositioner — nedan finns rutten och nästa avgångstider.</string>
+    <string name="transit_banner_route_no_live_region">Realtidspositioner finns inte i det här området — nedan finns rutten och nästa avgångstider.</string>
+    <plurals name="transit_banner_route_running">
+        <item quantity="one">%1$d tur i trafik — positionen är markerad. Tider = nästa avgång från varje hållplats.</item>
+        <item quantity="other">%1$d turer i trafik — positionerna är markerade. Tider = nästa avgång från varje hållplats.</item>
+    </plurals>
+    <string name="transit_timeline_your_stop">din hållplats</string>
+    <string name="transit_timeline_bus_approaching">bussen på väg</string>
+    <string name="transit_timeline_bus_here">bussen här</string>
+    <string name="transit_timeline_tram_approaching">spårvagnen på väg</string>
+    <string name="transit_timeline_tram_here">spårvagnen här</string>
+    <string name="transit_timeline_train_approaching">tåget på väg</string>
+    <string name="transit_timeline_train_here">tåget här</string>
+    <string name="transit_timeline_metro_approaching">metron på väg</string>
+    <string name="transit_timeline_metro_here">metron här</string>
+    <string name="transit_timeline_ferry_approaching">färjan på väg</string>
+    <string name="transit_timeline_ferry_here">färjan här</string>
+
+    <!-- Hairiot ja muutokset -->
+    <string name="transit_title_disruptions">Störningar och ändringar</string>
+    <string name="transit_disruptions_search_hint">Sök linje eller hållplats</string>
+    <string name="transit_filter_active_only">Endast gällande</string>
+    <string name="transit_filter_favourites_only">Endast favoriter</string>
+    <plurals name="transit_disruption_count">
+        <item quantity="one">%1$d störning</item>
+        <item quantity="other">%1$d störningar</item>
+    </plurals>
+    <string name="transit_disruptions_loading">Hämtar störningar…</string>
+    <string name="transit_disruptions_failed">Det gick inte att hämta störningar. Prova Uppdatera-knappen.</string>
+    <string name="transit_disruptions_empty">Inga störningar med valda filter.</string>
+    <string name="transit_datetime_pattern">d.M. \'kl.\' HH:mm</string>
+    <string name="transit_range_from">från %1$s</string>
+    <string name="transit_range_until">till %1$s</string>
+
+    <!-- HSL-hairioilmoitus -->
+    <string name="transit_hsl_alert_title_line">HRT-störning: linje %1$s</string>
+    <string name="transit_hsl_alert_title_stop">HRT-störning: %1$s</string>
+    <string name="transit_hsl_alert_multi_title">Nya HRT-störningar för dina favoriter</string>
+    <plurals name="transit_hsl_alert_multi_body">
+        <item quantity="one">%1$d ny störning på dina favoritlinjer eller -hållplatser. Öppna för att se den.</item>
+        <item quantity="other">%1$d nya störningar på dina favoritlinjer eller -hållplatser. Öppna för att se dem.</item>
+    </plurals>
+
+    <!-- Reittihaku -->
+    <string name="transit_route_planner_title">Reseplanerare</string>
+    <string name="transit_route_where_to">Vart ska du?</string>
+    <string name="transit_route_from_hint">Från</string>
+    <string name="transit_route_to_hint">Till (t.ex. Centralstationen, adress)</string>
+    <string name="transit_route_clear_origin">Rensa avgångsplatsen</string>
+    <string name="transit_route_clear_destination">Rensa destinationen</string>
+    <string name="transit_route_swap">Byt riktning</string>
+    <string name="transit_route_center_on_me">Centrera på min plats</string>
+    <string name="transit_route_title">Rutt</string>
+    <string name="transit_route_my_location">Min plats</string>
+    <string name="transit_route_my_location_sub">Din nuvarande plats (GPS)</string>
+    <string name="transit_route_intro">Ange en destination så hämtas rutterna direkt.\nAvgångsplatsen är som standard din plats.</string>
+    <string name="transit_route_need_location">Platsbehörighet behövs när avgångsplatsen är din plats.</string>
+    <string name="transit_route_no_places">Inga platser hittades för \"%1$s\".</string>
+    <string name="transit_route_choose_origin_hint">Välj nu en avgångsplats, eller behåll din egen plats.</string>
+    <string name="transit_route_choose_destination_hint">Välj nu en destination.</string>
+    <string name="transit_route_leave_now">Avgång nu</string>
+    <string name="transit_route_depart_at_option">Avgång kl.…</string>
+    <string name="transit_route_arrive_by_option">Framme kl.…</string>
+    <string name="transit_route_leave_now_time">Avgång nu · %1$s</string>
+    <string name="transit_route_depart_label">Avgång %1$s</string>
+    <string name="transit_route_arrive_label">Framme %1$s</string>
+    <string name="transit_route_time_pattern">EEE d.M. \'kl.\' HH:mm</string>
+    <string name="transit_route_direct_only">Endast direkta</string>
+    <string name="transit_route_need_destination">Välj en destination: skriv i Till-fältet och välj ett förslag.</string>
+    <string name="transit_route_need_origin">Välj en avgångsplats: skriv i Från-fältet och välj ett förslag, eller välj Min plats.</string>
+    <string name="transit_route_both_my_location">Avgångsplatsen och destinationen kan inte båda vara din plats.</string>
+    <string name="transit_route_allow_location">Tillåt platsåtkomst så att rutten kan beräknas från din plats.</string>
+    <string name="transit_route_locating">Hämtar plats…</string>
+    <string name="transit_route_location_failed">Platsen kunde inte hämtas. Försök igen.</string>
+    <string name="transit_route_searching">Söker rutter…</string>
+    <string name="transit_route_search_failed">Ruttsökningen misslyckades. Försök igen.</string>
+    <string name="transit_route_none">Inga rutter för den här sträckan eller tiden.</string>
+    <string name="transit_route_none_direct">Inga direkta rutter för den här sökningen — tillåt byten eller byt trafikslag.</string>
+    <string name="transit_route_none_mode">Inga rutter med valt trafikslag.</string>
+    <string name="transit_direct_connection">direkt</string>
+    <plurals name="transit_transfers">
+        <item quantity="one">%1$d byte</item>
+        <item quantity="other">%1$d byten</item>
+    </plurals>
+    <string name="transit_walk">Promenad</string>
+    <string name="transit_walk_whole_way">Promenad hela vägen</string>
+    <string name="transit_leaves_at">Avgår %1$s</string>
+    <string name="transit_leaves_at_from">Avgår %1$s från hållplatsen %2$s</string>
+    <string name="transit_platform">plattform %1$s</string>
+    <string name="transit_stop_code">hållplats %1$s</string>
+
+    <!-- Lahtowidget -->
+    <string name="transit_widget_next_departure">Nästa avgång</string>
+    <string name="transit_widget_next_departure_label">nästa avgång</string>
+    <string name="transit_widget_no_departures">Inga avgångar just nu</string>
+    <string name="transit_widget_choose_stop">Välj hållplats</string>
+    <string name="transit_widget_nearest_gps">Närmaste hållplats (GPS)</string>
+    <string name="transit_widget_nearest">Närmaste hållplats</string>
+    <string name="transit_widget_no_favourites">Inga favorithållplatser — lägg till en i Avgångar nära dig, eller välj Närmaste hållplats.</string>
+
+    <!-- Tieliikennetiedotteet (Digitraffic) -->
+    <string name="transit_traffic_all">Trafikinfo</string>
+    <string name="transit_traffic_accidents">Olyckor</string>
+    <string name="transit_traffic_roadworks">Vägarbeten</string>
+    <string name="transit_traffic_weight_restrictions">Viktbegränsningar</string>
+    <string name="transit_traffic_incidents">Störningar</string>
+    <string name="transit_traffic_congestion">Köer</string>
+</resources>

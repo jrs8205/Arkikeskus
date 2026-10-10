@@ -45,6 +45,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.BuildConfig
+import org.jrs82.fsclock.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -244,7 +246,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
         status = null
         val m = withContext(Dispatchers.IO) { TeletextClient.fetchMeta(pageNum) }
         if (m == null) {
-            status = "Sivua $pageNum ei löytynyt tai haku epäonnistui."
+            status = context.getString(R.string.news_teletext_not_found, pageNum)
         } else {
             meta = m
             if (subIndex >= m.subpageCount) subIndex = 0
@@ -253,7 +255,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
     LaunchedEffect(meta, subIndex, refresh) {
         val m = meta ?: return@LaunchedEffect
         val bmp = withContext(Dispatchers.IO) { TeletextClient.fetchImage(m.number, subIndex + 1) }
-        if (bmp != null) bitmap = bmp else if (status == null) status = "Kuvan lataus epäonnistui."
+        if (bmp != null) bitmap = bmp else if (status == null) status = context.getString(R.string.news_teletext_image_failed)
     }
 
     Column(
@@ -267,10 +269,11 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
         val m = meta
         Text(
             status ?: if (m != null) {
-                "Sivu " + m.number + (if (m.name.isNotEmpty()) " · " + m.name else "") +
+                stringResource(R.string.news_teletext_page, m.number) +
+                    (if (m.name.isNotEmpty()) " · " + m.name else "") +
                     (if (m.time.isNotEmpty()) " · " + m.time.substringAfter('T').take(5) else "")
             } else {
-                "Ladataan…"
+                stringResource(R.string.common_loading)
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -278,10 +281,12 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
         Spacer(Modifier.height(10.dp))
 
         // Sivunavigointi: edellinen / sivunumero / seuraava
+        val prevPageLabel = stringResource(R.string.news_teletext_prev_page)
+        val nextPageLabel = stringResource(R.string.news_teletext_next_page)
         Row(verticalAlignment = Alignment.CenterVertically) {
             FilledTonalButton(
                 onClick = { open(((m?.prevPage) ?: (pageNum - 1)).toString()) },
-                modifier = Modifier.semantics { contentDescription = "Edellinen sivu" },
+                modifier = Modifier.semantics { contentDescription = prevPageLabel },
             ) { Text("◀") }
             Spacer(Modifier.width(8.dp))
             OutlinedTextField(
@@ -299,20 +304,22 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
             Spacer(Modifier.width(8.dp))
             FilledTonalButton(
                 onClick = { open(((m?.nextPage) ?: (pageNum + 1)).toString()) },
-                modifier = Modifier.semantics { contentDescription = "Seuraava sivu" },
+                modifier = Modifier.semantics { contentDescription = nextPageLabel },
             ) { Text("▶") }
         }
 
         // Alasivut (esim. uutissivuilla 1/4)
         if (m != null && m.subpageCount > 1) {
+            val prevSubLabel = stringResource(R.string.news_teletext_prev_subpage)
+            val nextSubLabel = stringResource(R.string.news_teletext_next_subpage)
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalButton(
                     onClick = { subIndex = (subIndex - 1 + m.subpageCount) % m.subpageCount },
-                    modifier = Modifier.semantics { contentDescription = "Edellinen alasivu" },
+                    modifier = Modifier.semantics { contentDescription = prevSubLabel },
                 ) { Text("◀") }
                 Text(
-                    "Alasivu " + (subIndex + 1) + "/" + m.subpageCount,
+                    stringResource(R.string.news_teletext_subpage, subIndex + 1, m.subpageCount),
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 8.dp),
@@ -320,7 +327,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
                 )
                 FilledTonalButton(
                     onClick = { subIndex = (subIndex + 1) % m.subpageCount },
-                    modifier = Modifier.semantics { contentDescription = "Seuraava alasivu" },
+                    modifier = Modifier.semantics { contentDescription = nextSubLabel },
                 ) { Text("▶") }
             }
         }
@@ -331,8 +338,13 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            listOf(100 to "Uutiset", 200 to "Urheilu", 300 to "TV-ohjelmat", 400 to "Sää").forEach { (p, label) ->
-                FilledTonalButton(onClick = { open(p.toString()) }) { Text("$p $label") }
+            listOf(
+                100 to R.string.news_teletext_quick_news,
+                200 to R.string.news_teletext_quick_sport,
+                300 to R.string.news_teletext_quick_tv,
+                400 to R.string.news_teletext_quick_weather,
+            ).forEach { (p, label) ->
+                FilledTonalButton(onClick = { open(p.toString()) }) { Text("$p " + stringResource(label)) }
             }
         }
 
@@ -348,7 +360,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
             ) {
                 Image(
                     bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Teksti-TV:n sivu $pageNum",
+                    contentDescription = stringResource(R.string.news_teletext_page_image, pageNum),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillBounds,
                 )
@@ -371,7 +383,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    status ?: "Ladataan…",
+                    status ?: stringResource(R.string.common_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -381,7 +393,7 @@ internal fun TeletextScreen(initialPage: Int, title: String) {
         Spacer(Modifier.height(8.dp))
         // Ylen käyttöehtojen vaatima lähdemaininta — ÄLÄ poista.
         Text(
-            "Lähde: Yle Teksti-TV",
+            stringResource(R.string.news_teletext_source),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

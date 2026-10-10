@@ -180,12 +180,12 @@ internal object WorkoutFileImporter {
 
         val dao = FsClockDb.get(context).workoutDao()
         val displayName = parsed.name?.trim().takeUnless { it.isNullOrEmpty() }
-            ?: workoutDefaultName(parsed.type, startedAt)
+            ?: workoutDefaultName(context, parsed.type, startedAt)
         // Dedup: sama lenkki (alkuaika+laji) on jo laitteella → ei tuplatuontia.
         val dup = dao.allFinishedWorkouts().firstOrNull {
             it.startedAtMs == startedAt && it.type == parsed.type
         }
-        if (dup != null) return ImportedWorkout(dup.id, workoutDisplayName(dup), true)
+        if (dup != null) return ImportedWorkout(dup.id, workoutDisplayName(context, dup), true)
 
         // Matka + liikkeellä-aika + maksiminopeus + km-väliajat. Aikadeltat leikataan 30 s:iin
         // (sama periaate kuin trackerin katkosäännössä) → tauot eivät vuoda kestoon.

@@ -14,10 +14,12 @@ import java.util.Locale
  */
 internal object WorkoutTcxExporter {
 
+    /** [name] = näytettävä nimi Notes-kenttään (käyttäjän nimi tai kielen mukainen oletus). */
     fun buildTcx(
         workout: WorkoutEntity,
         points: List<WorkoutPointEntity>,
         splits: List<WorkoutSplitEntity>,
+        name: String,
     ): String {
         // Kumulatiivinen matka per piste (segmenttirajan yli ei kerrytetä — tauon siirtymä
         // ei ole lenkkimatkaa, kuten trackerissakaan).
@@ -110,7 +112,7 @@ internal object WorkoutTcxExporter {
             sb.append("      </Lap>\n")
         }
 
-        sb.append("      <Notes>").append(WorkoutGpxExporter.xmlEscape(workoutDisplayName(workout)))
+        sb.append("      <Notes>").append(WorkoutGpxExporter.xmlEscape(name))
             .append("</Notes>\n")
         sb.append("    </Activity>\n")
         sb.append("  </Activities>\n")

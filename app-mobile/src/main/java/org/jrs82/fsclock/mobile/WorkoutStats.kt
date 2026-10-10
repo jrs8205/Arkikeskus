@@ -3,22 +3,34 @@ package org.jrs82.fsclock.mobile
 import org.jrs82.fsclock.db.WorkoutEntity
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
+import java.util.Locale
 
 /**
  * Lenkkien viikko-/kuukausiyhteenvedot. Puhdas aggregointi ilman Android-riippuvuuksia →
  * yksikkötestattava JVM:ssä (vrt. [KuntaList]). Ryhmittely tehdään lenkin aloitusajasta
  * ([WorkoutEntity.startedAtMs]) annetussa aikavyöhykkeessä; kutsuja päättää suodatuksen
  * (esim. vain omat = `!shared`, vain valmiit). Viikkojako on ISO (ma–su) — sama kuin
- * askelhistoriassa, joten "Viikko N" täsmää sovelluksen muuhun otsikointiin.
+ * askelhistoriassa, joten viikkonumero täsmää sovelluksen muuhun otsikointiin. Tekstit eivät
+ * synny täällä: ämpäri kantaa [Period]-rakenteen, jonka UI muotoilee näkyvällä kielellä.
  */
 object WorkoutStats {
 
+    /** Ämpärin ajanjakso rakenteena: teksti muotoillaan UI:ssa kielen mukaan ([weekRange], [monthLabel]). */
+    sealed class Period {
+        /** ISO-viikko; [monday] = viikon ensimmäinen päivä (päivämääräväliä varten). */
+        data class Week(val week: Int, val monday: LocalDate) : Period() {
+            val sunday: LocalDate get() = monday.plusDays(6)
+        }
+        data class Month(val year: Int, val month: Int) : Period()
+    }
+
     /** Yksi viikko- tai kuukausiämpäri summattuna. */
     data class Bucket(
-        val label: String,        // "Viikko 25" / "Kesäkuu 2026"
-        val dateRange: String?,   // "16.6.–22.6." viikoille, null kuukausille
+        val period: Period,
         val sortKey: Int,         // laskeva järjestys (uusin ämpäri ensin)
         val count: Int,
         val distanceM: Double,
@@ -30,11 +42,6 @@ object WorkoutStats {
         val bikeCount: Int,
     )
 
-    private val MONTHS_FI = arrayOf(
-        "Tammikuu", "Helmikuu", "Maaliskuu", "Huhtikuu", "Toukokuu", "Kesäkuu",
-        "Heinäkuu", "Elokuu", "Syyskuu", "Lokakuu", "Marraskuu", "Joulukuu",
-    )
-
     /** Viikkoämpärit (ISO ma–su), uusin ensin. */
     fun weekly(workouts: List<WorkoutEntity>, zone: ZoneId = ZoneId.systemDefault()): List<Bucket> =
         aggregate(workouts, zone) { d ->
@@ -42,20 +49,34 @@ object WorkoutStats {
             val wk = d.get(wf.weekOfWeekBasedYear())
             val wky = d.get(wf.weekBasedYear())
             val monday = d.with(wf.dayOfWeek(), 1L)
-            val sunday = monday.plusDays(6)
-            val range = "${monday.dayOfMonth}.${monday.monthValue}.–${sunday.dayOfMonth}.${sunday.monthValue}."
-            Key(wky * 100 + wk, "Viikko $wk", range)
+            Key(wky * 100 + wk, Period.Week(wk, monday))
         }
 
     /** Kuukausiämpärit, uusin ensin. */
     fun monthly(workouts: List<WorkoutEntity>, zone: ZoneId = ZoneId.systemDefault()): List<Bucket> =
         aggregate(workouts, zone) { d ->
-            Key(d.year * 100 + d.monthValue, MONTHS_FI[d.monthValue - 1] + " " + d.year, null)
+            Key(d.year * 100 + d.monthValue, Period.Month(d.year, d.monthValue))
         }
 
-    private data class Key(val sortKey: Int, val label: String, val dateRange: String?)
+    /** Viikon päivämääräväli, esim. fi "15.6.–21.6.", en "15 Jun–21 Jun". [datePattern] tulee
+     *  kieliresurssista, jotta päivän ja kuukauden järjestys seuraa kieltä. */
+    @JvmStatic
+    fun weekRange(p: Period.Week, datePattern: String, locale: Locale): String {
+        val f = DateTimeFormatter.ofPattern(datePattern, locale)
+        return f.format(p.monday) + "–" + f.format(p.sunday)
+    }
 
-    private class Acc(val label: String, val dateRange: String?, val sortKey: Int) {
+    /** Kuukausi ja vuosi otsikoksi, esim. "Kesäkuu 2026" / "Juni 2026" / "June 2026". Itsenäinen
+     *  muoto (LLLL), koska fi/sv taivuttaisivat MMMM-muodon ("kesäkuuta"). Iso alkukirjain otsikkona. */
+    @JvmStatic
+    fun monthLabel(year: Int, month: Int, locale: Locale): String =
+        DateTimeFormatter.ofPattern("LLLL yyyy", locale)
+            .format(YearMonth.of(year, month))
+            .replaceFirstChar { it.titlecase(locale) }
+
+    private data class Key(val sortKey: Int, val period: Period)
+
+    private class Acc(val period: Period, val sortKey: Int) {
         var count = 0
         var distanceM = 0.0
         var movingTimeMs = 0L
@@ -66,7 +87,7 @@ object WorkoutStats {
         var bikeCount = 0
 
         fun toBucket() = Bucket(
-            label, dateRange, sortKey, count, distanceM, movingTimeMs,
+            period, sortKey, count, distanceM, movingTimeMs,
             kcal, steps, elevGainM, walkCount, bikeCount,
         )
     }
@@ -80,7 +101,7 @@ object WorkoutStats {
         for (w in workouts) {
             val date = Instant.ofEpochMilli(w.startedAtMs).atZone(zone).toLocalDate()
             val k = keyOf(date)
-            val acc = map.getOrPut(k.sortKey) { Acc(k.label, k.dateRange, k.sortKey) }
+            val acc = map.getOrPut(k.sortKey) { Acc(k.period, k.sortKey) }
             acc.count++
             acc.distanceM += w.distanceM
             acc.movingTimeMs += w.movingTimeMs

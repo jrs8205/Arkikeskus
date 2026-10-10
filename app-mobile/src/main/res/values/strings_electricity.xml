@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="electricity_title">Spot electricity</string>
+    <string name="electricity_widget_title">Spot electricity now</string>
+    <string name="electricity_vat_label_incl" formatted="false">incl. VAT 25.5%</string>
+    <string name="electricity_vat_label_zero" formatted="false">VAT 0%</string>
+    <string name="electricity_vat_note_incl" formatted="false">Price includes VAT at 25.5%</string>
+    <string name="electricity_vat_note_excl" formatted="false">Price excludes VAT (VAT 0%)</string>
+    <string name="electricity_vat_widget_excl">excl. VAT</string>
+    <string name="electricity_level_cheap">Cheap</string>
+    <string name="electricity_level_normal">Normal</string>
+    <string name="electricity_level_expensive">Expensive</string>
+    <string name="electricity_cheapest">Cheapest</string>
+    <string name="electricity_most_expensive">Most expensive</string>
+    <string name="electricity_no_current_price">The current quarter-hour price isn\'t available yet</string>
+    <string name="electricity_quarter_range">Quarter hour %1$s–%2$s · next %3$s</string>
+    <string name="electricity_quarter_range_short">Quarter hour %1$s–%2$s</string>
+    <string name="electricity_quarter_time">%1$s–%2$s</string>
+    <string name="electricity_dst_summer">summer time</string>
+    <string name="electricity_dst_winter">winter time</string>
+    <string name="electricity_now_at">Now at %1$s</string>
+    <string name="electricity_tab_compare">Comparison</string>
+    <string name="electricity_tomorrow_pending">Tomorrow\'s prices are updated every day at about 14:30.</string>
+    <string name="electricity_today_unavailable">Today\'s quarter-hour prices aren\'t available.</string>
+    <string name="electricity_source_footer">Source: Elering/Nord Pool. Prices %1$s.</string>
+    <string name="electricity_heatmap_hour">h</string>
+    <string name="electricity_dst_footnote">* The clocks go back to winter time, so hour 03 occurs twice. The row marked with an asterisk is the second one (winter time).</string>
+    <string name="electricity_compare_header">Average spot electricity prices (%1$s). Source: Elering/Nord Pool.</string>
+    <string name="electricity_compare_year_avg">%1$d average price</string>
+    <string name="electricity_compare_month_section">%1$d monthly averages</string>
+    <string name="electricity_compare_month_partial">%1$s (so far)</string>
+    <string name="electricity_compare_loading">Fetching averages…</string>
+    <string name="electricity_compare_empty">Averages aren\'t available yet. Refresh again when you\'re online.</string>
+    <string name="electricity_cheap_notice_now">Electricity is cheap now: all under %1$s c/kWh, highest %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_rest_of_day">Electricity is cheap for the rest of the day: all under %1$s c/kWh, highest %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_all_day">Electricity is cheap all day: all under %1$s c/kWh, highest %2$s c/kWh</string>
+    <string name="electricity_notify_title">Tomorrow\'s electricity prices are in</string>
+    <string name="electricity_notify_text">Cheapest at %1$s (%2$s c), most expensive at %3$s (%4$s c). Average %5$s c/kWh, %6$s.</string>
+    <string name="electricity_tomorrow_not_yet">Tomorrow\'s prices aren\'t available yet.\nNord Pool usually publishes them at about 14:00.\nUpdating automatically…</string>
+    <string name="electricity_cheapest_at">Cheapest: %1$s %2$s c/kWh</string>
+    <string name="electricity_most_expensive_at">Most expensive: %1$s %2$s c/kWh</string>
+</resources>

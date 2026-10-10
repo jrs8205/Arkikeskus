@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,5 +30,13 @@ class AppUpdaterTest {
         assertTrue(AppUpdater.isNewer("2.25.0-mobile", "2.26.0"))
         assertTrue(AppUpdater.isNewer("2.25.0-mobile", "v2.26.0"))
         assertFalse(AppUpdater.isNewer("2.26.0", "v2.25.0-mobile"))
+    }
+
+    @Test fun downloadIntegrityCheck() {
+        assertEquals(AppUpdater.DownloadCheck.OK, AppUpdater.checkDownload(100, 100))
+        // Palvelin ei ilmoittanut pituutta → kelvollista latausta ei hylätä.
+        assertEquals(AppUpdater.DownloadCheck.OK, AppUpdater.checkDownload(100, -1))
+        assertEquals(AppUpdater.DownloadCheck.INCOMPLETE, AppUpdater.checkDownload(50, 100))
+        assertEquals(AppUpdater.DownloadCheck.EMPTY, AppUpdater.checkDownload(0, -1))
     }
 }

@@ -1,8 +1,10 @@
 package org.jrs82.fsclock.mobile
 
 import android.content.SharedPreferences
+import androidx.annotation.StringRes
 import org.json.JSONArray
 import org.json.JSONObject
+import org.jrs82.fsclock.R
 
 /**
  * Automaattinen, laitekohtainen uutisprofiili (ei tiliä/kirjautumista). Oppii hiljaa klikeistä +
@@ -162,18 +164,20 @@ object NewsProfile {
     private fun mutePackKey(id: String) = "news_mute_pack_$id"
 
     /** Valmis aihepaketti: osuu jutun topic-tagiin (esim. sport) JA laajaan otsikkosanastoon →
-     *  saa kiinni myös ne aihejutut joiden otsikossa ei lue aiheen nimeä. */
+     *  saa kiinni myös ne aihejutut joiden otsikossa ei lue aiheen nimeä. [id] on prefs-avaimen osa
+     *  (ei näytetä), näkyvä nimi tulee [labelRes]-resurssista. */
     data class MutePack(
         val id: String,
-        val label: String,
+        @StringRes val labelRes: Int,
         val topicTags: Set<String>,
         val keywords: Set<String>,
     )
 
-    /** Aloituspaketit (helppo laajentaa). Sanastot pieninä kirjaimina (vertailu on case-insensitive). */
+    /** Aloituspaketit (helppo laajentaa). Sanastot pieninä kirjaimina (vertailu on case-insensitive).
+     *  Sanastot ovat suomeksi kaikilla kielillä, koska ne verrataan backendin suomenkielisiin otsikoihin. */
     val MUTE_PACKS: List<MutePack> = listOf(
         MutePack(
-            "urheilu", "Urheilu", setOf("sport"),
+            "urheilu", R.string.news_pack_sport, setOf("sport"),
             setOf(
                 "urheilu", "jääkiekko", "jalkapallo", "koripallo", "lentopallo", "salibandy",
                 "formula", "f1", "ralli", "hiihto", "yleisurheilu", "golf", "tennis", "ottelu",
@@ -181,7 +185,7 @@ object NewsProfile {
             ),
         ),
         MutePack(
-            "politiikka", "Politiikka", emptySet(),
+            "politiikka", R.string.news_pack_politics, emptySet(),
             setOf(
                 "politiikka", "poliittinen", "hallitus", "eduskunta", "puolue", "ministeri",
                 "pääministeri", "presidentti", "vaalit", "kansanedustaja", "oppositio", "lakiesitys",
@@ -189,21 +193,21 @@ object NewsProfile {
             ),
         ),
         MutePack(
-            "viihde", "Viihde & julkkikset", setOf("entertainment"),
+            "viihde", R.string.news_pack_entertainment, setOf("entertainment"),
             setOf(
                 "viihde", "julkkis", "juoru", "horoskooppi", "realitysarja", "tähti", "kuninkaallinen",
                 "missikisat", "tubettaja", "somettaja",
             ),
         ),
         MutePack(
-            "talous", "Talous", emptySet(),
+            "talous", R.string.news_pack_economy, emptySet(),
             setOf(
                 "talous", "pörssi", "osake", "inflaatio", "korko", "konkurssi", "työttömyys",
                 "lakko", "osinko", "bruttokansantuote", "tulos",
             ),
         ),
         MutePack(
-            "rikokset", "Rikokset & onnettomuudet", emptySet(),
+            "rikokset", R.string.news_pack_crime, emptySet(),
             setOf(
                 "poliisi", "rikos", "epäilty", "murha", "henkirikos", "pidätys", "käräjäoikeus",
                 "tuomio", "huumeet", "väkivalta", "onnettomuus", "kolari", "puukotus",

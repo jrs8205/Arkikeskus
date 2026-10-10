@@ -55,6 +55,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +66,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jrs82.fsclock.R
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.db.WorkoutEntity
 import java.text.SimpleDateFormat
@@ -76,7 +79,6 @@ import java.util.Locale
  * yhteenveto. Totuus on WorkoutTracker.state — sovelluksen sulkeminen/avaaminen ei hukkaa mitään.
  */
 
-private val FI_WO = Locale("fi", "FI")
 private const val KEY_WORKOUT_TYPE = "workout_default_type"
 
 @Composable
@@ -176,7 +178,7 @@ private fun StartWorkoutView(
         if (result[Manifest.permission.ACCESS_FINE_LOCATION] != true) {
             pendingStart = false
             android.widget.Toast.makeText(
-                context, "Lenkkiseuranta tarvitsee tarkan sijaintiluvan.",
+                context, context.getString(R.string.workout_need_fine_location),
                 android.widget.Toast.LENGTH_LONG,
             ).show()
             return@rememberLauncherForActivityResult
@@ -263,11 +265,10 @@ private fun StartWorkoutView(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Lenkki", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.workout_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Seuraa kävely- tai pyörälenkkiä: matka, nopeus, kilometrivälit ja reitti. " +
-                "Seuranta jatkuu, vaikka lukitset näytön.",
+            stringResource(R.string.workout_intro),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -279,7 +280,7 @@ private fun StartWorkoutView(
                     type = WorkoutEntity.TYPE_WALK
                     prefs.edit().putInt(KEY_WORKOUT_TYPE, WorkoutEntity.TYPE_WALK).apply()
                 },
-                label = { Text("Kävely") },
+                label = { Text(stringResource(R.string.workout_type_walk)) },
             )
             FilterChip(
                 selected = type == WorkoutEntity.TYPE_BIKE,
@@ -287,7 +288,7 @@ private fun StartWorkoutView(
                     type = WorkoutEntity.TYPE_BIKE
                     prefs.edit().putInt(KEY_WORKOUT_TYPE, WorkoutEntity.TYPE_BIKE).apply()
                 },
-                label = { Text("Pyöräily") },
+                label = { Text(stringResource(R.string.workout_type_bike)) },
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -298,13 +299,15 @@ private fun StartWorkoutView(
                 .height(56.dp),
         ) {
             Text(
-                if (type == WorkoutEntity.TYPE_BIKE) "Aloita pyöräily" else "Aloita kävely",
+                stringResource(
+                    if (type == WorkoutEntity.TYPE_BIKE) R.string.workout_start_bike else R.string.workout_start_walk,
+                ),
                 fontSize = 18.sp, fontWeight = FontWeight.Bold,
             )
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "Lenkki päättyy automaattisesti, jos liikettä ei ole 10 minuuttiin.",
+            stringResource(R.string.workout_auto_stop_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -334,12 +337,14 @@ private fun StartWorkoutView(
             FilledTonalButton(
                 onClick = onOpenStats,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Viikko- ja kuukausitilastot") }
+            ) { Text(stringResource(R.string.workout_stats_button)) }
         }
         if (ownWorkouts.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
             Text(
-                if (type == WorkoutEntity.TYPE_BIKE) "Aiemmat pyörälenkit" else "Aiemmat kävelylenkit",
+                stringResource(
+                    if (type == WorkoutEntity.TYPE_BIKE) R.string.workout_history_bike else R.string.workout_history_walk,
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -348,14 +353,17 @@ private fun StartWorkoutView(
         } else if (hasOwn) {
             Spacer(Modifier.height(16.dp))
             Text(
-                if (type == WorkoutEntity.TYPE_BIKE) "Ei vielä pyörälenkkejä." else "Ei vielä kävelylenkkejä.",
+                stringResource(
+                    if (type == WorkoutEntity.TYPE_BIKE) R.string.workout_history_bike_empty
+                    else R.string.workout_history_walk_empty,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (sharedWorkouts.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
-            Text("Jaetut lenkit", style = MaterialTheme.typography.titleMedium,
+            Text(stringResource(R.string.workout_shared_title), style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
             sharedWorkouts.forEach { w -> WorkoutHistoryRow(w, onOpenWorkout) }
@@ -374,7 +382,7 @@ private fun StartWorkoutView(
                             WorkoutFileImporter.importStream(context, it)
                         }
                     } catch (e: FileTooLargeException) {
-                        tooLarge = e.message
+                        tooLarge = e.userMessage(context)
                         null
                     } catch (e: Exception) {
                         android.util.Log.w("WorkoutImport", "Käsituonti epäonnistui", e)
@@ -385,9 +393,9 @@ private fun StartWorkoutView(
                             context,
                             when {
                                 tooLarge != null -> tooLarge
-                                res == null -> "Tiedostosta ei löytynyt lenkkiä (GPX/TCX)."
-                                res.alreadyExists -> "Lenkki on jo laitteella: ${res.name}"
-                                else -> "Jaettu lenkki tuotu: ${res.name}"
+                                res == null -> context.getString(R.string.workout_import_none)
+                                res.alreadyExists -> context.getString(R.string.workout_import_exists, res.name)
+                                else -> context.getString(R.string.workout_import_done, res.name)
                             },
                             android.widget.Toast.LENGTH_LONG,
                         ).show()
@@ -400,7 +408,7 @@ private fun StartWorkoutView(
             importLauncher.launch(arrayOf(
                 "application/gpx+xml", "application/vnd.garmin.tcx+xml",
                 "application/xml", "text/xml", "application/octet-stream"))
-        }) { Text("Tuo lenkki tiedostosta (GPX/TCX)") }
+        }) { Text(stringResource(R.string.workout_import_button)) }
     }
 }
 
@@ -428,7 +436,7 @@ private fun WorkoutStatsView() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        Text("Tilastot", style = MaterialTheme.typography.headlineSmall,
+        Text(stringResource(R.string.workout_stats_title), style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
 
@@ -436,12 +444,12 @@ private fun WorkoutStatsView() {
             FilterChip(
                 selected = !byMonth,
                 onClick = { byMonth = false },
-                label = { Text("Viikot") },
+                label = { Text(stringResource(R.string.workout_stats_weeks)) },
             )
             FilterChip(
                 selected = byMonth,
                 onClick = { byMonth = true },
-                label = { Text("Kuukaudet") },
+                label = { Text(stringResource(R.string.workout_stats_months)) },
             )
         }
         Spacer(Modifier.height(12.dp))
@@ -455,7 +463,7 @@ private fun WorkoutStatsView() {
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
             list.isEmpty() -> Text(
-                "Ei vielä omia lenkkejä.",
+                stringResource(R.string.workout_stats_empty),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             else -> {
@@ -472,6 +480,9 @@ private fun WorkoutStatsView() {
  *  laji-erittely. Nolla-arvoiset tunnusluvut (esim. pyöräilyssä askeleet) jätetään pois. */
 @Composable
 private fun WorkoutStatBucketCard(b: WorkoutStats.Bucket) {
+    val context = LocalContext.current
+    val loc = AppLocale.current(context)
+    val period = b.period
     ArkiCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -479,31 +490,44 @@ private fun WorkoutStatBucketCard(b: WorkoutStats.Bucket) {
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(b.label, style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                if (b.dateRange != null) {
-                    Text(b.dateRange, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    when (period) {
+                        is WorkoutStats.Period.Week -> stringResource(R.string.workout_stats_week, period.week)
+                        is WorkoutStats.Period.Month -> WorkoutStats.monthLabel(period.year, period.month, loc)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
+                )
+                if (period is WorkoutStats.Period.Week) {
+                    Text(
+                        WorkoutStats.weekRange(period, stringResource(R.string.workout_date_pattern), loc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                "${b.count} ${lenkkiWord(b.count)} · " +
-                    String.format(FI_WO, "%.2f km", b.distanceM / 1000.0) + " · " +
-                    formatDurationLong(b.movingTimeMs),
+                pluralStringResource(R.plurals.workout_count, b.count, b.count) + " · " +
+                    workoutKmText(b.distanceM, loc) + " · " + formatDurationLong(b.movingTimeMs),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            val stepsText = if (b.steps > 0) stepsCountText(context, b.steps) else null
             val parts = buildList {
                 if (b.kcal > 0) add("${b.kcal} kcal")
-                if (b.steps > 0) add(String.format(FI_WO, "%,d askelta", b.steps))
-                if (b.elevGainM >= 1.0) add(String.format(FI_WO, "↑%.0f m", b.elevGainM))
+                if (stepsText != null) add(stepsText)
+                if (b.elevGainM >= 1.0) add(String.format(loc, "↑%.0f m", b.elevGainM))
             }
             if (parts.isNotEmpty()) {
                 Text(parts.joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            val laji = lajiBreakdown(b.walkCount, b.bikeCount)
+            // "2 kävelyä · 1 pyöräily" — vain ne lajit joita ämpärissä on.
+            val laji = listOfNotNull(
+                if (b.walkCount > 0) pluralStringResource(R.plurals.workout_walk_count, b.walkCount, b.walkCount) else null,
+                if (b.bikeCount > 0) pluralStringResource(R.plurals.workout_bike_count, b.bikeCount, b.bikeCount) else null,
+            ).joinToString(" · ")
             if (laji.isNotEmpty()) {
                 Text("($laji)", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -512,19 +536,11 @@ private fun WorkoutStatBucketCard(b: WorkoutStats.Bucket) {
     }
 }
 
-private fun lenkkiWord(n: Int) = if (n == 1) "lenkki" else "lenkkiä"
-
-/** "2 kävelyä · 1 pyöräily" — vain ne lajit joita ämpärissä on. */
-private fun lajiBreakdown(walk: Int, bike: Int): String {
-    val parts = mutableListOf<String>()
-    if (walk > 0) parts += "$walk " + if (walk == 1) "kävely" else "kävelyä"
-    if (bike > 0) parts += "$bike " + if (bike == 1) "pyöräily" else "pyöräilyä"
-    return parts.joinToString(" · ")
-}
-
 /** Historiarivi: nimi (tai aika · laji) + tunnusluvut; jaetuissa lenkeissä Jaettu-merkki. */
 @Composable
 private fun WorkoutHistoryRow(w: WorkoutEntity, onOpenWorkout: (Long) -> Unit) {
+    val context = LocalContext.current
+    val loc = AppLocale.current(context)
     ArkiCard(
         onClick = { onOpenWorkout(w.id) },
         modifier = Modifier
@@ -536,26 +552,26 @@ private fun WorkoutHistoryRow(w: WorkoutEntity, onOpenWorkout: (Long) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                val laji = if (w.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"
+                val laji = workoutTypeLabel(context, w.type)
                 val named = !w.name.isNullOrBlank()
                 Text(
                     if (named) w.name!!.trim()
-                    else timeText(w.startedAtMs) + " · " + laji,
+                    else timeText(context, w.startedAtMs) + " · " + laji,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    (if (named) timeText(w.startedAtMs) + " · " + laji + " · " else "") +
-                        String.format(FI_WO, "%.2f km", w.distanceM / 1000.0) +
+                    (if (named) timeText(context, w.startedAtMs) + " · " + laji + " · " else "") +
+                        workoutKmText(w.distanceM, loc) +
                         " · " + formatDurationLong(w.movingTimeMs) +
-                        " · " + avgSpeedText(w.distanceM, w.movingTimeMs),
+                        " · " + avgSpeedText(w.distanceM, w.movingTimeMs, loc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (w.shared) {
                 Text(
-                    "Jaettu",
+                    stringResource(R.string.workout_shared_badge),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -600,7 +616,7 @@ private fun CountdownOverlay(seconds: Int, ready: Boolean, gotFix: Boolean, onCa
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                if (ready) "Aloita!" else seconds.toString(),
+                if (ready) stringResource(R.string.workout_countdown_go) else seconds.toString(),
                 fontSize = if (ready) 40.sp else 76.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -608,17 +624,19 @@ private fun CountdownOverlay(seconds: Int, ready: Boolean, gotFix: Boolean, onCa
         }
         Spacer(Modifier.height(28.dp))
         Text(
-            when {
-                ready && gotFix -> "GPS löytyi — lenkki alkaa!"
-                ready -> "Lenkki alkaa — GPS tarkentuu matkalla"
-                gotFix -> "GPS löytyi!"
-                else -> "Haetaan GPS-signaalia…"
-            },
+            stringResource(
+                when {
+                    ready && gotFix -> R.string.workout_gps_found_starting
+                    ready -> R.string.workout_starting_gps_pending
+                    gotFix -> R.string.workout_gps_found
+                    else -> R.string.workout_gps_searching
+                },
+            ),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(28.dp))
-        OutlinedButton(onClick = onCancel) { Text("Peruuta") }
+        OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
     }
 }
 
@@ -627,6 +645,7 @@ private fun CountdownOverlay(seconds: Int, ready: Boolean, gotFix: Boolean, onCa
 @Composable
 private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
     val context = LocalContext.current
+    val loc = AppLocale.current(context)
     var confirmStop by remember { mutableStateOf(false) }
 
     // Kestonäyttö tickaa sekunnin välein ACTIVE-tilassa (movingTime + ankkurista kulunut).
@@ -649,16 +668,19 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
         ) {
             Text(
-                if (state.type == WorkoutEntity.TYPE_BIKE) "Pyörälenkki" else "Kävelylenkki",
+                stringResource(
+                    if (state.type == WorkoutEntity.TYPE_BIKE) R.string.workout_active_bike
+                    else R.string.workout_active_walk,
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
             if (state.phase == WorkoutTracker.Phase.PAUSED) {
-                Text("TAUKO", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.workout_paused_badge), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             } else if (!gpsOk) {
                 Text(
-                    "Ei GPS-signaalia",
+                    stringResource(R.string.workout_no_gps),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -680,7 +702,7 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        String.format(FI_WO, "%.1f", state.speedKmh),
+                        String.format(loc, "%.1f", state.speedKmh),
                         fontSize = 44.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -689,7 +711,7 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        String.format(FI_WO, "%.2f km", state.distanceM / 1000.0),
+                        workoutKmText(state.distanceM, loc),
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -698,19 +720,22 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
             }
             Spacer(Modifier.height(6.dp))
             // Kompakti tunnuslukurivi (kartta vie pystysuunnan — ei korttipinoa tähän).
+            val avgPart = stringResource(R.string.workout_detail_avg, avgSpeedText(state.distanceM, displayedMs, loc))
+            val maxPart = stringResource(R.string.workout_detail_max, String.format(loc, "%.1f", state.maxSpeedKmh))
+            val splitPart = if (state.splits.isNotEmpty()) {
+                pluralStringResource(R.plurals.workout_split_count, state.splits.size, state.splits.size)
+            } else null
             val details = buildString {
-                append("Keski ").append(avgSpeedText(state.distanceM, displayedMs))
+                append(avgPart)
                 if (state.type == WorkoutEntity.TYPE_WALK) {
                     append(" · ").append(paceText(state.distanceM, displayedMs))
-                    if (state.steps > 0) append(" · ").append(state.steps).append(" askelta")
+                    if (state.steps > 0) append(" · ").append(stepsCountText(context, state.steps))
                 }
-                append(" · max ").append(String.format(FI_WO, "%.1f", state.maxSpeedKmh))
+                append(" · ").append(maxPart)
                 if (state.elevGainM > 1) {
-                    append(" · ↑").append(String.format(FI_WO, "%.0f m", state.elevGainM))
+                    append(" · ↑").append(String.format(loc, "%.0f m", state.elevGainM))
                 }
-                if (state.splits.isNotEmpty()) {
-                    append(" · ").append(state.splits.size).append(" km-väliä")
-                }
+                if (splitPart != null) append(" · ").append(splitPart)
             }
             Text(
                 details,
@@ -729,33 +754,33 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
                 Button(
                     onClick = { WorkoutTrackingService.command(context, WorkoutTrackingService.ACTION_RESUME) },
                     modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Jatka") }
+                ) { Text(stringResource(R.string.workout_action_resume)) }
             } else {
                 FilledTonalButton(
                     onClick = { WorkoutTrackingService.command(context, WorkoutTrackingService.ACTION_PAUSE) },
                     modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Tauko") }
+                ) { Text(stringResource(R.string.workout_action_pause)) }
             }
             OutlinedButton(
                 onClick = { confirmStop = true },
                 modifier = Modifier.weight(1f).height(52.dp),
-            ) { Text("Lopeta") }
+            ) { Text(stringResource(R.string.workout_action_stop)) }
         }
     }
 
     if (confirmStop) {
         AlertDialog(
             onDismissRequest = { confirmStop = false },
-            title = { Text("Lopetetaanko lenkki?") },
-            text = { Text("Lenkki tallennetaan ja näet yhteenvedon.") },
+            title = { Text(stringResource(R.string.workout_stop_confirm_title)) },
+            text = { Text(stringResource(R.string.workout_stop_confirm_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmStop = false
                     WorkoutTrackingService.command(context, WorkoutTrackingService.ACTION_STOP)
-                }) { Text("Lopeta") }
+                }) { Text(stringResource(R.string.workout_action_stop)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmStop = false }) { Text("Peruuta") }
+                TextButton(onClick = { confirmStop = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -766,6 +791,7 @@ private fun ActiveWorkoutView(state: WorkoutTracker.UiState) {
 @Composable
 private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: () -> Unit) {
     val context = LocalContext.current
+    val loc = AppLocale.current(context)
     var workout by remember(workoutId) { mutableStateOf<WorkoutEntity?>(null) }
     var points by remember(workoutId) {
         mutableStateOf<List<org.jrs82.fsclock.db.WorkoutPointEntity>>(emptyList())
@@ -811,7 +837,7 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(12.dp),
-            ) { Text("Sulje") }
+            ) { Text(stringResource(R.string.common_close)) }
         }
         return
     }
@@ -824,29 +850,29 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (w == null) "Lenkin yhteenveto"
+                if (w == null) stringResource(R.string.workout_summary_title)
                 else workoutName?.trim().takeUnless { it.isNullOrEmpty() }
-                    ?: workoutDefaultName(w.type, w.startedAtMs),
+                    ?: workoutDefaultName(context, w.type, w.startedAtMs),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
             if (w != null) {
                 IconButton(onClick = { renameDialog = true }) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Nimeä lenkki",
+                    Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.workout_rename),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
         if (w != null && w.shared) {
             Spacer(Modifier.height(4.dp))
-            Text("Jaettu lenkki (tuotu tiedostosta)",
+            Text(stringResource(R.string.workout_shared_imported),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary)
         }
         if (autoStopped || (w != null && w.autoStopped)) {
             Spacer(Modifier.height(4.dp))
-            Text("Päättyi automaattisesti (ei liikettä 10 min)",
+            Text(stringResource(R.string.workout_auto_stopped),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -871,7 +897,7 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                         .clickable { mapFullscreen = true },
                 )
                 Text(
-                    "Suurenna napauttamalla",
+                    stringResource(R.string.workout_tap_to_enlarge),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -887,27 +913,27 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
         }
 
         if (w == null) {
-            Text("Ladataan…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.common_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             ArkiCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    StatRow("Laji", if (w.type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely")
-                    StatRow("Alkoi", timeText(w.startedAtMs))
-                    w.endedAtMs?.let { StatRow("Päättyi", timeText(it)) }
-                    StatRow("Matka", String.format(FI_WO, "%.2f km", w.distanceM / 1000.0))
-                    StatRow("Liikkeellä", formatDurationLong(w.movingTimeMs))
-                    StatRow("Keskinopeus", avgSpeedText(w.distanceM, w.movingTimeMs))
+                    StatRow(stringResource(R.string.workout_stat_type), workoutTypeLabel(context, w.type))
+                    StatRow(stringResource(R.string.workout_stat_started), timeText(context, w.startedAtMs))
+                    w.endedAtMs?.let { StatRow(stringResource(R.string.workout_stat_ended), timeText(context, it)) }
+                    StatRow(stringResource(R.string.workout_stat_distance), workoutKmText(w.distanceM, loc))
+                    StatRow(stringResource(R.string.workout_stat_moving), formatDurationLong(w.movingTimeMs))
+                    StatRow(stringResource(R.string.workout_stat_avg_speed), avgSpeedText(w.distanceM, w.movingTimeMs, loc))
                     if (w.type == WorkoutEntity.TYPE_WALK) {
-                        StatRow("Tahti", paceText(w.distanceM, w.movingTimeMs))
-                        if (w.steps > 0) StatRow("Askeleet", w.steps.toString())
+                        StatRow(stringResource(R.string.workout_stat_pace), paceText(w.distanceM, w.movingTimeMs))
+                        if (w.steps > 0) StatRow(stringResource(R.string.workout_stat_steps), formatStepsNumber(context, w.steps))
                     }
-                    StatRow("Maksiminopeus", String.format(FI_WO, "%.1f km/h", w.maxSpeedMps * 3.6f))
-                    if (w.kcal > 0) StatRow("Kalorit (arvio)", "${w.kcal} kcal")
+                    StatRow(stringResource(R.string.workout_stat_max_speed), String.format(loc, "%.1f km/h", w.maxSpeedMps * 3.6f))
+                    if (w.kcal > 0) StatRow(stringResource(R.string.workout_stat_calories), "${w.kcal} kcal")
                     if (w.elevGainM > 1) {
-                        StatRow("Nousua (GPS-arvio)", String.format(FI_WO, "%.0f m", w.elevGainM))
+                        StatRow(stringResource(R.string.workout_stat_ascent), String.format(loc, "%.0f m", w.elevGainM))
                     }
                     if (w.elevLossM > 1) {
-                        StatRow("Laskua (GPS-arvio)", String.format(FI_WO, "%.0f m", w.elevLossM))
+                        StatRow(stringResource(R.string.workout_stat_descent), String.format(loc, "%.0f m", w.elevLossM))
                     }
                 }
             }
@@ -915,11 +941,11 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                 Spacer(Modifier.height(12.dp))
                 ArkiCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Kilometrivälit", style = MaterialTheme.typography.titleSmall,
+                        Text(stringResource(R.string.workout_splits_title), style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
                         splits.forEach { s ->
-                            StatRow("${s.splitIndex}. km", formatDurationLong(s.durationMs))
+                            StatRow(stringResource(R.string.workout_split_label, s.splitIndex), formatDurationLong(s.durationMs))
                         }
                     }
                 }
@@ -930,16 +956,16 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
             OutlinedButton(
                 onClick = { shareDialog = true },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) { Text("Jaa lenkki…") }
+            ) { Text(stringResource(R.string.workout_share_button)) }
             Spacer(Modifier.height(12.dp))
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(
                 onClick = { confirmDelete = true },
                 modifier = Modifier.weight(1f).height(52.dp),
-            ) { Text("Poista", color = MaterialTheme.colorScheme.error) }
+            ) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
             Button(onClick = onClose, modifier = Modifier.weight(1f).height(52.dp)) {
-                Text("Valmis")
+                Text(stringResource(R.string.workout_done))
             }
         }
     }
@@ -947,8 +973,8 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Poistetaanko lenkki?") },
-            text = { Text("Lenkki ja sen reitti poistetaan pysyvästi.") },
+            title = { Text(stringResource(R.string.workout_delete_title)) },
+            text = { Text(stringResource(R.string.workout_delete_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
@@ -966,10 +992,10 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                         } catch (e: Exception) { }
                     }.start()
                     onClose()
-                }) { Text("Poista", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Peruuta") }
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -978,12 +1004,12 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
         var nameInput by remember { mutableStateOf(workoutName ?: "") }
         AlertDialog(
             onDismissRequest = { renameDialog = false },
-            title = { Text("Nimeä lenkki") },
+            title = { Text(stringResource(R.string.workout_rename)) },
             text = {
                 OutlinedTextField(
                     value = nameInput,
                     onValueChange = { nameInput = it },
-                    placeholder = { Text("esim. Koiralenkki") },
+                    placeholder = { Text(stringResource(R.string.workout_rename_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -999,18 +1025,21 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                             FsClockDb.get(context).workoutDao().renameWorkout(workoutId, newName)
                         } catch (e: Exception) { }
                     }.start()
-                }) { Text("Tallenna") }
+                }) { Text(stringResource(R.string.common_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { renameDialog = false }) { Text("Peruuta") }
+                TextButton(onClick = { renameDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
 
     if (shareDialog && w != null) {
         // Jakotiedoston nimi: lenkin nimi + päivämäärä, kielletyt merkit siivottuna.
-        val fileBase = ShareFiles.sanitizeFileName(workoutDisplayName(w)) + " " +
-            SimpleDateFormat("yyyy-MM-dd", FI_WO).format(Date(w.startedAtMs))
+        // Päivämäärä konemuodossa (ISO), jotta tiedostot lajittuvat kielestä riippumatta.
+        val displayName = workoutDisplayName(context, w)
+        val fileBase = ShareFiles.sanitizeFileName(displayName, context.getString(R.string.workout_file_fallback)) +
+            " " + SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date(w.startedAtMs))
+        val shareTitle = stringResource(R.string.workout_share_title)
         fun shareData(ext: String, mime: String, build: () -> ByteArray) {
             scope.launch {
                 shareBusy = true
@@ -1018,12 +1047,13 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                     val uri = withContext(Dispatchers.IO) {
                         ShareFiles.writeShareFile(context, fileBase + ext, build())
                     }
-                    ShareFiles.launchShare(context, uri, mime, "Jaa lenkki")
+                    ShareFiles.launchShare(context, uri, mime, shareTitle)
                     shareDialog = false
                 } catch (e: Exception) {
                     android.util.Log.w("WorkoutShare", "Jako epäonnistui ($ext)", e)
                     android.widget.Toast.makeText(
-                        context, "Jako epäonnistui.", android.widget.Toast.LENGTH_LONG).show()
+                        context, context.getString(R.string.workout_share_failed),
+                        android.widget.Toast.LENGTH_LONG).show()
                 } finally {
                     shareBusy = false
                 }
@@ -1031,17 +1061,20 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
         }
         AlertDialog(
             onDismissRequest = { if (!shareBusy) shareDialog = false },
-            title = { Text("Jaa lenkki") },
+            title = { Text(shareTitle) },
             text = {
                 if (shareBusy) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(28.dp))
                         Spacer(Modifier.width(12.dp))
-                        Text("Luodaan jakotiedostoa…")
+                        Text(stringResource(R.string.workout_share_creating))
                     }
                 } else {
                     Column {
-                        ShareOption("Kuva kartalla (PNG)", "Someen ja viesteihin") {
+                        ShareOption(
+                            stringResource(R.string.workout_share_png_title),
+                            stringResource(R.string.workout_share_png_desc),
+                        ) {
                             shareBusy = true
                             WorkoutShareImage.render(context, w, points, splits) { bmp ->
                                 scope.launch {
@@ -1053,12 +1086,12 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                                             ShareFiles.writeShareFile(
                                                 context, "$fileBase.png", bos.toByteArray())
                                         }
-                                        ShareFiles.launchShare(context, uri, "image/png", "Jaa lenkki")
+                                        ShareFiles.launchShare(context, uri, "image/png", shareTitle)
                                         shareDialog = false
                                     } catch (e: Exception) {
                                         android.util.Log.w("WorkoutShare", "PNG-jako epäonnistui", e)
                                         android.widget.Toast.makeText(
-                                            context, "Jako epäonnistui.",
+                                            context, context.getString(R.string.workout_share_failed),
                                             android.widget.Toast.LENGTH_LONG).show()
                                     } finally {
                                         shareBusy = false
@@ -1066,14 +1099,18 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
                                 }
                             }
                         }
-                        ShareOption("GPX-reittitiedosto", "Strava, Komoot, Garmin…") {
+                        // Selite on palvelujen nimilista (brändit), sama kaikilla kielillä.
+                        ShareOption(stringResource(R.string.workout_share_gpx_title), "Strava, Komoot, Garmin…") {
                             shareData(".gpx", "application/gpx+xml") {
-                                WorkoutGpxExporter.buildGpx(w, points).toByteArray(Charsets.UTF_8)
+                                WorkoutGpxExporter.buildGpx(w, points, displayName).toByteArray(Charsets.UTF_8)
                             }
                         }
-                        ShareOption("TCX-harjoitustiedosto", "Väliajat ja kalorit mukana") {
+                        ShareOption(
+                            stringResource(R.string.workout_share_tcx_title),
+                            stringResource(R.string.workout_share_tcx_desc),
+                        ) {
                             shareData(".tcx", "application/vnd.garmin.tcx+xml") {
-                                WorkoutTcxExporter.buildTcx(w, points, splits).toByteArray(Charsets.UTF_8)
+                                WorkoutTcxExporter.buildTcx(w, points, splits, displayName).toByteArray(Charsets.UTF_8)
                             }
                         }
                     }
@@ -1081,7 +1118,7 @@ private fun WorkoutSummaryView(workoutId: Long, autoStopped: Boolean, onClose: (
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(enabled = !shareBusy, onClick = { shareDialog = false }) { Text("Peruuta") }
+                TextButton(enabled = !shareBusy, onClick = { shareDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -1243,7 +1280,7 @@ private fun WorkoutMap(state: WorkoutTracker.UiState, modifier: Modifier = Modif
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(10.dp),
-            ) { Text("Kohdista") }
+            ) { Text(stringResource(R.string.workout_recenter)) }
         }
     }
 
@@ -1460,19 +1497,23 @@ private fun StatRow(label: String, value: String) {
     }
 }
 
+// Kestot ja tahti ovat pelkkiä numeroita (h:mm:ss) → Locale.ROOT; desimaaliluvut näkyvän kielen localella.
 internal fun formatDurationLong(ms: Long): String {
     val totalSec = ms / 1000
     val h = totalSec / 3600
     val m = (totalSec % 3600) / 60
     val s = totalSec % 60
-    return if (h > 0) String.format(FI_WO, "%d:%02d:%02d", h, m, s)
-    else String.format(FI_WO, "%02d:%02d", m, s)
+    return if (h > 0) String.format(Locale.ROOT, "%d:%02d:%02d", h, m, s)
+    else String.format(Locale.ROOT, "%02d:%02d", m, s)
 }
 
-internal fun avgSpeedText(distanceM: Double, movingMs: Long): String {
+internal fun workoutKmText(distanceM: Double, locale: Locale): String =
+    String.format(locale, "%.2f km", distanceM / 1000.0)
+
+internal fun avgSpeedText(distanceM: Double, movingMs: Long, locale: Locale): String {
     if (movingMs <= 0 || distanceM <= 0) return "–"
     val kmh = distanceM / 1000.0 / (movingMs / 3_600_000.0)
-    return String.format(FI_WO, "%.1f km/h", kmh)
+    return String.format(locale, "%.1f km/h", kmh)
 }
 
 internal fun paceText(distanceM: Double, movingMs: Long): String {
@@ -1481,20 +1522,30 @@ internal fun paceText(distanceM: Double, movingMs: Long): String {
     val minPerKm = (movingMs / 60_000.0) / (distanceM / 1000.0)
     val min = minPerKm.toInt()
     val sec = ((minPerKm - min) * 60).toInt()
-    return String.format(FI_WO, "%d:%02d min/km", min, sec)
+    return String.format(Locale.ROOT, "%d:%02d min/km", min, sec)
 }
 
-private fun timeText(ms: Long): String =
-    SimpleDateFormat("d.M. HH:mm", FI_WO).format(Date(ms))
+/** Päivä + kellonaika: päivän muoto kieliresurssista (fi/sv "12.6.", en "12 Jun"), kello aina HH:mm. */
+private fun timeText(context: android.content.Context, ms: Long): String =
+    SimpleDateFormat(context.getString(R.string.workout_datetime_pattern), AppLocale.current(context))
+        .format(Date(ms))
 
-/** Oletusnimi nimettömälle lenkille: "Kävely 12.6." */
-internal fun workoutDefaultName(type: Int, startedAtMs: Long): String {
-    val laji = if (type == WorkoutEntity.TYPE_BIKE) "Pyöräily" else "Kävely"
-    return laji + " " + SimpleDateFormat("d.M.", FI_WO).format(Date(startedAtMs))
+/** Lajin nimi (Kävely / Pyöräily) näkyvällä kielellä. */
+internal fun workoutTypeLabel(context: android.content.Context, type: Int): String =
+    context.getString(if (type == WorkoutEntity.TYPE_BIKE) R.string.workout_type_bike else R.string.workout_type_walk)
+
+/** Oletusnimi nimettömälle lenkille: fi "Kävely 12.6.", sv "Promenad 12.6.", en "Walk 12 Jun". */
+internal fun workoutDefaultName(context: android.content.Context, type: Int, startedAtMs: Long): String {
+    val date = SimpleDateFormat(context.getString(R.string.workout_date_pattern), AppLocale.current(context))
+        .format(Date(startedAtMs))
+    return context.getString(
+        if (type == WorkoutEntity.TYPE_BIKE) R.string.workout_default_name_bike else R.string.workout_default_name_walk,
+        date,
+    )
 }
 
 /** Käyttäjän antama nimi tai oletus — käytetään otsikossa ja jakotiedostoissa. */
-internal fun workoutDisplayName(w: WorkoutEntity): String {
+internal fun workoutDisplayName(context: android.content.Context, w: WorkoutEntity): String {
     val n = w.name
-    return if (n.isNullOrBlank()) workoutDefaultName(w.type, w.startedAtMs) else n.trim()
+    return if (n.isNullOrBlank()) workoutDefaultName(context, w.type, w.startedAtMs) else n.trim()
 }
