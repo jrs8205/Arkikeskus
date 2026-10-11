@@ -20,6 +20,8 @@
 
 **[➡️ Lataa uusin versio (APK)](https://github.com/jrs8205/Arkikeskus/releases/latest)**
 
+Kaikki julkaisut löytyvät myös [SourceForgesta](https://sourceforge.net/projects/arkikeskus/).
+
 > ⚠️ **Päivität vanhasta versiosta (≤ 2.0.0)?** Sovelluksen tunnus vaihtui versiossa 2.1.0, joten uusi versio **ei** päivity vanhan päälle automaattisesti: **poista** vanha Arkikeskus ja **asenna** uusi. Asetukset eivät siirry; askelhistoria säilyy Health Connectin kautta.
 
 Vaatii **Android 11 (API 30)** tai uudemman. APK on tarkoitettu ARM-laitteille (`arm64-v8a` / `armeabi-v7a`).
