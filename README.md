@@ -162,6 +162,15 @@ Kaikki ovat ilmaisia; MML ja Digitransit vaativat oman kehittäjäavaimen:
 
 ---
 
+## ❤️ Tue kehitystä
+
+Jos sovelluksesta on sinulle hyötyä, voit tukea sen kehitystä:
+
+- [GitHub Sponsors](https://github.com/sponsors/jrs8205) – kuukausittain tai kertaluontoisesti
+- [Buy Me a Coffee](https://buymeacoffee.com/jrs8205) – ilman rekisteröitymistä
+
+---
+
 ## 📄 Lisenssi
 
 Arkikeskus on avointa lähdekoodia, ja se on lisensoitu [GNU General Public License v3.0](LICENSE) ‑lisenssillä. Sovellusta saa käyttää, muokata ja jakaa vapaasti, kunhan muokatut versiot julkaistaan lähdekoodeineen samalla lisenssillä.
