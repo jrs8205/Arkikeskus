@@ -120,10 +120,12 @@ internal fun PlacesSection(onPlaceChosen: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     var tick by remember { mutableStateOf(0) }
+    // Sijainnin päivitys (esim. taustalta palatessa) vaihtaa paikan myös tämän sivun ollessa auki.
+    val settingsRevision = LocalHomeDataRevision.current
 
-    val current = remember(tick) { placesDisplayPlace(prefs) }
-    val isFavorite = remember(tick) { SettingsManager.get().isFavoritePlace(current) }
-    val favorites = remember(tick) { SettingsManager.get().favoritePlaces }
+    val current = remember(tick, settingsRevision) { displayPlace(prefs) }
+    val isFavorite = remember(tick, settingsRevision) { SettingsManager.get().isFavoritePlace(current) }
+    val favorites = remember(tick, settingsRevision) { SettingsManager.get().favoritePlaces }
 
     // --- Haku (ennakoiva, debouncattu MML-geokoodaus) ---
     var query by remember { mutableStateOf("") }
@@ -332,13 +334,6 @@ private fun FavoritePlaceRow(place: String, onSelect: () -> Unit, onRemove: () -
             }
         }
     }
-}
-
-/** Nykyinen näytettävä paikka: tallennettu näyttönimi tai kotipaikka (kuten currentDisplayPlace). */
-private fun placesDisplayPlace(prefs: SharedPreferences): String {
-    val d = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "") ?: ""
-    if (d.trim().isNotEmpty()) return d.trim()
-    return SettingsManager.get().homePlace
 }
 
 /** Erottaa datapaikan (kaupunki) näyttönimestä ennen pilkkua (kuten dataPlaceFromDisplay). */

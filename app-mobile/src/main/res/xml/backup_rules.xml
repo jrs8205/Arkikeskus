@@ -10,4 +10,7 @@
     <exclude domain="sharedpref" path="auto_backup_prefs.xml" />
     <!-- Drive-varmuuskopion tila (frekvenssi, viimeisin kopio) on laite-/tilikohtainen. -->
     <exclude domain="sharedpref" path="drive_backup_prefs.xml" />
+    <!-- Laitekohtainen tila (DeviceLocalPrefs), esim. tieto sijaintiluvan kysymisestä: ajonaikaiset luvat
+         eivät siirry laitteelta toiselle, joten palautettu "jo kysytty" estäisi kysymästä lupaa koskaan. -->
+    <exclude domain="sharedpref" path="device_local_prefs.xml" />
 </full-backup-content>

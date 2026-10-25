@@ -159,6 +159,7 @@ Kaikki ovat ilmaisia; MML ja Digitransit vaativat oman kehittäjäavaimen:
 - **Digitraffic** — liikennetiedotteet ja kelikamerat
 - **Digitransit (HSL ja Waltti / Tampere–Nysse)** — joukkoliikenteen lähdöt ja reittihaku
 - **Maanmittauslaitos (MML)** — paikkahaku, geokoodaus, taustakartta
+- **Tilastokeskus** — kunnat ja postinumeroalueiden nimet (Paavo, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) offline-taulukkona; nimistä poistetaan kunnan nimi ja lyhenteet avataan
 
 ---
 

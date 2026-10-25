@@ -1,0 +1,3023 @@
+# Postinumeroalueet 2026: Tilastokeskus, Paavo - postinumeroalueittainen avoin tieto, CC BY 4.0
+# https://stat.fi/fi/palvelut/tilastodatapalvelut/paikkatietoaineistot/postinumeroalueittainen-paikkatieto-paavo
+# Lisenssi: https://creativecommons.org/licenses/by/4.0/ - sovellus lyhentää nimiä: kunnan nimi
+# poistetaan alusta (Turku Keskus -> Keskus) ja lyhenteet avataan (kk -> Kirkonkylä, as -> Asemanseutu).
+# postinumero<TAB>nimi<TAB>kunta
+00100	Helsinki keskusta - Etu-Töölö	Helsinki
+00120	Punavuori - Bulevardi	Helsinki
+00130	Kaartinkaupunki	Helsinki
+00140	Kaivopuisto - Ullanlinna	Helsinki
+00150	Punavuori - Eira - Hernesaari	Helsinki
+00160	Katajanokka	Helsinki
+00170	Kruununhaka	Helsinki
+00180	Kamppi - Ruoholahti	Helsinki
+00190	Suomenlinna	Helsinki
+00200	Pohjois-Lauttasaari	Helsinki
+00210	Vattuniemi	Helsinki
+00220	Jätkäsaari	Helsinki
+00230	Helsinki postikeskus	Helsinki
+00240	Länsi-Pasila	Helsinki
+00250	Taka-Töölö	Helsinki
+00260	Keski-Töölö	Helsinki
+00270	Pohjois-Meilahti	Helsinki
+00280	Ruskeasuo	Helsinki
+00290	Meilahden sairaala-alue	Helsinki
+00300	Pikku Huopalahti	Helsinki
+00310	Kivihaka	Helsinki
+00320	Etelä-Haaga	Helsinki
+00330	Munkkiniemi	Helsinki
+00340	Kuusisaari - Lehtisaari	Helsinki
+00350	Munkkivuori - Niemenmäki	Helsinki
+00360	Pajamäki	Helsinki
+00370	Reimarla	Helsinki
+00380	Pitäjänmäen yritysalue	Helsinki
+00390	Konala	Helsinki
+00400	Pohjois-Haaga	Helsinki
+00410	Malminkartano	Helsinki
+00420	Kannelmäki	Helsinki
+00430	Maununneva - Kuninkaantammi	Helsinki
+00440	Lassila	Helsinki
+00500	Sörnäinen - Harju	Helsinki
+00510	Alppila - Vallila	Helsinki
+00520	Itä- ja Keski-Pasila	Helsinki
+00530	Kallio	Helsinki
+00540	Kalasatama - Sompasaari	Helsinki
+00550	Vallila - Hermanni	Helsinki
+00560	Toukola - Kumpula - Vanhakaupunki	Helsinki
+00570	Kulosaari	Helsinki
+00580	Kalasatama - Kyläsaari	Helsinki
+00590	Kruunuvuorenranta	Helsinki
+00600	Koskela	Helsinki
+00610	Käpylä	Helsinki
+00620	Metsälä - Etelä-Oulunkylä	Helsinki
+00630	Maunula	Helsinki
+00640	Oulunkylä - Patola	Helsinki
+00650	Veräjämäki	Helsinki
+00660	Länsi-Pakila	Helsinki
+00670	Paloheinä	Helsinki
+00680	Itä-Pakila	Helsinki
+00690	Torpparinmäki	Helsinki
+00700	Malmi	Helsinki
+00710	Pihlajamäki - Viikinmäki	Helsinki
+00720	Pukinmäki	Helsinki
+00730	Tapanila	Helsinki
+00740	Siltamäki	Helsinki
+00750	Tapulikaupunki	Helsinki
+00760	Puistola - Heikinlaakso	Helsinki
+00770	Jakomäki - Alppikylä	Helsinki
+00780	Tapaninvainio	Helsinki
+00790	Viikki	Helsinki
+00800	Länsi-Herttoniemi	Helsinki
+00810	Herttoniemenranta	Helsinki
+00820	Roihuvuori	Helsinki
+00830	Tammisalo	Helsinki
+00840	Yliskylä	Helsinki
+00850	Jollas	Helsinki
+00860	Santahamina	Helsinki
+00870	Gunillanmäki - Hevossalmi	Helsinki
+00880	Keski-Herttoniemi - Roihupelto	Helsinki
+00890	Östersundom	Helsinki
+00900	Puotinharju	Helsinki
+00910	Puotila	Helsinki
+00920	Myllypuro	Helsinki
+00930	Itäkeskus - Marjaniemi	Helsinki
+00940	Kontula - Vesala - Kivikko	Helsinki
+00950	Vartioharju	Helsinki
+00960	Pohjois-Vuosaari	Helsinki
+00970	Mellunmäki	Helsinki
+00980	Etelä-Vuosaari	Helsinki
+00990	Aurinkolahti	Helsinki
+01120	Västerskog	Sipoo
+01150	Söderkulla	Sipoo
+01180	Kalkkiranta	Sipoo
+01190	Box	Sipoo
+01200	Hakunila	Vantaa
+01230	Vaarala	Vantaa
+01260	Itä-Hakkila	Vantaa
+01280	Länsimäki	Vantaa
+01300	Tikkurila	Vantaa
+01340	Leinelä	Vantaa
+01350	Hiekkaharju	Vantaa
+01360	Koivukylä-Havukoski	Vantaa
+01370	Jokiniemi	Vantaa
+01380	Kuusikko-Hakkila	Vantaa
+01390	Ruskeasanta-Ilola	Vantaa
+01400	Rekola	Vantaa
+01420	Päiväkumpu	Vantaa
+01450	Korso	Vantaa
+01480	Mikkola	Vantaa
+01490	Nikinmäki	Vantaa
+01510	Kirkonkylä-Veromäki	Vantaa
+01520	Tammisto	Vantaa
+01530	Veromiehenkylä	Vantaa
+01600	Myyrmäki	Vantaa
+01610	Kaivoksela	Vantaa
+01620	Martinlaakso	Vantaa
+01630	Hämeenkylä	Vantaa
+01640	Hämevaara	Vantaa
+01650	Vapaala	Vantaa
+01660	Varisto	Vantaa
+01670	Vantaanlaakso	Vantaa
+01680	Askisto	Vantaa
+01690	Ylästö	Vantaa
+01700	Kivistö	Vantaa
+01710	Pähkinärinne	Vantaa
+01720	Petikko	Vantaa
+01730	Vantaanpuisto	Vantaa
+01740	Tuupakan teollisuusalue	Vantaa
+01750	Keimola	Vantaa
+01760	Seutula	Vantaa
+01770	Martinlaakson teollisuusalue	Vantaa
+01800	Klaukkala Keskus	Nurmijärvi
+01810	Luhtajoki	Nurmijärvi
+01820	Haikala	Nurmijärvi
+01830	Lepsämä	Nurmijärvi
+01840	Klaukkala	Nurmijärvi
+01860	Perttula	Nurmijärvi
+01900	Nurmijärvi Keskus	Nurmijärvi
+01940	Palojoki	Nurmijärvi
+02100	Tapiola	Espoo
+02110	Otsolahti	Espoo
+02120	Länsikorkee-Suvikumpu	Espoo
+02130	Pohjois-Tapiola	Espoo
+02140	Laajalahti	Espoo
+02150	Otaniemi	Espoo
+02160	Westend	Espoo
+02170	Haukilahti	Espoo
+02180	Mankkaa	Espoo
+02200	Niittykumpu	Espoo
+02210	Olari	Espoo
+02230	Matinkylä	Espoo
+02240	Friisilä	Espoo
+02250	Henttaa	Espoo
+02260	Kaitaa	Espoo
+02270	Finnoo-Eestinmalmi	Espoo
+02280	Malminmäki-Eestinlaakso	Espoo
+02300	Nöykkiönpuro	Espoo
+02320	Espoonlahti	Espoo
+02330	Saunalahti-Kattilalaakso	Espoo
+02340	Latokaski	Espoo
+02360	Soukka	Espoo
+02380	Suvisaaristo	Espoo
+02390	Sarvvik	Kirkkonummi
+02400	Kirkkonummi Keskus	Kirkkonummi
+02410	Gesterby	Kirkkonummi
+02420	Jorvas	Kirkkonummi
+02430	Masala	Kirkkonummi
+02440	Luoma	Kirkkonummi
+02450	Sundsberg	Kirkkonummi
+02460	Kantvik	Kirkkonummi
+02470	Upinniemi	Kirkkonummi
+02480	Porkkala	Kirkkonummi
+02490	Pikkala	Siuntio
+02510	Oitmäki	Kirkkonummi
+02520	Lapinkylä	Kirkkonummi
+02540	Kylmälä	Kirkkonummi
+02550	Evitskog	Kirkkonummi
+02570	Siuntio Kirkonkylä	Siuntio
+02580	Siuntio Asemanseutu	Siuntio
+02590	Lappers	Siuntio
+02600	Etelä-Leppävaara	Espoo
+02610	Kilo	Espoo
+02620	Karakallio	Espoo
+02630	Nihtisilta	Espoo
+02650	Pohjois-Leppävaara	Espoo
+02660	Lintuvaara	Espoo
+02680	Uusmäki	Espoo
+02700	Kauniainen	Kauniainen
+02710	Viherlaakso	Espoo
+02720	Lähderanta	Espoo
+02730	Jupperi	Espoo
+02740	Bemböle-Pakankylä	Espoo
+02750	Sepänkylä-Kuurinniitty	Espoo
+02760	Tuomarila-Suvela	Espoo
+02770	Espoon Keskus	Espoo
+02780	Kauklahti	Espoo
+02810	Gumböle-Karhusuo	Espoo
+02820	Nupuri-Nuuksio	Espoo
+02860	Siikajärvi	Espoo
+02880	Veikkola	Kirkkonummi
+02920	Niipperi	Espoo
+02940	Lippajärvi-Järvenperä	Espoo
+02970	Kalajärvi	Espoo
+02980	Lakisto	Espoo
+03100	Nummela	Vihti
+03150	Huhmari	Vihti
+03220	Tervalampi	Vihti
+03250	Ojakkala	Vihti
+03300	Otalampi	Vihti
+03320	Selki	Vihti
+03400	Vihti Kirkonkylä	Vihti
+03430	Jokikunta	Vihti
+03600	Karkkila Keskus	Karkkila
+03620	Polari	Karkkila
+03710	Uusitalo	Karkkila
+03790	Vihtijärvi	Vihti
+03810	Ikkala	Lohja
+03850	Pusula	Lohja
+03870	Hyönölä	Lohja
+04130	Sipoo	Sipoo
+04150	Martinkylä	Sipoo
+04170	Paippinen	Sipoo
+04200	Kerava Keskus	Kerava
+04220	Ahjo-Kaskela	Kerava
+04230	Pihkaniitty	Kerava
+04240	Talma	Sipoo
+04250	Alikerava	Kerava
+04260	Savio	Kerava
+04300	Hyrylä	Tuusula
+04310	Tuusula Kirkonkylä	Tuusula
+04320	Riihikallio	Tuusula
+04330	Lahela	Tuusula
+04340	Mattila	Tuusula
+04350	Nahkela	Tuusula
+04360	Ruotsinkylä-Kiilinmäki	Tuusula
+04370	Rusutjärvi	Tuusula
+04380	Tuomala	Tuusula
+04390	Jäniksenlinna	Tuusula
+04400	Loutti	Järvenpää
+04410	Järvenpää Keskus	Järvenpää
+04420	Kyrölä	Järvenpää
+04430	Kinnari-Mikonkorpi	Järvenpää
+04440	Jamppa	Järvenpää
+04460	Nummenkylä	Järvenpää
+04480	Haarajoki	Järvenpää
+04500	Kellokoski	Tuusula
+04530	Ohkola	Mäntsälä
+04600	Mäntsälä Keskus	Mäntsälä
+04620	Kaunismäki	Mäntsälä
+04630	Sääksjärvi	Mäntsälä
+04660	Numminen	Mäntsälä
+04680	Hirvihaara	Mäntsälä
+04740	Sälinkää	Mäntsälä
+04770	Sahakylä	Mäntsälä
+04820	Kaukalampi	Mäntsälä
+04840	Hautjärvi	Mäntsälä
+04920	Saarentaus	Mäntsälä
+04940	Levanto	Mäntsälä
+05100	Röykkä	Nurmijärvi
+05200	Rajamäki	Nurmijärvi
+05250	Kiljava	Nurmijärvi
+05400	Jokela	Tuusula
+05430	Nuppulinna	Tuusula
+05440	Hyvinkää	Hyvinkää
+05450	Nukari	Nurmijärvi
+05460	Hakalanmäki-Hakala	Hyvinkää
+05470	Palopuro	Hyvinkää
+05510	Päivärinta	Hyvinkää
+05620	Noppo	Hyvinkää
+05720	Kytäjä	Hyvinkää
+05800	Hyvinkää Keskus	Hyvinkää
+05810	Martti	Hyvinkää
+05820	Mustamännistö	Hyvinkää
+05830	Kirjavatolppa-Kruununpuisto	Hyvinkää
+05840	Hyvinkäänkylä-Vehkoja	Hyvinkää
+05850	Hyvinkää, sairaala-alue	Hyvinkää
+05860	Talvisilta	Hyvinkää
+05880	Paavola-Vaivero	Hyvinkää
+05900	Vieremä	Hyvinkää
+05950	Ridasjärvi	Hyvinkää
+06100	Porvoo Keskus	Porvoo
+06150	Kevätkumpu	Porvoo
+06200	Porvoo itäinen	Porvoo
+06400	Gammelbacka	Porvoo
+06450	Eestinmäki-Ernestas	Porvoo
+06500	Saksala-Suomenkylä	Porvoo
+06530	Kerkkoo	Porvoo
+06650	Hamari	Porvoo
+06750	Tolkkinen	Porvoo
+06830	Kulloonkylä	Porvoo
+06850	Kulloo	Porvoo
+06880	Kärrby	Sipoo
+06950	Emäsalo	Porvoo
+07110	Hinthaara	Porvoo
+07130	Anttila	Porvoo
+07150	Laukkoski	Pornainen
+07170	Keski-Pornainen	Pornainen
+07190	Halkia	Pornainen
+07220	Kaarenkylä	Porvoo
+07230	Monninkylä	Askola
+07280	Ilola	Porvoo
+07310	Sannainen	Porvoo
+07320	Jakari-Sannäs	Porvoo
+07350	Gäddrag	Porvoo
+07360	Tirmo	Porvoo
+07370	Pellinki	Porvoo
+07390	Suurpellinki	Porvoo
+07410	Kråkö	Porvoo
+07450	Voolahti	Porvoo
+07500	Askola Kirkonkylä	Askola
+07510	Vakkola	Askola
+07530	Onkimaa	Askola
+07550	Torpinkylä	Pukkila
+07560	Pukkila Keskus	Pukkila
+07565	Kantele	Pukkila
+07580	Tiilää	Askola
+07590	Huuvari-Tiilää	Askola
+07600	Myrskylä Keskus	Myrskylä
+07680	Juornaankylä	Askola
+07690	Kankkila	Myrskylä
+07700	Koskenkylän saha-alue	Loviisa
+07720	Malmgård	Loviisa
+07740	Gammelby	Loviisa
+07750	Isnäs	Loviisa
+07780	Härkäpää	Loviisa
+07800	Lapinjärvi Keskus	Lapinjärvi
+07810	Ingermaninkylä	Lapinjärvi
+07820	Porlammi	Lapinjärvi
+07830	Pukaro	Lapinjärvi
+07840	Lindkoski	Lapinjärvi
+07850	Heikinkylä	Lapinjärvi
+07870	Skinnarby	Loviisa
+07880	Liljendal Keskus	Loviisa
+07890	Mickelspiltom	Loviisa
+07900	Loviisa Keskus	Loviisa
+07910	Valko	Loviisa
+07920	Etelä-Harju	Loviisa
+07930	Pernaja Kirkonkylä	Loviisa
+07940	Määrlahti	Loviisa
+07945	Kuggom	Loviisa
+07955	Tesjoki	Loviisa
+07960	Ahvenkoski	Loviisa
+07970	Ruotsinpyhtää Keskus	Loviisa
+07980	Kuninkaankylä	Loviisa
+07990	Ruotsinkylä-Koskisto	Loviisa
+08100	Lohja Keskus	Lohja
+08150	Keskilohja	Lohja
+08200	Ojamo	Lohja
+08350	Routio	Lohja
+08360	Kisakallio	Lohja
+08450	Hormajärvi	Lohja
+08480	Karstu	Lohja
+08500	Ventelä-Millola	Lohja
+08680	Muijala	Lohja
+08700	Virkkala	Lohja
+08800	Kirkniemi	Lohja
+09120	Karjalohja	Lohja
+09220	Sammatti	Lohja
+09430	Saukkola	Lohja
+09520	Millola	Lohja
+09630	Koisjärvi	Lohja
+09810	Nummi-Oinola	Lohja
+09930	Leppäkorpi	Lohja
+10120	Tähtelä	Inkoo
+10140	Päivölä	Inkoo
+10160	Degerby	Inkoo
+10210	Inkoo Keskus	Inkoo
+10230	Inkoo Asemanseutu	Inkoo
+10250	Fagervik	Inkoo
+10270	Barösund	Inkoo
+10300	Karjaa Keskus	Raasepori
+10320	Bäljars	Raasepori
+10330	Pinjainen	Raasepori
+10350	Meltolan sairaala-alue	Raasepori
+10360	Mustio	Raasepori
+10380	Kaunislahti	Raasepori
+10410	Åminnefors	Raasepori
+10420	Pohjankuru	Raasepori
+10440	Bollsta	Raasepori
+10470	Fiskari	Raasepori
+10480	Antskog	Raasepori
+10520	Tenhola Kirkonkylä	Raasepori
+10570	Bromarv	Raasepori
+10600	Tammisaari Keskus	Raasepori
+10620	Tammisaari	Raasepori
+10640	Dragsvik	Raasepori
+10650	Flyet	Raasepori
+10660	Trollböle	Raasepori
+10680	Skogby	Raasepori
+10710	Snappertuna	Raasepori
+10820	Lappohja	Hanko
+10900	Hanko Keskus	Hanko
+10940	Hangonkylä	Hanko
+10960	Hanko Pohjoinen	Hanko
+11100	Riihimäki Keskus	Riihimäki
+11120	Pohjois-Riihimäki	Riihimäki
+11130	Peltosaari-Patastenmäki	Riihimäki
+11310	Taka-Kasarmi	Riihimäki
+11710	Herajoki	Riihimäki
+11910	Lasi-Kumela	Riihimäki
+12100	Oitti	Hausjärvi
+12130	Mommila	Hausjärvi
+12170	Hietoinen	Hausjärvi
+12210	Hausjärvi kk	Hausjärvi
+12240	Hikiä	Hausjärvi
+12310	Ryttylä	Hausjärvi
+12350	Turkhauta	Hausjärvi
+12380	Leppäkoski	Janakkala
+12400	Tervakoski	Janakkala
+12450	Vähikkälä	Janakkala
+12520	Kormu	Loppi
+12540	Launonen	Loppi
+12600	Läyliäinen	Loppi
+12630	Sajaniemi	Loppi
+12640	Joentaka	Loppi
+12700	Loppi kk	Loppi
+12750	Pilpala	Loppi
+12820	Räyskälä	Loppi
+12920	Topeno	Loppi
+12950	Vojakkala-Eerolankulma	Loppi
+13100	Hämeenlinna Keskus	Hämeenlinna
+13110	Kantola	Hämeenlinna
+13130	Kauriala	Hämeenlinna
+13200	Keinusaari	Hämeenlinna
+13210	Hätilä	Hämeenlinna
+13220	Sairio	Hämeenlinna
+13250	Katuma	Hämeenlinna
+13270	Ruununmylly	Hämeenlinna
+13300	Käikälä	Hämeenlinna
+13330	Harviala	Janakkala
+13430	Hattelmala	Hämeenlinna
+13500	Jukola	Hämeenlinna
+13530	Hämeenlinna sairaala-alue	Hämeenlinna
+13600	Ojoinen	Hämeenlinna
+13700	Parolannummi	Hattula
+13720	Parola	Hattula
+13800	Katinala	Hattula
+13880	Rahkoila	Hattula
+13900	Pekola	Hattula
+14140	Jokimaa	Janakkala
+14200	Turenki	Janakkala
+14240	Väli-Janakkala	Janakkala
+14300	Renko kk	Hämeenlinna
+14430	Vuohiniemi	Hattula
+14450	Rimmilä	Hämeenlinna
+14500	Iittala	Hämeenlinna
+14530	Leteensuo	Hattula
+14610	Lepaa	Hattula
+14620	Tyrväntö	Hattula
+14680	Alvettula	Hämeenlinna
+14690	Torvoila	Hämeenlinna
+14700	Hauho kk	Hämeenlinna
+14770	Eteläinen	Hämeenlinna
+14810	Pohjoinen	Hämeenlinna
+14820	Syrjäntaka	Hämeenlinna
+14840	Sairiala	Hämeenlinna
+14870	Juttila	Hämeenlinna
+14930	Sappee	Hämeenlinna
+14960	Puutikkala	Pälkäne
+14980	Kuohijoki	Pälkäne
+15100	Lahti Asemanseutu	Lahti
+15110	Keski-Lahti	Lahti
+15140	Kartano-Paavola	Lahti
+15150	Möysä	Lahti
+15160	Kolava	Lahti
+15170	Tenava-Tonttila	Lahti
+15200	Kiveriö	Lahti
+15210	Kivistönmäki	Lahti
+15230	Kytölä	Lahti
+15240	Mukkula	Lahti
+15270	Kukkila	Hollola
+15300	Myllypohja-Koiskala	Lahti
+15320	Ahtiala	Lahti
+15340	Kunnas-Hiekkanummi	Lahti
+15460	Mäkelä	Lahti
+15500	Liipola	Lahti
+15520	Saksala	Lahti
+15540	Villähde	Lahti
+15550	Rakokivi	Lahti
+15560	Nastola kk	Lahti
+15580	Ruuhijärvi	Lahti
+15610	Laune-Nikkilä	Lahti
+15680	Renkomäki-Ämmälä	Lahti
+15700	Hennala-Jokimaa	Lahti
+15800	Kärpänen	Lahti
+15810	Kasakkamäki	Lahti
+15820	Okeroinen	Hollola
+15830	Metsäkangas	Lahti
+15840	Riihelä	Lahti
+15850	Likolampi	Lahti
+15860	Kartano	Hollola
+15870	Salpakangas	Hollola
+15880	Soramäki	Hollola
+15900	Jalkaranta	Lahti
+15950	Kiikkula	Lahti
+15980	Messilä	Hollola
+16100	Uusikylä	Lahti
+16160	Okkeri	Lahti
+16200	Artjärvi Keskus	Orimattila
+16230	Artjärvi Kirkonkylä	Orimattila
+16260	Hietana	Orimattila
+16270	Villikkala	Orimattila
+16280	Kuivanto	Orimattila
+16300	Orimattila Keskus	Orimattila
+16310	Virenoja	Orimattila
+16320	Pennala	Orimattila
+16330	Heinämaa	Orimattila
+16350	Niinikoski	Orimattila
+16390	Pakaa	Orimattila
+16450	Mallusjoki	Orimattila
+16500	Herrala	Hollola
+16510	Luhtikylä	Orimattila
+16540	Mertie	Kärkölä
+16600	Järvelä	Kärkölä
+16610	Kärkölä kk	Kärkölä
+16630	Tennilä	Hollola
+16670	Lappila	Kärkölä
+16710	Hollola kk	Hollola
+16730	Kutajärvi	Hollola
+16790	Manskivi	Hollola
+16800	Hämeenkoski	Hollola
+16900	Lammi kk	Hämeenlinna
+16960	Iso-Evo	Hämeenlinna
+16970	Evo	Hämeenlinna
+17110	Kalliola	Hollola
+17120	Paimela	Hollola
+17130	Vesivehmaa	Asikkala
+17150	Urajärvi	Asikkala
+17200	Vääksy Keskus	Asikkala
+17220	Pietilä	Asikkala
+17240	Kalkkinen	Asikkala
+17320	Asikkala	Asikkala
+17410	Viitaila	Asikkala
+17430	Kurhila	Asikkala
+17440	Vähimaa	Asikkala
+17450	Iso-Äiniö-Vähimaa	Asikkala
+17470	Maakeski	Padasjoki
+17500	Padasjoki Keskus	Padasjoki
+17510	Nyystölä	Padasjoki
+17530	Arrakoski	Padasjoki
+17610	Auttoinen	Padasjoki
+17630	Vesijako	Padasjoki
+17710	Torittu	Padasjoki
+17740	Kasiniemi-Torittu	Padasjoki
+17780	Harmoinen	Kuhmoinen
+17800	Kuhmoinen Keskus	Kuhmoinen
+17840	Harjunsalmi	Kuhmoinen
+17850	Pihlajakoski	Kuhmoinen
+17870	Ruolahti	Kuhmoinen
+17930	Päijälä	Kuhmoinen
+17950	Kylämä	Kuhmoinen
+17970	Puukkoinen	Kuhmoinen
+18100	Heinola Keskus	Heinola
+18120	Reumasairaala-alue	Heinola
+18130	Tommola-Sahanniemi	Heinola
+18150	Jyränkö	Heinola
+18200	Kaakonlampi-Pyhätön	Heinola
+18300	Heinola kk	Heinola
+18600	Myllyoja	Heinola
+19110	Vierumäki taajama	Heinola
+19120	Vierumäki urheiluopisto	Heinola
+19160	Huutotöyry	Iitti
+19210	Lusi	Heinola
+19230	Onkiniemi	Sysmä
+19250	Syrjäkoski	Heinola
+19260	Paaso-Syrjäkoski	Heinola
+19310	Karilanmaa	Sysmä
+19320	Nikkaroinen	Sysmä
+19370	Nuoramoinen	Sysmä
+19410	Kuortti	Mäntyharju
+19420	Mansikkamäki	Mäntyharju
+19430	Pertunmaa Keskus	Mäntyharju
+19460	Ruorasmäki	Mäntyharju
+19470	Lihavanpää-Hartosenpää	Mäntyharju
+19480	Hartosenpää	Mäntyharju
+19510	Lepsala	Hartola
+19540	Koitti-Lepsala	Hartola
+19600	Hartola Keskus	Hartola
+19610	Murakka	Hartola
+19620	Pohela	Hartola
+19630	Kalhonkylä	Hartola
+19650	Joutsa Keskus	Joutsa
+19670	Mieskonmäki	Joutsa
+19700	Sysmä Keskus	Sysmä
+19730	Särkilampi	Sysmä
+19740	Liikola	Sysmä
+19770	Valittula	Sysmä
+19850	Putkijärvi-Siltasuo	Hartola
+19910	Tammijärvi	Luhanka
+19920	Pappinen	Joutsa
+19950	Luhanka	Luhanka
+20100	Turku Keskus	Turku
+20200	Iso-Heikkilä	Turku
+20210	Pahaniemi	Turku
+20240	Pansio-Perno	Turku
+20250	Pitkämäki-Muhkuri	Turku
+20300	Pohjola-Kastu	Turku
+20320	Kuninkoja-Mälikkälä	Turku
+20360	Runosmäki-Kärsämäki	Turku
+20380	Räntämäki-Saramäki	Turku
+20400	Moisio	Turku
+20460	Jäkärlä	Turku
+20500	Vesilinna	Turku
+20520	Kupittaa	Turku
+20540	Nummi-Ylioppilaskylä	Turku
+20610	Varissuo	Turku
+20660	Littoinen	Kaarina
+20700	Vartiovuori-Samppalinna	Turku
+20720	Vasaramäki	Turku
+20730	Skanssi	Turku
+20740	Ilpoinen-Harittu	Turku
+20750	Huhkola-Lauste-Vaala	Turku
+20760	Piispanristi	Kaarina
+20780	Kaarina Keskus	Kaarina
+20800	Ammattikorkeakoulu	Turku
+20810	Martti-Korppolaismäki	Turku
+20880	Uittamo	Turku
+20900	Moikoinen-Pikisaari	Turku
+20960	Kakskerta	Turku
+21100	Naantali Keskus	Naantali
+21110	Taimo-Nuhjala-Lietsala	Naantali
+21120	Kaanaa	Raisio
+21130	Poikko	Naantali
+21140	Rymättylä Keskus	Naantali
+21150	Röölä	Naantali
+21160	Merimasku	Naantali
+21180	Livonsaari	Naantali
+21195	Velkua	Naantali
+21200	Raisio Keskus	Raisio
+21210	Hakinmäki	Raisio
+21220	Somersoja	Raisio
+21230	Lemu	Masku
+21240	Askainen	Masku
+21250	Masku	Masku
+21260	Ihala	Raisio
+21270	Nousiainen	Nousiainen
+21280	Kuloinen	Raisio
+21290	Rusko	Rusko
+21310	Vahto	Rusko
+21330	Paattinen	Turku
+21340	Tortinmäki	Turku
+21350	Ilmarinen	Lieto
+21360	Lieto Asemanseutu	Lieto
+21370	Aura kk.	Aura
+21380	Aura Keskus	Aura
+21410	Vanhalinna	Lieto
+21420	Lieto Keskus	Lieto
+21430	Yliskulma	Lieto
+21450	Tarvasjoki Keskus	Lieto
+21480	Prunkila	Marttila
+21490	Marttila	Marttila
+21500	Piikkiö	Kaarina
+21510	Hevonpää	Paimio
+21530	Paimio Keskus	Paimio
+21540	Preitilä	Paimio
+21555	Taatila	Paimio
+21560	Ollila	Marttila
+21570	Sauvo Keskus	Sauvo
+21590	Karuna	Sauvo
+21600	Parainen Keskus	Parainen
+21610	Kirjala	Parainen
+21620	Kuusisto	Kaarina
+21630	Lielahti	Parainen
+21650	Lillandet	Parainen
+21660	Nauvo Keskus	Parainen
+21670	Mattnäs-Nötö	Parainen
+21680	Nötö	Parainen
+21710	Korppoo Keskus-Utö	Parainen
+21720	Korpoström	Parainen
+21740	Utö	Parainen
+21750	Norrskata	Parainen
+21760	Houtskär Keskus	Parainen
+21770	Mossala	Parainen
+21800	Kyrö	Pöytyä
+21820	Kumila	Pöytyä
+21840	Karinainen	Pöytyä
+21860	Auvainen	Pöytyä
+21870	Riihikoski	Pöytyä
+21880	Pöytyä	Pöytyä
+21890	Haveri	Pöytyä
+21900	Yläne Keskus	Pöytyä
+21930	Uusikartano	Pöytyä
+22100	Maarianhamina	Maarianhamina - Mariehamn
+22120	Möckelö	Jomala
+22130	Gottby	Jomala
+22140	Önningby	Jomala
+22150	Jomala Centrum	Jomala
+22160	Järsö	Lemland
+22220	Emkarby	Finström
+22240	Hammarland	Hammarland
+22270	Storby	Eckerö
+22310	Pålsböle	Finström
+22320	Ödkarby	Saltvik
+22330	Tjudö	Finström
+22340	Geta	Geta
+22410	Godby	Finström
+22430	Saltvik	Saltvik
+22520	Tosarby	Sund
+22530	Sund	Sund
+22550	Vårdö	Vårdö
+22610	Lemland	Lemland
+22630	Lumparland	Lumparland
+22710	Ålands Degerby	Föglö
+22720	Sottunga	Sottunga
+22730	Kökar	Kökar
+22810	Seglinge	Kumlinge
+22820	Kumlinge	Kumlinge
+22830	Enklinge	Kumlinge
+22840	Lappo	Brändö
+22910	Torsholma	Brändö
+22920	Brändö-Åland	Brändö
+22930	Fiskö	Brändö
+22940	Åva	Brändö
+22950	Jurmo	Brändö
+23100	Mynämäki Keskus	Mynämäki
+23120	Mietoinen Keskus	Mynämäki
+23140	Hietamäki	Mynämäki
+23200	Vinkkilä	Vehmaa
+23210	Vehmaa	Vehmaa
+23260	Rautila	Vehmaa
+23310	Taivassalo	Taivassalo
+23360	Kustavi	Kustavi
+23390	Iniö	Parainen
+23450	Lokalahti	Uusikaupunki
+23500	Uusikaupunki Keskus	Uusikaupunki
+23600	Kalanti Keskus	Uusikaupunki
+23660	Kalanti Asemanseutu	Uusikaupunki
+23800	Laitila Keskus	Laitila
+23930	Pyhämaa	Uusikaupunki
+23950	Pyhäranta	Pyhäranta
+23960	Santtio	Pyhäranta
+24100	Salo Keskus	Salo
+24130	Ylhäisi	Salo
+24240	Rappula	Salo
+24260	Ollikkala	Salo
+24280	Tupuri-Hähkänä	Salo
+24800	Halikko Keskus	Salo
+24910	Halikko Asemanseutu	Salo
+25110	Kruusila	Salo
+25130	Muurla	Salo
+25160	Tuohittu	Salo
+25170	Kotalato	Salo
+25180	Romsila	Salo
+25190	Inkere	Salo
+25210	Vartsala	Salo
+25230	Angelniemi	Salo
+25240	Hajala	Salo
+25250	Märynummi	Salo
+25260	Vaskio	Salo
+25320	Raatala	Salo
+25330	Kuusjoki Keskus	Salo
+25340	Kanunki	Salo
+25360	Pertteli Keskus	Salo
+25370	Hiisi	Salo
+25380	Rekijoki	Salo
+25390	Kiikala Keskus	Salo
+25410	Suomusjärvi Keskus	Salo
+25420	Lahnajärvi	Salo
+25430	Kettula	Salo
+25460	Toija	Salo
+25470	Kisko kk	Salo
+25500	Perniö Keskus	Salo
+25520	Perniö Asemanseutu	Salo
+25540	Knaapila	Salo
+25550	Aijala	Salo
+25560	Koski Asemanseutu	Salo
+25570	Teijo-Mathildedal	Salo
+25610	Ylönkylä	Salo
+25630	Finby	Salo
+25640	Förby	Salo
+25650	Strömma	Kemiönsaari
+25660	Mathildedal	Salo
+25700	Kemiö Keskus	Kemiönsaari
+25710	Vreta-Vestlax	Kemiönsaari
+25730	Mjösund	Kemiönsaari
+25760	Kiila	Kemiönsaari
+25810	Mark	Kemiönsaari
+25820	Vestlax	Kemiönsaari
+25830	Västanfjärd Keskus	Kemiönsaari
+25840	Nivelax	Kemiönsaari
+25860	Björkboda	Kemiönsaari
+25870	Dragsfjärd	Kemiönsaari
+25900	Taalintehdas	Kemiönsaari
+25910	Vänoxa	Kemiönsaari
+25930	Kasnäs	Kemiönsaari
+25940	Hiittinen	Kemiönsaari
+25950	Rosala-Kasnäs-Hitis	Kemiönsaari
+25960	Högsåra	Kemiönsaari
+26100	Rauma Keskus	Rauma
+26200	Merirauma-Kappelinluhta	Rauma
+26410	Kaaro	Rauma
+26510	Uotila	Rauma
+26560	Kolla	Rauma
+26660	Paroalho	Rauma
+26720	Monnanummi	Rauma
+26740	Vasarainen	Rauma
+26820	Sampaanala	Rauma
+26840	Kortela	Rauma
+26910	Unaja	Rauma
+26930	Vermuntila	Rauma
+26950	Voiluoto	Rauma
+27100	Eurajoki Keskus	Eurajoki
+27110	Irjanne	Eurajoki
+27130	Eurajoki asemanseutu	Eurajoki
+27150	Lapijoki	Eurajoki
+27160	Olkiluoto	Eurajoki
+27170	Kuivalahti	Eurajoki
+27220	Ala-Kieri	Rauma
+27230	Lappi	Rauma
+27250	Kodiksami	Rauma
+27260	Kuolimaa	Rauma
+27310	Kodisjoki	Rauma
+27320	Ihode	Pyhäranta
+27340	Reila	Pyhäranta
+27400	Kiukainen Keskus	Eura
+27420	Panelia Asemanseutu	Eura
+27430	Panelia	Eura
+27450	Harola	Eura
+27500	Kauttua	Eura
+27510	Eura Keskus	Eura
+27600	Hinnerjoki	Eura
+27640	Honkilahti kk	Eura
+27650	Honkilahti	Eura
+27670	Mannila	Eura
+27710	Köyliö Keskus	Säkylä
+27730	Tuiskula	Säkylä
+27740	Voitoinen	Säkylä
+27750	Yttilä	Säkylä
+27800	Säkylä Keskus	Säkylä
+27820	Iso-Vimma	Säkylä
+27840	Kakkuri	Säkylä
+27860	Vuori	Säkylä
+27910	Huovinrinne	Säkylä
+27920	Otajoki	Säkylä
+28100	Pori Keskus	Pori
+28120	Käppärä-Isomäki	Pori
+28130	Impola	Pori
+28190	Pormestarinluoto	Pori
+28200	Toejoki	Pori
+28220	Ruosniemi	Pori
+28240	Isojoenranta	Pori
+28260	Harjunpää	Ulvila
+28300	Kalaholma-Väinölä	Pori
+28330	Koivistonluoto	Pori
+28360	Vanhakoivisto	Pori
+28370	Sampola	Pori
+28400	Ulvila Keskus	Ulvila
+28430	Kartano-Harmaalinna	Pori
+28450	Vanha-Ulvila	Ulvila
+28500	Keskussairaala-alue-Tiilimäki	Pori
+28540	Pinomäki	Pori
+28560	Lattomeri	Pori
+28580	Niittymaa	Pori
+28600	Vähärauma	Pori
+28610	Musa-Tiiliruukki	Pori
+28660	Pietniemi-Leppäkorpi	Pori
+28760	Kyläsaari	Pori
+28800	Pihlava	Pori
+28840	Yyteri-Kaanaa	Pori
+28880	Mäntyluoto	Pori
+28900	Tahkoluoto-Reposaari	Pori
+29100	Luvia Keskus	Eurajoki
+29180	Peränkylä	Eurajoki
+29200	Harjavalta Keskus	Harjavalta
+29250	Nakkila Keskus	Nakkila
+29270	Hormisto	Nakkila
+29280	Järvimaa	Nakkila
+29310	Kaasmarkku	Ulvila
+29320	Leineperi	Ulvila
+29340	Kullaa Keskus	Ulvila
+29350	Palus	Ulvila
+29570	Söörmarkku	Pori
+29600	Noormarkku Keskus	Pori
+29630	Pomarkku Keskus	Pomarkku
+29640	Honkakoski	Pomarkku
+29680	Kairila	Pori
+29700	Ahlainen	Pori
+29720	Lamppi	Pori
+29740	Etelämaa	Merikarvia
+29750	Pohjansaha	Merikarvia
+29760	Köörtilä	Merikarvia
+29790	Tuorila	Merikarvia
+29810	Siikainen Keskus	Siikainen
+29830	Sammi	Siikainen
+29860	Otamo	Siikainen
+29880	Leväsjoki-Saarineva	Siikainen
+29900	Merikarvia Keskus-Rannikko	Merikarvia
+29940	Kuvaskangas	Merikarvia
+30100	Forssa Keskus	Forssa
+30300	Viksberg	Forssa
+30420	Tölö	Forssa
+31110	Matku	Forssa
+31130	Koijärvi	Forssa
+31140	Menonen	Urjala
+31160	Nuutajärvi	Urjala
+31170	Savijoki	Forssa
+31230	Susikas	Tammela
+31250	Teuro	Tammela
+31300	Tammela Keskus	Tammela
+31310	Mustiala	Tammela
+31340	Porras	Tammela
+31350	Vistinkoski	Tammela
+31370	Eerikkilän Urheiluopisto	Tammela
+31380	Letku-Torro	Tammela
+31400	Somero Keskus	Somero
+31410	Ylöpirtti	Somero
+31450	Häntälä	Somero
+31460	Hirsjärvi	Somero
+31470	Somerniemi	Somero
+31490	Terttilä	Somero
+31500	Koski Tl	Koski Tl
+31520	Pitkäjärvi	Somero
+31530	Pyöli	Somero
+31600	Jokioinen Keskus	Jokioinen
+31610	Vaulammi	Jokioinen
+31620	Latovainio	Jokioinen
+31630	Minkiö	Jokioinen
+31640	Humppila Keskus	Humppila
+31650	Venäjänkangas	Humppila
+31700	Urjala Asemanseutu-Hanhisuo	Urjala
+31720	Urjalankylä-Kehro	Urjala
+31730	Honkola	Urjala
+31750	Kehro	Urjala
+31760	Urjala Keskus	Urjala
+31810	Oriniemi	Punkalaidun
+31830	Halkivaha	Urjala
+31850	Koskioinen	Punkalaidun
+31860	Tursa	Urjala
+31900	Punkalaidun Keskus	Punkalaidun
+31930	Vanttila	Punkalaidun
+31950	Sadonmaa	Punkalaidun
+31960	Orisuo	Loimaa
+31970	Kanteenmaa	Punkalaidun
+32100	Ypäjä Keskus	Ypäjä
+32140	Ypäjä Asemanseutu	Ypäjä
+32200	Loimaa Keskus	Loimaa
+32210	Loimaa kk	Loimaa
+32250	Kojonkulma	Loimaa
+32260	Kojonperä	Loimaa
+32270	Metsämaa-Murto	Loimaa
+32280	Metsäkorpi	Loimaa
+32300	Mellilä	Loimaa
+32410	Niinijoki	Loimaa
+32430	Ylhäinen	Loimaa
+32440	Alastaro Keskus	Loimaa
+32450	Tammiainen	Loimaa
+32500	Oripää Keskus	Oripää
+32520	Latva	Oripää
+32560	Virttaa	Loimaa
+32610	Vampula Keskus	Huittinen
+32620	Rutava	Huittinen
+32700	Huittinen Keskus	Huittinen
+32710	Sampu	Huittinen
+32730	Keikyä	Sastamala
+32740	Pehula	Sastamala
+32760	Suttila	Huittinen
+32770	Huhtamo	Huittinen
+32800	Kokemäki Keskus	Kokemäki
+32810	Peipohja	Kokemäki
+32830	Riste	Kokemäki
+32860	Korkeaoja	Kokemäki
+32910	Kauvatsa Asemanseutu	Kokemäki
+32920	Kauvatsa	Kokemäki
+33100	Tampere Keskus	Tampere
+33180	Lapinniemi-Käpylä	Tampere
+33200	Tampere Keskus Läntinen	Tampere
+33210	Itä-Amuri-Tammerkoski	Tampere
+33230	Länsi-Amuri	Tampere
+33240	Tahmela	Tampere
+33250	Pispala	Tampere
+33270	Epilä	Tampere
+33300	Rahola	Tampere
+33310	Tesoma	Tampere
+33330	Myllypuro-Kalkku	Tampere
+33340	Haukiluoma-Ikuri	Tampere
+33400	Luoteis-Tampere	Tampere
+33410	Lentävänniemi	Tampere
+33420	Lamminpää	Tampere
+33430	Vuorentausta	Ylöjärvi
+33450	Siivikkala	Ylöjärvi
+33470	Ylöjärvi Keskus	Ylöjärvi
+33480	Manninmäki-Haavisto	Ylöjärvi
+33500	Osmonmäki-Petsamo	Tampere
+33520	Keskussairaala-alue-Kauppi	Tampere
+33530	Kissanmaa	Tampere
+33540	Kaleva	Tampere
+33560	Takahuhti	Tampere
+33580	Atala-Linnainmaa	Tampere
+33610	Olkahinen-Tasanne	Tampere
+33680	Aitolahti	Tampere
+33700	Messukylä	Tampere
+33710	Kaukajärvi	Tampere
+33720	Hervanta	Tampere
+33730	Leinola-Vehmainen	Tampere
+33800	Nekala	Tampere
+33820	Koivistonkylä	Tampere
+33840	Peltolammi	Tampere
+33850	Multisilta	Tampere
+33870	Vuores	Tampere
+33880	Höytämö	Lempäälä
+33900	Härmälä-Rantaperkiö	Tampere
+33920	Toivio	Pirkkala
+33950	Killo	Pirkkala
+33960	Suuppa	Pirkkala
+33980	Pirkkala kk	Pirkkala
+34110	Lakiala	Ylöjärvi
+34130	Ylinen	Ylöjärvi
+34140	Mutala	Ylöjärvi
+34150	Kyrönlahti	Ylöjärvi
+34180	Länsi-Teisko	Ylöjärvi
+34240	Kämmenteisko	Tampere
+34260	Terälahti	Tampere
+34270	Velaatta	Tampere
+34300	Kuru Keskus	Ylöjärvi
+34320	Parkkuu	Ylöjärvi
+34330	Poikelus	Ylöjärvi
+34410	Murole	Ruovesi
+34420	Muroleen Kanava	Ruovesi
+34430	Kekkonen	Ruovesi
+34450	Jäminkipohja	Ruovesi
+34510	Luode	Ylöjärvi
+34530	Länsi-Aure	Ylöjärvi
+34550	Itä-Aure	Ylöjärvi
+34600	Ruovesi Keskus-Nenonen	Ruovesi
+34640	Mustajärvi	Ruovesi
+34710	Vaskivesi	Virrat
+34730	Vaskuu	Virrat
+34740	Koro	Virrat
+34770	Kurjenkylä	Virrat
+34800	Virrat Keskus	Virrat
+34870	Visuvesi	Ruovesi
+34910	Äijänneva	Virrat
+34930	Liedenpohja	Virrat
+34950	Ohtola	Virrat
+34970	Toisvesi	Virrat
+34980	Killinkoski	Virrat
+35100	Orivesi Asemanseutu	Orivesi
+35220	Eräjärvi	Orivesi
+35240	Ristakallio	Orivesi
+35260	Leväslahti	Orivesi
+35270	Västilä	Orivesi
+35300	Orivesi Keskus	Orivesi
+35320	Hirsilä	Orivesi
+35400	Länkipohja	Jämsä
+35420	Talviainen	Orivesi
+35480	Längelmäki	Orivesi
+35500	Korkeakoski	Juupajoki
+35520	Pirttikangas	Juupajoki
+35530	Lyly	Juupajoki
+35540	Juupajoki	Juupajoki
+35550	Salokunta	Juupajoki
+35600	Halli	Jämsä
+35610	Pihlaisto	Jämsä
+35630	Suinula-Valkamanperä	Jämsä
+35700	Vilppula Keskus	Mänttä-Vilppula
+35740	Ylä-Vääri	Ruovesi
+35750	Väärinmaja	Ruovesi
+35800	Mänttä	Mänttä-Vilppula
+35820	Asemakulma-Mustalahti	Mänttä-Vilppula
+35990	Kolho	Mänttä-Vilppula
+36100	Kangasala Asemanseutu	Kangasala
+36110	Ruutana	Kangasala
+36120	Suinula-Haviseva	Kangasala
+36200	Kangasala Keskus	Kangasala
+36220	Suorama	Kangasala
+36240	Vatiala	Kangasala
+36270	Huutijärvi	Kangasala
+36280	Pikonlinna	Kangasala
+36340	Tohkala	Kangasala
+36420	Sahalahti Keskus	Kangasala
+36430	Pakkala	Kangasala
+36450	Salmentaka	Pälkäne
+36520	Raikku	Kangasala
+36570	Kaivanto	Kangasala
+36600	Pälkäne Keskus	Pälkäne
+36640	Iltasmäki	Pälkäne
+36660	Laitikkala	Pälkäne
+36720	Aitoo	Pälkäne
+36760	Luopioinen Keskus	Pälkäne
+36810	Kuhmalahti Keskus	Kangasala
+36840	Kuhmajärvi	Kangasala
+36880	Vehkajärvi	Kangasala
+36910	Rautajärvi	Pälkäne
+36930	Kyynärö	Pälkäne
+37100	Nokia Keskus	Nokia
+37120	Koskenmäki	Nokia
+37130	Alhoniitty	Nokia
+37140	Harjuniitty	Nokia
+37150	Kankaantaka	Nokia
+37180	Sarkola	Nokia
+37200	Siuro	Nokia
+37210	Kulovesi	Nokia
+37240	Linnavuori	Nokia
+37310	Tottijärvi	Nokia
+37350	Rämsöö	Vesilahti
+37370	Narva	Vesilahti
+37380	Krääkkiö	Vesilahti
+37420	Valkkinen	Vesilahti
+37470	Vesilahti Keskus	Vesilahti
+37500	Lempäälä Keskus	Lempäälä
+37530	Säijä	Lempäälä
+37550	Kuivaspää	Lempäälä
+37560	Kulju	Lempäälä
+37570	Koivuniemi	Lempäälä
+37600	Valkeakoski Keskus	Valkeakoski
+37630	Vääräkoivu	Valkeakoski
+37700	Sääksmäki	Valkeakoski
+37720	Ritvala	Valkeakoski
+37740	Haukila	Valkeakoski
+37770	Tarttila	Valkeakoski
+37800	Toijala keskus	Akaa
+37830	Viiala Keskus	Akaa
+37850	Metsäkansa	Valkeakoski
+37860	Kärjenniemi	Valkeakoski
+37900	Kylmäkoski Asemanseutu	Akaa
+37910	Kylmäkoski Keskus	Akaa
+37960	Sotkia	Akaa
+38100	Karkku	Sastamala
+38120	Kutala	Sastamala
+38130	Ellivuori	Sastamala
+38140	Kärppälä	Sastamala
+38200	Vammala Keskus	Sastamala
+38210	Vammala Asemanseutu	Sastamala
+38220	Stormi	Sastamala
+38250	Roismala	Sastamala
+38270	Sammaljoki	Sastamala
+38280	Illo	Sastamala
+38300	Kiikka	Sastamala
+38360	Kiikoinen	Sastamala
+38420	Häijää	Sastamala
+38460	Mouhijärvi Keskus	Sastamala
+38470	Hyynilä	Sastamala
+38490	Haukijärvi	Hämeenkyrö
+38510	Suodenniemi	Sastamala
+38600	Lavia Keskus	Pori
+38650	Yli-Putto	Pori
+38670	Kalliala-Haunia	Pori
+38680	Tuunajärvi	Pomarkku
+38700	Kankaanpää Keskus	Kankaanpää
+38710	Myllymäki	Kankaanpää
+38720	Vihteljärvi	Kankaanpää
+38740	Hapuoja	Kankaanpää
+38750	Veneskoski	Kankaanpää
+38760	Venesjärvi	Kankaanpää
+38770	Lohikko	Kankaanpää
+38800	Jämijärvi Keskus	Jämijärvi
+38840	Niinisalo	Kankaanpää
+38860	Suurimaa	Jämijärvi
+38910	Ala-Honkajoki	Kankaanpää
+38920	Vatajankoski	Kankaanpää
+38950	Honkajoki Keskus	Kankaanpää
+38970	Lauhala	Kankaanpää
+39100	Hämeenkyrö Keskus	Hämeenkyrö
+39110	Simuna	Hämeenkyrö
+39130	Sasi	Hämeenkyrö
+39150	Pinsiö	Hämeenkyrö
+39160	Julkujärvi	Ylöjärvi
+39170	Jumesniemi	Hämeenkyrö
+39180	Herttuala	Hämeenkyrö
+39195	Kaipio	Hämeenkyrö
+39200	Kyröskoski	Hämeenkyrö
+39230	Osara	Hämeenkyrö
+39290	Vesajärvi	Hämeenkyrö
+39310	Viljakkala Keskus	Ylöjärvi
+39340	Karhe	Ylöjärvi
+39360	Komi	Ylöjärvi
+39380	Lavajärvi	Hämeenkyrö
+39410	Luhalahti	Ikaalinen
+39430	Röyhiö	Ikaalinen
+39450	Sisättö	Ikaalinen
+39500	Ikaalinen Keskus	Ikaalinen
+39530	Kilvakkala	Ikaalinen
+39580	Riitiala	Ikaalinen
+39590	Tevaniemi	Ikaalinen
+39610	Kovelahti	Ikaalinen
+39620	Kovesjoki	Parkano
+39660	Lapinneva	Parkano
+39700	Parkano Keskus	Parkano
+39750	Vatajanjärvi	Parkano
+39770	Aureskoski	Parkano
+39780	Alaskylä	Parkano
+39810	Linnankylä	Kihniö
+39820	Kihniö Keskus	Kihniö
+39880	Kihniö Asemanseutu	Kihniö
+39920	Suomijärvi	Karvia
+39930	Karvia Keskus	Karvia
+39940	Kantti	Karvia
+39960	Sarvela	Karvia
+39965	Karviankylä	Karvia
+39980	Sara	Karvia
+39990	Alkkia	Karvia
+40100	Jyväskylä Keskus	Jyväskylä
+40200	Mannila-Taulumäki	Jyväskylä
+40250	Ritoniemi-Lohikoski	Jyväskylä
+40270	Palokka	Jyväskylä
+40320	Seppälän Teollisuusalue	Jyväskylä
+40340	Huhtasuo	Jyväskylä
+40400	Halssila	Jyväskylä
+40420	Jyskä	Jyväskylä
+40500	Keljo-Ristonmaa	Jyväskylä
+40520	Kuokkala-Ristikivi	Jyväskylä
+40530	Keljonkangas	Jyväskylä
+40600	Mattilanpelto	Jyväskylä
+40620	Keskussairaala-alue-Kukkumäki	Jyväskylä
+40630	Kypärämäki	Jyväskylä
+40640	Keltinmäki	Jyväskylä
+40660	Länsi-Palokka	Jyväskylä
+40700	Mäki-Matti	Jyväskylä
+40720	Nisula	Jyväskylä
+40740	Kortepohja	Jyväskylä
+40800	Vaajakoski	Jyväskylä
+40820	Vuoritsalo	Jyväskylä
+40900	Säynätsalo	Jyväskylä
+40930	Kinkomaa	Muurame
+40950	Muurame Keskus	Muurame
+41120	Puuppola	Jyväskylä
+41140	Kuikka	Jyväskylä
+41160	Tikkakoski	Jyväskylä
+41180	Vehniä	Laukaa
+41210	Jokihaara	Uurainen
+41220	Höytiä	Uurainen
+41230	Uurainen Keskus	Uurainen
+41240	Kyynämöinen	Uurainen
+41260	Hoikankylä	Saarijärvi
+41270	Lannevesi	Saarijärvi
+41290	Kangashäkki	Uurainen
+41310	Leppävesi	Laukaa
+41325	Laukkavirta	Laukaa
+41330	Vihtavuori	Laukaa
+41340	Laukaa Keskus	Laukaa
+41350	Laukaa Asemanseutu	Laukaa
+41360	Valkola	Laukaa
+41370	Kuusa	Laukaa
+41390	Äijälä	Laukaa
+41400	Lievestuore	Laukaa
+41410	Kankainen	Toivakka
+41440	Ruuhimäki	Toivakka
+41450	Leppälahti	Jyväskylä
+41490	Niemisjärvi	Hankasalmi
+41500	Hankasalmi Asemanseutu	Hankasalmi
+41520	Hankasalmi Keskus	Hankasalmi
+41530	Veneranta	Hankasalmi
+41540	Ristimäki	Hankasalmi
+41550	Hannula	Hankasalmi
+41560	Säkinmäki	Hankasalmi
+41580	Sauvamäki	Hankasalmi
+41630	Oravasaari	Jyväskylä
+41660	Toivakka Keskus	Toivakka
+41710	Rutalahti-Kivisuo	Jyväskylä
+41730	Kivisuo	Joutsa
+41750	Havumäki	Joutsa
+41770	Leivonmäki	Joutsa
+41800	Korpilahti Keskus	Jyväskylä
+41820	Saakoski	Jyväskylä
+41840	Moksi	Jyväskylä
+41860	Rannila	Jyväskylä
+41870	Putkilahti	Jyväskylä
+41880	Oittila	Jyväskylä
+41900	Petäjävesi Keskus	Petäjävesi
+41920	Kintaus	Petäjävesi
+41925	Ylä-Kintaus	Petäjävesi
+41930	Kuohu	Jyväskylä
+41940	Vesanka	Jyväskylä
+41970	Huttula	Keuruu
+41980	Kuivasmäki	Petäjävesi
+42100	Jämsä Keskus	Jämsä
+42140	Juokslahti	Jämsä
+42220	Kaipola	Jämsä
+42300	Jämsänkoski Keskus	Jämsä
+42330	Haavisto	Jämsä
+42440	Koskenpää	Jämsä
+42520	Asunta	Keuruu
+42560	Pohjoisjärvi	Keuruu
+42600	Multia Keskus-Väätäiskylä	Multia
+42660	Sahrajärvi	Multia
+42700	Keuruu Keskus	Keuruu
+42800	Haapamäki	Keuruu
+42820	Riiho	Keuruu
+42830	Ylä-Kolkki	Mänttä-Vilppula
+42840	Kolkki	Mänttä-Vilppula
+42850	Pohjaslahti	Mänttä-Vilppula
+42870	Kotala	Virrat
+42910	Pihlajavesi	Keuruu
+42930	Katajamäki	Keuruu
+43100	Saarijärvi Keskus	Saarijärvi
+43130	Tarvaala	Saarijärvi
+43170	Häkkilä	Saarijärvi
+43220	Mahlu	Saarijärvi
+43240	Lehtola	Saarijärvi
+43250	Kolkanlahti	Saarijärvi
+43270	Kalmari	Saarijärvi
+43300	Kannonkoski Keskus	Kannonkoski
+43340	Kannonjärvi	Kannonkoski
+43390	Lokakylä	Kivijärvi
+43420	Kukko	Saarijärvi
+43430	Väätäiskylä	Multia
+43440	Pylkönmäki Keskus	Saarijärvi
+43480	Pääjärvi	Saarijärvi
+43490	Kangasaho	Karstula
+43500	Karstula Keskus	Karstula
+43520	Kiminki	Karstula
+43540	Rantakylä-Pirttilahti	Karstula
+43560	Vahanka	Karstula
+43610	Aho	Karstula
+43640	Humppi	Karstula
+43660	Vastinki	Karstula
+43700	Kyyjärvi Keskus	Kyyjärvi
+43720	Kumpulainen	Kyyjärvi
+43800	Kivijärvi Keskus-Sompala	Kivijärvi
+43840	Sompala	Kivijärvi
+43900	Kinnula Keskus	Kinnula
+43940	Muhola-Saarensalmi	Kinnula
+43960	Saarensalmi	Kinnula
+44100	Äänekoski Keskus	Äänekoski
+44120	Mämmensalmi-Mustaniemi	Äänekoski
+44150	Likolahti-Karhunlähde	Äänekoski
+44160	Huutomäki	Äänekoski
+44170	Hietama	Äänekoski
+44190	Parantala	Äänekoski
+44200	Suolahti Keskus	Äänekoski
+44220	Sörkänmäki	Äänekoski
+44250	Äänekoivisto	Äänekoski
+44260	Vihijärvi	Äänekoski
+44280	Sumiainen Keskus	Äänekoski
+44300	Konnevesi Keskus	Konnevesi
+44320	Sirkkamäki	Konnevesi
+44330	Hytölä	Konnevesi
+44350	Istunmäki	Konnevesi
+44370	Mäntymäki	Konnevesi
+44400	Konginkangas Keskus	Äänekoski
+44420	Liimattala	Äänekoski
+44440	Räihä	Äänekoski
+44460	Kalaniemi	Äänekoski
+44480	Niinilahti	Viitasaari
+44500	Viitasaari Keskus	Viitasaari
+44530	Ilmolahti	Viitasaari
+44580	Huopanankoski	Viitasaari
+44590	Vuorilahti	Viitasaari
+44610	Kärnä	Viitasaari
+44630	Kumpumäki	Viitasaari
+44640	Kymönkoski	Viitasaari
+44670	Suovanlahti	Viitasaari
+44680	Lahnanen	Viitasaari
+44730	Löytänä	Viitasaari
+44740	Keitelepohja-Kotvala	Viitasaari
+44760	Keihärinkoski	Viitasaari
+44770	Valkeisjärvi	Viitasaari
+44790	Kotvala	Viitasaari
+44800	Pihtipudas Keskus	Pihtipudas
+44860	Alvajärvi	Pihtipudas
+44880	Muurasjärvi	Pihtipudas
+44910	Elämäjärvi	Pihtipudas
+44920	Peninki	Pihtipudas
+44950	Kärväsjärvi	Pihtipudas
+44970	Korppinen	Pihtipudas
+45100	Kouvola Keskus	Kouvola
+45120	Kotkankallio-Vahteronmäki	Kouvola
+45130	Korjala-Kaunisnurmi	Kouvola
+45150	Kankaronmäki-Eskolanmäki	Kouvola
+45160	Lehtomäki	Kouvola
+45200	Tornionmäki	Kouvola
+45330	Harju	Kouvola
+45360	Kukkuramäki	Kouvola
+45370	Valkeala kk	Kouvola
+45410	Utti	Kouvola
+45460	Savero	Kouvola
+45610	Koria	Kouvola
+45700	Kuusankoski Keskus	Kouvola
+45720	Kotiharju-Puhjonmäki	Kouvola
+45740	Maunuksela	Kouvola
+45750	Kuusankosken Sairaala-alue	Kouvola
+45810	Pilkanmaa	Kouvola
+45910	Voikkaa	Kouvola
+45940	Oravala	Kouvola
+46110	Tuohikotti	Kouvola
+46140	Vekaranjärvi	Kouvola
+46230	Aro	Kouvola
+46400	Kaipiainen	Kouvola
+46430	Tirva-Inkerilä	Kouvola
+46450	Enäjärvi	Kouvola
+46530	Kannuskoski	Luumäki
+46570	Saaramaa	Kouvola
+46710	Sippola	Kouvola
+46730	Ruotila	Kouvola
+46750	Liikkala	Kouvola
+46800	Myllykoski	Kouvola
+46810	Ummeljoki	Kouvola
+46860	Anjalankoski Keskus	Kouvola
+46900	Inkeroinen	Kouvola
+46910	Anjala	Kouvola
+46930	Huruksela	Kotka
+46950	Ahvio	Kouvola
+46960	Muhniemi	Kouvola
+47110	Löytty	Kouvola
+47150	Raussila	Kouvola
+47200	Elimäki kk	Kouvola
+47260	Ratula	Kouvola
+47310	Haapa-Kimola	Iitti
+47350	Kimonkylä	Lapinjärvi
+47400	Kausala	Iitti
+47440	Sääskjärvi	Iitti
+47450	Perheniemi	Iitti
+47460	Hiisiö	Iitti
+47490	Mankala-Hiisiö	Iitti
+47520	Iitti kk	Iitti
+47540	Lyöttilä	Iitti
+47610	Kymentaka	Iitti
+47650	Kimola	Kouvola
+47710	Jaala kk	Kouvola
+47760	Huhdasjärvi	Kouvola
+47810	Selänpää	Kouvola
+47830	Hasula	Kouvola
+47850	Verla	Kouvola
+47900	Vuohijärvi	Kouvola
+47910	Hillosensalmi	Kouvola
+48100	Kotkansaari	Kotka
+48130	Katariina	Kotka
+48200	Hovinsaari	Kotka
+48210	Toukolan Sairaala-Alue	Kotka
+48220	Metsola	Kotka
+48230	Korela-Jylppy	Kotka
+48300	Ruonala	Kotka
+48310	Mussalo	Kotka
+48350	Karhuvuori	Kotka
+48400	Sutela	Kotka
+48410	Kaukola	Kotka
+48600	Karhula	Kotka
+48700	Kyminlinna	Kotka
+48710	Koivula	Kotka
+48720	Kymi	Kotka
+48750	Nikeli	Kotka
+48770	Ristinkallio	Kotka
+48800	Otsola-Mäntykangas	Kotka
+48810	Rantahaka	Kotka
+48900	Sunila	Kotka
+48910	Suulisniemi	Kotka
+48930	Tiutinen	Kotka
+49200	Heinlahti	Pyhtää
+49210	Huutjärvi	Pyhtää
+49220	Siltakylä	Pyhtää
+49240	Purolanlahti	Pyhtää
+49270	Pyhtää kk	Pyhtää
+49290	Vastila	Pyhtää
+49300	Tavastila	Kotka
+49340	Juurikorpi	Kotka
+49400	Hamina Keskus	Hamina
+49410	Poitsila	Hamina
+49420	Uusi-Summa	Hamina
+49460	Hillo	Hamina
+49480	Vanha-Summa	Hamina
+49490	Neuvoton	Hamina
+49510	Husula	Hamina
+49520	Reitkalli	Hamina
+49540	Metsäkylä	Hamina
+49570	Kannusjärvi	Hamina
+49610	Sivatti	Hamina
+49630	Vehkajoki	Hamina
+49640	Paijärvi	Hamina
+49660	Pyhältö	Hamina
+49700	Miehikkälä Kirkonkylä	Miehikkälä
+49720	Hurttala	Miehikkälä
+49730	Muurikkala	Miehikkälä
+49750	Kalliokoski	Miehikkälä
+49760	Suur-Miehikkälä	Miehikkälä
+49770	Salo-Miehikkälä	Miehikkälä
+49780	Onkamaa	Hamina
+49840	Mäntlahti	Hamina
+49860	Klamila	Virolahti
+49900	Virolahti Keskus	Virolahti
+49930	Vaalimaa	Virolahti
+49960	Ala-Pihlaja	Virolahti
+49980	Ravijoki	Virolahti
+50100	Mikkeli Keskus	Mikkeli
+50120	Siekkilä	Mikkeli
+50130	Nuijamies	Mikkeli
+50150	Tusku	Mikkeli
+50160	Kattilansilta	Mikkeli
+50170	Peitsari	Mikkeli
+50180	Visulahti	Mikkeli
+50190	Tuppurala	Mikkeli
+50200	Kovala	Mikkeli
+50300	Rämälä	Mikkeli
+50350	Norola	Mikkeli
+50500	Tuukkala-Kaituenmäki	Mikkeli
+50520	Moision Sairaala-alue	Mikkeli
+50600	Karikko	Mikkeli
+50670	Otava	Mikkeli
+50700	Syysjärvi	Mikkeli
+50770	Korpikoski	Mikkeli
+50800	Annilanselkä	Mikkeli
+50970	Ihastjärvi	Mikkeli
+51130	Vanhamäki	Mikkeli
+51200	Kangasniemi Keskus	Kangasniemi
+51260	Tahkomäki	Kangasniemi
+51270	Kutemajärvi	Kangasniemi
+51310	Levä	Kangasniemi
+51335	Kaihlamäki	Kangasniemi
+51340	Hännilä-Särkiharju	Kangasniemi
+51360	Koivula-Synsiö	Kangasniemi
+51380	Synsiö	Kangasniemi
+51420	Harjumaa-Pajulankylä	Mikkeli
+51430	Läsäkoski	Kangasniemi
+51440	Vuojalahti	Kangasniemi
+51450	Pajulankylä	Mikkeli
+51460	Luusniemi	Kangasniemi
+51520	Hiirola	Mikkeli
+51540	Kalvitsa	Mikkeli
+51600	Haukivuori Keskus-Pitkäaho	Mikkeli
+51620	Pitkäaho	Mikkeli
+51670	Nykälä	Mikkeli
+51720	Rahula	Mikkeli
+51740	Huuhanaho	Mikkeli
+51760	Nuutilanmäki	Juva
+51780	Kuosmala	Juva
+51810	Maivala	Juva
+51820	Hatsola	Juva
+51850	Vuorenmaa	Juva
+51860	Narila	Juva
+51880	Koikkala	Juva
+51890	Risulahti	Juva
+51900	Juva Keskus	Juva
+51930	Paatela	Juva
+51940	Härkälä	Juva
+51980	Lauteala	Juva
+52100	Anttola	Mikkeli
+52110	Majavesi	Mikkeli
+52150	Hauhala	Mikkeli
+52200	Puumala Keskus	Puumala
+52230	Hurissalo	Puumala
+52270	Ryhälä	Puumala
+52300	Ristiina Keskus	Mikkeli
+52320	Vitsiälä	Mikkeli
+52330	Heimari	Mikkeli
+52340	Hangastenmaa	Mikkeli
+52360	Someenjärvi	Mikkeli
+52420	Pellosniemi	Mikkeli
+52510	Hietanen	Hirvensalmi
+52520	Syväsmäki	Hirvensalmi
+52550	Hirvensalmi Keskus	Hirvensalmi
+52610	Tuukkalanlahti	Hirvensalmi
+52620	Kuitula	Hirvensalmi
+52700	Mäntyharju Keskus	Mäntyharju
+52720	Karankamäki-Koirakivi	Mäntyharju
+52730	Koirakivi	Mäntyharju
+52740	Tuustaipale	Mäntyharju
+52760	Mynttilä	Mäntyharju
+52780	Kuomiokoski	Mikkeli
+52830	Suomenniemi	Mikkeli
+52850	Halmeniemi	Mäntyharju
+52890	Käävänkylä	Mäntyharju
+52920	Voikoski	Kouvola
+52960	Nurmaa	Mäntyharju
+52970	Pankalahti-Ahvenainen	Mäntyharju
+52980	Ahvenainen	Mäntyharju
+53100	Lappeenranta keskus	Lappeenranta
+53130	Keskussairaala-alue-Kimpinen	Lappeenranta
+53200	Kaukas-Tirilä	Lappeenranta
+53300	Lauritsala-Mälkiä	Lappeenranta
+53400	Laihia	Lappeenranta
+53420	Mustola	Lappeenranta
+53500	Parkkarila-Harapainen-Reijola	Lappeenranta
+53550	Kourulanmäki	Lappeenranta
+53600	Kesämäki	Lappeenranta
+53650	Mattila-Kuusela	Lappeenranta
+53810	Kuusimäki-Lavola	Lappeenranta
+53830	Rutola	Lappeenranta
+53850	Skinnarila	Taipalsaari
+53900	Pallo-Tysterniemi-Leiri	Lappeenranta
+53920	Voisalmi	Lappeenranta
+53950	Kivisalmi	Lappeenranta
+54100	Joutseno Keskus	Lappeenranta
+54110	Lampikangas	Lappeenranta
+54120	Pulp	Lappeenranta
+54190	Konnunsuo	Lappeenranta
+54230	Nuijamaa	Lappeenranta
+54250	Rapattila	Lappeenranta
+54260	Hanhijärvi	Lappeenranta
+54270	Vainikkala	Lappeenranta
+54300	Vilkjärvi	Lappeenranta
+54310	Hytti	Lappeenranta
+54330	Simola	Lappeenranta
+54390	Pulsa	Lappeenranta
+54410	Ylämaa Keskus	Lappeenranta
+54430	Hujakkala	Lappeenranta
+54460	Ylijärvi	Lappeenranta
+54490	Ahomäki	Miehikkälä
+54500	Taavetti-Somerharju	Luumäki
+54510	Uro	Luumäki
+54530	Luumäki	Luumäki
+54550	Suo-Anttila	Luumäki
+54580	Somerharju	Luumäki
+54590	Kaitjärvi	Luumäki
+54710	Lemi Keskus	Lemi
+54720	Laksiainen	Lemi
+54750	Välijoki	Savitaipale
+54770	Heituinlahti	Savitaipale
+54800	Savitaipale Keskus	Savitaipale
+54820	Kotimäki	Lemi
+54850	Kuukanniemi	Lemi
+54915	Saimaanharju-Kyläniemi	Taipalsaari
+54920	Taipalsaari	Taipalsaari
+54930	Levänen	Taipalsaari
+54940	Solkei	Taipalsaari
+54950	Pettilä	Savitaipale
+54960	Vehkataipale	Taipalsaari
+55100	Imatra Keskus	Imatra
+55120	Mansikkala-Tuulikallio	Imatra
+55300	Rauha-Tiuruniemi	Lappeenranta
+55320	Rauha	Lappeenranta
+55330	Tiuruniemi	Lappeenranta
+55400	Tainionkoski-Mustalampi	Imatra
+55420	Karhumäki-Karhukallio	Imatra
+55510	Sotkulampi-Linnasuo	Imatra
+55610	Rajapatsas-Teppanala	Imatra
+55700	Vintteri-Virasoja	Imatra
+55800	Vuoksenniska-Saarlampi	Imatra
+55910	Rautio-Kurkvuori	Imatra
+56100	Ruokolahti Keskus	Ruokolahti
+56120	Salosaari	Ruokolahti
+56140	Äitsaari	Ruokolahti
+56210	Virmutjoki	Ruokolahti
+56310	Syyspohja	Ruokolahti
+56330	Utula	Ruokolahti
+56350	Kyläniemi	Taipalsaari
+56410	Kaiturinpää	Ruokolahti
+56440	Pohja-Lankila	Ruokolahti
+56510	Puntala	Ruokolahti
+56550	Niska-Pietilä	Rautjärvi
+56610	Rautjärvi	Rautjärvi
+56640	Purnujärvi	Rautjärvi
+56710	Miettilä	Rautjärvi
+56730	Laikko	Rautjärvi
+56800	Simpele	Rautjärvi
+57100	Heikinpohja-Piispanmäki	Savonlinna
+57120	Savonlinna	Savonlinna
+57130	Savonlinna Keskus	Savonlinna
+57170	Sortteerinlahti-Talvisalo	Savonlinna
+57200	Miekonniemi-Venäjänniemi	Savonlinna
+57210	Nojanmaa	Savonlinna
+57220	Savonlinna	Savonlinna
+57230	Inkerinkylä	Savonlinna
+57310	Savonlinna	Savonlinna
+57510	Laitaatsilta	Savonlinna
+57600	Poukkusilta-Pihlajaniemi	Savonlinna
+57710	Kellarpelto-Rantakoivikko	Savonlinna
+57810	Savonlinna	Savonlinna
+58130	Oravi	Savonlinna
+58140	Ahvensalmi	Savonlinna
+58150	Makkola	Savonlinna
+58160	Karvila	Enonkoski
+58170	Simanala	Enonkoski
+58175	Enonkoski Keskus	Enonkoski
+58180	Ihamaniemi	Enonkoski
+58200	Kerimäki Keskus	Savonlinna
+58220	Louhi	Savonlinna
+58260	Kumpuranta	Savonlinna
+58300	Savonranta Keskus	Savonlinna
+58320	Raikuu	Savonlinna
+58350	Villala	Kitee
+58360	Säimen	Savonlinna
+58390	Rönkönvaara	Savonlinna
+58410	Haapakallio	Savonlinna
+58420	Silvola	Savonlinna
+58430	Kulennoinen	Savonlinna
+58450	Punkaharju	Savonlinna
+58500	Punkasalmi	Savonlinna
+58520	Hiukkajoki	Savonlinna
+58550	Putikko	Savonlinna
+58570	Ruhvana	Savonlinna
+58580	Vuoriniemi	Savonlinna
+58610	Telakanava	Sulkava
+58620	Lohilahti	Sulkava
+58650	Kiviapaja	Savonlinna
+58680	Piojärvi	Savonlinna
+58690	Ala-Särkilahti-Piojärvi	Savonlinna
+58700	Sulkava Keskus	Sulkava
+58720	Kaartilankoski	Sulkava
+58770	Pihlajalahti	Savonlinna
+58810	Kallislahti	Savonlinna
+58830	Parkumäki	Rantasalmi
+58850	Hiltula	Rantasalmi
+58900	Rantasalmi Keskus	Rantasalmi
+58910	Rantasalmi Asemanseutu	Rantasalmi
+58920	Kolkontaipale	Rantasalmi
+58940	Tuusmäki	Rantasalmi
+59100	Parikkala Keskus	Parikkala
+59130	Koitsanlahti	Parikkala
+59210	Melkoniemi	Parikkala
+59310	Särkisalmi	Parikkala
+59320	Haapaoja	Parikkala
+59410	Kirjavala	Parikkala
+59510	Maironiemi	Parikkala
+59520	Saari	Parikkala
+59530	Mikkolanniemi	Parikkala
+59610	Tarnala	Parikkala
+59710	Kummunkylä	Parikkala
+59720	Niukkala	Parikkala
+59730	Uukuniemi	Parikkala
+59800	Kesälahti Keskus	Kitee
+59810	Suurikylä	Kitee
+59820	Purujärvi-Rajavaara	Kitee
+60100	Seinäjoki Keskus	Seinäjoki
+60120	Pohja	Seinäjoki
+60150	Kasperi	Seinäjoki
+60200	Törnävä	Seinäjoki
+60220	Huhtala	Seinäjoki
+60280	Eskoon Keskuslaitosalue	Seinäjoki
+60320	Alakylä-Jouppi	Seinäjoki
+60420	Impivaara	Seinäjoki
+60450	Munakka	Ilmajoki
+60510	Hyllykallio	Seinäjoki
+60550	Nurmo Keskus	Seinäjoki
+60560	Halkosaari	Seinäjoki
+60640	Kurjenneva	Seinäjoki
+60720	Tuomikylä	Ilmajoki
+60760	Pojanluoma	Ilmajoki
+60800	Ilmajoki Keskus	Ilmajoki
+61100	Peräseinäjoki Keskus	Seinäjoki
+61110	Vuolle	Seinäjoki
+61120	Louko	Seinäjoki
+61140	Pasto	Seinäjoki
+61150	Sydänmaa	Alavus
+61160	Koura	Seinäjoki
+61170	Sääskiniemi	Alavus
+61180	Haapaluoma	Seinäjoki
+61220	Myllysalo	Kurikka
+61230	Luopa	Kurikka
+61250	Jalasto	Kurikka
+61270	Luopajärvi	Kurikka
+61280	Jokipii	Kurikka
+61290	Taivalmaa	Kurikka
+61300	Kurikka Keskus	Kurikka
+61310	Panttila	Kurikka
+61330	Koskenkorva	Ilmajoki
+61340	Nopankylä	Ilmajoki
+61350	Huissi	Ilmajoki
+61360	Mieto	Kurikka
+61370	Lohiluoma	Kurikka
+61380	Polvenkylä	Kurikka
+61400	Ylistaro Keskus	Seinäjoki
+61410	Ylistaro Asemanseutu	Seinäjoki
+61430	Isorehto	Seinäjoki
+61440	Untamala	Seinäjoki
+61450	Kylänpää	Seinäjoki
+61460	Hanhikoski	Seinäjoki
+61470	Kitinoja	Seinäjoki
+61500	Isokyrö Keskus	Isokyrö
+61520	Lehmäjoki	Isokyrö
+61550	Orismala	Isokyrö
+61560	Orisberg	Isokyrö
+61600	Jalasjärvi Keskus	Kurikka
+61630	Hirvijärvi	Kurikka
+61640	Ala-Valli	Kurikka
+61650	Kalakoski	Seinäjoki
+61680	Mantila	Kurikka
+61710	Pentinmäki	Kurikka
+61720	Koskue	Kurikka
+61730	Yli-Valli	Kurikka
+61760	Ilvesjoki	Kurikka
+61800	Kauhajoki Keskus	Kauhajoki
+61810	Luomankylä	Kauhajoki
+61820	Kainasto	Kauhajoki
+61840	Norinkylä	Teuva
+61850	Kauhajoki Asemanseutu	Kauhajoki
+61860	Harja	Kauhajoki
+61880	Ikkeläjärvi	Kauhajoki
+61910	Nummijärvi	Kauhajoki
+61920	Nummikoski	Kauhajoki
+61940	Hyyppä	Kauhajoki
+61950	Juonikylä	Kauhajoki
+61960	Kyrönlatva	Kauhajoki
+61980	Päntäne	Kauhajoki
+62100	Lapua Keskus	Lapua
+62130	Hellanmaa	Lapua
+62150	Rintakangas	Kauhava
+62160	Karhunkylä	Lapua
+62165	Tiisteenjoki	Lapua
+62170	Lakaluoma	Lapua
+62175	Ylikylä-Mäenpää	Lapua
+62185	Mäki-Paavola	Lapua
+62190	Ruha	Lapua
+62200	Kauhava Keskus	Kauhava
+62220	Pernaa	Kauhava
+62230	Jylhä	Kauhava
+62240	Huhmarkoski	Kauhava
+62260	Hirvijoki	Kauhava
+62280	Mustamaa	Lapua
+62290	Hirvikylä	Lapua
+62295	Kauhajärvi	Lapua
+62300	Härmä	Kauhava
+62310	Voltti	Kauhava
+62340	Kuoppa-Vakkuri	Kauhava
+62350	Ekola	Kauhava
+62370	Kangasto	Kauhava
+62375	Ylihärmä Keskus-Vesiluoma	Kauhava
+62380	Kosolankylä	Kauhava
+62395	Petterinmäki	Vöyri
+62410	Rintala	Kauhava
+62420	Kortesjärvi Keskus	Kauhava
+62430	Peltotupa	Kauhava
+62435	Pirttinen	Kauhava
+62440	Perkiömäki	Kauhava
+62470	Purmojärvi	Kauhava
+62500	Evijärvi Keskus	Evijärvi
+62510	Kuoppa-aho	Evijärvi
+62520	Kautiainen	Evijärvi
+62540	Vasikka-aho	Evijärvi
+62570	Särkilä	Evijärvi
+62600	Lappajärvi Keskus	Lappajärvi
+62610	Tarvola	Lappajärvi
+62620	Ala-Seppä	Lappajärvi
+62630	Karvala	Lappajärvi
+62640	Savonkylä	Lappajärvi
+62660	Itäkylä	Lappajärvi
+62710	Kurejoki	Alajärvi
+62720	Sissala	Alajärvi
+62730	Haukkala	Alajärvi
+62740	Koskenvarsi	Alajärvi
+62750	Saukonkylä	Alajärvi
+62760	Menkijärvi	Alajärvi
+62800	Vimpeli Keskus	Vimpeli
+62810	Savonjoki	Vimpeli
+62830	Luoma-Aho	Alajärvi
+62840	Lakaniemi-Pokela	Vimpeli
+62860	Sahi	Vimpeli
+62870	Vinni	Vimpeli
+62880	Sääksvesi-Vinni	Vimpeli
+62900	Alajärvi Keskus	Alajärvi
+62920	Levijoki	Alajärvi
+62940	Hoisko	Alajärvi
+62950	Paalijärvi	Alajärvi
+62990	Möksy	Alajärvi
+63100	Kuortane Keskus	Kuortane
+63120	Leppälänkylä	Kuortane
+63130	Mäyry	Kuortane
+63150	Ruona	Kuortane
+63160	Salmi	Kuortane
+63210	Niinimaa	Alavus
+63230	Lentilä	Kuortane
+63250	Rantala	Kuortane
+63300	Alavus Keskus	Alavus
+63320	Kattelus	Alavus
+63330	Pahajoki	Alavus
+63340	Sapsalampi	Alavus
+63350	Sulkavankylä	Alavus
+63355	Seinäjärvi	Alavus
+63360	Kuivaskylä	Alavus
+63370	Taipalus	Alavus
+63400	Alavus Asemanseutu	Alavus
+63410	Rantatöysä	Alavus
+63430	Kätkänjoki	Alavus
+63450	Löyä	Kuortane
+63500	Lehtimäki Keskus	Alajärvi
+63510	Lehtimäki Kirkonkylä	Alajärvi
+63530	Länsikylä	Alajärvi
+63540	Hernesmaa	Alajärvi
+63600	Töysä Keskus	Alavus
+63610	Tuuri	Alavus
+63640	Ritola	Alavus
+63660	Ähtärinranta	Ähtäri
+63680	Hakojärvi	Alavus
+63700	Ähtäri Keskus	Ähtäri
+63770	Peränne	Ähtäri
+63780	Alastaipale	Ähtäri
+63800	Soini Keskus	Soini
+63830	Keisala	Soini
+63880	Kukonkylä	Soini
+63890	Hautakylä	Soini
+63900	Myllymäki-Vehunkylä	Ähtäri
+63910	Inhan Tehtaat	Ähtäri
+63920	Inha	Ähtäri
+63950	Vehunkylä	Ähtäri
+64100	Kristiinankaupunki keskus	Kristiinankaupunki
+64140	Tiukka	Kristiinankaupunki
+64200	Närpiö Keskus	Närpiö
+64210	Kalax	Närpiö
+64220	Yttermark	Närpiö
+64230	Närpiön Asemanseutu	Närpiö
+64240	Böle	Närpiö
+64250	Pjelax	Närpiö
+64260	Kaskinen	Kaskinen
+64300	Lapväärtti	Kristiinankaupunki
+64320	Dagsmark	Kristiinankaupunki
+64350	Karijoki Keskus	Karijoki
+64370	Myrkky	Karijoki
+64440	Metsälä-Kallträsk	Kristiinankaupunki
+64450	Kallträsk	Kristiinankaupunki
+64460	Härkmeri	Kristiinankaupunki
+64480	Skaftung	Kristiinankaupunki
+64490	Siipyy	Kristiinankaupunki
+64510	Nämpnäs	Närpiö
+64530	Norrnäs	Närpiö
+64550	Rangsby	Närpiö
+64610	Övermark	Närpiö
+64700	Teuva Keskus	Teuva
+64720	Perälä	Teuva
+64740	Horo	Teuva
+64760	Peltola	Teuva
+64770	Äystö	Teuva
+64810	Vanhakylä	Isojoki
+64820	Kärjenkoski	Isojoki
+64830	Villamo	Isojoki
+64840	Heikkilänjoki	Isojoki
+64850	Möykky	Isojoki
+64900	Isojoki Keskus	Isojoki
+64930	Kodesjärvi	Isojoki
+65100	Vaasa Keskus	Vaasa
+65130	Hietalahti	Vaasa
+65170	Vaskiluoto	Vaasa
+65200	Palosaari	Vaasa
+65230	Vetokannas	Vaasa
+65280	Gerby	Vaasa
+65300	Asevelikylä	Vaasa
+65320	Huutoniemi	Vaasa
+65350	Suvilahti	Vaasa
+65370	Ristinummi	Vaasa
+65380	Vanha Vaasa	Vaasa
+65410	Sundom	Vaasa
+65450	Sulva	Mustasaari
+65460	Tölby-Rimal	Mustasaari
+65470	Rimal	Mustasaari
+65480	Vikby	Mustasaari
+65520	Helsingby	Mustasaari
+65610	Mustasaari Keskus	Mustasaari
+65630	Karperö	Mustasaari
+65650	Koskö	Mustasaari
+65710	Singsby	Mustasaari
+65730	Jungsund	Mustasaari
+65760	Iskmo	Mustasaari
+65800	Raippaluoto	Mustasaari
+65870	Björköby	Mustasaari
+65920	Norra Vallgrund-Söderudden	Mustasaari
+65930	Södra Vallgrund	Mustasaari
+65970	Söderudden	Mustasaari
+66100	Maalahti	Maalahti
+66140	Övermalax	Maalahti
+66160	Långåminne	Maalahti
+66200	Korsnäs Keskus	Korsnäs
+66210	Moikipää	Korsnäs
+66220	Bergö	Maalahti
+66230	Korsbäck	Korsnäs
+66240	Petolahti	Maalahti
+66260	Svarvar	Maalahti
+66270	Pirttikylä-Sorvari	Närpiö
+66280	Taklax	Korsnäs
+66290	Harrström	Korsnäs
+66295	Töjby	Närpiö
+66300	Jurva Keskus	Kurikka
+66320	Niemenkylä	Kurikka
+66330	Hakko	Kurikka
+66340	Sarvijoki	Kurikka
+66350	Tainus	Kurikka
+66360	Kesti	Kurikka
+66370	Närvijoki	Kurikka
+66400	Laihia Keskus	Laihia
+66420	Ruto	Laihia
+66430	Vedenoja	Vaasa
+66440	Tervajoki	Isokyrö
+66450	Jakkula	Laihia
+66460	Haapala	Laihia
+66470	Jukaja-Jokisalo	Laihia
+66500	Vähäkyrö Keskus	Vaasa
+66510	Merikaarto	Vaasa
+66520	Veikkaala	Mustasaari
+66530	Koivulahti	Mustasaari
+66540	Petsmo	Mustasaari
+66550	Västerhankmo	Mustasaari
+66560	Österhankmo	Mustasaari
+66580	Kuni	Mustasaari
+66590	Vassor	Mustasaari
+66600	Vöyri Keskus	Vöyri
+66640	Maksamaa	Vöyri
+66660	Bertby	Vöyri
+66680	Kaurajärvi	Vöyri
+66710	Kaitsor	Vöyri
+66730	Oxkangar	Vöyri
+66800	Oravainen Keskus	Vöyri
+66810	Kimo	Vöyri
+66820	Komossa	Vöyri
+66830	Oravaisten Tehdas	Vöyri
+66840	Pensala	Uusikaarlepyy
+66850	Jepua	Uusikaarlepyy
+66900	Uusikaarlepyy Keskus	Uusikaarlepyy
+66910	Soklot	Uusikaarlepyy
+66930	Kovjoki	Uusikaarlepyy
+66950	Munsala	Uusikaarlepyy
+66970	Hirvlax	Uusikaarlepyy
+66980	Monå	Uusikaarlepyy
+66999	Kaukaluoto	Mustasaari
+67100	Kokkola Keskus	Kokkola
+67200	Kiviniitty-Tullimäki	Kokkola
+67300	Halkokari	Kokkola
+67400	Rytimäki	Kokkola
+67410	Vitsari	Kokkola
+67500	Sokoja	Kokkola
+67600	Linnusperä-Kaustari	Kokkola
+67700	Kirkonmäki-Isokylä	Kokkola
+67800	Koivuhaka	Kokkola
+67900	Ykspihjala	Kokkola
+68100	Himanka Keskus	Kalajoki
+68150	Hillilä	Kalajoki
+68210	Marinkainen	Kokkola
+68220	Karhi	Kokkola
+68230	Lohtaja Keskus	Kokkola
+68240	Ala-Viirre	Kokkola
+68300	Kälviä Keskus	Kokkola
+68320	Ruotsalo	Kokkola
+68370	Ullava Keskus	Kokkola
+68380	Yli-Ullava	Kokkola
+68390	Rahkonen	Kokkola
+68410	Alaveteli	Kruunupyy
+68500	Kruunupyy Keskus	Kruunupyy
+68530	Lepplax	Pedersören kunta
+68550	Öja	Kokkola
+68555	Bosund	Luoto
+68560	Eugmo	Luoto
+68570	Luoto	Luoto
+68580	Furuholmen	Luoto
+68600	Pietarsaari Keskus	Pietarsaari
+68620	Skutnäs-Västermalm	Pietarsaari
+68630	Kyrkostrand	Pietarsaari
+68660	Östermalm-Björnholmen	Pietarsaari
+68690	Sundby	Pedersören kunta
+68700	Teerijärvi	Kruunupyy
+68750	Småbönders	Kruunupyy
+68800	Kolppi	Pedersören kunta
+68810	Ytteresse	Pedersören kunta
+68820	Ähtävä	Pedersören kunta
+68830	Bäckby	Pedersören kunta
+68840	Nederlappfors	Pedersören kunta
+68870	Edsevö	Pedersören kunta
+68910	Pännäinen	Pedersören kunta
+68920	Forsby	Pedersören kunta
+68930	Purmo	Pedersören kunta
+68940	Lillby	Pedersören kunta
+68970	Överpurmo	Pedersören kunta
+68999	Rita	Kokkola
+69100	Kannus Keskus	Kannus
+69150	Eskola	Kannus
+69170	Yli-Kannus	Kannus
+69300	Toholampi Keskus	Toholampi
+69310	Laitala	Toholampi
+69330	Määttälä	Toholampi
+69340	Purontaka	Toholampi
+69410	Sykäräinen	Toholampi
+69420	Syri	Lestijärvi
+69440	Lestijärvi Keskus	Lestijärvi
+69450	Yli-Lesti	Lestijärvi
+69510	Halsua Keskus-Marjusaari	Halsua
+69550	Kanala	Halsua
+69570	Karvonen	Halsua
+69600	Kaustinen Keskus	Kaustinen
+69660	Köyhäjoki	Kaustinen
+69700	Veteli Keskus	Veteli
+69730	Tunkkari	Veteli
+69750	Sillanpää	Veteli
+69820	Räyrinki	Veteli
+69830	Pulkkinen	Veteli
+69850	Patana	Veteli
+69910	Kivikangas	Perho
+69920	Oksakoski-Kivikangas	Perho
+69950	Perho Keskus-Salamajärvi	Perho
+69970	Salamajärvi	Perho
+69980	Möttönen	Perho
+70100	Kuopio Keskus	Kuopio
+70110	Etu-Niirala	Kuopio
+70150	Neulamäki	Kuopio
+70200	Puijonlaakso	Kuopio
+70210	Kuopion Keskussairaala-alue	Kuopio
+70240	Niuvaniemen Sairaala-alue	Kuopio
+70260	Julkula	Kuopio
+70280	Länsi-Puijo	Kuopio
+70300	Linnanpelto	Kuopio
+70340	Inkilänmäki	Kuopio
+70400	Kettulanlahti	Kuopio
+70420	Päiväranta	Kuopio
+70460	Saarijärvi	Kuopio
+70500	Männistö	Kuopio
+70600	Niirala-Huuhanmäki	Kuopio
+70620	Haapaniemi	Kuopio
+70700	Särkiniemi	Kuopio
+70780	Jynkkä	Kuopio
+70800	Pitkälahti	Kuopio
+70820	Litmanen	Kuopio
+70840	Jynkänmäki	Kuopio
+70870	Hiltulanlahti	Kuopio
+70900	Toivala	Siilinjärvi
+70910	Vuorela	Siilinjärvi
+70940	Jännevirta	Kuopio
+71130	Kortejoki	Kuopio
+71150	Vartiala	Kuopio
+71160	Riistavesi	Kuopio
+71170	Laukka-aho	Tuusniemi
+71200	Tuusniemi Keskus	Tuusniemi
+71210	Tuusjärvi	Tuusniemi
+71240	Paakkila	Tuusniemi
+71260	Juurikkamäki	Tuusniemi
+71280	Kosula	Tuusniemi
+71310	Vehmersalmi Keskus	Kuopio
+71330	Räsälä	Kuopio
+71360	Litmaniemi	Kuopio
+71380	Mustinlahti	Kuopio
+71460	Paukarlahti	Leppävirta
+71470	Oravikoski	Leppävirta
+71480	Kurkimäki	Kuopio
+71490	Airaksela	Kuopio
+71520	Kaislastenlahti	Kuopio
+71570	Syvänniemi	Kuopio
+71610	Salonkulma	Kuopio
+71640	Talluskylä	Tervo
+71650	Hirvilahti-Salonkulma	Kuopio
+71660	Leinolanlahti	Kuopio
+71670	Kurolanlahti	Kuopio
+71680	Pulkonkoski-Saarinen	Kuopio
+71690	Varpasmaa	Kuopio
+71720	Käärmelahti	Kuopio
+71730	Kinnulanlahti	Kuopio
+71740	Tavinsalmi	Kuopio
+71745	Haatala	Kuopio
+71750	Maaninka Keskus	Kuopio
+71760	Ahkionlahti-Vianta	Kuopio
+71775	Tuovilanlahti-Haatala	Kuopio
+71800	Siilinjärvi Keskus	Siilinjärvi
+71820	Pöljä	Siilinjärvi
+71840	Kuuslahti	Siilinjärvi
+71850	Leppäkaarre	Siilinjärvi
+71870	Harjamäki	Siilinjärvi
+71890	Hamula	Siilinjärvi
+71910	Alapitkä	Lapinlahti
+71920	Pajujärvi	Lapinlahti
+71950	Lammasaho	Kuopio
+71960	Lukkarila	Lapinlahti
+72100	Karttula Keskus	Kuopio
+72140	Itä-Karttula-Riuttasenpää	Kuopio
+72210	Tervo Keskus-Eliaksela	Tervo
+72220	Eliaksela	Tervo
+72300	Vesanto Keskus	Vesanto
+72310	Niinivesi	Vesanto
+72330	Tiitilänkylä	Vesanto
+72350	Pienola	Vesanto
+72360	Närhilä	Vesanto
+72380	Horontaipale	Vesanto
+72400	Pielavesi Keskus-Jylänki	Pielavesi
+72430	Kumpula	Pielavesi
+72490	Saarinen	Kuopio
+72510	Jokijärvi	Pielavesi
+72530	Säviäntaipale	Pielavesi
+72550	Säviä	Pielavesi
+72570	Vuorikylä	Pielavesi
+72600	Keitele Keskus	Keitele
+72630	Kuusela-Rajala	Keitele
+72710	Vaaraslahti	Pielavesi
+72740	Laukkala	Pielavesi
+72810	Jylhänkylä	Pielavesi
+72840	Saarela	Pielavesi
+72930	Tossavanlahti	Keitele
+72950	Porttila	Keitele
+72980	Petäjäkylä	Keitele
+73100	Lapinlahti Keskus	Lapinlahti
+73110	Mäntylahti-Karvasalmi	Lapinlahti
+73120	Nerkoo-Horsmanmäki	Lapinlahti
+73200	Varpaisjärvi Keskus	Lapinlahti
+73230	Syvärinpää	Lapinlahti
+73250	Korpijärvi	Lapinlahti
+73300	Nilsiä Keskus	Kuopio
+73310	Tahkovuori	Kuopio
+73320	Reittiö	Kuopio
+73350	Haluna	Kuopio
+73360	Pajulahti	Kuopio
+73410	Pieksänkoski	Kuopio
+73460	Muuruvesi	Kuopio
+73470	Västinniemi	Kuopio
+73500	Juankoski Keskus	Kuopio
+73600	Kaavi Keskus	Kaavi
+73620	Kortteinen-Rasilampi	Kaavi
+73640	Sivakkavaara	Kaavi
+73645	Niinivaara-Onnivaara	Kaavi
+73670	Luikonlahti	Kaavi
+73710	Viitaniemi	Kuopio
+73730	Losomäki	Kuopio
+73770	Säyneinen-Ala-Siikajärvi	Kuopio
+73810	Palonurmi-Aholansaari	Kuopio
+73830	Keski-Siikajärvi	Kuopio
+73850	Ala-Luosta-Riitasalo	Rautavaara
+73900	Rautavaara Keskus	Rautavaara
+73970	Riitasalo	Rautavaara
+73990	Kangaslahti	Rautavaara
+74100	Iisalmi Keskus, Eteläinen	Iisalmi
+74120	Iisalmi Keskus Pohjoinen	Iisalmi
+74130	Kihmula	Iisalmi
+74140	Ritoniemi	Iisalmi
+74150	Laidunmäki	Iisalmi
+74160	Koljonvirta	Iisalmi
+74170	Soinlahti	Iisalmi
+74200	Vieremä Keskus	Vieremä
+74230	Salahmi	Vieremä
+74240	Marttisenjärvi	Vieremä
+74250	Nissilä	Vieremä
+74270	Kauppilanmäki	Vieremä
+74300	Sonkajärvi Keskus	Sonkajärvi
+74340	Sukeva-Kainuunmäki	Sonkajärvi
+74345	Kalliosuo	Sonkajärvi
+74360	Sonkakoski	Sonkajärvi
+74380	Jyrkkä	Sonkajärvi
+74390	Laakajärvi	Sotkamo
+74420	Hernejärvi	Sonkajärvi
+74470	Paloinen	Lapinlahti
+74490	Koirakoski	Sonkajärvi
+74510	Peltosalmi-Sourunsalo	Iisalmi
+74520	Kirmanranta	Iisalmi
+74540	Kotikylä	Iisalmi
+74550	Pörsänmäki	Iisalmi
+74590	Kurenpolvi	Vieremä
+74595	Runni	Iisalmi
+74610	Honkaranta	Kiuruvesi
+74630	Heinäkylä	Kiuruvesi
+74640	Sulkavanjärvi	Kiuruvesi
+74670	Rapakkojoki	Kiuruvesi
+74680	Myllyniemi	Kiuruvesi
+74700	Kiuruvesi Keskus	Kiuruvesi
+74720	Niemiskylä	Kiuruvesi
+74740	Aittojärvi	Kiuruvesi
+74770	Kalliokylä	Kiuruvesi
+74840	Koppeloharju	Kiuruvesi
+74940	Remeskylä-Tihilänkangas	Kiuruvesi
+74980	Tihilänkangas	Kiuruvesi
+75500	Nurmes Keskus	Nurmes
+75530	Porokylä	Nurmes
+75650	Savikylä	Nurmes
+75680	Ylä-Luosta	Rautavaara
+75700	Valtimo Keskus	Nurmes
+75710	Karhunpää	Nurmes
+75740	Pajukoski	Nurmes
+75770	Puukari	Nurmes
+75790	Rumo	Nurmes
+75840	Ylä-Valtimo	Nurmes
+75890	Saramo-Petäiskylä-Mujejärvi	Nurmes
+75930	Petäiskylä	Nurmes
+75940	Mujejärvi	Nurmes
+75970	Kohtavaara	Nurmes
+75990	Höljäkkä	Nurmes
+76100	Pieksämäki Keskus	Pieksämäki
+76120	Kontiopuisto	Pieksämäki
+76130	Pappilanmäki	Pieksämäki
+76150	Länsirinne	Pieksämäki
+76280	Partaharju	Pieksämäki
+76620	Pyhitty	Pieksämäki
+76780	Lamminmäki	Pieksämäki
+76850	Naarajärvi	Pieksämäki
+76940	Nenonpelto	Pieksämäki
+77110	Paltanen	Pieksämäki
+77120	Venetmäki	Pieksämäki
+77140	Huumala	Pieksämäki
+77220	Neuvola	Pieksämäki
+77240	Halkokumpu	Pieksämäki
+77320	Hurskaala	Pieksämäki
+77330	Virtasalmi Keskus	Pieksämäki
+77350	Montola	Pieksämäki
+77380	Kantala	Mikkeli
+77430	Siikamäki	Pieksämäki
+77460	Maavesi	Joroinen
+77480	Savuniemi	Joroinen
+77520	Haapakoski-Partaharju	Pieksämäki
+77570	Jäppilä Keskus	Pieksämäki
+77580	Tihusniemi	Pieksämäki
+77600	Suonenjoki Keskus	Suonenjoki
+77630	Lempyy	Suonenjoki
+77690	Suontee	Suonenjoki
+77700	Rautalampi Keskus	Rautalampi
+77770	Myhinpää	Rautalampi
+77800	Iisvesi	Suonenjoki
+77910	Vaajasalmi	Rautalampi
+77930	Kerkonjoensuu	Rautalampi
+77960	Pakarila	Rautalampi
+78200	Varkaus Keskus	Varkaus
+78210	Kuoppakangas	Varkaus
+78250	Päiviönsaari	Varkaus
+78300	Kommila	Varkaus
+78310	Puurtila	Varkaus
+78400	Luttila	Varkaus
+78480	Timola	Leppävirta
+78500	Pitkälänniemi-Könönpelto	Varkaus
+78610	Kurola	Varkaus
+78710	Akonlahti	Varkaus
+78850	Käpykangas	Varkaus
+78870	Kaura-Aho	Varkaus
+78880	Kuvansi	Joroinen
+78900	Ruokokoski	Varkaus
+79100	Leppävirta Keskus	Leppävirta
+79130	Sorsakoski	Leppävirta
+79140	Kotalahti	Leppävirta
+79150	Konnuslahti-Valkeamäki	Leppävirta
+79160	Saamaiskylä	Leppävirta
+79180	Tuppurinmäki	Leppävirta
+79190	Valkeamäki	Leppävirta
+79230	Moninmäki	Leppävirta
+79255	Kurjala-Moninmäki	Leppävirta
+79265	Puponmäki	Leppävirta
+79330	Näädänmaa	Leppävirta
+79350	Itä-Soisalo	Leppävirta
+79410	Niinimäki	Leppävirta
+79480	Kangaslampi Keskus	Varkaus
+79520	Viljolahti	Varkaus
+79600	Joroinen Keskus	Joroinen
+79620	Huutokoski	Joroinen
+79630	Kolma	Joroinen
+79660	Kerisalo	Joroinen
+79680	Lahnalahti	Joroinen
+79690	Kaitainen	Joroinen
+79700	Heinävesi Keskus	Heinävesi
+79810	Karvion kanava	Heinävesi
+79820	Varistaipale	Heinävesi
+79830	Palokki	Heinävesi
+79850	Uusi-Valamo	Heinävesi
+79860	Suuraho - Uusi-Valamo	Heinävesi
+79885	Etelä-Petruma	Heinävesi
+79895	Sarvikumpu	Heinävesi
+79910	Kerma	Heinävesi
+79940	Vihtari-Poikiinaho	Heinävesi
+80100	Joensuu Keskus, Pohjoinen	Joensuu
+80110	Joensuu Keskus Eteläinen	Joensuu
+80130	Kanervala	Joensuu
+80140	Noljakka	Joensuu
+80160	Rantakylä-Latola	Joensuu
+80170	Utra	Joensuu
+80200	Niinivaara	Joensuu
+80210	Sairaala-alue	Joensuu
+80220	Penttilä	Joensuu
+80230	Hukanhauta	Joensuu
+80260	Kettuvaara	Joensuu
+80330	Reijola	Joensuu
+80400	Ylämylly	Liperi
+80510	Onttola-Kunnasniemi	Kontiolahti
+80710	Lehmo	Kontiolahti
+80770	Kontiolahti as	Kontiolahti
+80780	Kontioniemi	Kontiolahti
+80790	Kontioranta-Kontioniemi	Kontiolahti
+80850	Paihola	Kontiolahti
+80910	Kulho	Kontiolahti
+81100	Kontiolahti	Kontiolahti
+81120	Katajaranta	Kontiolahti
+81160	Romppala-Riihikangas	Kontiolahti
+81200	Eno Keskus	Joensuu
+81210	Louhioja	Joensuu
+81220	Jakokoski	Kontiolahti
+81230	Mönni	Kontiolahti
+81235	Lehtoi	Kontiolahti
+81260	Ahveninen	Joensuu
+81270	Paukkaja	Joensuu
+81280	Uimaharju	Joensuu
+81290	Ukkola	Joensuu
+81295	Haapalahti	Joensuu
+81320	Kuismavaara	Joensuu
+81330	Luhtapohja	Joensuu
+81350	Tokrajärvi	Ilomantsi
+81360	Sarvinki	Joensuu
+81390	Revonkylä	Joensuu
+81420	Tyrjänsaari	Ilomantsi
+81430	Kivilahti	Ilomantsi
+81450	Huhus-Käenkoski	Ilomantsi
+81460	Käenkoski	Ilomantsi
+81470	Naarva	Ilomantsi
+81560	Vuonisjärvi	Lieksa
+81570	Kelvä	Lieksa
+81590	Vuonislahti	Lieksa
+81650	Hattuvaara	Lieksa
+81660	Lehmikylä	Lieksa
+81700	Lieksa Keskus	Lieksa
+81720	Mähkö-Timitra	Lieksa
+81750	Pankakoski	Lieksa
+81810	Jamali	Lieksa
+81820	Kylänlahti	Lieksa
+81850	Mätäsvaara	Lieksa
+81860	Viekijärvi	Lieksa
+81950	Pankajärvi	Lieksa
+81970	Jongunjoki-Pankajärvi	Lieksa
+82110	Heinävaara	Joensuu
+82120	Keskijärvi	Joensuu
+82140	Kiihtelysvaara Keskus	Joensuu
+82160	Oskola	Joensuu
+82170	Uskali	Joensuu
+82180	Huhtilampi	Joensuu
+82200	Hammaslahti	Joensuu
+82210	Suhmura	Joensuu
+82220	Niittylahti	Joensuu
+82290	Nieminen	Rääkkylä
+82300	Rääkkylä Keskus	Rääkkylä
+82310	Oravisalo-Varpasalo	Rääkkylä
+82335	Rasivaara	Rääkkylä
+82350	Tikkala	Tohmajärvi
+82360	Onkamo	Tohmajärvi
+82380	Tolosenmäki	Kitee
+82395	Haarajärvi	Kitee
+82430	Puhos-Leinovaara	Kitee
+82460	Hummovaara	Kitee
+82490	Heinoniemi	Kitee
+82500	Kitee Keskus	Kitee
+82510	Kiteenlahti	Kitee
+82580	Juurikka	Kitee
+82590	Närsäkkälä	Kitee
+82600	Tohmajärvi Keskus	Tohmajärvi
+82655	Värtsilä Keskus	Tohmajärvi
+82660	Uusi-Värtsilä	Tohmajärvi
+82670	Kaurila	Tohmajärvi
+82675	Niirala-Jänisjoki	Tohmajärvi
+82685	Littilä	Tohmajärvi
+82710	Kovero	Joensuu
+82730	Tuupovaara Keskus-Pirttiaho	Joensuu
+82750	Öllölä	Joensuu
+82760	Hoilola	Joensuu
+82770	Kaustajärvi	Tohmajärvi
+82815	Marjovaara	Joensuu
+82820	Maukkula	Ilomantsi
+82830	Haukivaara	Ilomantsi
+82840	Pirttiaho	Joensuu
+82850	Kinnasniemi	Joensuu
+82865	Kokinvaara-Mannervaara	Joensuu
+82870	Luutalahti	Joensuu
+82880	Mannervaara	Joensuu
+82900	Ilomantsi Keskus	Ilomantsi
+82915	Sonkaja	Ilomantsi
+82960	Lehtovaara-Kuikkalampi	Ilomantsi
+82967	Hattu	Ilomantsi
+82980	Möhkö	Ilomantsi
+83100	Liperi Keskus	Liperi
+83130	Salokylä	Liperi
+83140	Puromäki	Liperi
+83150	Roukalahti	Liperi
+83160	Tutjunniemi	Liperi
+83320	Risti-Juojärvi	Liperi
+83330	Kaatamo	Liperi
+83340	Kaarnalampi	Liperi
+83400	Viinijärvi	Liperi
+83430	Käsämä	Liperi
+83450	Vaivio	Liperi
+83460	Harinjärvi	Liperi
+83480	Ahonkylä	Liperi
+83500	Outokumpu Keskus	Outokumpu
+83550	Kokonvaara	Outokumpu
+83630	Kuusjärvi	Outokumpu
+83660	Varislahti	Outokumpu
+83700	Polvijärvi Keskus	Polvijärvi
+83720	Kuorevaara	Polvijärvi
+83750	Sotkuma	Polvijärvi
+83760	Sola	Polvijärvi
+83780	Horsmanaho	Polvijärvi
+83825	Kinahmo	Polvijärvi
+83830	Hukkala	Polvijärvi
+83835	Ruvaslahti	Polvijärvi
+83840	Saarivaara	Polvijärvi
+83855	Martonvaara-Sammakkovaara	Polvijärvi
+83870	Polvela-Timovaara	Juuka
+83880	Kajoo	Juuka
+83900	Juuka Keskus	Juuka
+83910	Paalasmaa	Juuka
+83915	Vihtasuo	Juuka
+83940	Nunnanlahti	Juuka
+83950	Ahmovaara	Juuka
+83960	Koli	Lieksa
+83985	Tuopanjoki	Juuka
+84100	Ylivieska Keskus	Ylivieska
+84460	Tuomiperä	Ylivieska
+84540	Vähäkangas	Ylivieska
+84650	Kantokylä	Ylivieska
+84770	Isokoski	Ylivieska
+84880	Raudaskylä	Ylivieska
+85100	Kalajoki Keskus	Kalajoki
+85120	Metsä	Kalajoki
+85140	Tynkä	Kalajoki
+85150	Typpö	Kalajoki
+85160	Rautio	Kalajoki
+85180	Rahja	Kalajoki
+85200	Alavieska Keskus	Alavieska
+85210	Kähtävä	Alavieska
+85230	Talus	Alavieska
+85310	Sievi Asemanseutu	Sievi
+85320	Markkula	Sievi
+85340	Jyrinki	Sievi
+85410	Sievi Keskus	Sievi
+85430	Koivisto	Sievi
+85450	Joenkylä	Sievi
+85470	Kiiskilampi	Sievi
+85500	Nivala Keskus	Nivala
+85540	Mönkö	Nivala
+85560	Ainastalo	Nivala
+85580	Karvoskylä	Nivala
+85620	Sarja	Nivala
+85630	Sarjanahde	Nivala
+85640	Maliskylä	Nivala
+85660	Ruuskankylä	Nivala
+85710	Parkkila	Haapajärvi
+85730	Tulppo	Haapajärvi
+85800	Haapajärvi Keskus	Haapajärvi
+85820	Oksava	Haapajärvi
+85840	Kuona	Haapajärvi
+85900	Reisjärvi Keskus	Reisjärvi
+85930	Kangaskylä-Tolpankangas	Reisjärvi
+85940	Räisälänmäki	Reisjärvi
+85980	Köyhänperä	Reisjärvi
+86100	Pyhäjoki Keskus	Pyhäjoki
+86110	Parhalahti	Pyhäjoki
+86160	Pirttikoski	Pyhäjoki
+86170	Yppäri	Pyhäjoki
+86210	Petäjäskoski	Oulainen
+86220	Merijärvi Keskus	Merijärvi
+86230	Ylipää	Merijärvi
+86240	Pyhänkoski	Merijärvi
+86300	Oulainen Keskus	Oulainen
+86350	Kilpua	Oulainen
+86360	Ilveskorpi	Raahe
+86400	Vihanti Keskus	Raahe
+86440	Lampinsaari	Raahe
+86460	Alpua	Raahe
+86470	Lumimetsä	Raahe
+86480	Karhukangas	Haapavesi
+86510	Matkaniva	Oulainen
+86530	Annonen	Haapavesi
+86550	Mieluskylä	Haapavesi
+86600	Haapavesi Keskus	Haapavesi
+86650	Kytökylä-Joutenniva	Haapavesi
+86680	Vatjusjärvi	Haapavesi
+86690	Karsikas	Haapavesi
+86710	Kärsämäki Keskus	Kärsämäki
+86790	Venetpalo	Kärsämäki
+86800	Pyhäsalmi	Pyhäjärvi
+86810	Pellikkaperä	Pyhäjärvi
+86850	Hiidenniemi	Pyhäjärvi
+86870	Vesikoski	Pyhäjärvi
+86900	Pyhäkumpu	Pyhäjärvi
+86980	Väliaho	Pyhäjärvi
+87100	Kajaani Keskus	Kajaani
+87150	Purola	Kajaani
+87200	Teppana	Kajaani
+87250	Kättö-Kätönlahti	Kajaani
+87300	Palokangas	Kajaani
+87400	Petäisenniska	Kajaani
+87500	Lehtikangas	Kajaani
+87700	Lohtaja-Kettu	Kajaani
+87800	Vuoreslahti	Kajaani
+87830	Nakertaja	Kajaani
+87850	Paltaniemi	Kajaani
+87900	Kajaani	Kajaani
+87910	Linnantaus	Kajaani
+87930	Salmijärvi	Kajaani
+87950	Kuluntalahti	Kajaani
+87970	Jormua	Kajaani
+88120	Tuhkakylä	Sotkamo
+88200	Otanmäki-Kytökoski	Kajaani
+88270	Vuolijoki Keskus	Kajaani
+88300	Paltamo Keskus	Paltamo
+88310	Melalahti	Paltamo
+88340	Manamansalo	Vaala
+88350	Kivesjärvi	Paltamo
+88380	Mieslahti	Paltamo
+88400	Ristijärvi Keskus-Hiisijärvi	Ristijärvi
+88440	Jokikylä	Ristijärvi
+88460	Hiisijärvi	Ristijärvi
+88470	Kontiomäki	Paltamo
+88490	Pohjavaara	Sotkamo
+88530	Paakki	Sotkamo
+88600	Sotkamo Keskus	Sotkamo
+88610	Vuokatti	Sotkamo
+88615	Vuokatin Urheiluopisto	Sotkamo
+88620	Korholanmäki	Sotkamo
+88640	Ontojoki	Sotkamo
+88670	Juurikkalahti-Maanselkä	Sotkamo
+88690	Maanselkä	Sotkamo
+88730	Ylä-Vieksi	Kuhmo
+88740	Härmänkylä-Iivantiira	Kuhmo
+88760	Iivantiira	Kuhmo
+88900	Kuhmo Keskus	Kuhmo
+88930	Lentiira-Kuumu	Kuhmo
+88940	Kuumu	Kuhmo
+89110	Törmänmäki	Puolanka
+89140	Kotila-Törmänmäki	Puolanka
+89200	Puolanka Keskus	Puolanka
+89210	Puokiovaara	Puolanka
+89320	Joukokylä	Puolanka
+89330	Suolijärvi	Puolanka
+89400	Hyrynsalmi Keskus	Hyrynsalmi
+89430	Hoikka	Hyrynsalmi
+89440	Sakara	Suomussalmi
+89540	Moisiovaara	Hyrynsalmi
+89560	Karhuvaara	Hyrynsalmi
+89600	Ämmänsaari	Suomussalmi
+89610	Jumaliskylä	Suomussalmi
+89640	Pesiökylä	Suomussalmi
+89660	Takalo	Suomussalmi
+89670	Näljänkä	Suomussalmi
+89680	Vaaranniva	Suomussalmi
+89730	Ahjola	Suomussalmi
+89740	Kianta	Suomussalmi
+89760	Piispajärvi-Peranka-Kaikkoinen	Suomussalmi
+89770	Peranka	Suomussalmi
+89780	Kaikkonen	Suomussalmi
+89800	Suomussalmi Keskus	Suomussalmi
+89830	Ala-Vuokki	Suomussalmi
+89840	Yli-Vuokki	Suomussalmi
+89920	Ruhtinansalmi	Suomussalmi
+90100	Oulu Keskus	Oulu
+90120	Heinäpää	Oulu
+90130	Raksila	Oulu
+90140	Karjasilta	Oulu
+90150	Höyhtyä	Oulu
+90220	Kontinkangas	Oulu
+90230	Värttö-Maikkula	Oulu
+90240	Iinatti	Oulu
+90250	Kaukovainio	Oulu
+90310	Madekoski	Oulu
+90400	Äimärautio	Oulu
+90410	Kaakkuri	Oulu
+90420	Metsokangas	Oulu
+90440	Kempele Keskus	Kempele
+90450	Honkanen	Kempele
+90460	Oulunsalo Keskus	Oulu
+90470	Varjakka	Oulu
+90480	Hailuoto	Hailuoto
+90500	Tuira	Oulu
+90510	Hietasaari	Oulu
+90520	Taskila-Toppila	Oulu
+90530	Välivainio	Oulu
+90540	Kuivasjärvi	Oulu
+90550	Pyykösjärvi-Puolivälinkangas	Oulu
+90560	Koskela-Oulu	Oulu
+90570	Kaijonharju-Linnanmaa	Oulu
+90580	Rajakylä	Oulu
+90590	Teknologiakylä	Oulu
+90600	Oulun rahtiterminaali	Oulu
+90620	Rusko-Heikinharju	Oulu
+90630	Korvensuora	Oulu
+90650	Haapalehto	Oulu
+90660	Sanginsuu	Oulu
+90670	Hiukkavaara	Oulu
+90800	Pateniemi	Oulu
+90810	Kiviniemi	Oulu
+90820	Kello	Oulu
+90830	Haukipudas Keskus	Oulu
+90840	Haukipudas Asemanseutu	Oulu
+90850	Martinniemi	Oulu
+90860	Halosenniemi	Oulu
+90900	Kiiminki Keskus	Oulu
+90910	Kontio	Oulu
+90940	Jääli	Oulu
+91100	Ii Keskus	Ii
+91110	Ii Asemanseutu	Ii
+91140	Olhava	Ii
+91150	Yli-Olhava	Ii
+91200	Yli-Ii Keskus	Oulu
+91210	Jakkukylä	Ii
+91240	Tannila	Oulu
+91260	Pahkakoski - Räinä	Oulu
+91300	Ylikiiminki Keskus	Oulu
+91310	Arkala	Oulu
+91410	Jokirinne	Muhos
+91430	Leppiniemi	Muhos
+91500	Muhos Keskus	Muhos
+91510	Rova	Muhos
+91560	Kylmälänkylä	Muhos
+91600	Utajärvi Keskus	Utajärvi
+91620	Sanginkylä	Utajärvi
+91630	Juorkuna	Utajärvi
+91640	Särkijärvi	Utajärvi
+91660	Ahmas	Utajärvi
+91670	Rokua	Utajärvi
+91700	Vaala Keskus - Oterma	Vaala
+91710	Jylhämä	Vaala
+91720	Oterma	Vaala
+91730	Kankari	Vaala
+91740	Jaalanka - Liminpuro	Vaala
+91750	Liminpuro	Vaala
+91760	Säräisniemi	Vaala
+91780	Neittävä	Vaala
+91790	Nuojua	Vaala
+91800	Tyrnävä	Tyrnävä
+91900	Liminka Keskus	Liminka
+91910	Tupos	Liminka
+91930	Ala-Temmes	Liminka
+91950	Temmes	Tyrnävä
+91980	Lumijoki	Lumijoki
+92100	Raahe Keskus	Raahe
+92120	Ollinsaari - Mestauskallio	Raahe
+92130	Isoholmi - Antinkangas	Raahe
+92140	Pattijoki Keskus	Raahe
+92150	Kummatti - Junnilanmäki	Raahe
+92160	Saloinen	Raahe
+92180	Lapaluoto	Raahe
+92210	Arkkukari	Raahe
+92220	Piehinki	Raahe
+92230	Mattilanperä	Raahe
+92240	Lasikangas	Raahe
+92260	Kopsa	Raahe
+92320	Siikajoki Keskus	Siikajoki
+92330	Karinkanta	Siikajoki
+92350	Revonlahti	Siikajoki
+92400	Ruukki Keskus	Siikajoki
+92430	Paavola - Huumola	Siikajoki
+92440	Saarikoski	Siikajoki
+92450	Luohua	Siikajoki
+92470	Tuomioja	Siikajoki
+92500	Rantsila Keskus	Siikalatva
+92520	Sipola	Siikalatva
+92530	Mankila	Siikalatva
+92600	Pulkkila Keskus	Siikalatva
+92610	Vorna	Siikalatva
+92620	Piippola Keskus	Siikalatva
+92640	Leskelä	Siikalatva
+92650	Laakkola	Siikalatva
+92700	Kestilä	Siikalatva
+92810	Pelsonsuo	Vaala
+92830	Veneheitto	Vaala
+92910	Tavastkenkä	Pyhäntä
+92920	Ahokylä	Pyhäntä
+92930	Pyhäntä	Pyhäntä
+93100	Pudasjärvi Keskus	Pudasjärvi
+93140	Kipinä	Pudasjärvi
+93160	Hetejärvi	Pudasjärvi
+93170	Yli-Kollaja	Pudasjärvi
+93180	Ikosenniemi	Pudasjärvi
+93187	Ala-Siurua	Pudasjärvi
+93190	Yli-Siurua - Ikosenniemi	Pudasjärvi
+93195	Kokkokylä	Pudasjärvi
+93220	Livo	Pudasjärvi
+93225	Pärjänsuo	Pudasjärvi
+93240	Rytinki	Pudasjärvi
+93250	Sarajärvi	Pudasjärvi
+93270	Sotkajärvi	Pudasjärvi
+93277	Iinattijärvi	Pudasjärvi
+93280	Syöte	Pudasjärvi
+93290	Pintamo	Pudasjärvi
+93350	Jaurakkajärvi	Pudasjärvi
+93390	Puhoskylä	Pudasjärvi
+93400	Taivalkoski Keskus	Taivalkoski
+93420	Jurmu	Taivalkoski
+93440	Loukusa	Taivalkoski
+93470	Inget	Taivalkoski
+93540	Tyrövaara	Taivalkoski
+93590	Vanhala	Taivalkoski
+93600	Kuusamo	Kuusamo
+93700	Kurkijärvi - Oijusluoma	Kuusamo
+93800	Muojärvi	Kuusamo
+93830	Rukatunturi	Kuusamo
+93900	Oulangan kansallispuisto	Kuusamo
+93999	Lososaari	Kuusamo
+94100	Kemi Keskus	Kemi
+94200	Torvinen - Vainio	Kemi
+94300	Pajusaari	Kemi
+94400	Keminmaa Keskus	Keminmaa
+94430	Kaakamo	Tornio
+94450	Lassila - Jokisuu	Keminmaa
+94460	Ruottala	Tornio
+94500	Lautiosaari	Keminmaa
+94600	Ristikangas - Kivikko	Kemi
+94700	Takajärvi - Haukkari	Kemi
+94720	Peurasaari	Kemi
+94800	Veitsiluoto	Kemi
+94830	Pikku Berliini - Hepola	Kemi
+94900	Ajos	Kemi
+95100	Kuivaniemi Keskus	Ii
+95110	Kuivaniemi kk	Ii
+95130	Hyryoja	Ii
+95160	Oijärvi - Lamminperä	Ii
+95200	Simo Keskus	Simo
+95210	Filpus	Simo
+95220	Simoniemi	Simo
+95225	Viantie	Simo
+95230	Maksniemi	Simo
+95255	Alaniemi	Simo
+95260	Tainionjoki	Simo
+95270	Yli-Kärppä - Tainionjoki	Simo
+95300	Tervola Keskus	Tervola
+95310	Liedakkala	Keminmaa
+95315	Törmä	Keminmaa
+95325	Paakkola	Tervola
+95330	Tervola	Tervola
+95340	Loue	Tervola
+95350	Peura	Tervola
+95355	Koivu-Peura	Tervola
+95365	Maula	Keminmaa
+95370	Itäkoski	Keminmaa
+95375	Yli-Paakkola	Tervola
+95400	Tornio Keskus	Tornio
+95410	Kiviranta	Tornio
+95420	Miukki-Palosaari-Luotomäki	Tornio
+95430	Suensaari	Tornio
+95440	Kyläjoki	Tornio
+95450	Kirkonmäki	Tornio
+95460	Kantojärvi	Tornio
+95470	Pirkkiö - Röyttä	Tornio
+95490	Terästehtaanalue	Tornio
+95500	Vojakkala - Yli-Liakka	Tornio
+95520	Kukkola	Tornio
+95530	Karunki	Tornio
+95540	Korpikylä	Tornio
+95560	Aapajoki	Tornio
+95590	Arpela	Tornio
+95600	Ylitornio Keskus	Ylitornio
+95610	Kainuunkylä	Ylitornio
+95615	Pekanpää	Ylitornio
+95620	Aavasaksa	Ylitornio
+95630	Kuivakangas	Ylitornio
+95635	Kaulinranta	Ylitornio
+95640	Juoksenki	Pello
+95645	Turtola	Pello
+95655	Etelä-Portimojärvi	Ylitornio
+95660	Kantomaanpää	Ylitornio
+95670	Pessalompolo	Ylitornio
+95675	Meltosjärvi	Ylitornio
+95680	Lohijärvi	Ylitornio
+95690	Mellakoski	Ylitornio
+95700	Pello Keskus	Pello
+95710	Naamijoki	Pello
+95720	Jarhoinen	Pello
+95750	Orajärvi	Pello
+95760	Konttajärvi	Pello
+95770	Lankojärvi	Pello
+95780	Sirkkakoski	Pello
+95790	Lampsijärvi	Pello
+95800	Sieppijärvi - Taapajärvi	Kolari
+95830	Vaattojärvi	Kolari
+95840	Venejärvenkylä	Kolari
+95850	Ruokojärvi	Kolari
+95860	Pasmajärvi	Kolari
+95900	Kolari Keskus	Kolari
+95920	Saaripudas	Kolari
+95930	Äkäsjoensuu	Kolari
+95940	Tapojärvi	Muonio
+95950	Kihlanki - Tapojärvi	Muonio
+95970	Äkäslompolo	Kolari
+95980	Ylläsjärvi	Kolari
+95990	Kurtakko	Kolari
+96100	Rovaniemi Keskus	Rovaniemi
+96190	Lapinrinne - Ahokangas	Rovaniemi
+96200	Sahanperä - Ratantaus	Rovaniemi
+96300	Niemelänkangas - Korvanniemi	Rovaniemi
+96320	Teollisuuskylä	Rovaniemi
+96400	Pullinranta - Kiiruna	Rovaniemi
+96440	Ounasrinne	Rovaniemi
+96460	Pöykkölä	Rovaniemi
+96500	Korkalovaara	Rovaniemi
+96600	Koskenkylä	Rovaniemi
+96700	Niskanperä	Rovaniemi
+96800	Ylikylä - Patosaari	Rovaniemi
+96900	Saarenkylä	Rovaniemi
+96910	Syväsenvaara	Rovaniemi
+96930	Napapiiri Rovaniemi	Rovaniemi
+96960	Someroharju	Rovaniemi
+97110	Rautionsaari	Rovaniemi
+97130	Hirvas	Rovaniemi
+97140	Muurola	Rovaniemi
+97145	Totonvaara	Rovaniemi
+97160	Petäjäinen	Rovaniemi
+97170	Jaatila	Rovaniemi
+97220	Sinettä	Rovaniemi
+97240	Sonka	Rovaniemi
+97250	Raanujärvi	Ylitornio
+97280	Tapio	Rovaniemi
+97290	Marraskoski	Rovaniemi
+97310	Patokoski	Rovaniemi
+97320	Marrasjärvi	Rovaniemi
+97330	Rattosjärvi	Pello
+97335	Ruuhivaara	Pello
+97340	Meltaus-Jääskö-Perttaus	Rovaniemi
+97370	Unarin-Luusua	Sodankylä
+97380	Kukasranta	Sodankylä
+97390	Kierinki	Sodankylä
+97420	Lohiniva	Kittilä
+97470	Alakylä - Sailehto	Kittilä
+97510	Vikajärvi	Rovaniemi
+97520	Nampa	Rovaniemi
+97530	Nampa - Yli-Nampa	Rovaniemi
+97540	Tiainen	Rovaniemi
+97580	Misi	Rovaniemi
+97590	Raajärvi	Kemijärvi
+97610	Oikarainen	Rovaniemi
+97615	Tennirova	Rovaniemi
+97620	Viiri - Tennirova	Rovaniemi
+97625	Vanttauskoski	Rovaniemi
+97630	Pekkala	Rovaniemi
+97635	Juuniemi	Rovaniemi
+97645	Juujärvi	Kemijärvi
+97650	Juotas	Rovaniemi
+97655	Autti	Rovaniemi
+97665	Pohjasperä	Ranua
+97670	Kivitaipale	Rovaniemi
+97675	Narkaus - Kämät	Rovaniemi
+97680	Saari-Kämä	Rovaniemi
+97685	Siika-Kämä	Rovaniemi
+97690	Sulaoja	Rovaniemi
+97700	Ranua Keskus	Ranua
+97715	Raiskio	Ranua
+97720	Yli-Simo - Raiskio	Ranua
+97760	Saariharju	Ranua
+97765	Kuha-Impiö-Itäranua	Ranua
+97780	Kuukasjärvi - Petäjäjärvi	Ranua
+97785	Kelankylä	Ranua
+97810	Suorsa	Posio
+97815	Pernu - Suorsa	Posio
+97820	Perä-Posio	Posio
+97840	Lehtiniemi	Posio
+97850	Ristilä	Posio
+97870	Jumisko	Posio
+97880	Nolimo - Jumisko	Posio
+97890	Karjalaisenniemi	Posio
+97895	Mourujärvi	Posio
+97900	Posio Keskus	Posio
+97920	Suonnankylä	Posio
+97925	Tolva	Posio
+97940	Lohiranta	Posio
+97950	Säikkä	Posio
+97960	Kuloharju - Säikkä	Posio
+97965	Kynsilä	Posio
+97970	Sirniö	Posio
+97980	Anetjärvi	Posio
+97999	Köngäs	Kittilä
+98100	Kemijärvi Keskus	Kemijärvi
+98120	Särkikangas	Kemijärvi
+98230	Luusua - Karsimus	Kemijärvi
+98310	Karvakko	Kemijärvi
+98350	Tapionniemi	Kemijärvi
+98360	Vuostimo	Kemijärvi
+98400	Isokylä-Ryti-Lehtola	Kemijärvi
+98420	Ryti-Lehtola	Kemijärvi
+98440	Kallaanvaara	Kemijärvi
+98450	Kostamo	Kemijärvi
+98500	Pelkosenniemi Keskus	Pelkosenniemi
+98510	Saunavaara	Pelkosenniemi
+98530	Pyhätunturi	Pelkosenniemi
+98550	Suvanto	Pelkosenniemi
+98560	Kairala-Luiro	Pelkosenniemi
+98570	Aapajärvi	Pelkosenniemi
+98580	Luiro	Pelkosenniemi
+98600	Kursu	Salla
+98620	Pahkakumpu	Salla
+98630	Ahvenselkä	Pelkosenniemi
+98660	Salmivaara	Salla
+98710	Joutsijärvi	Kemijärvi
+98720	Suomutunturi	Kemijärvi
+98760	Hirvasvaara - Paloperä	Salla
+98770	Aholanvaara	Salla
+98780	Maaninkavaara	Posio
+98790	Paloperä	Salla
+98800	Savukoski Keskus - Värriö	Savukoski
+98810	Lunkkaus	Savukoski
+98820	Värriö	Savukoski
+98830	Martti - Ruuvaoja	Savukoski
+98840	Ruuvaoja	Savukoski
+98850	Kuosku	Savukoski
+98900	Salla Keskus	Salla
+98920	Kelloselkä	Salla
+98930	Kotalankylä	Salla
+98950	Saija	Salla
+98960	Naruska	Salla
+98970	Onkamojärvi	Salla
+98980	Kallunki - Niemelä	Salla
+98995	Hautajärvi	Salla
+99100	Kittilä Keskus	Kittilä
+99110	Kaukonen	Kittilä
+99120	Kallo	Kittilä
+99130	Sirkka - Rauhala	Kittilä
+99135	Rauhala	Kittilä
+99140	Köngäs - Hanhivaara	Kittilä
+99150	Tepasto	Kittilä
+99160	Lompolo - Pulju	Kittilä
+99170	Pulju	Kittilä
+99180	Rautusjärvi	Kittilä
+99190	Hanhimaa	Kittilä
+99195	Pokka	Kittilä
+99230	Jeesiöjärvi	Kittilä
+99240	Kuivasalmi	Kittilä
+99250	Kiistala - Jeesiöjärvi	Kittilä
+99270	Hormakumpu	Kittilä
+99280	Tepsa	Kittilä
+99290	Kelontekemä	Kittilä
+99300	Muonio Keskus	Muonio
+99310	Yli-Muonio	Muonio
+99320	Kätkäsuvanto	Muonio
+99330	Pallastunturi	Muonio
+99340	Raattama - Pallastunturi	Kittilä
+99360	Kangosjärvi	Muonio
+99400	Enontekiö Keskus	Enontekiö
+99410	Vuontisjärvi	Enontekiö
+99420	Peltovuoma	Enontekiö
+99430	Nunnanen	Enontekiö
+99440	Leppäjärvi	Enontekiö
+99450	Palojoensuu - Kuttanen	Enontekiö
+99460	Kuttanen	Enontekiö
+99470	Karesuvanto	Enontekiö
+99490	Kilpisjärvi	Enontekiö
+99510	Raudanjoki - Seipäjärvi	Sodankylä
+99520	Seipäjärvi	Sodankylä
+99530	Vuojärvi	Sodankylä
+99540	Torvinen	Sodankylä
+99550	Aska - Orakylä	Sodankylä
+99555	Luosto	Sodankylä
+99560	Orakylä	Sodankylä
+99600	Sodankylä Keskus	Sodankylä
+99610	Siurunmaa	Sodankylä
+99620	Kelujärvi	Sodankylä
+99640	Tanhua	Savukoski
+99645	Lokka	Sodankylä
+99650	Sattanen	Sodankylä
+99655	Sattasvaara	Sodankylä
+99660	Kersilö	Sodankylä
+99665	Moskuvaara	Sodankylä
+99670	Petkula	Sodankylä
+99690	Vuotso	Sodankylä
+99695	Tankavaara	Sodankylä
+99710	Vaalajärvi	Sodankylä
+99720	Riipi	Sodankylä
+99740	Syväjärvi	Sodankylä
+99750	Sassali	Sodankylä
+99760	Uimaniemi	Sodankylä
+99770	Jeesiö	Sodankylä
+99800	Ivalo	Inari
+99830	Saariselkä	Inari
+99860	Nellim	Inari
+99870	Inari Keskus - Lemmenjoki	Inari
+99885	Lemmenjoki	Inari
+99910	Kaamanen - Partakko	Inari
+99930	Sevettijärvi - Näätämö	Inari
+99940	Näätämö	Inari
+99950	Karigasniemi	Utsjoki
+99980	Utsjoki Keskus	Utsjoki
+99990	Nuorgam	Utsjoki

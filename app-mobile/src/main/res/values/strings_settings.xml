@@ -34,6 +34,7 @@
     <string name="settings_location_header">Location</string>
     <string name="settings_auto_location">Automatic location</string>
     <string name="settings_auto_location_sub">Update your place from the device location if permission has been granted</string>
+    <string name="settings_auto_location_permission_missing">Location permission is missing, so the weather is shown for the saved place. Tap to grant it.</string>
     <string name="settings_auto_location_on">Automatic location is on.</string>
     <string name="settings_precise_location_denied">Precise location permission wasn\'t granted. City search works as usual.</string>
     <string name="settings_bg_widgets">Widgets in the background</string>
@@ -139,6 +140,8 @@
     <string name="settings_downloading_installing">Downloading and installing…</string>
     <string name="settings_download_install_sub">Downloaded from the GitHub release. Installing requires permission to install apps from unknown sources.</string>
     <string name="settings_github">GitHub – source code and releases</string>
+    <string name="settings_place_sources">Place names</string>
+    <string name="settings_place_sources_sub">Addresses: National Land Survey of Finland. Municipalities and postal code areas: Statistics Finland (Paavo), CC BY 4.0; postal code area names have been shortened.</string>
     <string name="settings_no_browser">No browser found</string>
     <string name="settings_update_allow_unknown_sources">First allow installing from unknown sources, then try again.</string>
     <string name="settings_update_opening_installer">Opening the installer…</string>

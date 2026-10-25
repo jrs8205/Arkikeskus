@@ -12,6 +12,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -118,10 +119,6 @@ private val HM_HC = SimpleDateFormat("HH:mm", Locale.ROOT).apply { timeZone = HE
 /** Etusivun sisääntuloanimaatio soitetaan vain KERRAN prosessin aikana, ei joka kerta kun
  *  etusivulle palataan. Aiemmin slide-animaatio toistui joka paluulla → "koko sivu hyppäsi". */
 private var sHomeEntranceShown = false
-private var sHomeWeatherKey: String? = null
-private var sHomeWeather: WeatherData? = null
-private var sForecastWeatherKey: String? = null
-private var sForecastWeather: WeatherData? = null
 private var sForecastOpenMeteoKey: String? = null
 private var sForecastOpenMeteo: OpenMeteoData? = null
 private var sForecastMetKey: String? = null
@@ -133,10 +130,22 @@ private var sElectricityCompareLang: String? = null
 private var sElectricityCompareRows: List<CompareRowData>? = null
 
 internal fun invalidateHomeWeatherCache() {
-    if (sHomeWeatherKey == currentHomeWeatherKey()) return
-    sHomeWeatherKey = null
-    sHomeWeather = null
+    if (SharedHomeWeather.key == currentHomeWeatherKey()) return
+    SharedHomeWeather.clear()
     WeatherCache.last = null
+}
+
+/** Etusivun ja Sää-ennusteen yhteinen FMI-haku ([SharedHomeWeather]): haku + Open-Meteo-täydennys IO:ssa. */
+private suspend fun loadHomeWeather(context: Context, key: String, generation: Long, refresh: Int): WeatherData? {
+    val w = SharedHomeWeather.load(
+        key, generation, refresh > 0, Dispatchers.IO,
+        fetch = { seed, force -> WeatherRepository.get(context).fetchHome(seed, force) },
+        enrich = { data, force -> fillCurrentHumidityCloud(context, data, force) },
+    ) ?: return null
+    WeatherCache.last = w
+    // Onnistuneen FMI-haun aikaleima → "Viimeisin sääpäivitys" (asetukset) pysyy ajan tasalla.
+    if (w.fetchedAt > 0L) SettingsManager.get().setLastSuccessfulFmiUpdate(w.fetchedAt)
+    return w
 }
 
 private fun currentHomeWeatherKey(): String {
@@ -205,7 +214,11 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
             visible = shown,
             // Vain pehmeä häivähdys (läpinäkyvyys), EI slide- eikä korkeusanimaatiota → etusivu ei
             // "hyppää" ylös/alas avattaessa tai sivua vaihtaessa eikä kun kortit lataavat dataa.
+            // Myös exit on pelkkä fadeOut: oletus-exitin shrinkVertically teki koko siirtymästä
+            // alareunaan ankkuroidun kokoanimaation, jolloin häivytyksen aikana latautuvat kortit
+            // työnsivät sisällön ylös ja se liukui takaisin (kylmäkäynnistyksen "hyppely").
             enter = fadeIn(spring()),
+            exit = fadeOut(),
         ) {
             Column {
                 Spacer(Modifier.height(12.dp))
@@ -361,31 +374,11 @@ private fun HomeWeatherWidget(prefs: SharedPreferences) {
     val refresh = LocalRefreshTick.current
     val settingsRevision = LocalHomeDataRevision.current
     val weatherKey = remember(settingsRevision) { currentHomeWeatherKey() }
-    var weather by remember(weatherKey) {
-        val seed = if (sHomeWeatherKey == weatherKey) sHomeWeather else null
-        mutableStateOf(seed)
-    }
-    LaunchedEffect(refresh, weatherKey) {
-        val weatherSeed = if (sHomeWeatherKey == weatherKey) sHomeWeather else null
-        if (weatherSeed == null) weather = null
-        val fresh = withContext(Dispatchers.IO) {
-            val w = try {
-                WeatherRepository.get(context).fetchHome(weatherSeed, refresh > 0)
-            } catch (e: Exception) {
-                null
-            }
-            // OpenMeteo-fallback: täytä kosteus/pilvisyys jos FMI-livehavainnosta puuttuvat.
-            if (w != null) fillCurrentHumidityCloud(context, w, refresh > 0)
-            w
-        }
-        if (fresh != null) {
-            WeatherCache.last = fresh
-            sHomeWeatherKey = weatherKey
-            sHomeWeather = fresh
-            weather = fresh
-            // Tallenna onnistuneen FMI-haun aikaleima → "Viimeisin sääpäivitys" (asetukset) pysyy ajan tasalla.
-            if (fresh.fetchedAt > 0L) SettingsManager.get().setLastSuccessfulFmiUpdate(fresh.fetchedAt)
-        }
+    val generation = LocalWeatherGeneration.current
+    var weather by remember(weatherKey) { mutableStateOf(SharedHomeWeather.seed(weatherKey)) }
+    LaunchedEffect(refresh, generation, weatherKey) {
+        if (SharedHomeWeather.seed(weatherKey) == null) weather = null
+        loadHomeWeather(context, weatherKey, generation, refresh)?.let { weather = it }
     }
     WeatherCard(context, prefs, weather)
 }
@@ -1746,6 +1739,7 @@ internal fun ForecastSection() {
     val context = LocalContext.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val refresh = LocalRefreshTick.current
+    val generation = LocalWeatherGeneration.current
     val settingsRevision = LocalHomeDataRevision.current
     // Avaimitettu refreshillä → sijainnin vaihtuessa (refresh kasvaa) paikka luetaan uudelleen, jolloin
     // FMI ja Open-Meteo hakevat SAMAA paikkaa (ei kahden eri kaupungin sekoitusta otsikkoon/dataan).
@@ -1763,9 +1757,7 @@ internal fun ForecastSection() {
         }
     }
     val forecastKey = remember(settingsRevision, coordinates) { currentHomeWeatherKey() }
-    val weatherSeed = remember(forecastKey) {
-        if (sForecastWeatherKey == forecastKey) sForecastWeather else null
-    }
+    val weatherSeed = remember(forecastKey) { SharedHomeWeather.seed(forecastKey) }
     val openMeteoSeed = remember(forecastKey) {
         if (sForecastOpenMeteoKey == forecastKey) sForecastOpenMeteo else null
     }
@@ -1776,24 +1768,10 @@ internal fun ForecastSection() {
     var weather by remember(forecastKey) { mutableStateOf(weatherSeed) }
     var openMeteo by remember(forecastKey) { mutableStateOf(openMeteoSeed) }
     var met by remember(forecastKey) { mutableStateOf(metSeed) }
-    LaunchedEffect(refresh, forecastKey) {
+    LaunchedEffect(refresh, generation, forecastKey) {
         val forceNetwork = refresh > 0
-        val weatherCache = weather
         val forceOpenMeteo = forceNetwork || sForecastOpenMeteoKey != forecastKey
-        val w = withContext(Dispatchers.IO) {
-            try {
-                WeatherRepository.get(context).fetchHome(weatherCache, forceNetwork)
-            } catch (e: Exception) {
-                null
-            }
-        }
-        if (w != null) {
-            WeatherCache.last = w
-            sForecastWeatherKey = forecastKey
-            sForecastWeather = w
-            weather = w
-            if (w.fetchedAt > 0L) SettingsManager.get().setLastSuccessfulFmiUpdate(w.fetchedAt)
-        }
+        loadHomeWeather(context, forecastKey, generation, refresh)?.let { weather = it }
         val om = withContext(Dispatchers.IO) {
             try {
                 val repo = OpenMeteoRepository.get(context)
@@ -2334,11 +2312,12 @@ private fun openMeteoForecastStats(context: Context, h: OpenMeteoData.Hour): Lis
 private fun percentText(context: Context, v: Double): String =
     context.getString(R.string.home_percent, Math.round(v).toString())
 
-private fun formatNullableTemp(loc: Locale, v: Double?): String = if (v == null) "-- C" else formatTemp(loc, v)
+internal fun formatNullableTemp(loc: Locale, v: Double?): String = if (v == null) "-- °C" else formatTemp(loc, v)
 
 // ===================== Data- ja formatointiapurit (replikoi MobileMainActivity) =====================
 
-private fun displayPlace(prefs: SharedPreferences): String {
+/** Sääpaikan näyttönimi kaikille sivuille (etusivu, Sää-ennuste, Paikkakunnat). */
+internal fun displayPlace(prefs: SharedPreferences): String {
     val d = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "") ?: ""
     if (d.trim().isNotEmpty()) return d.trim()
     return SettingsManager.get().homePlace
@@ -2455,9 +2434,12 @@ private fun buildSensors(context: Context, prefs: SharedPreferences, repo: Ruuvi
     return out
 }
 
-private fun formatTemp(loc: Locale, v: Double): String {
-    if (v.isNaN()) return "-- C"
-    return String.format(loc, "%.1f C", WeatherData.cleanZero(v))
+internal fun formatTemp(loc: Locale, v: Double): String {
+    if (v.isNaN()) return "-- °C"
+    // Vain "-0,0" estetään. WeatherData.cleanZero (|x| < 0,5 → 0) on tabletin kokonaislukunäytölle, ja
+    // yhden desimaalin näytössä se muutti esim. 0,3 °C:n muotoon 0,0 °C.
+    val shown = if (Math.abs(v) < 0.05) 0.0 else v
+    return String.format(loc, "%.1f °C", shown)
 }
 
 private fun one(loc: Locale, v: Double): String = String.format(loc, "%.1f", v)

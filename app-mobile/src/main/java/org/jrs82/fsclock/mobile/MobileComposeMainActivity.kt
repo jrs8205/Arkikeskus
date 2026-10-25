@@ -216,19 +216,28 @@ class MobileComposeMainActivity : AppCompatActivity() {
     }
 
     /**
-     * Pyytää sijaintiluvan KERRAN heti ensimmäisellä käynnistyksellä, jotta etusivun sää ja
+     * Pyytää sijaintiluvan KERRAN per laite heti ensimmäisellä käynnistyksellä, jotta etusivun sää ja
      * Lähilähdöt toimivat suoraan asennuksen jälkeen (automaattinen sijainti on oletuksena päällä).
-     * [MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED] estää uusintakyselyn — jos
-     * käyttäjä kieltää, ei jankuteta joka avauksella.
+     * Tieto kysymisestä on laitekohtaisessa [DeviceLocalPrefs]issa: aiemmin se oli oletusasetuksissa ja
+     * siirtyi varmuuskopion mukana uudelle puhelimelle, jolloin lupaa ei kysytty siellä koskaan.
      */
     private fun maybeAskInitialLocationPermission() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        if (prefs.getBoolean(MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED, false)) return
-        prefs.edit().putBoolean(MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED, true).apply()
-        val alreadyGranted =
+        // Vanha, varmuuskopioihin päätynyt avain ei kerro tämän laitteen tilasta → siivotaan pois.
+        if (prefs.contains(MobileThemeController.LEGACY_KEY_INITIAL_LOCATION_PERMISSION_ASKED)) {
+            prefs.edit().remove(MobileThemeController.LEGACY_KEY_INITIAL_LOCATION_PERMISSION_ASKED).apply()
+        }
+        val device = DeviceLocalPrefs.get(this)
+        val granted =
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (!alreadyGranted) {
+        val ask = LocationPermissionPolicy.shouldAskInitially(
+            askedOnThisDevice = device.getBoolean(DeviceLocalPrefs.KEY_LOCATION_PERMISSION_ASKED, false),
+            autoLocationOn = prefs.getBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, true),
+            granted = granted,
+        )
+        DeviceLocalPrefs.markLocationPermissionAsked(this)
+        if (ask) {
             locationPermissionLauncher.launch(
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
             )

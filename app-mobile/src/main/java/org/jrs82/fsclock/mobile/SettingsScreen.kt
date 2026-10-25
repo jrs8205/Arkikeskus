@@ -282,6 +282,20 @@ fun SettingsScreen(
     var bgLocationGranted by remember {
         mutableStateOf(hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION))
     }
+    // Etualan lupa luetaan uudelleen joka paluulla (esim. järjestelmän asetuksista): kytkin ei saa näyttää
+    // päällä-tilaa, jos lupaa ei ole, eikä puuttuvan luvan ohje saa jäädä näkyviin luvan myöntämisen jälkeen.
+    var locationGranted by remember { mutableStateOf(hasAnyLocationPermission(context)) }
+    val settingsLifecycle = LocalLifecycleOwner.current
+    DisposableEffect(settingsLifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                locationGranted = hasAnyLocationPermission(context)
+                bgLocationGranted = hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+        }
+        settingsLifecycle.lifecycle.addObserver(observer)
+        onDispose { settingsLifecycle.lifecycle.removeObserver(observer) }
+    }
     val bgLocationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
@@ -296,9 +310,10 @@ fun SettingsScreen(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         val precise = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        locationGranted = hasAnyLocationPermission(context)
         if (!precise) SettingsManager.get().clearHomeCoordinates()
+        DeviceLocalPrefs.markLocationPermissionAsked(context)
         prefs.edit()
-            .putBoolean(MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED, true)
             .putBoolean(MobileThemeController.KEY_USE_AUTOMATIC_LOCATION, precise)
             .remove(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME)
             .apply()
@@ -409,11 +424,15 @@ fun SettingsScreen(
                     SettingsPageTitle(stringResource(SettingsPage.WEATHER.titleRes))
                     SubHeader(stringResource(R.string.settings_location_header))
                     GroupCard {
+                        val locationSwitch = LocationPermissionPolicy.switchState(autoLocation, locationGranted)
                         GroupRowSwitch(
                             title = stringResource(R.string.settings_auto_location),
-                            subtitle = stringResource(R.string.settings_auto_location_sub),
+                            subtitle = stringResource(
+                                if (locationSwitch.permissionMissing) R.string.settings_auto_location_permission_missing
+                                else R.string.settings_auto_location_sub,
+                            ),
                             leadingIconRes = R.drawable.mobile_ic_location_24,
-                            checked = autoLocation,
+                            checked = locationSwitch.checked,
                         ) { enable ->
                             if (enable) {
                                 if (hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)) {
@@ -423,9 +442,7 @@ fun SettingsScreen(
                                         .apply()
                                     resetAutoLocationThrottle()
                                 } else {
-                                    prefs.edit()
-                                        .putBoolean(MobileThemeController.KEY_INITIAL_LOCATION_PERMISSION_ASKED, true)
-                                        .apply()
+                                    DeviceLocalPrefs.markLocationPermissionAsked(context)
                                     locationPermLauncher.launch(
                                         arrayOf(
                                             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -442,7 +459,7 @@ fun SettingsScreen(
                                 autoLocation = false
                             }
                         }
-                        if (autoLocation && !bgLocationGranted) {
+                        if (locationSwitch.checked && !bgLocationGranted) {
                             GroupDivider()
                             GroupRowClickable(
                                 title = stringResource(R.string.settings_bg_widgets),
@@ -1430,6 +1447,14 @@ private fun AboutGroup(context: Context) {
         ) {
             openUrl(context, AppUpdater.REPO_URL)
         }
+        GroupDivider()
+        GroupRowClickable(
+            title = stringResource(R.string.settings_place_sources),
+            subtitle = stringResource(R.string.settings_place_sources_sub),
+            leadingIconRes = R.drawable.mobile_ic_location_24,
+        ) {
+            openUrl(context, PostalAreas.SOURCE_URL)
+        }
     }
 }
 
@@ -1481,6 +1506,11 @@ private fun bluetoothScanPermission(): String =
 
 private fun hasPermission(context: Context, perm: String): Boolean =
     ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+
+/** Kuten sijainnin päivitys ([maybeRefreshDeviceLocation]): myös likimääräinen sijaintilupa riittää. */
+private fun hasAnyLocationPermission(context: Context): Boolean =
+    hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
+        hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
 
 private fun isBluetoothOn(context: Context): Boolean = try {
     val bm = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager

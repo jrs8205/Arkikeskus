@@ -65,7 +65,8 @@ final class MobileThemeController {
             + WIDGET_GPS_SPEED + ","
             + WIDGET_STEPS;
     static final String KEY_USE_AUTOMATIC_LOCATION = "mobile_use_automatic_location";
-    static final String KEY_INITIAL_LOCATION_PERMISSION_ASKED = "mobile_initial_location_permission_asked";
+    /** Vanha avain: siirtyi varmuuskopion mukana toiselle laitteelle. Nykyään DeviceLocalPrefs; avain vain siivotaan. */
+    static final String LEGACY_KEY_INITIAL_LOCATION_PERMISSION_ASKED = "mobile_initial_location_permission_asked";
     static final String KEY_AUTO_LOCATION_DISPLAY_NAME = "mobile_auto_location_display_name";
     static final String KEY_SENSOR_NAME_BEDROOM = "mobile_sensor_name_bedroom";
     static final String KEY_SENSOR_NAME_LIVINGROOM = "mobile_sensor_name_livingroom";

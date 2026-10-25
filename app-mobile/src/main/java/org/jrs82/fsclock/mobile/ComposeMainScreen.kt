@@ -72,10 +72,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.preference.PreferenceManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.BuildConfig
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
@@ -110,6 +108,10 @@ val LocalRefreshTick = compositionLocalOf { 0 }
  */
 val LocalNewsRefreshTick = compositionLocalOf { 0 }
 
+/** Säänäkymien päivityssukupolvi ([SharedHomeWeather.newGeneration]): uusi jokaisella [LocalRefreshTick]illä ja
+ *  jokaisessa uudessa näkymäistunnossa. 0 = ei sukupolvea (esikatselu), jolloin data haetaan aina. */
+val LocalWeatherGeneration = compositionLocalOf { 0L }
+
 /** Paikallinen asetus-/datarevision signaali. Ei pakota verkkohakuja kuten [LocalRefreshTick]. */
 val LocalHomeDataRevision = compositionLocalOf { 0 }
 
@@ -131,8 +133,8 @@ internal fun resetAutoLocationThrottle() {
 
 /**
  * Päivittää etusivun sääpaikan laitteen sijainnista, jos automaattinen sijainti on päällä (oletus)
- * ja sijaintilupa on annettu. Reverse-geokoodaa MML:llä ja asettaa kotipaikan kuten Paikkakunnat-näkymä
- * ([chooseHomePlace]). Palauttaa true jos data- tai näyttöpaikka muuttui → kutsuja voi pyytää sään haun uudelleen.
+ * ja sijaintilupa on annettu. Nimeää paikan [DevicePlaceResolver]illa (MML → Geocoder, vain Suomi) ja
+ * asettaa kotipaikan kuten Paikkakunnat-näkymä ([chooseHomePlace]). Palauttaa true jos data- tai näyttöpaikka muuttui → kutsuja voi pyytää sään haun uudelleen.
  * [force] ohittaa lyhyen aikaikkunan (suoja resume-tapahtuman toistolle).
  */
 internal suspend fun maybeRefreshDeviceLocation(context: Context, force: Boolean): Boolean {
@@ -143,13 +145,7 @@ internal suspend fun maybeRefreshDeviceLocation(context: Context, force: Boolean
     if (!force && now - sLastAutoLocMs < 15_000L) return false
     // force (Päivitä-nappi) → aina tuore aktiivinen haku; muuten nopea polku jos viimeisin tunnettu on tuore.
     val loc = deviceLocation(context, force) ?: return false
-    val place = withContext(Dispatchers.IO) {
-        try {
-            MmlGeocodingClient.reversePlace(loc.latitude, loc.longitude)
-        } catch (e: Exception) {
-            null
-        }
-    } ?: return false
+    val place = DevicePlaceResolver.resolve(context, loc.latitude, loc.longitude) ?: return false
     val previousDataPlace = SettingsManager.get().homePlace.trim()
     val previousDisplayPlace = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "")
         ?.trim().orEmpty()
@@ -187,13 +183,7 @@ internal suspend fun maybeRefreshWidgetLocationPassive(context: Context): Boolea
         android.location.Location.distanceBetween(sm.homeLatitude, sm.homeLongitude, loc.latitude, loc.longitude, res)
         if (res[0] < 150f) return false
     }
-    val place = withContext(Dispatchers.IO) {
-        try {
-            MmlGeocodingClient.reversePlace(loc.latitude, loc.longitude)
-        } catch (e: Exception) {
-            null
-        }
-    } ?: return false
+    val place = DevicePlaceResolver.resolve(context, loc.latitude, loc.longitude) ?: return false
     val previousDataPlace = sm.homePlace.trim()
     val previousDisplayPlace = prefs.getString(MobileThemeController.KEY_AUTO_LOCATION_DISPLAY_NAME, "")
         ?.trim().orEmpty()
@@ -325,6 +315,8 @@ fun ComposeMainScreen(
     val scope = rememberCoroutineScope()
     // Päivitä-ikonin signaali → tarjotaan sektioille CompositionLocalin kautta.
     var refreshTick by remember { mutableStateOf(0) }
+    // Prosessin sisällä yksilöllinen: refreshTick nollautuu Activityn uudelleenluonnissa, sukupolvi ei toistu.
+    val weatherGeneration = remember(refreshTick) { SharedHomeWeather.newGeneration() }
     // Uutisten oma tick: kasvaa vain Päivitä-napista + automaattivälistä, EI ON_RESUME:ssa → uutislistat
     // eivät hae/nollaudu selaimesta tai taustalta palatessa (ks. [LocalNewsRefreshTick]).
     var newsRefreshTick by remember { mutableStateOf(0) }
@@ -570,6 +562,7 @@ fun ComposeMainScreen(
             ) {
                 CompositionLocalProvider(
                     LocalRefreshTick provides refreshTick,
+                    LocalWeatherGeneration provides weatherGeneration,
                     LocalNewsRefreshTick provides newsRefreshTick,
                     LocalHomeDataRevision provides homeDataRevision,
                     LocalHomeNewsRevision provides homeNewsRevision,

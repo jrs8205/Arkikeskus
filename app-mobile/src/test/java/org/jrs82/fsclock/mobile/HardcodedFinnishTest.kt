@@ -16,7 +16,7 @@ class HardcodedFinnishTest {
         "KuntaList.kt", "FinaviaAirports.kt", "FmiCounties.java", "FinnishRegions.kt",
         "FinnishHolidays.java", "HolidayNames.kt", "AlmanakkaClient.java", "FmiClient.java",
         "GeoPlace.java", "MmlGeocodingClient.java", "TrafficNoticesClient.java", "NewsProfile.kt",
-        "NewsFeedStore.java", "FlightDisplay.kt", "WeatherWarning.java",
+        "NewsFeedStore.java", "FlightDisplay.kt", "WeatherWarning.java", "PostalAreas.kt",
         // Tabletin perintöä core/-puussa: ei ajeta mobiilissa (ei manifestissa eikä kutsuta)
         "ClockController.java", "SettingsFragment.java", "CsvExporter.java", "BatteryChartView.java",
         "WeatherData.java", "SystemActivity.java", "SystemFragment.java", "MainActivity.java", "ClockDream.java",

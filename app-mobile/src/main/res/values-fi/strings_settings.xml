@@ -34,6 +34,7 @@
     <string name="settings_location_header">Sijainti</string>
     <string name="settings_auto_location">Automaattinen sijainti</string>
     <string name="settings_auto_location_sub">Päivitä paikkakunta laitteen sijainnin perusteella, jos lupa on annettu</string>
+    <string name="settings_auto_location_permission_missing">Sijaintilupa puuttuu, joten sää näytetään tallennetulle paikalle. Napauta antaaksesi luvan.</string>
     <string name="settings_auto_location_on">Automaattinen sijainti on käytössä.</string>
     <string name="settings_precise_location_denied">Tarkkaa sijaintilupaa ei annettu. Kaupunkihaku toimii normaalisti.</string>
     <string name="settings_bg_widgets">Widgetit taustalla</string>
@@ -139,6 +140,8 @@
     <string name="settings_downloading_installing">Ladataan ja asennetaan…</string>
     <string name="settings_download_install_sub">Haetaan GitHub-julkaisusta. Asennukseen tarvitaan lupa asentaa tuntemattomista lähteistä.</string>
     <string name="settings_github">GitHub – lähdekoodi ja julkaisut</string>
+    <string name="settings_place_sources">Paikannimet</string>
+    <string name="settings_place_sources_sub">Osoitteet: Maanmittauslaitos. Kunnat ja postinumeroalueet: Tilastokeskus (Paavo), CC BY 4.0; postinumeroalueiden nimiä on lyhennetty.</string>
     <string name="settings_no_browser">Selainta ei löytynyt</string>
     <string name="settings_update_allow_unknown_sources">Salli ensin asennus tuntemattomista lähteistä, sitten yritä uudelleen.</string>
     <string name="settings_update_opening_installer">Avataan asennus…</string>

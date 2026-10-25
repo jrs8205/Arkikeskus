@@ -34,6 +34,7 @@
     <string name="settings_location_header">Plats</string>
     <string name="settings_auto_location">Automatisk plats</string>
     <string name="settings_auto_location_sub">Uppdatera orten utifrån enhetens plats om behörighet har getts</string>
+    <string name="settings_auto_location_permission_missing">Platsbehörighet saknas, så vädret visas för den sparade orten. Tryck för att ge behörighet.</string>
     <string name="settings_auto_location_on">Automatisk plats är på.</string>
     <string name="settings_precise_location_denied">Behörighet till exakt plats gavs inte. Sökningen efter ort fungerar som vanligt.</string>
     <string name="settings_bg_widgets">Widgetar i bakgrunden</string>
@@ -139,6 +140,8 @@
     <string name="settings_downloading_installing">Laddar ner och installerar…</string>
     <string name="settings_download_install_sub">Hämtas från GitHub-utgåvan. Installationen kräver behörighet att installera appar från okända källor.</string>
     <string name="settings_github">GitHub – källkod och utgåvor</string>
+    <string name="settings_place_sources">Ortnamn</string>
+    <string name="settings_place_sources_sub">Adresser: Lantmäteriverket. Kommuner och postnummerområden: Statistikcentralen (Paavo), CC BY 4.0; postnummerområdenas namn har förkortats.</string>
     <string name="settings_no_browser">Ingen webbläsare hittades</string>
     <string name="settings_update_allow_unknown_sources">Tillåt först installation från okända källor och försök sedan igen.</string>
     <string name="settings_update_opening_installer">Öppnar installationen…</string>
