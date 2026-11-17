@@ -126,6 +126,11 @@ data class ArkiColors(
     val priceExpensive: Color,
     val priceExpensiveContainer: Color,
     val onPriceExpensiveContainer: Color,
+    // Sähkösivun hintarivin taustan lämpöasteikko (halvin → kallein). Rivin teksti on tummalla
+    // musteella, joten vaaleassa teemassa asteikko on vaaleista container-sävyistä.
+    val priceRowCheap: Color,
+    val priceRowNormal: Color,
+    val priceRowExpensive: Color,
     // Varoitukset (liikennetiedot ym.)
     val warning: Color,
     val warningContainer: Color,
@@ -166,7 +171,7 @@ data class ArkiColors(
     }
 }
 
-private val LightArki = ArkiColors(
+internal val LightArki = ArkiColors(
     priceCheap = Color(0xFF1E7D32),
     priceCheapContainer = Color(0xFFC8F0CF),
     onPriceCheapContainer = Color(0xFF00210B),
@@ -176,6 +181,9 @@ private val LightArki = ArkiColors(
     priceExpensive = Color(0xFFC12018),
     priceExpensiveContainer = Color(0xFFFFDAD5),
     onPriceExpensiveContainer = Color(0xFF410001),
+    priceRowCheap = Color(0xFFC8F0CF),
+    priceRowNormal = Color(0xFFFFE8B8),
+    priceRowExpensive = Color(0xFFFFDAD5),
     warning = Color(0xFFA14E10),
     warningContainer = Color(0xFFFFDCC2),
     onWarningContainer = Color(0xFF341100),
@@ -199,7 +207,7 @@ private val LightArki = ArkiColors(
     tileSurface = Color(0xFFFFFFFF),
 )
 
-private val DarkArki = ArkiColors(
+internal val DarkArki = ArkiColors(
     priceCheap = Color(0xFF7FD894),
     priceCheapContainer = Color(0xFF00522A),
     onPriceCheapContainer = Color(0xFF9BF5AE),
@@ -209,6 +217,9 @@ private val DarkArki = ArkiColors(
     priceExpensive = Color(0xFFFFB4AB),
     priceExpensiveContainer = Color(0xFF93000A),
     onPriceExpensiveContainer = Color(0xFFFFDAD5),
+    priceRowCheap = Color(0xFF7FD894),
+    priceRowNormal = Color(0xFFF4C14E),
+    priceRowExpensive = Color(0xFFFFB4AB),
     warning = Color(0xFFFFB68A),
     warningContainer = Color(0xFF6E3000),
     onWarningContainer = Color(0xFFFFDCC2),

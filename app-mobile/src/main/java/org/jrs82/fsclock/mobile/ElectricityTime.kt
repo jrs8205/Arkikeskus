@@ -63,6 +63,9 @@ object ElectricityTime {
 
     fun dstSuffix(context: Context, ms: Long): String = dstSuffixText(context, dstSuffixRes(ms))
 
+    /** True, kun hetki on talviaikaan siirtymisen toistuvan tunnin jälkimmäisellä kierroksella. */
+    fun isRepeatedPass(ms: Long): Boolean = overlapPass(ms) == 2
+
     /** 0 = tavallinen hetki, 1 = toistuvan tunnin ensimmäinen kierros, 2 = jälkimmäinen. */
     private fun overlapPass(ms: Long): Int {
         val z = Instant.ofEpochMilli(ms).atZone(HELSINKI)

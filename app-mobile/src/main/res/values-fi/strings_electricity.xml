@@ -19,7 +19,6 @@
     <string name="electricity_hour_range_short">Tunti klo %1$s–%2$s</string>
     <string name="electricity_hour_now_at">Tunnin keskihinta klo %1$s–%2$s</string>
     <string name="electricity_no_current_hour_price">Kuluvan tunnin hintaa ei ole vielä saatavilla</string>
-    <string name="electricity_heatmap_hour_average">Tunnin keskihinta</string>
     <string name="electricity_quarter_time">klo %1$s–%2$s</string>
     <string name="electricity_dst_summer">kesäaikaa</string>
     <string name="electricity_dst_winter">talviaikaa</string>
@@ -30,7 +29,6 @@
     <string name="electricity_fetch_failed">Hintojen haku epäonnistui. Tarkista verkkoyhteys ja kokeile uudelleen Päivitä-painikkeella.</string>
     <string name="electricity_source_footer">Lähde: Elering/Nord Pool. Hinnat %1$s.</string>
     <string name="electricity_source_footer_spot_hinta">Lähde: spot-hinta.fi (ENTSO-E). Hinnat %1$s.</string>
-    <string name="electricity_heatmap_hour">klo</string>
     <string name="electricity_dst_footnote">* Kello siirtyy talviaikaan, joten tunti 03 on kahdesti. Tähdellä merkitty rivi on jälkimmäinen (talviaikaa).</string>
     <string name="electricity_compare_header">Pörssisähkön keskihinnat (%1$s). Lähde: Elering/Nord Pool.</string>
     <string name="electricity_compare_year_avg">%1$d keskihinta</string>
@@ -46,4 +44,12 @@
     <string name="electricity_tomorrow_not_yet">Huomisen hinnat eivät ole vielä saatavilla.\nNord Pool julkaisee ne yleensä noin klo 14.\nPäivitetään automaattisesti…</string>
     <string name="electricity_cheapest_at">Halvin: %1$s %2$s c/kWh</string>
     <string name="electricity_most_expensive_at">Kallein: %1$s %2$s c/kWh</string>
+    <string name="electricity_unit_quarter">Vartti</string>
+    <string name="electricity_unit_hour">Tunti</string>
+    <string name="electricity_hourly_fallback">Päivältä puuttuu hintoja, joten hinnat näytetään vartteina.</string>
+    <string name="electricity_average">Keskihinta</string>
+    <string name="electricity_all_quarters">Kaikki vartit</string>
+    <string name="electricity_all_hours">Kaikki tunnit</string>
+    <string name="electricity_now_short">NYT</string>
+    <string name="electricity_jump_to_now">Siirry nykyhetkeen</string>
 </resources>

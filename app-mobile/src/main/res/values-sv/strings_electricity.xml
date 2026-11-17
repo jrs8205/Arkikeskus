@@ -19,7 +19,6 @@
     <string name="electricity_hour_range_short">Timme kl. %1$s–%2$s</string>
     <string name="electricity_hour_now_at">Timmens medelpris kl. %1$s–%2$s</string>
     <string name="electricity_no_current_hour_price">Priset för den pågående timmen är inte tillgängligt än</string>
-    <string name="electricity_heatmap_hour_average">Timmens medelpris</string>
     <string name="electricity_quarter_time">kl. %1$s–%2$s</string>
     <string name="electricity_dst_summer">sommartid</string>
     <string name="electricity_dst_winter">vintertid</string>
@@ -30,7 +29,6 @@
     <string name="electricity_fetch_failed">Priserna kunde inte hämtas. Kontrollera nätverksanslutningen och försök igen med Uppdatera-knappen.</string>
     <string name="electricity_source_footer">Källa: Elering/Nord Pool. Priserna %1$s.</string>
     <string name="electricity_source_footer_spot_hinta">Källa: spot-hinta.fi (ENTSO-E). Priserna %1$s.</string>
-    <string name="electricity_heatmap_hour">kl.</string>
     <string name="electricity_dst_footnote">* Klockan ställs om till vintertid, så timmen 03 förekommer två gånger. Raden med asterisk är den senare (vintertid).</string>
     <string name="electricity_compare_header">Börselns medelpriser (%1$s). Källa: Elering/Nord Pool.</string>
     <string name="electricity_compare_year_avg">Medelpris %1$d</string>
@@ -46,4 +44,12 @@
     <string name="electricity_tomorrow_not_yet">Morgondagens priser är inte tillgängliga än.\nNord Pool publicerar dem vanligen ca kl. 14.\nUppdateras automatiskt…</string>
     <string name="electricity_cheapest_at">Billigast: %1$s %2$s c/kWh</string>
     <string name="electricity_most_expensive_at">Dyrast: %1$s %2$s c/kWh</string>
+    <string name="electricity_unit_quarter">Kvart</string>
+    <string name="electricity_unit_hour">Timme</string>
+    <string name="electricity_hourly_fallback">Priser saknas för dagen, så priserna visas per kvart.</string>
+    <string name="electricity_average">Medelpris</string>
+    <string name="electricity_all_quarters">Alla kvartar</string>
+    <string name="electricity_all_hours">Alla timmar</string>
+    <string name="electricity_now_short">NU</string>
+    <string name="electricity_jump_to_now">Gå till nu</string>
 </resources>

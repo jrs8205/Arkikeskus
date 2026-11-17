@@ -19,7 +19,6 @@
     <string name="electricity_hour_range_short">Hour %1$s–%2$s</string>
     <string name="electricity_hour_now_at">Hourly average %1$s–%2$s</string>
     <string name="electricity_no_current_hour_price">The price for the current hour isn\'t available yet</string>
-    <string name="electricity_heatmap_hour_average">Hourly average</string>
     <string name="electricity_quarter_time">%1$s–%2$s</string>
     <string name="electricity_dst_summer">summer time</string>
     <string name="electricity_dst_winter">winter time</string>
@@ -30,7 +29,6 @@
     <string name="electricity_fetch_failed">Couldn\'t fetch the prices. Check your network connection and try again with the Refresh button.</string>
     <string name="electricity_source_footer">Source: Elering/Nord Pool. Prices %1$s.</string>
     <string name="electricity_source_footer_spot_hinta">Source: spot-hinta.fi (ENTSO-E). Prices %1$s.</string>
-    <string name="electricity_heatmap_hour">h</string>
     <string name="electricity_dst_footnote">* The clocks go back to winter time, so hour 03 occurs twice. The row marked with an asterisk is the second one (winter time).</string>
     <string name="electricity_compare_header">Average spot electricity prices (%1$s). Source: Elering/Nord Pool.</string>
     <string name="electricity_compare_year_avg">%1$d average price</string>
@@ -46,4 +44,12 @@
     <string name="electricity_tomorrow_not_yet">Tomorrow\'s prices aren\'t available yet.\nNord Pool usually publishes them at about 14:00.\nUpdating automatically…</string>
     <string name="electricity_cheapest_at">Cheapest: %1$s %2$s c/kWh</string>
     <string name="electricity_most_expensive_at">Most expensive: %1$s %2$s c/kWh</string>
+    <string name="electricity_unit_quarter">15 min</string>
+    <string name="electricity_unit_hour">Hour</string>
+    <string name="electricity_hourly_fallback">Some prices are missing for this day, so prices are shown per quarter hour.</string>
+    <string name="electricity_average">Average</string>
+    <string name="electricity_all_quarters">All quarter hours</string>
+    <string name="electricity_all_hours">All hours</string>
+    <string name="electricity_now_short">NOW</string>
+    <string name="electricity_jump_to_now">Go to now</string>
 </resources>
