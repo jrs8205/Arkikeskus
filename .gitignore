@@ -13,12 +13,3 @@ captures/
 *.apk
 *.aab
 releases/
-
-# Tyokalujen omat kansiot ja katselmustiedostot eivat kuulu repoon
-.claude/
-.remember/
-.superpowers/
-.agents/
-docs/superpowers/
-review-request*.md
-review-report*.txt
