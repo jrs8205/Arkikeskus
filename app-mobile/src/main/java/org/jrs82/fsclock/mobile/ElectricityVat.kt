@@ -26,6 +26,9 @@ object ElectricityVat {
      *  lisätään vain nollaa suurempiin hintoihin. Keskiarvot lasketaan siksi näytetyistä hinnoista. */
     fun apply(snt: Double, enabled: Boolean): Double = if (enabled && snt > 0.0) snt * FACTOR else snt
 
+    /** [apply]n käänteistoiminto: veroton hinta, josta [apply] tuottaa annetun näytettävän hinnan. */
+    fun unapply(shown: Double, enabled: Boolean): Double = if (enabled && shown > 0.0) shown / FACTOR else shown
+
     @StringRes
     fun labelRes(enabled: Boolean): Int =
         if (enabled) R.string.electricity_vat_label_incl else R.string.electricity_vat_label_zero

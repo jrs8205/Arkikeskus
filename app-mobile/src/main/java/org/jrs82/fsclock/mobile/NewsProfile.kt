@@ -165,16 +165,21 @@ object NewsProfile {
 
     /** Valmis aihepaketti: osuu jutun topic-tagiin (esim. sport) JA laajaan otsikkosanastoon →
      *  saa kiinni myös ne aihejutut joiden otsikossa ei lue aiheen nimeä. [id] on prefs-avaimen osa
-     *  (ei näytetä), näkyvä nimi tulee [labelRes]-resurssista. */
+     *  (ei näytetä), näkyvä nimi tulee [labelRes]-resurssista.
+     *
+     *  [keywords] on suomenkielinen sanasto kotimaan otsikoille: osittainen osuma, joten taivutusmuodot
+     *  ja yhdyssanat osuvat. [englishKeywords] on ulkomaan alkuperäiskielisille (käytännössä
+     *  englanninkielisille) otsikoille: osuu vain kokonaiseen sanaan tai sanaliittoon, koska englannissa
+     *  osittainen osuma antaisi vääriä osumia (selection ⊃ election, Crimea ⊃ crime, transport ⊃ sport). */
     data class MutePack(
         val id: String,
         @StringRes val labelRes: Int,
         val topicTags: Set<String>,
         val keywords: Set<String>,
+        val englishKeywords: Set<String> = emptySet(),
     )
 
-    /** Aloituspaketit (helppo laajentaa). Sanastot pieninä kirjaimina (vertailu on case-insensitive).
-     *  Sanastot ovat suomeksi kaikilla kielillä, koska ne verrataan backendin suomenkielisiin otsikoihin. */
+    /** Aloituspaketit (helppo laajentaa). Sanastot pieninä kirjaimina (vertailu on case-insensitive). */
     val MUTE_PACKS: List<MutePack> = listOf(
         MutePack(
             "urheilu", R.string.news_pack_sport, setOf("sport"),
@@ -182,6 +187,12 @@ object NewsProfile {
                 "urheilu", "jääkiekko", "jalkapallo", "koripallo", "lentopallo", "salibandy",
                 "formula", "f1", "ralli", "hiihto", "yleisurheilu", "golf", "tennis", "ottelu",
                 "liiga", "mm-kisat", "olympia", "maajoukkue", "valmentaja", "maaottelu", "huuhkajat",
+            ),
+            setOf(
+                "sport", "sports", "football", "soccer", "basketball", "hockey", "volleyball",
+                "formula 1", "formula one", "grand prix", "skiing", "athletics", "olympic", "olympics",
+                "world cup", "premier league", "champions league", "nba", "nfl", "nhl",
+                "national team", "head coach",
             ),
         ),
         MutePack(
@@ -191,12 +202,23 @@ object NewsProfile {
                 "pääministeri", "presidentti", "vaalit", "kansanedustaja", "oppositio", "lakiesitys",
                 "budjettiriihi", "valtiovarain",
             ),
+            setOf(
+                "politics", "political", "politician", "politicians", "government", "governments",
+                "parliament", "senate", "senator", "senators", "lawmaker", "lawmakers", "minister",
+                "ministers", "president", "presidential", "election", "elections", "opposition",
+                "legislation",
+            ),
         ),
         MutePack(
             "viihde", R.string.news_pack_entertainment, setOf("entertainment"),
             setOf(
                 "viihde", "julkkis", "juoru", "horoskooppi", "realitysarja", "tähti", "kuninkaallinen",
                 "missikisat", "tubettaja", "somettaja",
+            ),
+            setOf(
+                "entertainment", "celebrity", "celebrities", "gossip", "horoscope", "horoscopes",
+                "reality show", "reality tv", "royal family", "royals", "pageant", "youtuber",
+                "influencer", "influencers",
             ),
         ),
         MutePack(
@@ -205,12 +227,25 @@ object NewsProfile {
                 "talous", "pörssi", "osake", "inflaatio", "korko", "konkurssi", "työttömyys",
                 "lakko", "osinko", "bruttokansantuote", "tulos",
             ),
+            setOf(
+                "economy", "economic", "economics", "economist", "economists", "inflation",
+                "interest rate", "interest rates", "stock market", "stock markets", "stocks",
+                "wall street", "share price", "bankrupt", "bankruptcy", "unemployment", "dividend",
+                "dividends", "gdp", "earnings",
+            ),
         ),
         MutePack(
             "rikokset", R.string.news_pack_crime, emptySet(),
             setOf(
                 "poliisi", "rikos", "epäilty", "murha", "henkirikos", "pidätys", "käräjäoikeus",
                 "tuomio", "huumeet", "väkivalta", "onnettomuus", "kolari", "puukotus",
+            ),
+            setOf(
+                "police", "crime", "crimes", "criminal", "criminals", "suspect", "suspects", "murder",
+                "murders", "murdered", "homicide", "manslaughter", "arrest", "arrests", "arrested",
+                "courtroom", "sentenced", "convicted", "verdict", "jailed", "drug trafficking",
+                "narcotics", "cocaine", "violence", "accident", "accidents", "collision", "collisions",
+                "car crash", "plane crash", "train crash", "bus crash", "stabbing", "stabbed",
             ),
         ),
     )
@@ -274,8 +309,29 @@ object NewsProfile {
         return false
     }
 
+    /** Osuuko otsikkoon jokin sana tai sanaliitto KOKONAISENA (case-insensitive): osuman molemmin
+     *  puolin on otsikon reuna tai muu merkki kuin kirjain tai numero, joten omistusmuoto ja
+     *  yhdysmerkillinen sana osuvat, mutta "selection" ei osu sanaan "election". [words] pienin
+     *  kirjaimin. Pure. */
+    fun isTitleMutedByWholeWord(title: String, words: Collection<String>): Boolean {
+        if (title.isBlank() || words.isEmpty()) return false
+        val t = title.lowercase()
+        for (w in words) {
+            if (w.isEmpty()) continue
+            var i = t.indexOf(w)
+            while (i >= 0) {
+                val end = i + w.length
+                val startsWord = i == 0 || !t[i - 1].isLetterOrDigit()
+                val endsWord = end == t.length || !t[end].isLetterOrDigit()
+                if (startsWord && endsWord) return true
+                i = t.indexOf(w, i + 1)
+            }
+        }
+        return false
+    }
+
     /** Mykistyykö juttu: aktiivisen paketin topic-tagi ∈ jutun aiheet, TAI mykistyssana/paketin
-     *  sanasto osuu otsikkoon (suomennettu tai alkuperäinen). Pure. */
+     *  sanasto osuu otsikkoon. Pure. */
     fun isArticleMuted(a: ForeignArticle, words: Collection<String>, packs: List<MutePack>): Boolean {
         if (packs.isNotEmpty()) {
             val tags = a.topics.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -283,9 +339,8 @@ object NewsProfile {
         }
         val all = HashSet<String>(words)
         for (p in packs) all.addAll(p.keywords)
-        if (all.isEmpty()) return false
-        if (isTitleMuted(a.titleFi, all)) return true
-        if (a.titleOrig.isNotBlank() && a.titleOrig != a.titleFi && isTitleMuted(a.titleOrig, all)) return true
+        if (isTitleMuted(a.title, all)) return true
+        for (p in packs) if (isTitleMutedByWholeWord(a.title, p.englishKeywords)) return true
         return false
     }
 
@@ -324,8 +379,7 @@ object NewsProfile {
         out.put(
             JSONObject()
                 .put("u", a.url)
-                .put("t", a.titleFi)
-                .put("o", a.titleOrig)
+                .put("t", a.title)
                 .put("i", a.imageUrl ?: "")
                 .put("s", a.source)
                 .put("p", a.topics)
@@ -365,8 +419,8 @@ object NewsProfile {
             if (url.isEmpty()) continue
             out.add(
                 ForeignArticle(
-                    titleFi = o.optString("t"),
-                    titleOrig = o.optString("o").ifEmpty { o.optString("t") },
+                    // Aiemmat versiot tallensivat suomennoksen ("t") ja alkuperäisen ("o") erikseen.
+                    title = o.optString("o").ifEmpty { o.optString("t") },
                     url = url,
                     imageUrl = o.optString("i").ifEmpty { null },
                     source = o.optString("s"),

@@ -14,8 +14,7 @@ import org.junit.Test
 class NewsReadHistoryTest {
 
     private fun art(url: String, title: String = "T", ms: Long = 0L) = ForeignArticle(
-        titleFi = title,
-        titleOrig = title,
+        title = title,
         url = url,
         imageUrl = null,
         source = "Src",
@@ -32,8 +31,18 @@ class NewsReadHistoryTest {
         assertTrue("https://a" in NewsProfile.readUrls(p))
         val read = NewsProfile.readArticles(p)
         assertEquals(1, read.size)
-        assertEquals("Eka", read[0].titleFi)
+        assertEquals("Eka", read[0].title)
         assertEquals("https://a", read[0].url)
+    }
+
+    @Test
+    fun `aiemman version tallentama luettu juttu naytetaan alkuperaisella otsikolla`() {
+        val p = FakeSharedPreferences()
+        p.edit().putString(
+            "news_read_v1",
+            """[{"u":"https://a","t":"Satama aukeaa","o":"Harbor reopens","s":"Wire"},{"u":"https://b","t":"Vain yksi otsikko"}]""",
+        ).apply()
+        assertEquals(listOf("Harbor reopens", "Vain yksi otsikko"), NewsProfile.readArticles(p).map { it.title })
     }
 
     @Test

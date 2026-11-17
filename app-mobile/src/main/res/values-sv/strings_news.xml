@@ -13,8 +13,6 @@
     <string name="news_tab_read">Lästa</string>
     <string name="news_title_domestic">Inrikes</string>
     <string name="news_title_foreign">Utrikes</string>
-    <string name="news_titles_in_finnish">Rubriker på finska</string>
-    <string name="news_titles_in_english">Rubriker på engelska</string>
     <string name="news_filter">Nyhetsfilter</string>
     <plurals name="news_hidden_by_filter">
         <item quantity="one">%1$d dold av filtret</item>

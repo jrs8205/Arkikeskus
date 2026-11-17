@@ -1,5 +1,6 @@
 package org.jrs82.fsclock.mobile.widget
 
+import org.jrs82.fsclock.mobile.ElectricityHourly
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -34,11 +35,30 @@ object WidgetElectricity {
         emptyList()
     }
 
-    fun currentPrice(list: List<QuarterPrice>, nowMs: Long): Double {
+    /** [slotMs] = listan jakson pituus: vartti, tai tunti kun lista on [hourly]n tuottama. */
+    fun currentPrice(list: List<QuarterPrice>, nowMs: Long, slotMs: Long = QUARTER_MS): Double {
         for (q in list) {
-            if (q.timestamp <= nowMs && nowMs < q.timestamp + QUARTER_MS) return q.snt
+            if (q.timestamp <= nowMs && nowMs < q.timestamp + slotMs) return q.snt
         }
         return Double.NaN
+    }
+
+    /** Widgetin näytettävät jaksot ja niiden pituus. */
+    data class Slots(val list: List<QuarterPrice>, val slotMs: Long)
+
+    /** Tuntitilassa kuluvan päivän tunnit, jos sen jokainen tunti on täysi
+     *  ([ElectricityHourly.completeDayHourAverages]); muuten koko varttilista sellaisenaan, jolloin
+     *  vajaan tunnin tunnetut vartit pysyvät mukana hinnassa ja hintajanan asteikossa. */
+    fun todaySlots(list: List<QuarterPrice>, nowMs: Long, hourly: Boolean, vat: Boolean): Slots {
+        if (hourly) {
+            val start = dayStart(nowMs)
+            val end = Instant.ofEpochMilli(nowMs).atZone(HELSINKI).toLocalDate().plusDays(1)
+                .atStartOfDay(HELSINKI).toInstant().toEpochMilli()
+            val today = list.filter { it.timestamp >= start && it.timestamp < end }.map { it.timestamp to it.snt }
+            val hours = ElectricityHourly.completeDayHourAverages(today, vat)
+            if (hours != null) return Slots(hours.map { (timestamp, snt) -> QuarterPrice(timestamp, snt) }, ElectricityHourly.HOUR_MS)
+        }
+        return Slots(list, QUARTER_MS)
     }
 
     /** Kuluvan päivän alku Suomen aikaa (epoch-ms). */
@@ -49,7 +69,7 @@ object WidgetElectricity {
      *  vaihtuu keskiyöllä ilman workerin ajoa. null jos lista ei kata päivää ensimmäisestä vartista
      *  viimeiseen: vajaa lista (sovelluspäivitystä edeltävä cache, joka alkoi tuntia ennen tallennusta,
      *  tai keskiyön jälkeen pelkät aamuyön vartit) näyttäisi loppupäivän ääriarvot koko päivän asteikkona. */
-    fun dayRange(list: List<QuarterPrice>, nowMs: Long): Pair<Double, Double>? {
+    fun dayRange(list: List<QuarterPrice>, nowMs: Long, slotMs: Long = QUARTER_MS): Pair<Double, Double>? {
         val today = Instant.ofEpochMilli(nowMs).atZone(HELSINKI).toLocalDate()
         val start = today.atStartOfDay(HELSINKI).toInstant().toEpochMilli()
         val end = today.plusDays(1).atStartOfDay(HELSINKI).toInstant().toEpochMilli()
@@ -64,7 +84,7 @@ object WidgetElectricity {
             if (q.timestamp < first) first = q.timestamp
             if (q.timestamp > last) last = q.timestamp
         }
-        if (first != start || last != end - QUARTER_MS) return null
+        if (first != start || last != end - slotMs) return null
         return min to max
     }
 

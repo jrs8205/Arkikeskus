@@ -15,12 +15,10 @@ class NewsMuteTest {
 
     private fun art(
         url: String,
-        titleFi: String = "Otsikko",
-        titleOrig: String = titleFi,
+        title: String = "Otsikko",
         topics: String = "world",
     ) = ForeignArticle(
-        titleFi = titleFi,
-        titleOrig = titleOrig,
+        title = title,
         url = url,
         imageUrl = null,
         source = "Src",
@@ -72,8 +70,8 @@ class NewsMuteTest {
     }
 
     @Test
-    fun `isArticleMuted osuu alkuperaiseen otsikkoon`() {
-        val a = art("u", "Suomennettu otsikko", titleOrig = "Original rumor here", topics = "world")
+    fun `isArticleMuted osuu englanninkieliseen otsikkoon`() {
+        val a = art("u", "Original rumor here", topics = "world")
         assertTrue(NewsProfile.isArticleMuted(a, listOf("rumor"), emptyList()))
     }
 
@@ -119,6 +117,61 @@ class NewsMuteTest {
             art("2", "Sää lämpenee", topics = "world"),
         )
         assertEquals(listOf("2"), NewsProfile.applyMute(p, items).map { it.url })
+    }
+
+    // ---- aihepaketit ja alkuperäiskieliset (englanninkieliset) otsikot ----
+
+    private fun mutedBy(packId: String, title: String) =
+        NewsProfile.isArticleMuted(art("u", title, topics = "world"), emptyList(), listOf(pack(packId)))
+
+    @Test
+    fun `politiikkapaketti mykistaa englanninkielisen politiikkaotsikon`() {
+        assertTrue(mutedBy("politiikka", "Prime minister calls snap election after budget defeat"))
+        assertTrue(mutedBy("politiikka", "Parliament backs the government's new border law"))
+        assertTrue(mutedBy("politiikka", "Opposition lawmakers walk out of the Senate"))
+    }
+
+    @Test
+    fun `talouspaketti mykistaa englanninkielisen talousotsikon`() {
+        assertTrue(mutedBy("talous", "Inflation eases as central bank holds interest rates"))
+        assertTrue(mutedBy("talous", "Stocks slide on Wall Street after weak earnings"))
+        assertTrue(mutedBy("talous", "Retailer files for bankruptcy as unemployment climbs"))
+    }
+
+    @Test
+    fun `rikospaketti mykistaa englanninkielisen rikos- ja onnettomuusotsikon`() {
+        assertTrue(mutedBy("rikokset", "Police arrest suspect after stabbing in city centre"))
+        assertTrue(mutedBy("rikokset", "Man sentenced to 12 years for murder"))
+        assertTrue(mutedBy("rikokset", "Two dead in motorway collision"))
+    }
+
+    @Test
+    fun `urheilu- ja viihdepaketti osuvat englanninkieliseen otsikkoon ilman aihetagia`() {
+        assertTrue(mutedBy("urheilu", "Olympics organisers unveil medal design"))
+        assertTrue(mutedBy("urheilu", "Premier League club sacks head coach"))
+        assertTrue(mutedBy("viihde", "Celebrity gossip site shuts down after 20 years"))
+    }
+
+    @Test
+    fun `englanninkielinen sanasto osuu vain kokonaiseen sanaan`() {
+        assertFalse(mutedBy("politiikka", "Team selection surprises fans")) // selection ⊃ election
+        assertFalse(mutedBy("politiikka", "Nurses administer first doses of new vaccine")) // administer ⊃ minister
+        assertFalse(mutedBy("rikokset", "Crimea bridge reopens to traffic")) // Crimea ⊃ crime
+        assertFalse(mutedBy("urheilu", "Public transport fares to rise next year")) // transport ⊃ sport
+        assertFalse(mutedBy("urheilu", "Conflict over water rights deepens")) // conflict ⊃ nfl
+        assertFalse(mutedBy("talous", "Stockholm hosts climate summit")) // Stockholm ⊃ stock
+    }
+
+    @Test
+    fun `englanninkielinen sanasto osuu omistusmuotoon ja yhdysmerkkiin`() {
+        assertTrue(mutedBy("politiikka", "President’s speech draws protests"))
+        assertTrue(mutedBy("politiikka", "Anti-government rally fills the capital"))
+    }
+
+    @Test
+    fun `suomenkielinen otsikko mykistyy edelleen osittaisella osumalla`() {
+        assertTrue(mutedBy("politiikka", "Pääministerin ehdotus jakaa hallituspuolueita"))
+        assertTrue(mutedBy("rikokset", "Henkirikoksesta epäilty vangittiin"))
     }
 
     // ---- sanojen hallinta ----

@@ -873,7 +873,15 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val loc = AppLocale.current(context)
     val settingsRevision = LocalHomeDataRevision.current
     val vat = remember(settingsRevision) { ElectricityVat.enabled(prefs) }
-    val q = remember(tick) { repo.currentQuarter() }
+    val hourlySetting = remember(settingsRevision) { ElectricityHourly.enabled(prefs) }
+    // Tuntitila on voimassa vain päivälle, jonka jokainen tunti on täysi; muuten näytetään vartit.
+    val today = remember(tick, hourlySetting, vat) { ElectricityHourly.daySlots(todayQuarters(repo), hourlySetting, vat) }
+    val hourly = today.hourly
+    val q = remember(tick, today) {
+        if (hourly) ElectricityHourly.current(today.slots, System.currentTimeMillis(), ElectricityHourly.HOUR_MS)
+        else repo.currentQuarter()
+    }
+    val fetchFailed = remember(tick) { repo.lastFetchFailed() }
     val notice = remember(tick, settingsRevision) { cheapNotice(context, prefs, repo) }
     val threshold = remember(tick, settingsRevision) { cheapThreshold(prefs) }
     val arki = ArkiTheme.colors
@@ -893,7 +901,16 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
             )
             Spacer(Modifier.height(12.dp))
             if (q == null) {
-                Text(stringResource(R.string.electricity_no_current_price), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(
+                        when {
+                            fetchFailed -> R.string.electricity_fetch_failed
+                            hourly -> R.string.electricity_no_current_hour_price
+                            else -> R.string.electricity_no_current_price
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             } else {
                 val cs = MaterialTheme.colorScheme
                 val price = ElectricityVat.apply(q.sntPerKwh, vat)
@@ -931,7 +948,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        quarterRangeText(context, q),
+                        slotRangeText(context, q, hourly),
                         style = MaterialTheme.typography.bodySmall,
                         color = cs.onSurfaceVariant,
                     )
@@ -942,7 +959,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant,
                 )
-                val range = remember(tick) { todayElecRange(repo) }
+                val range = remember(today) { slotRange(today.slots) }
                 val rmin = range.first
                 val rmax = range.second
                 if (rmin != null && rmax != null && rmax.sntPerKwh > rmin.sntPerKwh) {
@@ -1017,19 +1034,27 @@ private fun priceTrendIcon(level: PriceLevel): Int? = when (level) {
     PriceLevel.NORMAL -> null
 }
 
-/** Tämän päivän halvin/kallein vartti (liikennevalomittariin + halvin/kallein-lappuihin). */
-private fun todayElecRange(repo: ElectricityRepository): Pair<ElectricityData.Quarter?, ElectricityData.Quarter?> {
+private fun todayQuarters(repo: ElectricityRepository): List<ElectricityData.Quarter> {
     val cal = Calendar.getInstance(HELSINKI, FI)
-    val qs = repo.dayQuarters(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
-    if (qs.isNullOrEmpty()) return null to null
-    return qs.minByOrNull { it.sntPerKwh } to qs.maxByOrNull { it.sntPerKwh }
+    return repo.dayQuarters(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
 }
 
-private fun quarterRangeText(context: Context, q: ElectricityData.Quarter): String {
-    val (start, end) = ElectricityTime.quarterBounds(q.timestamp)
-    val from = String.format(Locale.ROOT, "%02d.%02d", start.hour, start.minute)
-    val to = String.format(Locale.ROOT, "%02d.%02d", end.hour, end.minute)
-    return context.getString(R.string.electricity_quarter_range, from, to, to)
+/** Jaksojen halvin ja kallein (liikennevalomittariin + halvin/kallein-lappuihin). */
+private fun slotRange(slots: List<ElectricityData.Quarter>): Pair<ElectricityData.Quarter?, ElectricityData.Quarter?> {
+    if (slots.isEmpty()) return null to null
+    return slots.minByOrNull { it.sntPerKwh } to slots.maxByOrNull { it.sntPerKwh }
+}
+
+/** Jakson alku ja loppu muodossa "18.30" ja "18.45" (Suomen aikaa, oikein myös kellonsiirron yli). */
+private fun slotClockRange(timestamp: Long, slotMs: Long): Pair<String, String> {
+    val (start, end) = ElectricityTime.slotBounds(timestamp, slotMs)
+    return String.format(Locale.ROOT, "%02d.%02d", start.hour, start.minute) to
+        String.format(Locale.ROOT, "%02d.%02d", end.hour, end.minute)
+}
+
+private fun slotRangeText(context: Context, q: ElectricityData.Quarter, hourly: Boolean): String {
+    val (from, to) = slotClockRange(q.timestamp, ElectricityHourly.slotMs(hourly))
+    return context.getString(if (hourly) R.string.electricity_hour_range else R.string.electricity_quarter_range, from, to, to)
 }
 
 /** Liikennevalomittari: vihreä→keltainen→punainen liuku päivän halvimmasta kalleimpaan varttiin,
@@ -1266,6 +1291,7 @@ internal fun ElectricitySection() {
     val settingsRevision = LocalHomeDataRevision.current
     val threshold = remember(settingsRevision) { cheapThreshold(prefs) }
     val vat = remember(settingsRevision) { ElectricityVat.enabled(prefs) }
+    val hourly = remember(settingsRevision) { ElectricityHourly.enabled(prefs) }
     val refresh = LocalRefreshTick.current
     var dayOffset by remember { mutableStateOf(0) }
     var tick by remember { mutableStateOf(0) }
@@ -1311,7 +1337,7 @@ internal fun ElectricitySection() {
         if (dayOffset == 2) {
             ElectricityCompare(context, refresh, vat)
         } else {
-            ElectricityDay(repo, threshold, dayOffset, tick, vat)
+            ElectricityDay(repo, threshold, dayOffset, tick, vat, hourly)
         }
     }
 }
@@ -1332,7 +1358,7 @@ private fun ElecTab(label: String, selected: Boolean, modifier: Modifier, onClic
 }
 
 @Composable
-private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOffset: Int, tick: Int, vat: Boolean) {
+private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOffset: Int, tick: Int, vat: Boolean, hourlySetting: Boolean) {
     val context = LocalContext.current
     val loc = AppLocale.current(context)
     val arki = ArkiTheme.colors
@@ -1342,39 +1368,43 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
         c.add(Calendar.DAY_OF_YEAR, dayOffset)
         repo.dayQuarters(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
     }
-    val current = remember(tick, dayOffset) { if (dayOffset == 0) repo.currentQuarter() else null }
+    // Näytettävät jaksot: vartit, tai asetuksella tuntien keskihinnat. Tuntitila on voimassa vain
+    // päivälle, jonka jokainen tunti on täysi; vajaa päivä näytetään vartteina.
+    val day = remember(quarters, hourlySetting, vat) { ElectricityHourly.daySlots(quarters, hourlySetting, vat) }
+    val slots = day.slots
+    val hourly = day.hourly
+    val current = remember(tick, dayOffset, day) {
+        when {
+            dayOffset != 0 -> null
+            hourly -> ElectricityHourly.current(slots, System.currentTimeMillis(), ElectricityHourly.HOUR_MS)
+            else -> repo.currentQuarter()
+        }
+    }
+    val fetchFailed = remember(tick) { repo.lastFetchFailed() }
 
     // Näytä huomisen hinnat vasta kun koko päivä on iltaan asti (tunti ≥ 20) — pelkkä CET-ylivuoto
     // (huomisen 00:00–00:45) ei riitä. Toimii myös DST-päivinä (92 / 100 varttia) toisin kuin kiinteä 96.
-    if (dayOffset == 1 && (quarters == null || quarters.none { it.hour >= 20 })) {
+    val tomorrowIncomplete = dayOffset == 1 && (quarters == null || quarters.none { it.hour >= 20 })
+    if (tomorrowIncomplete || quarters.isNullOrEmpty() || slots.isEmpty()) {
         Text(
-            stringResource(R.string.electricity_tomorrow_pending),
+            stringResource(electricityEmptyTextRes(dayOffset, fetchFailed)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         return
     }
-    if (quarters.isNullOrEmpty()) {
-        Text(
-            stringResource(
-                if (dayOffset == 0) R.string.electricity_today_unavailable else R.string.electricity_tomorrow_pending,
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        return
-    }
-    val min = quarters.minByOrNull { it.sntPerKwh }
-    val max = quarters.maxByOrNull { it.sntPerKwh }
+    val min = slots.minByOrNull { it.sntPerKwh }
+    val max = slots.maxByOrNull { it.sntPerKwh }
     val dayMin = min?.sntPerKwh ?: 0.0
     val dayMax = max?.sntPerKwh ?: 0.0
     val cs = MaterialTheme.colorScheme
 
     // HERO: tasopilli/"Huomenna" + iso hinta + halvin/kallein + lähde
+    val hero = electricityHero(dayOffset, current != null)
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (dayOffset == 0 && current != null) {
+                if (hero == ElectricityHero.CURRENT && current != null) {
                     val level = priceLevel(ElectricityVat.apply(current.sntPerKwh, vat), threshold)
                     ArkiPill(
                         text = stringResource(priceLabelRes(level)),
@@ -1383,11 +1413,24 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        stringResource(
-                            R.string.electricity_now_at,
-                            String.format(Locale.ROOT, "%02d:%02d", current.hour, current.minute),
-                        ),
+                        if (hourly) {
+                            val (from, to) = slotClockRange(current.timestamp, ElectricityHourly.HOUR_MS)
+                            stringResource(R.string.electricity_hour_now_at, from, to)
+                        } else {
+                            stringResource(
+                                R.string.electricity_now_at,
+                                String.format(Locale.ROOT, "%02d:%02d", current.hour, current.minute),
+                            )
+                        },
                         style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                } else if (hero == ElectricityHero.NO_CURRENT) {
+                    // Päivältä on hintoja, mutta ei kuluvalle jaksolle: kerrotaan se eikä näytetä
+                    // huomisen esitystä (Huomenna-tunnus + päivän keskihinta) nykyhinnan paikalla.
+                    Text(
+                        stringResource(electricityNoCurrentTextRes(hourly)),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = cs.onSurfaceVariant,
                     )
                 } else {
@@ -1404,9 +1447,12 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                 }
             }
             Spacer(Modifier.height(12.dp))
-            val heroPrice =
-                if (dayOffset == 0 && current != null) ElectricityVat.apply(current.sntPerKwh, vat)
-                else quarters.map { ElectricityVat.apply(it.sntPerKwh, vat) }.average()
+            // NO_CURRENT: hinnan paikalla viiva (NaN), ei päivän keskiarvoa.
+            val heroPrice = when {
+                hero == ElectricityHero.CURRENT && current != null -> ElectricityVat.apply(current.sntPerKwh, vat)
+                hero == ElectricityHero.DAY_AVERAGE -> quarters.map { ElectricityVat.apply(it.sntPerKwh, vat) }.average()
+                else -> Double.NaN
+            }
             val heroLevel = priceLevel(heroPrice, threshold)
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
@@ -1457,15 +1503,16 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                 ""
             }
             Text(
-                updated + stringResource(R.string.electricity_source_footer, stringResource(ElectricityVat.labelRes(vat))),
+                updated + stringResource(electricitySourceFooterRes(data?.source), stringResource(ElectricityVat.labelRes(vat))),
                 fontSize = 11.sp,
                 color = cs.onSurfaceVariant,
             )
         }
     }
 
-    // LÄMPÖKARTTA: tuntirivit × 4 varttisolua (solun väri = hinnan taso). Rivit todellisista tunneista:
-    // talviaikaan siirryttäessä tunti 03 on kahdesti (25 riviä), kesäaikaan siirryttäessä sitä ei ole (23).
+    // LÄMPÖKARTTA: tuntirivit × 4 varttisolua, tai asetuksella yksi tunnin keskihinnan solu per rivi
+    // (solun väri = hinnan taso). Rivit todellisista tunneista: talviaikaan siirryttäessä tunti 03 on
+    // kahdesti (25 riviä), kesäaikaan siirryttäessä sitä ei ole (23).
     Spacer(Modifier.height(16.dp))
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -1473,14 +1520,15 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                 Text(stringResource(R.string.electricity_heatmap_hour), modifier = Modifier.width(24.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
                 Spacer(Modifier.width(8.dp))
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    listOf("15", "30", "45", "60").forEach {
+                    val columns = if (hourly) listOf(stringResource(R.string.electricity_heatmap_hour_average)) else listOf("15", "30", "45", "60")
+                    columns.forEach {
                         Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
                     }
                 }
             }
             HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.6f), thickness = 1.dp)
             Spacer(Modifier.height(4.dp))
-            val byHour = quarters.groupBy { ElectricityTime.hourKey(it.timestamp) }
+            val byHour = slots.groupBy { ElectricityTime.hourKey(it.timestamp) }
             val hourRows = remember(quarters.first().timestamp) { ElectricityTime.dayHours(quarters.first().timestamp) }
             for (hr in hourRows) {
                 val hourQs = byHour[ElectricityTime.hourKey(hr.startMs)].orEmpty()
@@ -1488,7 +1536,8 @@ private fun ElectricityDay(repo: ElectricityRepository, threshold: Double, dayOf
                     Text(String.format(Locale.ROOT, "%02d", hr.hour) + if (hr.repeated) "*" else "", modifier = Modifier.width(24.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cs.onSurfaceVariant)
                     Spacer(Modifier.width(8.dp))
                     Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        for (col in 0..3) {
+                        // Tuntitilassa rivillä on yksi jakso (minuutti 0), varttitilassa neljä.
+                        for (col in 0 until if (hourly) 1 else 4) {
                             val q = hourQs.firstOrNull { it.minute == col * 15 }
                             if (q != null) {
                                 HeatCell(q, dayMin, dayMax, current != null && q.timestamp == current.timestamp, vat, loc, Modifier.weight(1f))
@@ -2371,8 +2420,8 @@ private fun cheapNotice(context: Context, prefs: SharedPreferences, repo: Electr
     val cal = Calendar.getInstance(HELSINKI, FI)
     val today = repo.dayQuarters(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
     val vat = ElectricityVat.enabled(prefs)
-    val checked = filterByMode(today, mode)
-    if (checked.isEmpty() || !allBelow(checked, threshold, vat)) return null
+    val checked = cheapNoticeSlots(today, mode, ElectricityHourly.enabled(prefs), vat, System.currentTimeMillis())
+    if (!allBelowThreshold(checked, threshold, vat)) return null
     val max = checked.maxByOrNull { it.sntPerKwh } ?: return null
     val loc = AppLocale.current(context)
     return context.getString(
@@ -2389,22 +2438,6 @@ private fun cheapThreshold(prefs: SharedPreferences): Double {
     } catch (e: NumberFormatException) {
         5.0
     }
-}
-
-private fun filterByMode(today: List<ElectricityData.Quarter>, mode: String): List<ElectricityData.Quarter> {
-    val now = System.currentTimeMillis()
-    return today.filter { q ->
-        when (mode) {
-            MobileThemeController.CHEAP_MODE_CURRENT -> q.timestamp <= now && q.timestamp + 15L * 60_000L > now
-            MobileThemeController.CHEAP_MODE_REMAINING_DAY -> q.timestamp + 15L * 60_000L > now
-            else -> true
-        }
-    }
-}
-
-private fun allBelow(quarters: List<ElectricityData.Quarter>, threshold: Double, vat: Boolean): Boolean {
-    if (quarters.isEmpty()) return false
-    return quarters.all { ElectricityVat.apply(it.sntPerKwh, vat) < threshold }
 }
 
 // Koko lause per tila, koska ajanilmaus taipuu eri kielissä eri kohtaan lausetta.

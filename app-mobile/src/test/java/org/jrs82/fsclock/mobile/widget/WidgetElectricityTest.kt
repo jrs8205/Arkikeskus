@@ -127,4 +127,73 @@ class WidgetElectricityTest {
     @Test fun nextQuarterBoundary_onBoundary_isFollowingQuarter() {
         assertEquals(q0 + quarterMs, WidgetElectricity.nextQuarterBoundary(q0))
     }
+
+    // ---- tunnin keskihinta (asetus "Näytä tunnin keskihinta") ----
+
+    private val hourMs = 4 * quarterMs
+    private val h0 = q0 - (q0 % hourMs)
+
+    @Test fun todaySlots_withVat_hourPriceIsAverageOfShownQuarterPrices() {
+        // ALV vain positiivisiin vartteihin: tunnin 03 vartit -1, -1, 3, 3 → (-1 - 1 + 3,765 + 3,765) / 4.
+        val prices = listOf(-1.0, -1.0, 3.0, 3.0)
+        val h3 = dayStart + 3 * hourMs
+        val day = quarters(dayStart, dayStart + dayMs) {
+            if (it >= h3 && it < h3 + hourMs) prices[((it - h3) / quarterMs).toInt()] else 2.0
+        }
+        val slots = WidgetElectricity.todaySlots(day, now, hourly = true, vat = true)
+        val slot = slots.list.single { it.timestamp == h3 }
+        val shown = org.jrs82.fsclock.mobile.ElectricityVat.apply(slot.snt, true)
+        assertEquals((-2.0 + 2 * 3.0 * 1.255) / 4.0, shown, 1e-9)
+    }
+
+    @Test fun currentPrice_withHourSlots_coversWholeHour() {
+        val slots = listOf(WidgetElectricity.QuarterPrice(h0, 7.0), WidgetElectricity.QuarterPrice(h0 + hourMs, 9.0))
+        assertEquals(7.0, WidgetElectricity.currentPrice(slots, h0 + 40 * 60_000L, hourMs), 0.0)
+        assertEquals(9.0, WidgetElectricity.currentPrice(slots, h0 + hourMs, hourMs), 0.0)
+        assertTrue(WidgetElectricity.currentPrice(slots, h0 + 2 * hourMs, hourMs).isNaN())
+    }
+
+    @Test fun dayRange_withHourSlots_coversFullDay() {
+        val day = quarters(dayStart, dayStart + dayMs) { if (it < dayStart + 12 * hourMs) 2.0 else 6.0 }
+        val slots = WidgetElectricity.todaySlots(day, now, hourly = true, vat = false)
+        assertEquals(24, slots.list.size)
+        assertEquals(2.0 to 6.0, WidgetElectricity.dayRange(slots.list, now, slots.slotMs))
+    }
+
+    // ---- tuntitila koskee vain täyttä kuluvaa päivää ----
+
+    @Test fun todaySlots_fullDay_givesHourSlotsForTodayOnly() {
+        // Lista kattaa kuluvan päivän ja osan huomisesta, kuten widgetin välimuistissa.
+        val list = quarters(dayStart, dayStart + dayMs + 6 * hourMs) { if (it < dayStart + dayMs) 2.0 else 9.0 }
+        val slots = WidgetElectricity.todaySlots(list, now, hourly = true, vat = false)
+        assertEquals(hourMs, slots.slotMs)
+        assertEquals(24, slots.list.size)
+        assertEquals(2.0 to 2.0, WidgetElectricity.dayRange(slots.list, now, slots.slotMs))
+        assertEquals(2.0, WidgetElectricity.currentPrice(slots.list, now, slots.slotMs), 0.0)
+    }
+
+    @Test fun todaySlots_incompleteDay_keepsQuarters() {
+        // Kuluvalta päivältä puuttuu yksi vartti: tuntitilaa ei käytetä, eikä tunnettuja vartteja hukata.
+        val missing = dayStart + 18 * hourMs + 3 * quarterMs
+        val list = quarters(dayStart, dayStart + dayMs) { if (it >= dayStart + 18 * hourMs && it < dayStart + 19 * hourMs) 40.0 else 1.0 }
+            .filterNot { it.timestamp == missing }
+        val slots = WidgetElectricity.todaySlots(list, now, hourly = true, vat = false)
+        assertEquals(quarterMs, slots.slotMs)
+        assertEquals(list, slots.list)
+        assertEquals(40.0, slots.list.maxOf { it.snt }, 0.0)
+    }
+
+    @Test fun todaySlots_settingOff_keepsQuarters() {
+        val list = quarters(dayStart, dayStart + dayMs) { 3.0 }
+        val slots = WidgetElectricity.todaySlots(list, now, hourly = false, vat = false)
+        assertEquals(quarterMs, slots.slotMs)
+        assertEquals(list, slots.list)
+    }
+
+    @Test fun dayRange_withHourSlots_nullWhenLastHourMissing() {
+        val day = quarters(dayStart, dayStart + dayMs - hourMs) { 3.0 }
+        val slots = WidgetElectricity.todaySlots(day, now, hourly = true, vat = false)
+        assertEquals(quarterMs, slots.slotMs) // vajaa päivä → vartit
+        assertNull(WidgetElectricity.dayRange(slots.list, now, slots.slotMs))
+    }
 }

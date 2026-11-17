@@ -84,4 +84,21 @@ class ElectricityTimeTest {
         val rows = ElectricityTime.dayHours(ms(2027, 3, 28, 12, 0))
         assertTrue(rows.all { ElectricityTime.dstSuffixRes(it.startMs) == null })
     }
+
+    @Test fun slotBounds_hour_coversTheWholeHour() {
+        val (start, end) = ElectricityTime.slotBounds(ms(2026, 11, 16, 18, 40), 60L * 60_000L)
+        assertEquals(listOf(18, 0), listOf(start.hour, start.minute))
+        assertEquals(listOf(19, 0), listOf(end.hour, end.minute))
+    }
+
+    @Test fun slotBounds_quarter_matchesQuarterBounds() {
+        val at = ms(2026, 11, 16, 18, 40)
+        assertEquals(ElectricityTime.quarterBounds(at), ElectricityTime.slotBounds(at, 15L * 60_000L))
+    }
+
+    @Test fun slotBounds_lastHourOfDay_endsAtMidnight() {
+        val (start, end) = ElectricityTime.slotBounds(ms(2026, 11, 16, 23, 59), 60L * 60_000L)
+        assertEquals(23, start.hour)
+        assertEquals(listOf(17, 0), listOf(end.dayOfMonth, end.hour))
+    }
 }

@@ -109,9 +109,6 @@ private const val READ_TAG = "__read__"
  * pysyvät tuoreusjärjestyksessä. Napautus kirjaa klikin + avaa jutun selaimeen (Custom Tabs).
  * Yläpalkin suodatin-ikoni avaa mykistyssanat-paneelin ([NewsFilterSheet]).
  */
-/** Ulkomaat-otsikoiden oletuskieli: suomeksi suomennos, muille alkuperäinen (yleensä englanti). */
-internal fun originalTitlesByDefault(context: Context): Boolean = AppLocale.language(context) != "fi"
-
 @Composable
 internal fun NewsCategoryScreen(domestic: Boolean) {
     val context = LocalContext.current
@@ -119,8 +116,6 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
     // Uutisten oma tick: ei hae paluulla selaimesta/taustalta, vain kylmästart/Päivitä/väli.
     val refresh = LocalNewsRefreshTick.current
     var selectedTopic by remember { mutableStateOf<String?>(null) }
-    // Ulkomaat: backend suomentaa otsikot; muunkieliselle kayttajalle alkuperainen (yleensa englanti) on luontevampi.
-    var showOriginal by remember { mutableStateOf(!domestic && originalTitlesByDefault(context)) }
     var items by remember { mutableStateOf<List<ForeignArticle>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     // Kategorianäkymä, jossa kaikki haetut on jo luettu → erota "kaikki luettu" tyhjästä hausta (B3).
@@ -239,17 +234,6 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.weight(1f))
-            // Otsikoiden kielivalinta — VAIN Ulkomailla (Kotimaa on jo suomeksi). Koskee vain listan
-            // otsikoita; jutut avautuvat selaimeen alkukielellä. Nappi näyttää kohdekielen.
-            if (!domestic) {
-                Pill(
-                    text = stringResource(
-                        if (showOriginal) R.string.news_titles_in_finnish else R.string.news_titles_in_english,
-                    ),
-                    selected = false,
-                ) { showOriginal = !showOriginal }
-                Spacer(Modifier.width(8.dp))
-            }
             // Suodatin-ikoni (mykistetyt sanat). Aktiivisena newsAccent + laskurimerkki.
             FilterIconButton(active = filterActive, count = filterCount) { showFilterSheet = true }
         }
@@ -321,7 +305,7 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
             )
             else -> LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 items(items, key = { it.url }) { a ->
-                    ForeignNewsRow(a, showOriginal, a.url in boostedUrls) {
+                    ForeignNewsRow(a, a.url in boostedUrls) {
                         NewsProfile.recordClick(prefs, a.topics, a.source)
                         NewsProfile.markOpened(a.topics, a.source)
                         NewsProfile.markRead(prefs, a)
@@ -662,7 +646,7 @@ private fun Pill(text: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ForeignNewsRow(a: ForeignArticle, showOriginal: Boolean, boosted: Boolean, onOpen: () -> Unit) {
+private fun ForeignNewsRow(a: ForeignArticle, boosted: Boolean, onOpen: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -686,7 +670,7 @@ private fun ForeignNewsRow(a: ForeignArticle, showOriginal: Boolean, boosted: Bo
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                if (showOriginal) a.titleOrig else a.titleFi,
+                a.title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 3,

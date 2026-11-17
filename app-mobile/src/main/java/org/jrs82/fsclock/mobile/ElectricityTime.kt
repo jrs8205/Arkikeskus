@@ -43,6 +43,12 @@ object ElectricityTime {
         return Instant.ofEpochMilli(start).atZone(HELSINKI) to Instant.ofEpochMilli(start + QUARTER_MS).atZone(HELSINKI)
     }
 
+    /** Kuten [quarterBounds], mutta jakson pituus annetaan: vartti tai tunti (tunnin keskihinta). */
+    fun slotBounds(ms: Long, slotMs: Long): Pair<ZonedDateTime, ZonedDateTime> {
+        val start = Math.floorDiv(ms, slotMs) * slotMs
+        return Instant.ofEpochMilli(start).atZone(HELSINKI) to Instant.ofEpochMilli(start + slotMs).atZone(HELSINKI)
+    }
+
     /** Kellonajan tarkenne toistuvalla tunnilla (kesä-/talviaikaa), muuten null. */
     @StringRes
     fun dstSuffixRes(ms: Long): Int? = when (overlapPass(ms)) {

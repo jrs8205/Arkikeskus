@@ -51,6 +51,9 @@
     <string name="settings_vat_title" formatted="false">VAT 25.5%</string>
     <string name="settings_vat_on">Included in prices</string>
     <string name="settings_vat_off">Prices without VAT</string>
+    <string name="settings_hourly_title">Show hourly average price</string>
+    <string name="settings_hourly_on">Prices are shown per hour as the average of the quarter-hour prices</string>
+    <string name="settings_hourly_off">Prices are shown per quarter hour</string>
     <string name="settings_cheap_header">Cheap electricity</string>
     <string name="settings_cheap_notice">Cheap electricity notice</string>
     <string name="settings_cheap_notice_sub">Show a notice on the Home page when electricity is cheap</string>

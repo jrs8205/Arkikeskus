@@ -13,8 +13,6 @@
     <string name="news_tab_read">Luetut</string>
     <string name="news_title_domestic">Kotimaat</string>
     <string name="news_title_foreign">Ulkomaat</string>
-    <string name="news_titles_in_finnish">Otsikot suomeksi</string>
-    <string name="news_titles_in_english">Otsikot englanniksi</string>
     <string name="news_filter">Uutissuodatin</string>
     <plurals name="news_hidden_by_filter">
         <item quantity="one">%1$d piilotettu suodattimella</item>

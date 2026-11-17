@@ -352,6 +352,7 @@ fun SettingsScreen(
     val threshold = prefs.getString(MobileThemeController.KEY_CHEAP_ELECTRICITY_THRESHOLD, MobileThemeController.DEFAULT_CHEAP_ELECTRICITY_THRESHOLD)
         ?: MobileThemeController.DEFAULT_CHEAP_ELECTRICITY_THRESHOLD
     val vatOn = remember(refreshTick) { ElectricityVat.enabled(prefs) }
+    val hourlyOn = remember(refreshTick) { ElectricityHourly.enabled(prefs) }
     val stepGoal = prefs.getString(StepGoalNotifier.KEY_GOAL, StepGoalNotifier.DEFAULT_GOAL)
         ?: StepGoalNotifier.DEFAULT_GOAL
     val builtinFeeds = remember { NewsFeedStore.allFeeds(prefs).filter { it.builtin } }
@@ -500,6 +501,15 @@ fun SettingsScreen(
                             onChange = {
                                 refreshTick++
                                 // Pelkkä cache-piirto: ei saa odottaa yleisen workerin verkkohakuja.
+                                ElectricityWidgetRedraw.redrawAsync(context)
+                            },
+                        )
+                        GroupPrefSwitchRow(
+                            prefs, ElectricityHourly.KEY, stringResource(R.string.settings_hourly_title),
+                            subtitle = stringResource(if (hourlyOn) R.string.settings_hourly_on else R.string.settings_hourly_off),
+                            leadingIconRes = R.drawable.mobile_ic_clock_24, default = ElectricityHourly.DEFAULT,
+                            onChange = {
+                                refreshTick++
                                 ElectricityWidgetRedraw.redrawAsync(context)
                             },
                         )

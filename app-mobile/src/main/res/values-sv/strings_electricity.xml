@@ -15,6 +15,11 @@
     <string name="electricity_no_current_price">Det aktuella kvartspriset är inte tillgängligt än</string>
     <string name="electricity_quarter_range">Kvart kl. %1$s–%2$s · nästa %3$s</string>
     <string name="electricity_quarter_range_short">Kvart kl. %1$s–%2$s</string>
+    <string name="electricity_hour_range">Timme kl. %1$s–%2$s · nästa %3$s</string>
+    <string name="electricity_hour_range_short">Timme kl. %1$s–%2$s</string>
+    <string name="electricity_hour_now_at">Timmens medelpris kl. %1$s–%2$s</string>
+    <string name="electricity_no_current_hour_price">Priset för den pågående timmen är inte tillgängligt än</string>
+    <string name="electricity_heatmap_hour_average">Timmens medelpris</string>
     <string name="electricity_quarter_time">kl. %1$s–%2$s</string>
     <string name="electricity_dst_summer">sommartid</string>
     <string name="electricity_dst_winter">vintertid</string>
@@ -22,7 +27,9 @@
     <string name="electricity_tab_compare">Jämförelse</string>
     <string name="electricity_tomorrow_pending">Morgondagens priser uppdateras varje dag ca kl. 14:30.</string>
     <string name="electricity_today_unavailable">Dagens kvartspriser är inte tillgängliga.</string>
+    <string name="electricity_fetch_failed">Priserna kunde inte hämtas. Kontrollera nätverksanslutningen och försök igen med Uppdatera-knappen.</string>
     <string name="electricity_source_footer">Källa: Elering/Nord Pool. Priserna %1$s.</string>
+    <string name="electricity_source_footer_spot_hinta">Källa: spot-hinta.fi (ENTSO-E). Priserna %1$s.</string>
     <string name="electricity_heatmap_hour">kl.</string>
     <string name="electricity_dst_footnote">* Klockan ställs om till vintertid, så timmen 03 förekommer två gånger. Raden med asterisk är den senare (vintertid).</string>
     <string name="electricity_compare_header">Börselns medelpriser (%1$s). Källa: Elering/Nord Pool.</string>

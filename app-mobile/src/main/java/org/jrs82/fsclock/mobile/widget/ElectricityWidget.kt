@@ -41,6 +41,7 @@ import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.mobile.FontScaleCap
 import org.jrs82.fsclock.mobile.AppLocale
+import org.jrs82.fsclock.mobile.ElectricityHourly
 import org.jrs82.fsclock.mobile.ElectricityTime
 import org.jrs82.fsclock.mobile.ElectricityVat
 import org.jrs82.fsclock.mobile.PriceScale
@@ -67,8 +68,15 @@ private fun ElectricityContent(context: Context) {
     val vat = ElectricityVat.enabled(prefs)
     // Kuluva vartti haetaan piirtohetkellä varttilistasta (veroton) → hinta ja varttiteksti samasta vartista.
     val nowMs = System.currentTimeMillis()
-    val quarters = WidgetElectricity.decode(WidgetCache.electricityQuartersJson(context))
-    val rawSnt = WidgetElectricity.currentPrice(quarters, nowMs)
+    // Asetuksella "Näytä tunnin keskihinta" varttilista muunnetaan tunneiksi vasta piirrettäessä.
+    // Tuntitila on voimassa vain, jos kuluvan päivän jokainen tunti on täysi; muuten näytetään vartit.
+    val today = WidgetElectricity.todaySlots(
+        WidgetElectricity.decode(WidgetCache.electricityQuartersJson(context)), nowMs, ElectricityHourly.enabled(prefs), vat,
+    )
+    val quarters = today.list
+    val slotMs = today.slotMs
+    val hourly = slotMs == ElectricityHourly.HOUR_MS
+    val rawSnt = WidgetElectricity.currentPrice(quarters, nowMs, slotMs)
     val snt = ElectricityVat.apply(rawSnt, vat)
     val threshold = (prefs.getString("mobile_cheap_electricity_threshold", "5.0") ?: "5.0")
         .trim().replace(',', '.').toDoubleOrNull() ?: 5.0
@@ -94,7 +102,7 @@ private fun ElectricityContent(context: Context) {
     }
 
     // Jana = päivän halvin–kallein vartti, sama asteikko kuin sovelluksen etusivun kortissa ja sähkösivulla.
-    val range = WidgetElectricity.dayRange(quarters, nowMs)
+    val range = WidgetElectricity.dayRange(quarters, nowMs, slotMs)
     val dayMin = range?.first ?: Double.NaN
     val dayMax = range?.second ?: Double.NaN
     val pos01 = PriceScale.fraction(rawSnt, dayMin, dayMax, vat)
@@ -108,13 +116,19 @@ private fun ElectricityContent(context: Context) {
     val innerW = (size.width.value - 40f).coerceAtLeast(0f) // kortin sisaleveys (padding 20*2)
 
     // Aktiivinen 15 min vartti + seuraavan vartin alku (Suomen aika), samasta hetkestä kuin hinta.
-    val (qStart, qEnd) = ElectricityTime.quarterBounds(nowMs)
+    val (qStart, qEnd) = ElectricityTime.slotBounds(nowMs, slotMs)
     val hm = DateTimeFormatter.ofPattern("H.mm")
     val quarterShort = context.getString(R.string.electricity_quarter_time, qStart.format(hm), qEnd.format(hm))
     val quarterText = if (narrow) {
-        context.getString(R.string.electricity_quarter_range_short, qStart.format(hm), qEnd.format(hm))
+        context.getString(
+            if (hourly) R.string.electricity_hour_range_short else R.string.electricity_quarter_range_short,
+            qStart.format(hm), qEnd.format(hm),
+        )
     } else {
-        context.getString(R.string.electricity_quarter_range, qStart.format(hm), qEnd.format(hm), qEnd.format(hm))
+        context.getString(
+            if (hourly) R.string.electricity_hour_range else R.string.electricity_quarter_range,
+            qStart.format(hm), qEnd.format(hm), qEnd.format(hm),
+        )
     }
 
     // Otsikko, hinta ja varttirivi. Janan yläpuolinen osa.

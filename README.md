@@ -89,7 +89,7 @@ Jokaisen kortin voi **piilottaa ja järjestää raahaamalla** (Asetukset → Etu
 - 🕐 **Kello, päivämäärä ja viikko**
 - 🇫🇮 **Pyhä- ja liputuspäivät** (seuraava pyhä + seuraava virallinen liputuspäivä, vaihtuu automaattisesti keskiyöllä)
 - 🌤️ **Sää** — lämpötila, tuntuu kuin, tuuli, sade ja loppupäivän tuntiennuste
-- ⚡ **Pörssisähkö** — nykyinen varttihinta värikoodattuna (halpa / normaali / kallis)
+- ⚡ **Pörssisähkö** — nykyinen varttihinta värikoodattuna (halpa / normaali / kallis); asetuksista hinnat saa näkyviin myös tunnin keskihintana
 - ⚠️ **Säävaroitukset** — näkyy vain kun voimassa olevia varoituksia on
 - 🌡️ **Anturit** — Ruuvi-antureiden lämpötila ja kosteus
 - 🚦 **Liikennetiedot** — lähimmät tiedotteet
@@ -156,6 +156,7 @@ Kaikki ovat ilmaisia; MML ja Digitransit vaativat oman kehittäjäavaimen:
 - **FMI** (Ilmatieteen laitos) — havainnot, ennusteet, säävaroitukset
 - **Open-Meteo** — vertailuennuste
 - **Elering / Nord Pool** — 15 minuutin pörssisähkön hinnat
+- **spot-hinta.fi (ENTSO-E)** — pörssisähkön varalähde, jos Eleringin haku epäonnistuu tai huomisen hinnat viipyvät
 - **Digitraffic** — liikennetiedotteet ja kelikamerat
 - **Digitransit (HSL ja Waltti / Tampere–Nysse)** — joukkoliikenteen lähdöt ja reittihaku
 - **Maanmittauslaitos (MML)** — paikkahaku, geokoodaus, taustakartta

@@ -51,6 +51,9 @@
     <string name="settings_vat_title" formatted="false">ALV 25,5 %</string>
     <string name="settings_vat_on">Mukana hinnoissa</string>
     <string name="settings_vat_off">Hinnat ilman ALV:tä</string>
+    <string name="settings_hourly_title">Näytä tunnin keskihinta</string>
+    <string name="settings_hourly_on">Hinnat näytetään tunneittain varttihintojen keskiarvona</string>
+    <string name="settings_hourly_off">Hinnat näytetään vartin tarkkuudella</string>
     <string name="settings_cheap_header">Halpa sähkö</string>
     <string name="settings_cheap_notice">Halvan sähkön huomio</string>
     <string name="settings_cheap_notice_sub">Näytä huomio etusivulla kun sähkö on halpaa</string>

@@ -152,6 +152,7 @@ internal fun isHomeDataPrefKey(key: String?): Boolean {
         key == MobileThemeController.KEY_CHEAP_ELECTRICITY_MODE ||
         key == MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE ||
         key == ElectricityVat.KEY ||
+        key == ElectricityHourly.KEY ||
         key == SettingsManager.KEY_RUUVI_MAC_BEDROOM ||
         key == SettingsManager.KEY_RUUVI_MAC_LIVINGROOM ||
         key == SettingsManager.KEY_RUUVI_MAC_BALCONY ||
@@ -372,7 +373,7 @@ private fun CompactNewsRow(item: NewsItem) {
 
 // ===================== Ulkomaan uutiset -widget (Uutiskeskus, etusivulle) =====================
 
-/** Etusivun kortti Ulkomaat-uutisille (Uutiskeskus-API, suomennetut otsikot). Näyttää 5 tuoreinta,
+/** Etusivun kortti Ulkomaat-uutisille (Uutiskeskus-API, alkukieliset otsikot). Näyttää 5 tuoreinta,
  *  "Kaikki" avaa Ulkomaat-osion, napautus avaa jutun selaimeen. */
 @Composable
 internal fun HomeForeignNewsCard(onOpenForeign: () -> Unit) {
@@ -468,7 +469,7 @@ private fun CompactForeignNewsRow(a: ForeignArticle) {
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                if (originalTitlesByDefault(context)) a.titleOrig else a.titleFi,
+                a.title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,

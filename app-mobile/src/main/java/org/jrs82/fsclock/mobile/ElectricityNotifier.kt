@@ -3,7 +3,7 @@ package org.jrs82.fsclock.mobile
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.preference.PreferenceManager
-import org.jrs82.fsclock.ElectricityClient
+import org.jrs82.fsclock.ElectricityFetcher
 import org.jrs82.fsclock.ElectricityData
 import org.jrs82.fsclock.R
 import java.util.Calendar
@@ -12,9 +12,9 @@ import java.util.TimeZone
 
 /**
  * 4b-ilmoitus #3: ilmoittaa kun HUOMISEN pörssisähköhinnat ovat saapuneet (NordPool day-ahead ~klo 14)
- * — halvin/kallein vartti + keskihinta. Käyttää valmista [ElectricityClient]-hakua (Elering spot).
- * Ilmoitetaan kerran per päivä ([KEY_LAST_DAY]). Opt-in (oletus pois). Hinnat snt/kWh samasta
- * [ElectricityClient]-lähteestä kuin sähkösivulla (sama yksikkö/ALV kuin sovelluksessa muutenkin).
+ * — halvin/kallein vartti + keskihinta. Käyttää samaa [ElectricityFetcher]-hakua kuin sähkösivu
+ * (Elering, varalähteenä spot-hinta.fi). Ilmoitetaan kerran per päivä ([KEY_LAST_DAY]). Opt-in
+ * (oletus pois). Hinnat snt/kWh, sama yksikkö/ALV kuin sovelluksessa muutenkin.
  */
 object ElectricityNotifier {
 
@@ -32,19 +32,25 @@ object ElectricityNotifier {
         @StringRes val maxDstRes: Int? = null,
     )
 
-    /** Halvin/kallein vartti + keskihinta annetuista varteista näytettävinä hintoina (puhdas,
-     *  yksikkötestattava). ALV lisätään varttikohtaisesti ennen keskiarvoa, koska se ei koske
-     *  negatiivisia hintoja. */
-    fun summarize(quarters: List<ElectricityData.Quarter>, vat: Boolean = false): DayStats? {
+    /** Halvin ja kallein jakso sekä päivän keskihinta näytettävinä hintoina (puhdas, yksikkötestattava).
+     *
+     *  [quarters] on yhden päivän vartit. Halvin ja kallein valitaan näytettävän tarkkuuden
+     *  jaksoista: varteista, tai [hourly]-asetuksella tunneista, jos päivän jokainen tunti on täysi
+     *  ([ElectricityHourly.daySlots]); vajaa päivä käsitellään vartteina. Keskihinta lasketaan AINA
+     *  kaikista annetuista varteista, jotta se on sama luku kuin sähkösivulla. ALV lisätään
+     *  varttikohtaisesti ennen keskiarvoa, koska se ei koske negatiivisia hintoja. */
+    fun summarize(quarters: List<ElectricityData.Quarter>, vat: Boolean = false, hourly: Boolean = false): DayStats? {
         if (quarters.isEmpty()) return null
-        var min = quarters[0]
-        var max = quarters[0]
-        var sum = 0.0
-        for (q in quarters) {
-            if (q.sntPerKwh < min.sntPerKwh) min = q
-            if (q.sntPerKwh > max.sntPerKwh) max = q
-            sum += ElectricityVat.apply(q.sntPerKwh, vat)
+        val slots = ElectricityHourly.daySlots(quarters, hourly, vat).slots
+        if (slots.isEmpty()) return null
+        var min = slots[0]
+        var max = slots[0]
+        for (s in slots) {
+            if (s.sntPerKwh < min.sntPerKwh) min = s
+            if (s.sntPerKwh > max.sntPerKwh) max = s
         }
+        var sum = 0.0
+        for (q in quarters) sum += ElectricityVat.apply(q.sntPerKwh, vat)
         return DayStats(
             ElectricityVat.apply(min.sntPerKwh, vat), hm(min),
             ElectricityVat.apply(max.sntPerKwh, vat), hm(max),
@@ -97,7 +103,7 @@ object ElectricityNotifier {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
-        val data = try { ElectricityClient().fetchRange(now.timeInMillis, end.timeInMillis) } catch (e: Exception) { return }
+        val data = try { ElectricityFetcher.shared().fetch(now.timeInMillis, end.timeInMillis) } catch (e: Exception) { return }
         val tY = tomorrow.get(Calendar.YEAR)
         val tM = tomorrow.get(Calendar.MONTH) + 1
         val tD = tomorrow.get(Calendar.DAY_OF_MONTH)
@@ -108,7 +114,10 @@ object ElectricityNotifier {
         // oikeiden hintojen julkaisua. Kesä/talvi ei vaikuta: ylivuoto on aina vain aamuyötä.
         if (tomorrowQs.none { it.hour >= 20 }) return // täysi huomispäivä ei vielä julki
         val vat = ElectricityVat.enabled(prefs)
-        val stats = summarize(tomorrowQs, vat) ?: return // ei vielä julkaistu → yritä seuraavalla tunnilla
+        // Asetuksella "Näytä tunnin keskihinta" halvin ja kallein ovat tunteja; keskihinta lasketaan
+        // aina kaikista varteista.
+        val stats = summarize(tomorrowQs, vat, ElectricityHourly.enabled(prefs))
+            ?: return // ei vielä julkaistu → yritä seuraavalla tunnilla
         android.util.Log.i(
             "ElectricityNotifier",
             "huomisen hinnat ilmoitettu $tomorrowKey: min=${stats.minSnt} max=${stats.maxSnt} ka=${stats.avgSnt}",

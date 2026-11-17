@@ -13,8 +13,6 @@
     <string name="news_tab_read">Read</string>
     <string name="news_title_domestic">Domestic</string>
     <string name="news_title_foreign">World</string>
-    <string name="news_titles_in_finnish">Headlines in Finnish</string>
-    <string name="news_titles_in_english">Headlines in English</string>
     <string name="news_filter">News filter</string>
     <plurals name="news_hidden_by_filter">
         <item quantity="one">%1$d hidden by the filter</item>

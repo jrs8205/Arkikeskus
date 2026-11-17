@@ -15,6 +15,11 @@
     <string name="electricity_no_current_price">The current quarter-hour price isn\'t available yet</string>
     <string name="electricity_quarter_range">Quarter hour %1$s–%2$s · next %3$s</string>
     <string name="electricity_quarter_range_short">Quarter hour %1$s–%2$s</string>
+    <string name="electricity_hour_range">Hour %1$s–%2$s · next %3$s</string>
+    <string name="electricity_hour_range_short">Hour %1$s–%2$s</string>
+    <string name="electricity_hour_now_at">Hourly average %1$s–%2$s</string>
+    <string name="electricity_no_current_hour_price">The price for the current hour isn\'t available yet</string>
+    <string name="electricity_heatmap_hour_average">Hourly average</string>
     <string name="electricity_quarter_time">%1$s–%2$s</string>
     <string name="electricity_dst_summer">summer time</string>
     <string name="electricity_dst_winter">winter time</string>
@@ -22,7 +27,9 @@
     <string name="electricity_tab_compare">Comparison</string>
     <string name="electricity_tomorrow_pending">Tomorrow\'s prices are updated every day at about 14:30.</string>
     <string name="electricity_today_unavailable">Today\'s quarter-hour prices aren\'t available.</string>
+    <string name="electricity_fetch_failed">Couldn\'t fetch the prices. Check your network connection and try again with the Refresh button.</string>
     <string name="electricity_source_footer">Source: Elering/Nord Pool. Prices %1$s.</string>
+    <string name="electricity_source_footer_spot_hinta">Source: spot-hinta.fi (ENTSO-E). Prices %1$s.</string>
     <string name="electricity_heatmap_hour">h</string>
     <string name="electricity_dst_footnote">* The clocks go back to winter time, so hour 03 occurs twice. The row marked with an asterisk is the second one (winter time).</string>
     <string name="electricity_compare_header">Average spot electricity prices (%1$s). Source: Elering/Nord Pool.</string>

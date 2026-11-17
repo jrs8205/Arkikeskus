@@ -26,22 +26,21 @@ public final class ElectricityRepository {
         if (instance == null) {
             synchronized (ElectricityRepository.class) {
                 if (instance == null) {
-                    instance = new ElectricityRepository(ctx.getApplicationContext());
+                    instance = new ElectricityRepository(ElectricityFetcher.shared());
                 }
             }
         }
         return instance;
     }
 
-    @SuppressWarnings("unused")
-    private final Context appCtx;
-    private final ElectricityClient client = new ElectricityClient();
+    private final ElectricityFetcher fetcher;
 
     private ElectricityData data; // tänään + huominen yhdessä paketissa
     private long lastFetchOk = 0L;
+    private boolean lastFetchFailed = false;
 
-    private ElectricityRepository(Context appCtx) {
-        this.appCtx = appCtx;
+    ElectricityRepository(ElectricityFetcher fetcher) {
+        this.fetcher = fetcher;
     }
 
     /** Palauttaa muistissa olevan datan välittömästi (voi olla null). */
@@ -54,7 +53,9 @@ public final class ElectricityRepository {
     public ElectricityData fetchIfStale() throws Exception {
         long now = System.currentTimeMillis();
         synchronized (this) {
-            if (data != null && (now - lastFetchOk) < CACHE_TTL_MS) {
+            // Epäonnistunut viimeisin yritys ei ole koskaan tuore: silloin haetaan uudelleen, vaikka
+            // sitä edeltänyt onnistunut haku olisi välimuistin iän sisällä.
+            if (data != null && !lastFetchFailed && (now - lastFetchOk) < CACHE_TTL_MS) {
                 return data;
             }
         }
@@ -75,13 +76,59 @@ public final class ElectricityRepository {
         c.add(Calendar.DAY_OF_YEAR, 2);
         long endMs = c.getTimeInMillis();
 
-        ElectricityData fresh = client.fetchRange(startMs, endMs);
-        synchronized (this) {
-            this.data = fresh;
-            this.lastFetchOk = System.currentTimeMillis();
+        ElectricityFetcher.Result result;
+        try {
+            result = fetcher.fetchResult(startMs, endMs);
+        } catch (Exception e) {
+            synchronized (this) {
+                this.lastFetchFailed = true;
+            }
+            throw e;
         }
-        Log.d(TAG, "fetch ok, " + fresh.quarters.size() + " vartti(a)");
-        return fresh;
+        ElectricityData fresh = result.data;
+        ElectricityData current;
+        synchronized (this) {
+            long now = System.currentTimeMillis();
+            if (result.stale) {
+                // Kumpikaan lähde ei vastannut: haku epäonnistui, vaikka aiemmin säilytetyt hinnat
+                // saatiinkin. Ne otetaan käyttöön, jos ne kattavat tulevaa aikaa enemmän kuin
+                // varaston oma data (esim. toisen kutsujan varalähteestä saama huominen). Dataa ei
+                // merkitä tuoreeksi, jotta seuraava haku yrittää heti uudelleen.
+                if (this.data == null || upcomingQuarters(fresh, now) > upcomingQuarters(this.data, now)) {
+                    this.data = fresh;
+                }
+                this.lastFetchFailed = true;
+            } else {
+                // Julkaistut hinnat eivät muutu. Jos muistissa on jo huominen eikä tuoreessa
+                // vastauksessa ole, vastaus on vajaa (lähteen hetkellinen häiriö tai rinnakkaisen
+                // haun vanhempi tulos) eikä saa pudottaa huomista pois; muistissa oleva data
+                // kattaa saman päivän kokonaan.
+                boolean wouldLoseTomorrow = data != null
+                        && ElectricityData.hasFullTomorrow(data.quarters, now)
+                        && !ElectricityData.hasFullTomorrow(fresh.quarters, now);
+                if (!wouldLoseTomorrow) this.data = fresh;
+                this.lastFetchOk = now;
+                this.lastFetchFailed = false;
+            }
+            current = this.data;
+        }
+        Log.d(TAG, "fetch " + (result.stale ? "stale" : "ok") + ", " + current.quarters.size() + " vartti(a)");
+        return current;
+    }
+
+    /** Montako varttia datassa on, jotka eivät ole vielä päättyneet hetkellä {@code nowMs}. */
+    private static int upcomingQuarters(ElectricityData data, long nowMs) {
+        int n = 0;
+        for (ElectricityData.Quarter q : data.quarters) {
+            if (q.timestamp + 15L * 60_000L > nowMs) n++;
+        }
+        return n;
+    }
+
+    /** True jos viimeisin hakuyritys epäonnistui kummastakin lähteestä. Näkymä erottaa tällä
+     *  tilan "haku epäonnistui" tilasta "hintoja ei ole vielä julkaistu". */
+    public synchronized boolean lastFetchFailed() {
+        return lastFetchFailed;
     }
 
     /** True jos välimuistissa on yhtään huomispäivän varttia. */
@@ -99,22 +146,9 @@ public final class ElectricityRepository {
         return false;
     }
 
-    /** True jos välimuistissa on huomispäivän hinnat ILTAAN ASTI (vartti jonka tunti >= 20 Suomen
-     *  aikaa). Pelkkä CET-aikavyöhykkeen ~1 h aamuyön ylivuoto (huomisen 00:00–00:45, joka kuuluu
-     *  TÄMÄN päivän hintoihin) EI riitä. Kesä-/talviaika ei vaikuta: CET–Suomi-ero on aina 1 h, joten
-     *  ylivuoto on aina vain aamuyötä; q.hour lasketaan Europe/Helsinki-vyöhykkeellä (DST mukana). */
+    /** True jos välimuistissa on huomispäivän hinnat iltaan asti ({@link ElectricityData#hasFullTomorrow}). */
     public synchronized boolean hasFullTomorrow() {
-        if (data == null) return false;
-        TimeZone hel = TimeZone.getTimeZone("Europe/Helsinki");
-        Calendar c = Calendar.getInstance(hel);
-        c.add(Calendar.DAY_OF_YEAR, 1);
-        int tomY = c.get(Calendar.YEAR);
-        int tomM = c.get(Calendar.MONTH) + 1;
-        int tomD = c.get(Calendar.DAY_OF_MONTH);
-        for (ElectricityData.Quarter q : data.quarters) {
-            if (q.year == tomY && q.month == tomM && q.dayOfMonth == tomD && q.hour >= 20) return true;
-        }
-        return false;
+        return data != null && ElectricityData.hasFullTomorrow(data.quarters, System.currentTimeMillis());
     }
 
     /** Palauttaa tämän hetken vartin (nykyaika EET) tai null jos cache ei kata

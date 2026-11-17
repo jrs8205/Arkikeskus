@@ -90,4 +90,65 @@ class ElectricityNotifierMessageTest {
         assertEquals(R.string.electricity_dst_winter, s.maxDstRes)
         assertNull(stats.minDstRes)
     }
+
+    @Test fun hourlySetting_reportsCheapestAndDearestHour_withSameDayAverage() {
+        // Asetuksella "Näytä tunnin keskihinta" ilmoitus kertoo halvimman ja kalleimman TUNNIN.
+        val zone = ZoneId.of("Europe/Helsinki")
+        fun hourQuarters(hour: Int, vararg snt: Double) = snt.mapIndexed { i, p ->
+            ElectricityData.quarter(
+                LocalDateTime.of(2026, 11, 17, hour, i * 15).atZone(zone).toInstant().toEpochMilli(), p,
+            )
+        }
+        // Täysi päivä. Tunti 03: halvin yksittäinen vartti (0,2) mutta tunnin keskiarvo 3,05;
+        // tunti 04: tasainen 1,0; tunti 18: tasainen 9,0; muut tunnit 5,0.
+        val quarters = (0..23).flatMap { h ->
+            when (h) {
+                3 -> hourQuarters(3, 0.2, 4.0, 4.0, 4.0)
+                4 -> hourQuarters(4, 1.0, 1.0, 1.0, 1.0)
+                18 -> hourQuarters(18, 9.0, 9.0, 9.0, 9.0)
+                else -> hourQuarters(h, 5.0, 5.0, 5.0, 5.0)
+            }
+        }
+
+        val byQuarter = ElectricityNotifier.summarize(quarters, vat = false)!!
+        val byHour = ElectricityNotifier.summarize(quarters, vat = false, hourly = true)!!
+
+        assertEquals("03:00", byQuarter.minHm)
+        assertEquals("04:00", byHour.minHm)
+        assertEquals(1.0, byHour.minSnt, 1e-9)
+        assertEquals("18:00", byHour.maxHm)
+        assertEquals(byQuarter.avgSnt, byHour.avgSnt, 1e-9)
+    }
+
+    private fun dayQuarter(hour: Int, index: Int, snt: Double): ElectricityData.Quarter =
+        ElectricityData.quarter(
+            LocalDateTime.of(2026, 11, 17, hour, index * 15).atZone(ZoneId.of("Europe/Helsinki")).toInstant().toEpochMilli(),
+            snt,
+        )
+
+    @Test fun hourlySetting_incompleteDay_usesQuarterStatistics() {
+        // 95 varttia: tunnilta 18 (kallis) puuttuu viimeinen vartti. Tuntitila koskee vain täyttä
+        // päivää, joten ilmoitus kertoo halvimman ja kalleimman VARTIN eikä kallis vajaa tunti katoa.
+        // Päivän keskihinta lasketaan kaikista saaduista varteista kuten sähkösivulla.
+        val quarters = (0..23).flatMap { h -> (0..3).map { i -> dayQuarter(h, i, if (h == 18) 40.0 else 1.0) } }
+            .filterNot { it.hour == 18 && it.minute == 45 }
+        assertEquals(95, quarters.size)
+
+        val stats = ElectricityNotifier.summarize(quarters, vat = true, hourly = true)!!
+
+        val pageAverage = quarters.map { ElectricityVat.apply(it.sntPerKwh, true) }.average()
+        assertEquals(pageAverage, stats.avgSnt, 1e-9)
+        assertEquals(40.0 * 1.255, stats.maxSnt, 1e-9)
+        assertEquals("18:00", stats.maxHm)
+        assertEquals(1.255, stats.minSnt, 1e-9)
+        assertEquals(ElectricityNotifier.summarize(quarters, vat = true, hourly = false), stats)
+    }
+
+    @Test fun hourlySetting_withOnlyAFewQuarters_usesQuarterStatistics() {
+        val quarters = listOf(dayQuarter(3, 0, 1.0), dayQuarter(3, 1, 2.0), dayQuarter(4, 0, 3.0))
+        val stats = ElectricityNotifier.summarize(quarters, vat = false, hourly = true)!!
+        assertEquals("03:00", stats.minHm)
+        assertEquals("04:00", stats.maxHm)
+        assertEquals(2.0, stats.avgSnt, 1e-9)
+    }
 }

@@ -15,6 +15,11 @@
     <string name="electricity_no_current_price">Nykyistä varttihintaa ei ole vielä saatavilla</string>
     <string name="electricity_quarter_range">Vartti klo %1$s–%2$s · seuraava %3$s</string>
     <string name="electricity_quarter_range_short">Vartti klo %1$s–%2$s</string>
+    <string name="electricity_hour_range">Tunti klo %1$s–%2$s · seuraava %3$s</string>
+    <string name="electricity_hour_range_short">Tunti klo %1$s–%2$s</string>
+    <string name="electricity_hour_now_at">Tunnin keskihinta klo %1$s–%2$s</string>
+    <string name="electricity_no_current_hour_price">Kuluvan tunnin hintaa ei ole vielä saatavilla</string>
+    <string name="electricity_heatmap_hour_average">Tunnin keskihinta</string>
     <string name="electricity_quarter_time">klo %1$s–%2$s</string>
     <string name="electricity_dst_summer">kesäaikaa</string>
     <string name="electricity_dst_winter">talviaikaa</string>
@@ -22,7 +27,9 @@
     <string name="electricity_tab_compare">Vertailu</string>
     <string name="electricity_tomorrow_pending">Huomisen hinnat päivittyvät noin klo 14:30 joka päivä.</string>
     <string name="electricity_today_unavailable">Tämän päivän varttihintoja ei ole saatavilla.</string>
+    <string name="electricity_fetch_failed">Hintojen haku epäonnistui. Tarkista verkkoyhteys ja kokeile uudelleen Päivitä-painikkeella.</string>
     <string name="electricity_source_footer">Lähde: Elering/Nord Pool. Hinnat %1$s.</string>
+    <string name="electricity_source_footer_spot_hinta">Lähde: spot-hinta.fi (ENTSO-E). Hinnat %1$s.</string>
     <string name="electricity_heatmap_hour">klo</string>
     <string name="electricity_dst_footnote">* Kello siirtyy talviaikaan, joten tunti 03 on kahdesti. Tähdellä merkitty rivi on jälkimmäinen (talviaikaa).</string>
     <string name="electricity_compare_header">Pörssisähkön keskihinnat (%1$s). Lähde: Elering/Nord Pool.</string>

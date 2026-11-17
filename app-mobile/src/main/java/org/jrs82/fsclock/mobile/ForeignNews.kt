@@ -8,12 +8,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Yksi Uutiskeskus-uutispalvelun (Cloudflare Worker) kortti: valmiiksi suomennettu otsikko
- * + alkukielinen otsikko + meta. Itse artikkeli pysyy alkuperäisellä sivulla (avataan Custom Tabsiin).
+ * Yksi Uutiskeskus-uutispalvelun (Cloudflare Worker) kortti: alkukielinen otsikko + meta.
+ * Itse artikkeli pysyy alkuperäisellä sivulla (avataan Custom Tabsiin).
  */
 data class ForeignArticle(
-    val titleFi: String,
-    val titleOrig: String,
+    val title: String,
     val url: String,
     val imageUrl: String?,
     val source: String,
@@ -24,8 +23,8 @@ data class ForeignArticle(
 )
 
 /**
- * "Ulkomaat"-uutisten JSON-asiakas. Hakee Uutiskeskus-API:sta valmiiksi suomennetut otsikot +
- * kategoriat (käännös + dedup tehdään palvelimella ilmaiseksi). Julkinen API, ei avainta.
+ * Uutisten JSON-asiakas. Hakee Uutiskeskus-API:sta otsikot + kategoriat (dedup tehdään
+ * palvelimella). Julkinen API, ei avainta.
  * Per-kategoria välimuisti (10 min), jotta kategorian vaihto edestakaisin on nopea.
  */
 object ForeignNewsClient {
@@ -90,7 +89,7 @@ object ForeignNewsClient {
         }
     }
 
-    private fun parse(json: String): List<ForeignArticle> {
+    internal fun parse(json: String): List<ForeignArticle> {
         val arr = JSONArray(json)
         val out = ArrayList<ForeignArticle>(arr.length())
         for (i in 0 until arr.length()) {
@@ -98,14 +97,13 @@ object ForeignNewsClient {
             val url = if (o.isNull("url")) "" else o.optString("url", "")
             if (url.isBlank()) continue
             // optString palauttaa "null"-merkkijonon JSON-nullille → tarkista isNull erikseen.
-            val titleOrig = if (o.isNull("title")) "" else o.optString("title", "")
-            val titleFiRaw = if (o.isNull("title_fi")) "" else o.optString("title_fi", "")
-            val titleFi = titleFiRaw.ifBlank { titleOrig }
+            val original = if (o.isNull("title")) "" else o.optString("title", "")
+            // Palvelin ei enää lähetä title_fi-kenttää; se luetaan vain varalta, jos alkuperäinen puuttuu.
+            val translated = if (o.isNull("title_fi")) "" else o.optString("title_fi", "")
             val image = if (o.isNull("image_url")) null else o.optString("image_url", "").ifBlank { null }
             out.add(
                 ForeignArticle(
-                    titleFi = titleFi,
-                    titleOrig = titleOrig.ifBlank { titleFi },
+                    title = original.ifBlank { translated },
                     url = url,
                     imageUrl = image,
                     source = if (o.isNull("source")) "" else o.optString("source", ""),
