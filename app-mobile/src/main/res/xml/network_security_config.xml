@@ -16,6 +16,13 @@
   palveluiden (FMI, Digitraffic, HSL ym.) luottamus pysyy ennallaan.
   Korjaa seka HttpURLConnection-geokoodauksen (MmlGeocodingClient) etta
   MapLibren karttalaattahaun (RoadCamerasFragment).
+
+  HSL:n live-ajoneuvot (mqtt.hsl.fi:8883, HslMqttClient): varmenne vaihtui 13.2.2026
+  ketjuun mqtt.hsl.fi -> Sectigo Public Server Authentication CA OV R36 ->
+  Sectigo Public Server Authentication Root R46. R46 on Androidin varastossa vasta
+  Android 15:sta alkaen, joten Android 11-14 -laitteilla live-sijainti jaisi pois.
+  Sama korjaus: bundlattu R46 (Mozillan juurilistasta, SHA-256 7B:B6:47:A6:...:5A:06)
+  jarjestelman varmenteiden lisaksi, vain hsl.fi-domaineilla.
 -->
 <network-security-config>
     <base-config>
@@ -28,6 +35,13 @@
         <trust-anchors>
             <certificates src="system" />
             <certificates src="@raw/telia_root_ca_v2" />
+        </trust-anchors>
+    </domain-config>
+    <domain-config>
+        <domain includeSubdomains="true">hsl.fi</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/sectigo_public_server_auth_root_r46" />
         </trust-anchors>
     </domain-config>
 </network-security-config>

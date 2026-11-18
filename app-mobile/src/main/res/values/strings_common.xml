@@ -3,6 +3,7 @@
     <string name="common_cancel">Cancel</string>
     <string name="common_save">Save</string>
     <string name="common_close">Close</string>
+    <string name="common_back_to_top">Back to top</string>
     <string name="common_delete">Delete</string>
     <string name="common_add">Add</string>
     <string name="common_ok" translatable="false">OK</string>

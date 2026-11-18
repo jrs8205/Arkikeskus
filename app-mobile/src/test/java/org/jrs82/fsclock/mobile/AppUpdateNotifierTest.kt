@@ -8,7 +8,11 @@ import org.junit.Test
 class AppUpdateNotifierTest {
 
     @Test fun previewIsFirstNonBlankLineTrimmed() {
-        assertEquals("## 2.27.0", AppUpdateNotifier.notesPreview("\n   \n  ## 2.27.0  \nsecond line"))
+        assertEquals("2.27.0", AppUpdateNotifier.notesPreview("\n   \n  ## 2.27.0  \nsecond line"))
+    }
+
+    @Test fun previewHasNoMarkdown() {
+        assertEquals("Pörssisähkö", AppUpdateNotifier.notesPreview("**Pörssisähkö**\n- uusi asetus"))
     }
 
     @Test fun blankNotesFallBackToGenericText() {

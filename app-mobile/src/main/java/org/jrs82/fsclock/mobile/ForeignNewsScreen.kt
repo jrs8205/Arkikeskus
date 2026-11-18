@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -44,11 +45,13 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +71,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
 
@@ -303,21 +307,35 @@ internal fun NewsCategoryScreen(domestic: Boolean) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            else -> LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                items(items, key = { it.url }) { a ->
-                    ForeignNewsRow(a, a.url in boostedUrls) {
-                        NewsProfile.recordClick(prefs, a.topics, a.source)
-                        NewsProfile.markOpened(a.topics, a.source)
-                        NewsProfile.markRead(prefs, a)
-                        // Poista luettu juttu heti listalta (paitsi "Luetut"-välilehdellä). #1 estää
-                        // refetchin paluulla, joten ilman tätä juttu jäisi näkyviin kunnes Päivitä (B1).
-                        if (selectedTopic != READ_TAG) {
-                            items = items.filterNot { it.url == a.url }
+            else -> Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                // Tila luodaan listan sisällä kuten ennenkin: kategorian vaihto (lataus) aloittaa uuden
+                // listan alusta, eikä edellisen kategorian vierityskohta siirry seuraavaan.
+                val listState = rememberLazyListState()
+                val scope = rememberCoroutineScope()
+                val showBackToTop by remember { derivedStateOf { backToTopVisible(listState.firstVisibleItemIndex) } }
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    items(items, key = { it.url }) { a ->
+                        ForeignNewsRow(a, a.url in boostedUrls) {
+                            NewsProfile.recordClick(prefs, a.topics, a.source)
+                            NewsProfile.markOpened(a.topics, a.source)
+                            NewsProfile.markRead(prefs, a)
+                            // Poista luettu juttu heti listalta (paitsi "Luetut"-välilehdellä). #1 estää
+                            // refetchin paluulla, joten ilman tätä juttu jäisi näkyviin kunnes Päivitä (B1).
+                            if (selectedTopic != READ_TAG) {
+                                items = items.filterNot { it.url == a.url }
+                            }
+                            openUrl(context, a.url)
                         }
-                        openUrl(context, a.url)
                     }
+                    // Tilaa listan loppuun, ettei kelluva Takaisin ylös peitä viimeistä juttua.
+                    item { Spacer(Modifier.height(BACK_TO_TOP_CLEARANCE)) }
                 }
-                item { Spacer(Modifier.height(12.dp)) }
+                FloatingBackToTop(
+                    visible = showBackToTop,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+                ) {
+                    scope.launch { listState.animateScrollToItem(0) }
+                }
             }
         }
     }

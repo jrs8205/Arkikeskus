@@ -11,7 +11,8 @@ final class DigitransitMapStyle {
     static String rasterStyleJson() {
         String tiles = "https://cdn.digitransit.fi/map/v3/hsl-map/{z}/{x}/{y}@2x.png"
                 + "?digitransit-subscription-key=" + BuildConfig.DIGITRANSIT_KEY;
-        // @2x-tiilet ovat 512×512 px → tileSize PITÄÄ olla 512. Arvolla 256 MapLibre hakisi
+        // hsl-map-tiilen perus-koko on 512 px (@2x-kuva on 1024×1024 px, mitattu 18.11.2026) → tileSize
+        // PITÄÄ olla 512. Arvolla 256 MapLibre hakisi
         // saman näkymän ~4× tiilimäärällä (~230 kB/tiili) → mobiiliverkossa panorointi näytti
         // mustaa kymmeniä sekunteja. 512 = spec-oikea retina-määritys, sama terävyys.
         return "{"

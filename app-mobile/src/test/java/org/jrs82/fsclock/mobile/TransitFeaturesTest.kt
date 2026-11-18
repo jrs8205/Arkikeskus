@@ -154,6 +154,10 @@ class TransitFeaturesTest {
         assertEquals(TransitRegion.HSL, TransitRegion.forGtfsId("HSL:1234"))
         assertEquals(TransitRegion.HSL, TransitRegion.forGtfsId(null))
         assertEquals(TransitRegion.HSL, TransitRegion.forGtfsId(""))
+        // VR:n junat ovat vain Waltti-reitittimessä (Tampereen asema: laituri ja vuoro).
+        assertEquals(TransitRegion.TAMPERE, TransitRegion.forGtfsId("digitraffic:TPE_1"))
+        assertEquals(TransitRegion.TAMPERE, TransitRegion.forGtfsId("digitraffic:30_20261212"))
+        assertEquals(TransitRegion.HSL, TransitRegion.forGtfsId("HSLlautta:1234"))
     }
 
     @Test
@@ -196,6 +200,18 @@ class TransitFeaturesTest {
         assertNotEquals(TransitText.Res(R.string.transit_banner_route_none), msg)
         assertNotEquals(TransitText.Res(R.string.transit_banner_route_no_live_region), msg)
         assertEquals(TransitText.Res(R.string.transit_banner_route_fetching), msg)
+    }
+
+    @Test
+    fun `VR-junalla Tampereella ei ole MQTT-livea eika ikuista haetaan-tekstia`() {
+        assertTrue(TransitRegion.liveViaMqttFor("tampere:90020_20261118"))
+        assertFalse(TransitRegion.liveViaMqttFor("digitraffic:30_20261212"))
+        assertFalse(TransitRegion.liveViaMqttFor("HSL:1015_20261118_Ti_2_0606"))
+        assertFalse(TransitRegion.liveViaMqttFor(null))
+        val trip = tripBannerText(emptyTimeline(), "RAIL", TransitRegion.TAMPERE, mqttLive = false)
+        assertEquals(TransitText.Res(R.string.transit_banner_trip_no_live_region), trip)
+        val route = routeBannerText(emptyTimeline(), TransitRegion.TAMPERE, mqttLive = false)
+        assertEquals(TransitText.Res(R.string.transit_banner_route_no_live_region), route)
     }
 
     @Test

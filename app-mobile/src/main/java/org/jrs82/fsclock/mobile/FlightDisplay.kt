@@ -52,7 +52,8 @@ object FlightDisplay {
             s.contains("koneeseen") -> R.string.flights_status_boarding
             s.contains("portil") -> R.string.flights_status_go_to_gate
             s.contains("selvit") -> R.string.flights_status_checkin
-            s.contains("lähdössä") || s.contains("lahdossa") -> R.string.flights_status_departing
+            // Finavian "Lähdössä" (BOR) on englanniksi "Boarding" (verrattu Finavian englanninkieliseen tilaan).
+            s.contains("lähdössä") || s.contains("lahdossa") -> R.string.flights_status_boarding
             s.contains("lähestyy") || s.contains("lahestyy") -> R.string.flights_status_approaching
             s.contains("myöhässä") || s.contains("myohassa") -> R.string.flights_status_delayed
             s.contains("uusi aika") -> R.string.flights_status_new_time
@@ -75,8 +76,22 @@ object FlightDisplay {
     data class Baggage(val belt: String?, @StringRes val beltStatusRes: Int?, val area: String?)
 
     fun baggage(f: Flight): Baggage? = when {
-        !f.belt.isNullOrBlank() -> Baggage(f.belt, beltStatusRes(f.beltStatus), f.baggageArea)
+        !f.belt.isNullOrBlank() -> Baggage(f.belt, beltStatusRes(shownBeltStatus(f)), f.baggageArea)
         !f.baggageArea.isNullOrBlank() -> Baggage(null, null, f.baggageArea)
         else -> null
     }
+
+    /**
+     * Näytettävä hihnan tila. Finavian data jää laskeutumisen jälkeen tilaan "not-started" (tilaa "started"
+     * ei tule, "completed" vasta myöhään), joten laskeutuneella lennolla sitä ei näytetä: "Ei vielä alkanut"
+     * johtaisi harhaan, kun laukut jo tulevat. Laskeutunut = toteutunut aika tai lopputila.
+     */
+    private fun shownBeltStatus(f: Flight): String? {
+        val landed = f.actualMs != null || category(f) == FlightStatusCat.COMPLETED
+        return if (landed && f.beltStatus == "not-started") null else f.beltStatus
+    }
+
+    /** Reittirivin otsikko: saapuvalla välilaskut ennen saapumista, lähtevällä reitin jatko. */
+    @StringRes
+    fun viaLabelRes(dir: FlightDir): Int = if (dir == FlightDir.ARR) R.string.flights_via_arrival else R.string.flights_via
 }

@@ -29,6 +29,7 @@
     <string name="flights_area_paren">(alue %1$s)</string>
     <string name="flights_checkin">Lähtöselvitystiski</string>
     <string name="flights_via">Reitin jatko</string>
+    <string name="flights_via_arrival">Välilasku</string>
     <string name="flights_aircraft">Kone</string>
     <string name="flights_calls">Kuulutukset</string>
     <string name="flights_call_gate">Portille %1$s</string>
@@ -52,6 +53,5 @@
     <string name="flights_status_boarding">Koneeseen</string>
     <string name="flights_status_final_call">Viimeinen kutsu</string>
     <string name="flights_status_gate_closed">Portti suljettu</string>
-    <string name="flights_status_departing">Lähdössä</string>
     <string name="flights_status_approaching">Lähestyy</string>
 </resources>

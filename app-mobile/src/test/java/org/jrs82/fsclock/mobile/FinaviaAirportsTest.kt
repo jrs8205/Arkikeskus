@@ -13,4 +13,11 @@ class FinaviaAirportsTest {
         assertEquals("XXX", FinaviaAirports.name("XXX")) // tuntematon → koodi
         assertTrue(FinaviaAirports.ALL.size >= 16)
     }
+    @Test fun vainFinavianKentat() {
+        // Enontekiö siirtyi kunnalle 2021; Finavian rajapinnat eivät palauta sille lentoja.
+        assertEquals(
+            setOf("HEL", "RVN", "OUL", "TKU", "TMP", "VAA", "KUO", "KTT", "IVL", "KOK", "JOE", "JYV", "KAJ", "KEM", "KAO", "MHQ", "POR", "SVL"),
+            FinaviaAirports.ALL.map { it.iata }.toSet(),
+        )
+    }
 }

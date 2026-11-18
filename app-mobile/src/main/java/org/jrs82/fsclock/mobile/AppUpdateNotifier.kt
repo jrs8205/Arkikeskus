@@ -32,7 +32,7 @@ object AppUpdateNotifier {
         // Tallenna saataville → in-app-banneri näkyy heti kun appi avataan napautuksesta.
         prefs.edit()
             .putString(AppUpdater.PREF_AVAILABLE_VERSION, rel.versionName)
-            .putString(AppUpdater.PREF_AVAILABLE_URL, rel.apkUrl ?: "")
+            .putString(AppUpdater.PREF_AVAILABLE_URL, rel.apkUrl)
             .putString(AppUpdater.PREF_AVAILABLE_HTML, rel.htmlUrl)
             .putString(AppUpdater.PREF_AVAILABLE_NOTES, rel.notes)
             .putString(KEY_LAST_VERSION, rel.versionName)
@@ -45,8 +45,8 @@ object AppUpdateNotifier {
         )
     }
 
-    /** Ilmoituksen teksti julkaisukuvauksesta (releasetekstit ovat suomeksi): ensimmäinen ei-tyhjä rivi,
-     *  enintään 160 merkkiä; null → yleinen käännetty teksti. */
+    /** Ilmoituksen teksti julkaisukuvauksesta (releasetekstit ovat suomeksi): ensimmäinen ei-tyhjä rivi
+     *  ilman markdownia ([AppUpdater.plainNotes]), enintään 160 merkkiä; null → yleinen käännetty teksti. */
     fun notesPreview(notes: String): String? =
-        notes.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(160)
+        AppUpdater.plainNotes(notes).lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(160)
 }

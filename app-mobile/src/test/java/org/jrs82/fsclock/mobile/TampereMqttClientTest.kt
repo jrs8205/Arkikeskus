@@ -34,4 +34,11 @@ class TampereMqttClientTest {
         assertNull(TampereMqttClient.topicForPattern("tampere:15")) // suunta puuttuu
         assertNull(TampereMqttClient.topicForPattern("garbage"))
     }
+
+    @Test
+    fun `topicForPattern ei tilaa VR-junalle Nyssen samannumeroista bussia`() {
+        // Waltti-reitittimen junat (digitraffic) ohjataan TAMPERE-alueelle, mutta MQTT-virta on vain Nyssellä.
+        assertNull(TampereMqttClient.topicForPattern("digitraffic:30:0:01"))
+        assertNull(TampereMqttClient.topicForPattern("HSL:1015:0:01"))
+    }
 }

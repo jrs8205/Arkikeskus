@@ -3,6 +3,7 @@
     <string name="common_cancel">Peruuta</string>
     <string name="common_save">Tallenna</string>
     <string name="common_close">Sulje</string>
+    <string name="common_back_to_top">Takaisin ylös</string>
     <string name="common_delete">Poista</string>
     <string name="common_add">Lisää</string>
     <string name="common_yes">Kyllä</string>

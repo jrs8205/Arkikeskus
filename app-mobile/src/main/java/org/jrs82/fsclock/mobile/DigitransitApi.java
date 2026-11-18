@@ -68,19 +68,22 @@ public final class DigitransitApi {
             + " alerts { " + ALERT_FIELDS + " }"
             + " stoptimesWithoutPatterns(numberOfDepartures: 6) { " + STOPTIME_FIELDS + " } } }";
 
-    // Koko päivän aikataulu yhdelle pysäkille/asemalle: timeRange 24 h, jopa 100 lähtöä.
+    // Koko päivän aikataulu yhdelle pysäkille/asemalle: timeRange 24 h. 100 lähdön raja kattoi vilkkaalla
+    // pysäkillä vain osan päivästä (Rautatieasema 3,3 h); 600 kattaa vilkkaimmankin (551 lähtöä / 24 h,
+    // ~10 kt gzip, mitattu 18.11.2026).
+    static final int FULL_DAY_MAX_DEPARTURES = 600;
     private static final String STOP_FULLDAY_QUERY =
             "query Stop($id: String!) { stop(id: $id) {"
             + " gtfsId name code zoneId vehicleMode"
             + " alerts { " + ALERT_FIELDS + " }"
-            + " stoptimesWithoutPatterns(numberOfDepartures: 100, timeRange: 86400) { "
+            + " stoptimesWithoutPatterns(numberOfDepartures: " + FULL_DAY_MAX_DEPARTURES + ", timeRange: 86400) { "
             + STOPTIME_FIELDS + " } } }";
 
     private static final String STATION_FULLDAY_QUERY =
             "query Station($id: String!) { station(id: $id) {"
             + " gtfsId name code zoneId"
             + " alerts { " + ALERT_FIELDS + " }"
-            + " stoptimesWithoutPatterns(numberOfDepartures: 100, timeRange: 86400) { "
+            + " stoptimesWithoutPatterns(numberOfDepartures: " + FULL_DAY_MAX_DEPARTURES + ", timeRange: 86400) { "
             + STOPTIME_FIELDS + " } } }";
 
     // Paikkahaun geokoodaus (Pelias-autocomplete). sources=gtfshsl → vain HSL-pysäkit/asemat,
@@ -196,7 +199,7 @@ public final class DigitransitApi {
         return parseStop(station, Double.NaN);
     }
 
-    // --- Koko päivän aikataulu (timeRange 24 h, jopa 100 lähtöä) ---
+    // --- Koko päivän aikataulu (timeRange 24 h, enintään FULL_DAY_MAX_DEPARTURES lähtöä) ---
 
     static NearbyStop stopDeparturesFullDay(String stopGtfsId, TransitRegion region) throws Exception {
         JSONObject variables = new JSONObject();
@@ -218,13 +221,40 @@ public final class DigitransitApi {
 
     // --- Kaikki HSL-häiriöt ("Häiriöt ja muutokset" -sivu) ---
 
+    /** Häiriön koskemat kohteet. Vanhentuneet {@code route}/{@code stop} antoivat vain yhden monesta
+     *  linjasta/pysäkistä, joten suosikki-ilmoitus ja suodattimet ohittivat häiriöitä (18.11.2026: 12/19). */
+    private static final String ALERT_ENTITIES = " entities { __typename"
+            + " ... on Route { shortName mode }"
+            + " ... on Stop { gtfsId name }"
+            + " ... on StopOnRoute { stop { gtfsId name } route { shortName mode } }"
+            + " ... on StopOnTrip { stop { gtfsId name } trip { route { shortName mode } } } }";
+
     /** Koko HSL-syötteen aktiiviset häiriöt linja-/pysäkkitietoineen. Poistaa tarkat tuplat
-     *  (sama otsikko+kuvaus+linja+pysäkki) ja järjestää: vakavin ensin, sitten uusin alkamisaika. */
+     *  (sama otsikko+kuvaus+linjat+pysäkit) ja järjestää: vakavin ensin, sitten uusin alkamisaika. */
     static List<TransitAlert> serviceAlerts(TransitRegion region) throws Exception {
         String serviceAlertsQuery = "{ alerts(feeds:[\"" + region.alertFeed + "\"]) { " + ALERT_FIELDS
-                + " route { shortName mode } stop { gtfsId name } } }";
+                + ALERT_ENTITIES + " } }";
         JSONObject data = postQuery(serviceAlertsQuery, new JSONObject(), region);
-        JSONArray arr = data == null ? null : data.optJSONArray("alerts");
+        return parseServiceAlerts(data == null ? null : data.optJSONArray("alerts"));
+    }
+
+    /** Linjatunnusten luonnollinen järjestys: numero-osa numeroina ("9" ennen "55" ennen "213" ennen "213N"),
+     *  kirjainlinjat ("I", "T") numerolinjojen jälkeen aakkosjärjestyksessä. */
+    static int compareRouteNames(String a, String b) {
+        long na = leadingNumber(a);
+        long nb = leadingNumber(b);
+        if (na != nb) return Long.compare(na, nb);
+        return a.compareTo(b);
+    }
+
+    private static long leadingNumber(String s) {
+        int i = 0;
+        while (i < s.length() && i < 9 && Character.isDigit(s.charAt(i))) i++;
+        return i == 0 ? Long.MAX_VALUE : Long.parseLong(s.substring(0, i));
+    }
+
+    /** {@link #serviceAlerts}-vastauksen jäsennys (yksikkötestattava). */
+    static List<TransitAlert> parseServiceAlerts(JSONArray arr) {
         List<TransitAlert> out = new ArrayList<>();
         if (arr == null) return out;
         java.util.Set<String> seen = new java.util.HashSet<>();
@@ -238,14 +268,62 @@ public final class DigitransitApi {
             String eff = a.isNull("alertEffect") ? "" : a.optString("alertEffect", "");
             long start = a.optLong("effectiveStartDate", 0L);
             long end = a.optLong("effectiveEndDate", 0L);
-            JSONObject route = a.optJSONObject("route");
-            String rsn = (route == null || route.isNull("shortName")) ? "" : route.optString("shortName", "");
-            String mode = (route == null || route.isNull("mode")) ? "" : route.optString("mode", "");
-            JSONObject stop = a.optJSONObject("stop");
-            String stopName = (stop == null || stop.isNull("name")) ? "" : stop.optString("name", "");
-            String stopGtfsId = (stop == null || stop.isNull("gtfsId")) ? "" : stop.optString("gtfsId", "");
-            if (!seen.add(header + "|" + desc + "|" + rsn + "|" + stopName)) continue;
-            out.add(new TransitAlert(header, desc, sev, eff, start, end, rsn, mode, stopName, stopGtfsId));
+            // Linjat ja pysäkit kaikista kohteista, tuplat pois (sama linja voi tulla Route- ja StopOnRoute-kohteesta).
+            java.util.LinkedHashMap<String, String> routes = new java.util.LinkedHashMap<>(); // shortName → mode
+            java.util.LinkedHashMap<String, String> stops = new java.util.LinkedHashMap<>();  // gtfsId|nimi → nimi
+            java.util.LinkedHashMap<String, String> stopIds = new java.util.LinkedHashMap<>(); // gtfsId|nimi → gtfsId
+            JSONArray ents = a.optJSONArray("entities");
+            if (ents != null) {
+                for (int j = 0; j < ents.length(); j++) {
+                    JSONObject e = ents.optJSONObject(j);
+                    if (e == null) continue;
+                    String type = e.optString("__typename", "");
+                    JSONObject route = null;
+                    JSONObject stop = null;
+                    if ("Route".equals(type)) {
+                        route = e;
+                    } else if ("Stop".equals(type)) {
+                        stop = e;
+                    } else if ("StopOnRoute".equals(type)) {
+                        route = e.optJSONObject("route");
+                        stop = e.optJSONObject("stop");
+                    } else if ("StopOnTrip".equals(type)) {
+                        JSONObject trip = e.optJSONObject("trip");
+                        route = trip == null ? null : trip.optJSONObject("route");
+                        stop = e.optJSONObject("stop");
+                    }
+                    if (route != null && !route.isNull("shortName")) {
+                        String rsn = route.optString("shortName", "");
+                        String mode = route.isNull("mode") ? "" : route.optString("mode", "");
+                        if (!rsn.isEmpty() && !routes.containsKey(rsn)) routes.put(rsn, mode);
+                    }
+                    if (stop != null) {
+                        String name = stop.isNull("name") ? "" : stop.optString("name", "");
+                        String id = stop.isNull("gtfsId") ? "" : stop.optString("gtfsId", "");
+                        String key = id.isEmpty() ? "|" + name : id;
+                        if ((!id.isEmpty() || !name.isEmpty()) && !stops.containsKey(key)) {
+                            stops.put(key, name);
+                            stopIds.put(key, id);
+                        }
+                    }
+                }
+            }
+            // Vakaa järjestys: Digitransit palauttaa saman häiriön kohteet hausta toiseen eri järjestyksessä,
+            // joten kortin merkit eivät saa vaihtaa paikkaa päivityksessä (linjat numerojärjestykseen).
+            List<String> rsns = new ArrayList<>(routes.keySet());
+            rsns.sort(DigitransitApi::compareRouteNames);
+            List<String> modes = new ArrayList<>(rsns.size());
+            for (String r : rsns) modes.add(routes.get(r));
+            List<String> stopKeys = new ArrayList<>(stops.keySet());
+            java.util.Collections.sort(stopKeys);
+            List<String> stopNames = new ArrayList<>(stopKeys.size());
+            List<String> stopGtfsIds = new ArrayList<>(stopKeys.size());
+            for (String k : stopKeys) {
+                stopNames.add(stops.get(k));
+                stopGtfsIds.add(stopIds.get(k));
+            }
+            if (!seen.add(header + "|" + desc + "|" + rsns + "|" + stopGtfsIds + "|" + stopNames)) continue;
+            out.add(new TransitAlert(header, desc, sev, eff, start, end, rsns, modes, stopNames, stopGtfsIds));
         }
         out.sort((x, y) -> {
             int bySev = Integer.compare(y.severityRank(), x.severityRank());

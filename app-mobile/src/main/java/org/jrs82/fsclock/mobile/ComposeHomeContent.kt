@@ -45,11 +45,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +79,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.AlmanakkaClient
 import org.jrs82.fsclock.ElectricityData
@@ -1856,38 +1859,51 @@ internal fun OwnFeedsScreen() {
         loading = false
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-    ) {
-        Text(stringResource(R.string.home_own_feeds_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        when {
-            loading -> Text(stringResource(R.string.home_news_loading), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            !hasFeeds -> Text(
-                stringResource(R.string.home_own_feeds_none),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            items.isEmpty() -> Text(
-                stringResource(R.string.home_news_none_now),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            else -> {
-                val shown = items.take(50)
-                val note = newsCountNote(shown.size, items.size)
-                Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                shown.forEach { item ->
-                    NewsRow(item) {
-                        NewsProfile.recordClick(prefs, "", item.feedName)
-                        NewsProfile.markOpened("", item.feedName)
-                        openUrl(context, item.link)
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val showBackToTop by remember { derivedStateOf { backToTopVisible(scrollState.value, scrollState.viewportSize) } }
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+        ) {
+            Text(stringResource(R.string.home_own_feeds_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            when {
+                loading -> Text(stringResource(R.string.home_news_loading), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                !hasFeeds -> Text(
+                    stringResource(R.string.home_own_feeds_none),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                items.isEmpty() -> Text(
+                    stringResource(R.string.home_news_none_now),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> {
+                    val shown = items.take(50)
+                    val note = newsCountNote(shown.size, items.size)
+                    Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    shown.forEach { item ->
+                        NewsRow(item) {
+                            NewsProfile.recordClick(prefs, "", item.feedName)
+                            NewsProfile.markOpened("", item.feedName)
+                            openUrl(context, item.link)
+                        }
                     }
+                    // Tilaa loppuun, ettei kelluva Takaisin ylös peitä viimeistä juttua.
+                    Spacer(Modifier.height(BACK_TO_TOP_CLEARANCE))
                 }
             }
+        }
+        FloatingBackToTop(
+            visible = showBackToTop,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+        ) {
+            scope.launch { scrollState.animateScrollTo(0) }
         }
     }
 }

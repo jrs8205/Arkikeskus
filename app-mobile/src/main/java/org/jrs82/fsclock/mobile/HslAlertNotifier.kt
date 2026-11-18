@@ -21,9 +21,22 @@ object HslAlertNotifier {
     private const val KEY_SEEN = "notify_hsl_seen"
     private const val SEEN_CAP = 200
 
-    /** Häiriön identiteettiavain (ei stabiilia ID:tä API:ssa). */
-    fun alertKey(a: TransitAlert): String =
-        a.header + "|" + a.description + "|" + a.routeShortName + "|" + a.stopName
+    /** Häiriön identiteettiavain (ei stabiilia ID:tä API:ssa): teksti + kaikki linjat + pysäkit. Järjestyksestä
+     *  riippumaton: Digitransit palauttaa saman häiriön kohteet hausta toiseen eri järjestyksessä, eikä se saa
+     *  tuottaa uutta ilmoitusta. Pysäkit tiivisteenä, koska häiriö voi koskea kymmeniä pysäkkejä ja avaimet
+     *  tallennetaan prefseihin. */
+    fun alertKey(a: TransitAlert): String {
+        val routes = a.routeShortNames.sorted().joinToString(",")
+        val stops = (0 until maxOf(a.stopGtfsIds.size, a.stopNames.size))
+            .map { i -> a.stopGtfsIds.getOrElse(i) { "" } + "#" + a.stopNames.getOrElse(i) { "" } }
+            .sorted()
+            .joinToString(",")
+        return a.header + "|" + a.description + "|" + routes + "|" + Integer.toHexString(stops.hashCode())
+    }
+
+    /** Ilmoituksen otsikon linjat: enintään kolme, loput "…". */
+    fun routesLabel(a: TransitAlert): String =
+        a.routeShortNames.take(3).joinToString(", ") + if (a.routeShortNames.size > 3) ", …" else ""
 
     data class Selection(val toNotify: List<TransitAlert>, val newSeen: Set<String>)
 
@@ -47,7 +60,7 @@ object HslAlertNotifier {
         val toNotify = ArrayList<TransitAlert>()
         for (a in alerts) {
             if (!a.isActiveAt(nowSec)) continue
-            val lineHit = a.routeShortName.isNotEmpty() && favLines.contains(a.routeShortName)
+            val lineHit = a.matchesLine(favLines)
             val stopHit = a.matchesStop(favStopIds, favStops)
             if (!lineHit && !stopHit) continue
             val key = alertKey(a)
@@ -87,8 +100,8 @@ object HslAlertNotifier {
     fun notificationText(toNotify: List<TransitAlert>): NotificationText {
         if (toNotify.size == 1) {
             val a = toNotify[0]
-            val title = if (a.routeShortName.isNotEmpty()) {
-                TransitText.Res(R.string.transit_hsl_alert_title_line, listOf(a.routeShortName))
+            val title = if (a.routeShortNames.isNotEmpty()) {
+                TransitText.Res(R.string.transit_hsl_alert_title_line, listOf(routesLabel(a)))
             } else {
                 TransitText.Res(R.string.transit_hsl_alert_title_stop, listOf(a.stopName))
             }

@@ -3,6 +3,7 @@
     <string name="common_cancel">Avbryt</string>
     <string name="common_save">Spara</string>
     <string name="common_close">Stäng</string>
+    <string name="common_back_to_top">Tillbaka till toppen</string>
     <string name="common_delete">Ta bort</string>
     <string name="common_add">Lägg till</string>
     <string name="common_yes">Ja</string>

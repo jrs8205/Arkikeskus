@@ -61,7 +61,7 @@ class FlightDisplayTest {
     }
 
     @Test fun matkatavaratHihnaTilaJaAlue() {
-        val base = f("Laskeutunut", 0, null)
+        val base = f("Aikataulussa", 0, null)
         assertNull(FlightDisplay.baggage(base))
         assertEquals(
             FlightDisplay.Baggage("6", R.string.flights_belt_not_started, "2A"),
@@ -69,5 +69,31 @@ class FlightDisplayTest {
         )
         assertEquals(FlightDisplay.Baggage("6", null, null), FlightDisplay.baggage(base.copy(belt = "6")))
         assertEquals(FlightDisplay.Baggage(null, null, "2A"), FlightDisplay.baggage(base.copy(baggageArea = "2A")))
+    }
+
+    @Test fun eiVielaAlkanutPiilotetaanLaskeutumisenJalkeen() {
+        // Finavian data jää laskeutumisen jälkeen tilaan not-started (started puuttuu, completed tulee
+        // myöhään) → "Ei vielä alkanut" johtaisi harhaan, kun laukut jo tulevat. Hihna näytetään silti.
+        val landed = f("Laskeutunut", 0, null).copy(dir = FlightDir.ARR, belt = "11", beltStatus = "not-started")
+        assertEquals(FlightDisplay.Baggage("11", null, null), FlightDisplay.baggage(landed))
+        // Toteutunut laskeutumisaika riittää, vaikka tilateksti olisi vielä muu.
+        val withActual = f("Arvioitu aika", 0, null).copy(dir = FlightDir.ARR, actualMs = 1L, belt = "11", beltStatus = "not-started")
+        assertEquals(FlightDisplay.Baggage("11", null, null), FlightDisplay.baggage(withActual))
+        // Päättynyt näytetään myös laskeutumisen jälkeen.
+        assertEquals(
+            FlightDisplay.Baggage("11", R.string.flights_belt_completed, null),
+            FlightDisplay.baggage(landed.copy(beltStatus = "completed")),
+        )
+    }
+
+    @Test fun lahdossaOnKoneeseennousu() {
+        // Finavian "Lähdössä" (BOR) = englanniksi "Boarding", ei "Departing".
+        assertEquals(R.string.flights_status_boarding, FlightDisplay.statusRes("Lähdössä"))
+        assertEquals(FlightText.Res(R.string.flights_status_boarding), FlightDisplay.statusText(f("Lähdössä", 0, null), "en"))
+    }
+
+    @Test fun saapuvanReitillaOnValilaskuLahtevallaJatko() {
+        assertEquals(R.string.flights_via_arrival, FlightDisplay.viaLabelRes(FlightDir.ARR))
+        assertEquals(R.string.flights_via, FlightDisplay.viaLabelRes(FlightDir.DEP))
     }
 }

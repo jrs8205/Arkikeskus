@@ -199,13 +199,15 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var status by remember { mutableStateOf<String?>(null) }
     var showNotes by remember { mutableStateOf(false) }
+    // GitHubin julkaisuteksti on markdownia; dialogi näyttää sen tavallisena tekstinä.
+    val notes = remember(info.notes) { AppUpdater.plainNotes(info.notes) }
     if (showNotes) {
         AlertDialog(
             onDismissRequest = { showNotes = false },
             title = { Text(stringResource(R.string.main_update_whats_new_title, info.versionName)) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text(info.notes, style = MaterialTheme.typography.bodyMedium)
+                    Text(notes, style = MaterialTheme.typography.bodyMedium)
                 }
             },
             confirmButton = { TextButton(onClick = { showNotes = false }) { Text(stringResource(R.string.common_close)) } },
@@ -226,7 +228,7 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
             status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = {
-                    if (info.notes.isNotBlank()) {
+                    if (notes.isNotBlank()) {
                         showNotes = true
                     } else {
                         // Ei muutoslokia → avaa julkaisusivu selaimeen.
@@ -331,46 +333,28 @@ fun ComposeMainScreen(
     var updateInfo by remember { mutableStateOf<AppUpdater.ReleaseInfo?>(null) }
     LaunchedEffect(Unit) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        val dismissed = prefs.getString(AppUpdater.PREF_DISMISSED_VERSION, null)
-        val savedVer = prefs.getString(AppUpdater.PREF_AVAILABLE_VERSION, null)
-        if (savedVer != null && savedVer != dismissed &&
-            AppUpdater.isNewer(BuildConfig.VERSION_NAME, savedVer)
-        ) {
-            updateInfo = AppUpdater.ReleaseInfo(
-                "v$savedVer",
-                savedVer,
-                prefs.getString(AppUpdater.PREF_AVAILABLE_URL, null),
-                prefs.getString(AppUpdater.PREF_AVAILABLE_HTML, null) ?: AppUpdater.REPO_URL,
-                prefs.getString(AppUpdater.PREF_AVAILABLE_NOTES, null) ?: "",
-            )
-        }
+        updateInfo = AppUpdater.loadSaved(prefs, BuildConfig.VERSION_NAME)
         val now = System.currentTimeMillis()
         if (now - prefs.getLong(AppUpdater.PREF_LAST_AUTO_CHECK, 0L) < AppUpdater.AUTO_CHECK_INTERVAL_MS) {
             return@LaunchedEffect
         }
         AppUpdater.checkLatest(BuildConfig.VERSION_NAME) { rel, newer ->
             if (rel == null) return@checkLatest // verkkovirhe → uusi yritys seuraavalla käynnistyksellä
-            prefs.edit().putLong(AppUpdater.PREF_LAST_AUTO_CHECK, System.currentTimeMillis()).apply()
-            if (newer) {
-                prefs.edit()
-                    .putString(AppUpdater.PREF_AVAILABLE_VERSION, rel.versionName)
-                    .putString(AppUpdater.PREF_AVAILABLE_URL, rel.apkUrl)
-                    .putString(AppUpdater.PREF_AVAILABLE_HTML, rel.htmlUrl)
-                    .putString(AppUpdater.PREF_AVAILABLE_NOTES, rel.notes)
-                    .apply()
-                if (rel.versionName != prefs.getString(AppUpdater.PREF_DISMISSED_VERSION, null)) {
-                    updateInfo = rel
-                }
-            } else {
-                // Ajan tasalla → siivoa talletus, ettei vanhentunut banneri palaa.
-                prefs.edit()
-                    .remove(AppUpdater.PREF_AVAILABLE_VERSION)
-                    .remove(AppUpdater.PREF_AVAILABLE_URL)
-                    .remove(AppUpdater.PREF_AVAILABLE_HTML)
-                    .remove(AppUpdater.PREF_AVAILABLE_NOTES)
-                    .apply()
-            }
+            // Ajan tasalla → talletus siivotaan, ettei vanhentunut banneri palaa.
+            AppUpdater.saveCheckResult(prefs, rel, newer, System.currentTimeMillis())
+            updateInfo = AppUpdater.loadSaved(prefs, BuildConfig.VERSION_NAME)
         }
+    }
+    // Talletus muuttuu myös muualla: Asetusten Tarkista päivitykset, taustan päivitysilmoitus ja hylkäys.
+    // Banneri seuraa talletusta suoraan, joten se on ajan tasalla riippumatta siitä, mitä kautta
+    // Asetuksista poistutaan (alapalkki, takaisin, Sulje).
+    DisposableEffect(Unit) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+            if (AppUpdater.isUpdatePrefKey(key)) updateInfo = AppUpdater.loadSaved(p, BuildConfig.VERSION_NAME)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
     // Etusivun sää käyttää laitteen sijaintia: päivitä se kun sovellus tulee etualalle

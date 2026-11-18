@@ -25,6 +25,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
@@ -1670,10 +1672,11 @@ private fun TransitFullDayOverlay(
                 items(
                     r.size,
                     // Pysyvä avain: tunti-otsikko labelista, lähtö tripistä + ajasta → ei skrollihyppyä
-                    // päivityksessä. (i mukana erottamassa harvinaiset duplikaatit.)
+                    // päivityksessä. (i mukana erottamassa duplikaatit: 24 h:n ikkuna voi sisältää saman
+                    // kellotunnin kahdesti, tänään ja huomenna, ja toistuva avain kaataisi LazyColumnin.)
                     key = { i ->
                         when (val row = r[i]) {
-                            is FullDayRow.Hour -> "h:${row.label}"
+                            is FullDayRow.Hour -> "h:${row.label}:$i"
                             is FullDayRow.Dep -> "d:${row.d.tripGtfsId}:${row.d.departureEpochSec}:$i"
                         }
                     },
@@ -1821,7 +1824,12 @@ private fun liveBannerText(ctx: Context, mode: String, e: LiveEta): String {
     return ctx.getString(R.string.transit_live_distance, word, distance, eta, src)
 }
 
-internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegion): TransitText {
+internal fun tripBannerText(
+    tl: TripTimeline,
+    mode: String,
+    region: TransitRegion,
+    mqttLive: Boolean = region.liveViaMqtt,
+): TransitText {
     val word = TransitText.Res(transitVehicleRes(mode))
     if (tl.vehicleStopIndices.isEmpty()) {
         // HSL: GraphQL on auktoriteetti → tyhjä = vuoro ei liikkeellä. Tampere: live tulee MQTT:stä
@@ -1830,7 +1838,7 @@ internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegio
         return TransitText.Res(
             when {
                 region.liveVehiclePositions -> R.string.transit_banner_trip_not_started
-                region.liveViaMqtt -> R.string.transit_banner_fetching_live
+                mqttLive -> R.string.transit_banner_fetching_live
                 else -> R.string.transit_banner_trip_no_live_region
             },
         )
@@ -1858,7 +1866,11 @@ internal fun tripBannerText(tl: TripTimeline, mode: String, region: TransitRegio
     )
 }
 
-internal fun routeBannerText(tl: TripTimeline, region: TransitRegion): TransitText {
+internal fun routeBannerText(
+    tl: TripTimeline,
+    region: TransitRegion,
+    mqttLive: Boolean = region.liveViaMqtt,
+): TransitText {
     val c = tl.vehicleStopIndices.size
     if (c == 0) {
         // HSL: GraphQL auktoriteetti. Tampere: live tulee MQTT:stä (tämä on varatila kunnes MQTT-overlay
@@ -1866,7 +1878,7 @@ internal fun routeBannerText(tl: TripTimeline, region: TransitRegion): TransitTe
         return TransitText.Res(
             when {
                 region.liveVehiclePositions -> R.string.transit_banner_route_none
-                region.liveViaMqtt -> R.string.transit_banner_route_fetching
+                mqttLive -> R.string.transit_banner_route_fetching
                 else -> R.string.transit_banner_route_no_live_region
             },
         )
@@ -2165,21 +2177,22 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
                     )
                 } else {
                     timeline = tl
-                    val bannerRegion = regionForGtfsId(
-                        when (detail) {
-                            is TransitDetail.Trip -> detail.tripGtfsId
-                            is TransitDetail.Route -> detail.routeGtfsId
-                        }
-                    )
+                    val detailId = when (detail) {
+                        is TransitDetail.Trip -> detail.tripGtfsId
+                        is TransitDetail.Route -> detail.routeGtfsId
+                    }
+                    val bannerRegion = regionForGtfsId(detailId)
+                    // VR:n junat ovat Waltti-alueella, mutta niillä ei ole MQTT-livea.
+                    val mqttLive = TransitRegion.liveViaMqttFor(detailId)
                     banner = (
-                        if (isRoute) routeBannerText(tl, bannerRegion)
-                        else tripBannerText(tl, detail.mode, bannerRegion)
+                        if (isRoute) routeBannerText(tl, bannerRegion, mqttLive)
+                        else tripBannerText(tl, detail.mode, bannerRegion, mqttLive)
                         ).resolve(context)
                     // HSL: vaatii GraphQL:stä saadun vehicleId:n (HFP-MQTT-tilausta varten).
                     // Tampere (liveViaMqtt): vehicleId on aina tyhjä → riittää reittimuoto + nousupysäkki,
                     // live-GPS tulee TampereMqttClientilta route-topicista.
                     liveHolder.value = if (!isRoute && tl.boardStopIndex >= 0 && tl.shape.size >= 2 &&
-                        (!tl.vehicleId.isNullOrEmpty() || bannerRegion.liveViaMqtt)
+                        (!tl.vehicleId.isNullOrEmpty() || mqttLive)
                     ) {
                         LiveTracking(tl)
                     } else {
@@ -2229,7 +2242,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
     // päivittää banner-overlayn (GPS-projektio, sama bannerFor kuin HSL) + aikajanan pysäkkikorostuksen.
     val tampereTrip = detail as? TransitDetail.Trip
     val tampereTrackKey = if (tampereTrip != null && liveHolder.value != null &&
-        regionForGtfsId(tampereTrip.tripGtfsId).liveViaMqtt
+        TransitRegion.liveViaMqttFor(tampereTrip.tripGtfsId)
     ) tampereTrip.tripGtfsId else null
     DisposableEffect(tampereTrackKey, resumed) {
         if (tampereTrackKey == null || !resumed || tampereTrip == null) {
@@ -2263,7 +2276,7 @@ private fun TransitDetailOverlay(detail: TransitDetail, onClose: () -> Unit) {
     // re-tilaus suuntaa vaihdettaessa (avain = patternin code), katkeaa overlayn sulkeutuessa.
     val tampereRoute = detail as? TransitDetail.Route
     val routeTrackKey = if (tampereRoute != null && routePatterns != null &&
-        regionForGtfsId(tampereRoute.routeGtfsId).liveViaMqtt
+        TransitRegion.liveViaMqttFor(tampereRoute.routeGtfsId)
     ) {
         routePatterns?.patterns?.getOrNull(patternIdx)?.code
     } else {
@@ -2525,6 +2538,19 @@ private fun effectiveRangeText(ctx: Context, fmt: SimpleDateFormat, a: TransitAl
     }
 }
 
+/** Häiriökortin linjamerkkien enimmäismäärä (merkit rivittyvät); loput näytetään "+N". */
+private const val ALERT_MAX_BADGES = 6
+
+/** Häiriökortin pysäkkirivi: ensimmäinen pysäkki ja muiden määrä ("Kurkela +7"), "" jos ei pysäkkejä. */
+internal fun alertStopsSummary(a: TransitAlert): String {
+    val names = a.stopNames.filter { it.isNotEmpty() }.distinct()
+    return when {
+        names.isEmpty() -> ""
+        names.size == 1 -> names[0]
+        else -> names[0] + " +" + (names.size - 1)
+    }
+}
+
 /** Häiriölistan suodatus (puhdas, yksikkötestattava): moodi (valittu moodi vaatii täsmäyksen;
  *  yleiset mode=="" näkyvät vain "Kaikki"-näkymässä), voimassaolo nyt, ja tekstihaku
  *  linja/pysäkki/otsikko/kuvaus. */
@@ -2537,16 +2563,18 @@ internal fun filterDisruptions(
 ): List<TransitAlert> {
     val q = query.trim().lowercase(Locale.ROOT)
     return list.filter { a ->
-        val modeOk = mode == null || a.mode.equals(mode, ignoreCase = true)
+        val modeOk = mode == null || a.matchesMode(mode)
         val activeOk = !activeOnly || a.isActiveAt(nowSec)
         // Linjanumero osuu tarkasti tai alkuosalla (myös yksikirjaimiset junalinjat A/P/T) ja ≥2
         // merkillä myös osumana. Vapaa tekstihaku (pysäkki/otsikko/kuvaus) vasta ≥2 merkillä, ettei
         // yksi kirjain tulvi proosasta (suomenkielinen teksti sisältää lähes aina kysytyn kirjaimen).
-        val rsn = a.routeShortName.lowercase(Locale.ROOT)
-        val routeOk = q.isNotEmpty() && (rsn == q || rsn.startsWith(q) || (q.length >= 2 && rsn.contains(q)))
+        val routeOk = q.isNotEmpty() && a.routeShortNames.any { r ->
+            val rsn = r.lowercase(Locale.ROOT)
+            rsn == q || rsn.startsWith(q) || (q.length >= 2 && rsn.contains(q))
+        }
         val textOk = q.isEmpty() || routeOk || (
             q.length >= 2 && (
-                a.stopName.lowercase(Locale.ROOT).contains(q) ||
+                a.stopNames.any { it.lowercase(Locale.ROOT).contains(q) } ||
                     a.header.lowercase(Locale.ROOT).contains(q) ||
                     a.description.lowercase(Locale.ROOT).contains(q)
                 )
@@ -2568,6 +2596,7 @@ internal object DisruptionNav {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun HslDisruptionsScreen() {
     val refreshTick = LocalRefreshTick.current
     var all by remember { mutableStateOf<List<TransitAlert>?>(null) }
@@ -2604,10 +2633,7 @@ internal fun HslDisruptionsScreen() {
         all?.let { list0 ->
             val base = filterDisruptions(list0, modeFilter, activeOnly, query, System.currentTimeMillis() / 1000L)
             if (favoritesOnly) {
-                base.filter { a ->
-                    (a.routeShortName.isNotEmpty() && favLines.contains(a.routeShortName)) ||
-                        a.matchesStop(favStopIds, favStops)
-                }
+                base.filter { a -> a.matchesLine(favLines) || a.matchesStop(favStopIds, favStops) }
             } else {
                 base
             }
@@ -2649,9 +2675,11 @@ internal fun HslDisruptionsScreen() {
                 ) { modeFilter = if (modeFilter == mode) null else mode }
             }
         }
-        Row(
-            modifier = Modifier.padding(start = 14.dp, end = 16.dp, top = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // FlowRow: kapealla näytöllä ja isolla fontilla määrä siirtyy omalle rivilleen (Row puristi sen
+        // kirjain kerrallaan allekkain). Normaalisti määrä on rivin oikeassa reunassa kuten ennen.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 16.dp, top = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             FilterChip(
                 selected = activeOnly,
@@ -2659,20 +2687,25 @@ internal fun HslDisruptionsScreen() {
                 label = { Text(stringResource(R.string.transit_filter_active_only)) },
             )
             if (hasFavorites) {
-                Spacer(modifier = Modifier.width(8.dp))
                 FilterChip(
                     selected = favoritesOnly,
                     onClick = { favoritesOnly = !favoritesOnly },
                     label = { Text(stringResource(R.string.transit_filter_favourites_only)) },
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
             shown?.let {
-                Text(
-                    pluralStringResource(R.plurals.transit_disruption_count, it.size, it.size),
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Box(
+                    modifier = Modifier.weight(1f).align(Alignment.CenterVertically),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Text(
+                        pluralStringResource(R.plurals.transit_disruption_count, it.size, it.size),
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
         }
         Box(modifier = Modifier.fillMaxSize()) {
@@ -2745,6 +2778,7 @@ private fun ModeFilterChip(selected: Boolean, label: String, mode: String?, onCl
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun DisruptionRow(a: TransitAlert, dateFmt: SimpleDateFormat, onClick: (TransitAlert) -> Unit) {
     val context = LocalContext.current
     ArkiCard(
@@ -2769,16 +2803,32 @@ private fun DisruptionRow(a: TransitAlert, dateFmt: SimpleDateFormat, onClick: (
                     .weight(1f)
                     .padding(start = 12.dp),
             ) {
-                if (a.routeShortName.isNotEmpty()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                if (a.routeShortNames.isNotEmpty()) {
+                    // Häiriö voi koskea useaa linjaa: merkit ensimmäisistä, loput "+N". FlowRow rivittää
+                    // merkit kapeassa näkymässä ja isolla fontilla (Row puristi viimeisen merkin näkymättömiin).
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         Icon(
                             painterResource(transitModeIconRes(a.mode)),
                             contentDescription = null,
                             tint = transitModeColor(a.mode),
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(18.dp).align(Alignment.CenterVertically),
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        TransitLineBadge(a.routeShortName, a.mode)
+                        a.routeShortNames.take(ALERT_MAX_BADGES).forEachIndexed { i, r ->
+                            TransitLineBadge(r, a.routeModes.getOrElse(i) { a.mode })
+                        }
+                        val more = a.routeShortNames.size - ALERT_MAX_BADGES
+                        if (more > 0) {
+                            Text(
+                                "+$more",
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                 }
@@ -2790,7 +2840,7 @@ private fun DisruptionRow(a: TransitAlert, dateFmt: SimpleDateFormat, onClick: (
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val sub = listOf(effectiveRangeText(context, dateFmt, a), a.stopName)
+                val sub = listOf(effectiveRangeText(context, dateFmt, a), alertStopsSummary(a))
                     .filter { it.isNotEmpty() }
                     .joinToString("  ·  ")
                 if (sub.isNotEmpty()) {

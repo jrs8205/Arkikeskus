@@ -2,11 +2,13 @@ package org.jrs82.fsclock.mobile
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import androidx.core.content.edit
 import org.jrs82.fsclock.R
 import org.json.JSONObject
 import java.io.File
@@ -96,6 +98,97 @@ object AppUpdater {
             conn.disconnect()
         }
     }
+
+    /**
+     * Tallentaa tarkistuksen tuloksen bannerin prefseihin ja kirjaa tarkistusajan. Uudempi versio
+     * korvaa aiemmin tallennetun (myös julkaisutekstin, jos sitä on korjattu GitHubissa); ajan tasalla
+     * oleva asennus tyhjentää tallennuksen, ettei vanhentunut banneri palaa. Yhteinen käynnistyksen
+     * automaattiselle tarkistukselle ja Asetusten Tarkista päivitykset -painikkeelle.
+     */
+    fun saveCheckResult(prefs: SharedPreferences, rel: ReleaseInfo, newer: Boolean, nowMs: Long) {
+        prefs.edit {
+            putLong(PREF_LAST_AUTO_CHECK, nowMs)
+            if (newer) {
+                putString(PREF_AVAILABLE_VERSION, rel.versionName)
+                putString(PREF_AVAILABLE_HTML, rel.htmlUrl)
+                putString(PREF_AVAILABLE_NOTES, rel.notes)
+                if (rel.apkUrl.isNullOrEmpty()) remove(PREF_AVAILABLE_URL) else putString(PREF_AVAILABLE_URL, rel.apkUrl)
+            } else {
+                remove(PREF_AVAILABLE_VERSION)
+                remove(PREF_AVAILABLE_URL)
+                remove(PREF_AVAILABLE_HTML)
+                remove(PREF_AVAILABLE_NOTES)
+            }
+        }
+    }
+
+    /** Koskeeko asetusavaimen muutos etusivun päivitysbanneria (talletettu versio tai hylkäys). */
+    fun isUpdatePrefKey(key: String?): Boolean = key in UPDATE_PREF_KEYS
+
+    private val UPDATE_PREF_KEYS = setOf(
+        PREF_AVAILABLE_VERSION, PREF_AVAILABLE_URL, PREF_AVAILABLE_HTML, PREF_AVAILABLE_NOTES, PREF_DISMISSED_VERSION,
+    )
+
+    /**
+     * Tallennettu päivitys bannerille, tai null jos tallennusta ei ole, versio on hylätty tai se ei ole
+     * uudempi kuin [currentVersion] (päivitys on jo asennettu). Tyhjä APK-osoite tulkitaan puuttuvaksi:
+     * taustailmoitus tallensi puuttuvan osoitteen aiemmin tyhjänä merkkijonona.
+     */
+    fun loadSaved(prefs: SharedPreferences, currentVersion: String): ReleaseInfo? {
+        val version = prefs.getString(PREF_AVAILABLE_VERSION, null) ?: return null
+        if (version == prefs.getString(PREF_DISMISSED_VERSION, null)) return null
+        if (!isNewer(currentVersion, version)) return null
+        return ReleaseInfo(
+            "v$version",
+            version,
+            prefs.getString(PREF_AVAILABLE_URL, null)?.ifEmpty { null },
+            prefs.getString(PREF_AVAILABLE_HTML, null) ?: REPO_URL,
+            prefs.getString(PREF_AVAILABLE_NOTES, null) ?: "",
+        )
+    }
+
+    /**
+     * Julkaisukuvaus tavallisena tekstinä Mitä uutta -ikkunaan ja ilmoitukseen. GitHubin julkaisuteksti
+     * on markdownia, mutta sovellus näyttää sen sellaisenaan: lihavoinnit, otsikkomerkit, koodilainaukset
+     * ja linkit siivotaan pois. Luettelon "- "-viivat säilyvät ("*"- ja "+"-luettelot muutetaan viivoiksi).
+     * Valmiiksi tavallinen teksti pysyy ennallaan.
+     */
+    fun plainNotes(notes: String): String {
+        var text = notes.replace("\r\n", "\n").replace(HTML_COMMENT, "")
+        text = text.lineSequence().joinToString("\n") { line ->
+            when {
+                FENCE.matches(line) || RULE.matches(line) -> ""
+                else -> line.replace(HEADING, "").replace(QUOTE, "").replace(BULLET, "$1- ")
+            }
+        }
+        text = text
+            .replace(IMAGE, "")
+            .replace(LINK, "$1")
+            .replace(BOLD_STARS, "$1")
+            .replace(BOLD_UNDERSCORES, "$1")
+            .replace(EMPHASIS, "$1")
+            .replace(INLINE_CODE, "$1")
+            .replace(ESCAPED, "$1")
+            .replace(TRAILING_SPACE, "")
+            .replace(EXTRA_BLANK_LINES, "\n\n")
+        return text.trim()
+    }
+
+    private val HTML_COMMENT = Regex("""<!--.*?-->""", RegexOption.DOT_MATCHES_ALL)
+    private val FENCE = Regex("""^[ \t]*(```|~~~).*$""")
+    private val RULE = Regex("""^[ \t]*([-*_])([ \t]*\1){2,}[ \t]*$""")
+    private val HEADING = Regex("""^[ \t]{0,3}#{1,6}[ \t]+""")
+    private val QUOTE = Regex("""^[ \t]{0,3}>[ \t]?""")
+    private val BULLET = Regex("""^([ \t]*)[*+][ \t]+""")
+    private val IMAGE = Regex("""!\[[^\]\n]*]\([^)\n]*\)""")
+    private val LINK = Regex("""\[([^\]\n]+)]\([^)\s]+(?:[ \t]+"[^"\n]*")?\)""")
+    private val BOLD_STARS = Regex("""(?<!\\)\*\*([^\s*](?:[^\n]*?[^\s\\])?)\*\*""")
+    private val BOLD_UNDERSCORES = Regex("""(?<![\\\w])__([^\s_](?:[^\n]*?[^\s\\])?)__(?!\w)""")
+    private val EMPHASIS = Regex("""(?<![\\*\w])\*([^\s*](?:[^*\n]*?[^\s*\\])?)\*(?![*\w])""")
+    private val INLINE_CODE = Regex("""`([^`\n]+)`""")
+    private val ESCAPED = Regex("""\\([\\`*_{}\[\]()#+\-.!>])""")
+    private val TRAILING_SPACE = Regex("""[ \t]+$""", RegexOption.MULTILINE)
+    private val EXTRA_BLANK_LINES = Regex("""\n{3,}""")
 
     /** True jos latest-versio on suurempi kuin current (numeerinen ydinosa ennen "-", esim. 1.15.1). */
     fun isNewer(current: String, latest: String): Boolean {

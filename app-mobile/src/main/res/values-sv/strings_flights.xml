@@ -29,6 +29,7 @@
     <string name="flights_area_paren">(område %1$s)</string>
     <string name="flights_checkin">Incheckningsdisk</string>
     <string name="flights_via">Fortsatt rutt</string>
+    <string name="flights_via_arrival">Mellanlandning</string>
     <string name="flights_aircraft">Flygplan</string>
     <string name="flights_calls">Utrop</string>
     <string name="flights_call_gate">Till gate %1$s</string>
@@ -52,6 +53,5 @@
     <string name="flights_status_boarding">Ombordstigning</string>
     <string name="flights_status_final_call">Sista utrop</string>
     <string name="flights_status_gate_closed">Gate stängd</string>
-    <string name="flights_status_departing">Avgår</string>
     <string name="flights_status_approaching">Närmar sig</string>
 </resources>

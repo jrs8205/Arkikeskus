@@ -32,6 +32,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -268,6 +269,11 @@ internal fun ElectricitySection() {
                             )
                         }
                     }
+                    // Listan lopussa: pitkältä varttilistalta pääsee takaisin sivun alkuun ilman pitkää
+                    // vieritystä. Jää kelluvan Siirry nykyhetkeen -painikkeen yläpuolelle (alareunan tyhjä tila).
+                    item(key = "back-to-top") {
+                        BackToTopButton { scope.launch { listState.animateScrollToItem(0) } }
+                    }
                 }
             }
         }
@@ -441,6 +447,26 @@ private fun JumpToNowButton(direction: JumpDirection?, modifier: Modifier, onCli
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = cs.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+/** Hintalistan viimeinen kohde: vierittää sivun alkuun. */
+@Composable
+private fun BackToTopButton(onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
+        OutlinedButton(onClick = onClick, modifier = Modifier.heightIn(min = 48.dp)) {
+            Icon(
+                painterResource(R.drawable.mobile_ic_arrow_up_24),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.common_back_to_top),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
             )
         }
     }

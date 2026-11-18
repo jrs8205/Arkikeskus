@@ -29,6 +29,7 @@
     <string name="flights_area_paren">(area %1$s)</string>
     <string name="flights_checkin">Check-in desk</string>
     <string name="flights_via">Onward route</string>
+    <string name="flights_via_arrival">Stopover</string>
     <string name="flights_aircraft">Aircraft</string>
     <string name="flights_calls">Announcements</string>
     <string name="flights_call_gate">Go to gate %1$s</string>
@@ -53,6 +54,5 @@
     <string name="flights_status_boarding">Boarding</string>
     <string name="flights_status_final_call">Final call</string>
     <string name="flights_status_gate_closed">Gate closed</string>
-    <string name="flights_status_departing">Departing</string>
     <string name="flights_status_approaching">Approaching</string>
 </resources>

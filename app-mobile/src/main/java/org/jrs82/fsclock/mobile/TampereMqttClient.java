@@ -128,11 +128,12 @@ final class TampereMqttClient {
 
     /** patternCode "tampere:&lt;route&gt;:&lt;dir&gt;:&lt;variant&gt;" → vp-topic-suodatin
      *  "/gtfsrt/vp/tampere/+/+/+/&lt;route&gt;/&lt;dir&gt;/#" (3×+ = tyhjä agency_id, tyhjä agency_name, mode).
-     *  null jos koodi puuttuu tai siitä ei saa reittiä+suuntaa. */
+     *  null jos koodi puuttuu tai siitä ei saa reittiä+suuntaa. Vain Nyssen syöte ("tampere"): Waltti-reitittimen
+     *  VR-junilla ("digitraffic:30:0:01") ei ole MQTT-virtaa, ja sama linjanumero osuisi Nyssen bussiin. */
     static String topicForPattern(String patternCode) {
         if (patternCode == null) return null;
         String[] p = patternCode.split(":");
-        if (p.length < 3) return null;
+        if (p.length < 3 || !"tampere".equals(p[0])) return null;
         String route = p[1];
         String dir = p[2];
         if (route.isEmpty() || dir.isEmpty()) return null;

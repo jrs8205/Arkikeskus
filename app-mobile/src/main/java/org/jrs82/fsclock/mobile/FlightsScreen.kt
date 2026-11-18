@@ -259,7 +259,7 @@ private fun FlightCard(f: Flight, showAirport: Boolean) {
                     } else {
                         DetailRow(stringResource(R.string.flights_checkin), f.checkin)
                     }
-                    DetailRow(stringResource(R.string.flights_via), f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
+                    DetailRow(stringResource(FlightDisplay.viaLabelRes(f.dir)), f.via.takeIf { it.isNotEmpty() }?.joinToString(" → "))
                     DetailRow(stringResource(R.string.flights_aircraft), f.aircraft?.let { ac -> if (!f.aircraftReg.isNullOrBlank()) "$ac · ${f.aircraftReg}" else ac })
                     val calls = listOfNotNull(
                         f.callGateMs?.let { stringResource(R.string.flights_call_gate, timeHm(it)) },

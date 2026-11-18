@@ -73,8 +73,17 @@ public enum TransitRegion {
     }
 
     /** Alue gtfsId:n syöte-prefiksistä (esim. "tampere:0015" → TAMPERE, "HSL:1234" → HSL). Suosikit ja
-     *  avatut kohteet ovat globaaleja, joten oikea reititin päätellään aina id:stä. null/tuntematon → HSL. */
+     *  avatut kohteet ovat globaaleja, joten oikea reititin päätellään aina id:stä. null/tuntematon → HSL.
+     *  VR:n junat ("digitraffic:TPE_1", "digitraffic:30_20261212") ovat vain Waltti-reitittimessä: HSL-reititin
+     *  (syötteet HSL, HSLlautta, Uber; tarkistettu 18.11.2026) palauttaa niille null. */
     public static TransitRegion forGtfsId(String id) {
-        return (id != null && id.startsWith("tampere:")) ? TAMPERE : HSL;
+        if (id == null) return HSL;
+        return id.startsWith("tampere:") || id.startsWith("digitraffic:") ? TAMPERE : HSL;
+    }
+
+    /** Tuleeko kohteen live-sijainti MQTT:stä: vain Nyssen vuorot ("tampere:"). Waltti-reitittimen VR-junille
+     *  ("digitraffic:") ei ole live-lähdettä, joten niille ei näytetä "haetaan live-sijaintia". */
+    public static boolean liveViaMqttFor(String id) {
+        return id != null && id.startsWith("tampere:") && forGtfsId(id).liveViaMqtt;
     }
 }

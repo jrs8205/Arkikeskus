@@ -1425,6 +1425,13 @@ private fun AboutGroup(context: Context) {
             AppUpdater.checkLatest(current) { rel, newer ->
                 checking = false
                 update = if (newer) rel else null
+                // Sama talletus kuin käynnistyksen tarkistuksessa: etusivun banneri ja sen Mitä uutta
+                // -teksti päivittyvät tuoreeseen julkaisuun.
+                if (rel != null) {
+                    AppUpdater.saveCheckResult(
+                        PreferenceManager.getDefaultSharedPreferences(context), rel, newer, System.currentTimeMillis(),
+                    )
+                }
                 status = when {
                     rel == null -> context.getString(R.string.settings_update_check_failed)
                     newer -> context.getString(R.string.settings_update_available, rel.versionName)

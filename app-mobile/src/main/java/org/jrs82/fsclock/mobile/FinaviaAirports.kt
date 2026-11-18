@@ -23,7 +23,7 @@ object FinaviaAirports {
         Airport("MHQ", "Maarianhamina"),
         Airport("POR", "Pori"),
         Airport("SVL", "Savonlinna"),
-        Airport("ENF", "Enontekiö"),
+        // Enontekiö (ENF) poistettu 2.29.1: siirtyi kunnalle 2021, Finavian rajapinnat eivät anna sille lentoja.
     )
 
     fun name(iata: String): String = ALL.firstOrNull { it.iata == iata }?.name ?: iata
