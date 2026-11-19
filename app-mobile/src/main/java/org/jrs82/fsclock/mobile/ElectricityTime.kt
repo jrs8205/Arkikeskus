@@ -6,6 +6,7 @@ import org.jrs82.fsclock.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Locale
 
 /**
  * Sähkön varttien kellonajat aikaleimasta. Talviaikaan siirryttäessä tunti 03 on vuorokaudessa kahdesti,
@@ -47,6 +48,18 @@ object ElectricityTime {
     fun slotBounds(ms: Long, slotMs: Long): Pair<ZonedDateTime, ZonedDateTime> {
         val start = Math.floorDiv(ms, slotMs) * slotMs
         return Instant.ofEpochMilli(start).atZone(HELSINKI) to Instant.ofEpochMilli(start + slotMs).atZone(HELSINKI)
+    }
+
+    /**
+     * Jakson alku ja loppu kellonaikoina ("08.30" ja "08.45"). Loppu muotoillaan alun UTC-offsetilla,
+     * jotta kellonsiirtoyön jakso näyttää pituiseltaan oikealta: syksyllä "03.00"–"04.00" (ei
+     * "03.00"–"03.00") ja keväällä "02.00"–"03.00" (ei "02.00"–"04.00").
+     */
+    fun slotClockTexts(ms: Long, slotMs: Long): Pair<String, String> {
+        val (start, slotEnd) = slotBounds(ms, slotMs)
+        val end = slotEnd.toInstant().atOffset(start.offset)
+        return String.format(Locale.ROOT, "%02d.%02d", start.hour, start.minute) to
+            String.format(Locale.ROOT, "%02d.%02d", end.hour, end.minute)
     }
 
     /** Kellonajan tarkenne toistuvalla tunnilla (kesä-/talviaikaa), muuten null. */

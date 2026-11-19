@@ -199,8 +199,10 @@ private fun UpdateBanner(info: AppUpdater.ReleaseInfo, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var status by remember { mutableStateOf<String?>(null) }
     var showNotes by remember { mutableStateOf(false) }
-    // GitHubin julkaisuteksti on markdownia; dialogi näyttää sen tavallisena tekstinä.
-    val notes = remember(info.notes) { AppUpdater.plainNotes(info.notes) }
+    // GitHubin julkaisuteksti on markdownia ja voi sisältää kieliosiot; dialogi näyttää sovelluksen
+    // kielen osion tavallisena tekstinä.
+    val language = AppLocale.language(context)
+    val notes = remember(info.notes, language) { AppUpdater.localizedNotes(info.notes, language) }
     if (showNotes) {
         AlertDialog(
             onDismissRequest = { showNotes = false },

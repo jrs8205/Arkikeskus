@@ -54,12 +54,46 @@
     <string name="settings_hourly_title">Show hourly average price</string>
     <string name="settings_hourly_on">Prices are shown per hour as the average of the quarter-hour prices</string>
     <string name="settings_hourly_off">Prices are shown per quarter hour</string>
+    <string name="settings_own_header">Your prices</string>
+    <string name="settings_own_enabled">Show your total price</string>
+    <string name="settings_own_enabled_sub">Prices include your margin, transfer and electricity tax</string>
+    <string name="settings_own_contract">Electricity contract</string>
+    <string name="settings_own_contract_spot">Spot electricity</string>
+    <string name="settings_own_contract_fixed">Fixed price</string>
+    <string name="settings_own_margin">Margin</string>
+    <string name="settings_own_fixed_price">Electricity price</string>
+    <string name="settings_own_transfer_product">Transfer product</string>
+    <string name="settings_own_product_general">General transfer</string>
+    <string name="settings_own_product_time">Time-of-use transfer (day/night)</string>
+    <string name="settings_own_product_season">Seasonal transfer (winter weekday/other times)</string>
+    <string name="settings_own_transfer_price">Transfer price</string>
+    <string name="settings_own_transfer_day">Day price</string>
+    <string name="settings_own_transfer_night">Night price</string>
+    <string name="settings_own_transfer_winter">Winter weekday</string>
+    <string name="settings_own_transfer_other">Other times</string>
+    <string name="settings_own_high_time">When the higher price applies</string>
+    <string name="settings_own_time_value">%1$d–%2$d, %3$s</string>
+    <string name="settings_own_season_note">The winter season is 1 Nov–31 Mar.</string>
+    <string name="settings_own_start_hour">Starts (hour 0–23)</string>
+    <string name="settings_own_end_hour">Ends (hour 1–24)</string>
+    <string name="settings_own_days_all">every day</string>
+    <string name="settings_own_days_mon_fri">Mon–Fri</string>
+    <string name="settings_own_days_mon_sat">Mon–Sat</string>
+    <string name="settings_own_hours_invalid">The start hour must be before the end hour (0–24).</string>
+    <string name="settings_own_tax">Electricity tax</string>
+    <string name="settings_own_tax_sub">The grid company bills the tax on the transfer bill, not the electricity seller. Turn this off if your transfer price already includes it.</string>
+    <string name="settings_own_tax_value">Electricity tax amount</string>
+    <string name="settings_own_not_set">Not set</string>
+    <string name="settings_own_price_invalid">Enter a price between 0 and 100 with at most three decimals.</string>
+    <string name="settings_own_vat_hint">Enter prices including VAT, as they appear on your bill.</string>
     <string name="settings_cheap_header">Cheap electricity</string>
     <string name="settings_cheap_notice">Cheap electricity notice</string>
     <string name="settings_cheap_notice_sub">Show a notice on the Home page when electricity is cheap</string>
     <string name="settings_cheap_threshold">Cheap electricity threshold</string>
     <string name="settings_threshold_label_vat" formatted="false">c/kWh (incl. VAT 25.5%)</string>
     <string name="settings_threshold_label_no_vat" formatted="false">c/kWh (VAT 0%)</string>
+    <string name="settings_threshold_label_spot_vat" formatted="false">c/kWh, spot price (incl. VAT 25.5%)</string>
+    <string name="settings_threshold_label_spot_no_vat" formatted="false">c/kWh, spot price (VAT 0%)</string>
     <string name="settings_threshold_invalid">Enter a number, e.g. 5.0</string>
     <string name="settings_cheap_mode">When to show the notice</string>
     <string name="settings_cheap_mode_current">Current quarter hour</string>

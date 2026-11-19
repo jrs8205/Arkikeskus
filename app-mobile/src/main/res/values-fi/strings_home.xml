@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_see_all">Kaikki</string>
+    <string name="home_forecast_link">7 vrk</string>
     <string name="home_title_clock">Kello ja päivämäärä</string>
     <string name="home_title_holidays">Pyhä- ja liputuspäivät</string>
     <string name="home_title_weather">Sää</string>

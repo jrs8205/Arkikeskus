@@ -54,12 +54,46 @@
     <string name="settings_hourly_title">Näytä tunnin keskihinta</string>
     <string name="settings_hourly_on">Hinnat näytetään tunneittain varttihintojen keskiarvona</string>
     <string name="settings_hourly_off">Hinnat näytetään vartin tarkkuudella</string>
+    <string name="settings_own_header">Omat hinnat</string>
+    <string name="settings_own_enabled">Näytä oma kokonaishinta</string>
+    <string name="settings_own_enabled_sub">Hinnoissa ovat mukana marginaali, siirto ja sähkövero</string>
+    <string name="settings_own_contract">Sähkösopimus</string>
+    <string name="settings_own_contract_spot">Pörssisähkö</string>
+    <string name="settings_own_contract_fixed">Kiinteä hinta</string>
+    <string name="settings_own_margin">Marginaali</string>
+    <string name="settings_own_fixed_price">Sähkön hinta</string>
+    <string name="settings_own_transfer_product">Siirtotuote</string>
+    <string name="settings_own_product_general">Yleissiirto</string>
+    <string name="settings_own_product_time">Aikasiirto (päivä/yö)</string>
+    <string name="settings_own_product_season">Kausisiirto (talviarkipäivä/muu aika)</string>
+    <string name="settings_own_transfer_price">Siirtohinta</string>
+    <string name="settings_own_transfer_day">Päivähinta</string>
+    <string name="settings_own_transfer_night">Yöhinta</string>
+    <string name="settings_own_transfer_winter">Talviarkipäivä</string>
+    <string name="settings_own_transfer_other">Muu aika</string>
+    <string name="settings_own_high_time">Kalliimman hinnan aika</string>
+    <string name="settings_own_time_value">klo %1$d–%2$d, %3$s</string>
+    <string name="settings_own_season_note">Talvikausi on 1.11.–31.3.</string>
+    <string name="settings_own_start_hour">Alkaa (tunti 0–23)</string>
+    <string name="settings_own_end_hour">Päättyy (tunti 1–24)</string>
+    <string name="settings_own_days_all">joka päivä</string>
+    <string name="settings_own_days_mon_fri">ma–pe</string>
+    <string name="settings_own_days_mon_sat">ma–la</string>
+    <string name="settings_own_hours_invalid">Alkutunnin pitää olla ennen lopputuntia (0–24).</string>
+    <string name="settings_own_tax">Sähkövero</string>
+    <string name="settings_own_tax_sub">Verkkoyhtiö laskuttaa veron siirtolaskulla, ei sähkön myyjä. Kytke pois, jos siirtohintasi sisältää sen jo.</string>
+    <string name="settings_own_tax_value">Sähköveron määrä</string>
+    <string name="settings_own_not_set">Ei asetettu</string>
+    <string name="settings_own_price_invalid">Anna hinta väliltä 0–100, enintään kolme desimaalia.</string>
+    <string name="settings_own_vat_hint">Syötä hinnat arvonlisäverollisina, kuten ne ovat laskulla.</string>
     <string name="settings_cheap_header">Halpa sähkö</string>
     <string name="settings_cheap_notice">Halvan sähkön huomio</string>
     <string name="settings_cheap_notice_sub">Näytä huomio etusivulla kun sähkö on halpaa</string>
     <string name="settings_cheap_threshold">Halvan sähkön raja</string>
     <string name="settings_threshold_label_vat" formatted="false">c/kWh (sis. ALV 25,5 %)</string>
     <string name="settings_threshold_label_no_vat" formatted="false">c/kWh (ALV 0 %)</string>
+    <string name="settings_threshold_label_spot_vat" formatted="false">c/kWh, pörssihinta (sis. ALV 25,5 %)</string>
+    <string name="settings_threshold_label_spot_no_vat" formatted="false">c/kWh, pörssihinta (ALV 0 %)</string>
     <string name="settings_threshold_invalid">Anna luku, esim. 5.0</string>
     <string name="settings_cheap_mode">Milloin huomio näytetään</string>
     <string name="settings_cheap_mode_current">Nykyinen vartti</string>

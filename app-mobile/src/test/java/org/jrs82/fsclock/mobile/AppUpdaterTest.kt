@@ -78,6 +78,71 @@ class AppUpdaterTest {
         assertEquals("tähti * jää", AppUpdater.plainNotes("tähti \\* jää"))
     }
 
+    // --- Mitä uutta -teksti sovelluksen kielellä: julkaisutekstin kieliosiot ---
+
+    private val trilingual = "Suomeksi\n\nOminaisuusversio (2.30.0 → 2.31.0).\n\n- Uusi mittaristo\n\nVaatii Android 11 tai uudemman.\n\n" +
+        "På svenska\n\nFunktionsversion (2.30.0 → 2.31.0).\n\n- Ny instrumentpanel\n\nKräver Android 11 eller senare.\n\n" +
+        "In English\n\nFeature release (2.30.0 → 2.31.0).\n\n- New dashboard\n\nRequires Android 11 or later.\n"
+
+    @Test fun localizedNotes_showTheSectionOfTheAppLanguage_withoutItsHeading() {
+        assertEquals(
+            "Ominaisuusversio (2.30.0 → 2.31.0).\n\n- Uusi mittaristo\n\nVaatii Android 11 tai uudemman.",
+            AppUpdater.localizedNotes(trilingual, "fi"),
+        )
+        assertEquals(
+            "Funktionsversion (2.30.0 → 2.31.0).\n\n- Ny instrumentpanel\n\nKräver Android 11 eller senare.",
+            AppUpdater.localizedNotes(trilingual, "sv"),
+        )
+        assertEquals(
+            "Feature release (2.30.0 → 2.31.0).\n\n- New dashboard\n\nRequires Android 11 or later.",
+            AppUpdater.localizedNotes(trilingual, "en"),
+        )
+    }
+
+    @Test fun localizedNotes_withoutSections_showTheWholeText() {
+        // Vanhat julkaisut ovat yksikielisiä: teksti näytetään kokonaan kaikilla kielillä.
+        val old = "Korjausversio (2.29.0 → 2.29.1).\n\n- Takaisin ylös -painike\n\nVaatii Android 11 tai uudemman."
+        for (language in listOf("fi", "sv", "en")) assertEquals(old, AppUpdater.localizedNotes(old, language))
+    }
+
+    @Test fun localizedNotes_whenTheOwnLanguageIsMissing_showTheWholeText() {
+        // Mitään ei piiloteta: jos oman kielen osiota ei ole (tai se on tyhjä), näytetään kaikki otsikoineen.
+        val fiSv = "Suomeksi\n\n- Uusi mittaristo\n\nPå svenska\n\n- Ny instrumentpanel"
+        assertEquals(fiSv, AppUpdater.localizedNotes(fiSv, "en"))
+        assertEquals("- Uusi mittaristo", AppUpdater.localizedNotes(fiSv, "fi"))
+        val emptyEn = "$fiSv\n\nIn English\n"
+        assertEquals("Suomeksi\n\n- Uusi mittaristo\n\nPå svenska\n\n- Ny instrumentpanel\n\nIn English", AppUpdater.localizedNotes(emptyEn, "en"))
+    }
+
+    @Test fun localizedNotes_headingsAllowCaseColonAndMarkdown() {
+        val md = "## SUOMEKSI\n- yksi\n\n**På svenska:**\n- ett\n\n### in english :\n- one"
+        assertEquals("- yksi", AppUpdater.localizedNotes(md, "fi"))
+        assertEquals("- ett", AppUpdater.localizedNotes(md, "sv"))
+        assertEquals("- one", AppUpdater.localizedNotes(md, "en"))
+    }
+
+    @Test fun localizedNotes_aHeadingWordInsideALine_isOrdinaryText() {
+        val text = "Suomeksi\n\n- Suomeksi ja ruotsiksi käännetty\n- In English too\n\nIn English\n\n- Translated"
+        assertEquals("- Suomeksi ja ruotsiksi käännetty\n- In English too", AppUpdater.localizedNotes(text, "fi"))
+        assertEquals("- Translated", AppUpdater.localizedNotes(text, "en"))
+    }
+
+    @Test fun localizedNotes_keepTextBeforeTheFirstHeading_forEveryLanguage() {
+        val text = "Arkikeskus 2.31.0\n\nSuomeksi\n- yksi\n\nIn English\n- one"
+        assertEquals("Arkikeskus 2.31.0\n\n- yksi", AppUpdater.localizedNotes(text, "fi"))
+        assertEquals("Arkikeskus 2.31.0\n\n- one", AppUpdater.localizedNotes(text, "en"))
+    }
+
+    @Test fun localizedNotes_joinARepeatedSection() {
+        val text = "Suomeksi\n- yksi\n\nIn English\n- one\n\nSuomeksi\n- kaksi"
+        assertEquals("- yksi\n\n- kaksi", AppUpdater.localizedNotes(text, "fi"))
+    }
+
+    @Test fun trilingualNotes_stayReadableInAVersionThatShowsEverything() {
+        // 2.29.1 ja 2.30.0:aa vanhemmat näyttävät koko tekstin: kolme osiota otsikoineen peräkkäin.
+        assertEquals(trilingual.trim(), AppUpdater.plainNotes(trilingual))
+    }
+
     // --- Päivitystarkistuksen tulos talteen: sama polku automaattiselle ja Asetusten tarkistukselle ---
 
     private fun release(apk: String? = "https://x/Arkikeskus-2.30.0.apk", notes: String = "uusi") =

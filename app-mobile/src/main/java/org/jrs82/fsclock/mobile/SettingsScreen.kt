@@ -23,10 +23,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -56,7 +58,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
@@ -353,6 +357,7 @@ fun SettingsScreen(
         ?: MobileThemeController.DEFAULT_CHEAP_ELECTRICITY_THRESHOLD
     val vatOn = remember(refreshTick) { ElectricityVat.enabled(prefs) }
     val hourlyOn = remember(refreshTick) { ElectricityHourly.enabled(prefs) }
+    val pricing = remember(refreshTick) { ElectricityOwnSettings.pricing(prefs) }
     val stepGoal = prefs.getString(StepGoalNotifier.KEY_GOAL, StepGoalNotifier.DEFAULT_GOAL)
         ?: StepGoalNotifier.DEFAULT_GOAL
     val builtinFeeds = remember { NewsFeedStore.allFeeds(prefs).filter { it.builtin } }
@@ -513,6 +518,11 @@ fun SettingsScreen(
                                 ElectricityWidgetRedraw.redrawAsync(context)
                             },
                         )
+                    }
+                    OwnPricesGroup(prefs) {
+                        refreshTick++
+                        // Widget näyttää saman kokonaishinnan; piirretään heti välimuistista.
+                        ElectricityWidgetRedraw.redrawAsync(context)
                     }
                     SubHeader(stringResource(R.string.settings_cheap_header))
                     GroupCard {
@@ -846,7 +856,7 @@ fun SettingsScreen(
             title = stringResource(R.string.settings_cheap_threshold),
             initial = threshold,
             label = stringResource(
-                if (vatOn) R.string.settings_threshold_label_vat else R.string.settings_threshold_label_no_vat,
+                pricing.thresholdLabelRes(),
             ),
             keyboardType = KeyboardType.Decimal,
             onSave = { value ->
@@ -1015,23 +1025,35 @@ private fun RadioDialog(
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) } },
         title = { Text(title) },
         text = {
-            Column {
+            // Vieritettävä: matalassa ikkunassa (vaakanäyttö, iso fontti) alimmat vaihtoehdot eivät muuten näy.
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 options.forEach { (value, label) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPick(value) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = value == current, onClick = { onPick(value) })
-                        Spacer(Modifier.width(8.dp))
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
-                    }
+                    RadioOptionRow(label = label, selected = value == current, verticalPadding = 8.dp) { onPick(value) }
                 }
             }
         },
     )
+}
+
+/**
+ * Valintarivi dialogissa. Koko rivi on yksi valittava kohde radiopainikkeen roolilla, joten ruudunlukija
+ * saa vaihtoehdon nimen ja valintatilan samalta kohteelta; sisempi [RadioButton] on vain näkyvä merkki.
+ * Rivi on vähintään 48 dp korkea: `RadioButton(onClick = null)` ei varaa vähimmäiskosketusaluetta itse.
+ */
+@Composable
+private fun RadioOptionRow(label: String, selected: Boolean, verticalPadding: Dp, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .heightIn(min = 48.dp)
+            .padding(vertical = verticalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+    }
 }
 
 @Composable
@@ -1541,3 +1563,299 @@ private fun toast(context: Context, msg: String) {
 }
 
 private fun toast(context: Context, @StringRes msg: Int) = toast(context, context.getString(msg))
+
+// ===================== Pörssisähkö: omat hinnat =====================
+
+private val OWN_CONTRACT_OPTIONS = listOf(
+    ElectricityOwnSettings.CONTRACT_SPOT to R.string.settings_own_contract_spot,
+    ElectricityOwnSettings.CONTRACT_FIXED to R.string.settings_own_contract_fixed,
+)
+private val OWN_PRODUCT_OPTIONS = listOf(
+    ElectricityOwnSettings.PRODUCT_GENERAL to R.string.settings_own_product_general,
+    ElectricityOwnSettings.PRODUCT_TIME to R.string.settings_own_product_time,
+    ElectricityOwnSettings.PRODUCT_SEASON to R.string.settings_own_product_season,
+)
+private val OWN_DAYS_OPTIONS = listOf(
+    ElectricityOwnSettings.DAYS_ALL to R.string.settings_own_days_all,
+    ElectricityOwnSettings.DAYS_MON_FRI to R.string.settings_own_days_mon_fri,
+    ElectricityOwnSettings.DAYS_MON_SAT to R.string.settings_own_days_mon_sat,
+)
+
+private fun ownContractValue(contract: OwnContract): String =
+    if (contract == OwnContract.FIXED) ElectricityOwnSettings.CONTRACT_FIXED else ElectricityOwnSettings.CONTRACT_SPOT
+
+private fun ownProductValue(product: TransferProduct): String = when (product) {
+    TransferProduct.GENERAL -> ElectricityOwnSettings.PRODUCT_GENERAL
+    TransferProduct.TIME -> ElectricityOwnSettings.PRODUCT_TIME
+    TransferProduct.SEASON -> ElectricityOwnSettings.PRODUCT_SEASON
+}
+
+private fun ownDaysValue(days: TransferDays): String = when (days) {
+    TransferDays.EVERY_DAY -> ElectricityOwnSettings.DAYS_ALL
+    TransferDays.MON_FRI -> ElectricityOwnSettings.DAYS_MON_FRI
+    TransferDays.MON_SAT -> ElectricityOwnSettings.DAYS_MON_SAT
+}
+
+/** Muokattava hinta: asetusrivin otsikko, prefs-avain ja arvo, jota käytetään kun mitään ei ole tallennettu. */
+private data class OwnPriceField(@StringRes val titleRes: Int, val key: String, val fallback: Double? = null)
+
+/**
+ * Asetukset ▸ Pörssisähkö ▸ Omat hinnat: kytkin, sähkösopimus (marginaali tai kiinteä hinta),
+ * siirtotuote hintoineen ja sähkövero. Hinnat syötetään arvonlisäveron kanssa. [onChanged] kutsutaan
+ * jokaisen tallennuksen jälkeen (etusivun ja widgetin päivitys).
+ */
+@Composable
+private fun OwnPricesGroup(prefs: SharedPreferences, onChanged: () -> Unit) {
+    val context = LocalContext.current
+    val locale = AppLocale.current(context)
+    var tick by remember { mutableStateOf(0) }
+    val changed = {
+        tick++
+        onChanged()
+    }
+    val enabled = remember(tick) { ElectricityOwnSettings.enabled(prefs) }
+    val contract = remember(tick) { ElectricityOwnSettings.contract(prefs) }
+    val product = remember(tick) { ElectricityOwnSettings.product(prefs) }
+    val days = remember(tick) { ElectricityOwnSettings.days(prefs) }
+    val hours = remember(tick) { ElectricityOwnSettings.hours(prefs) }
+    val taxOn = remember(tick) { ElectricityOwnSettings.taxEnabled(prefs) }
+    val contractOptions = resolvedOptions(OWN_CONTRACT_OPTIONS)
+    val productOptions = resolvedOptions(OWN_PRODUCT_OPTIONS)
+    val daysOptions = resolvedOptions(OWN_DAYS_OPTIONS)
+    var showContract by remember { mutableStateOf(false) }
+    var showProduct by remember { mutableStateOf(false) }
+    var showTime by remember { mutableStateOf(false) }
+    var editField by remember { mutableStateOf<OwnPriceField?>(null) }
+
+    val notSet = stringResource(R.string.settings_own_not_set)
+    // Rivin arvo: tallennettu hinta kolmella desimaalilla, oletus (sähkövero) tai "Ei asetettu".
+    val priceText = { field: OwnPriceField ->
+        val stored = ElectricityOwnSettings.isSet(prefs, field.key)
+        if (!stored && field.fallback == null) {
+            notSet
+        } else {
+            ElectricityVat.format(ElectricityOwnSettings.storedPrice(prefs, field.key, field.fallback ?: 0.0), locale) + " c/kWh"
+        }
+    }
+
+    SubHeader(stringResource(R.string.settings_own_header))
+    GroupCard {
+        GroupRowSwitch(
+            title = stringResource(R.string.settings_own_enabled),
+            subtitle = stringResource(R.string.settings_own_enabled_sub),
+            leadingIconRes = R.drawable.mobile_ic_bolt_24,
+            checked = enabled,
+        ) {
+            prefs.edit().putBoolean(ElectricityOwnSettings.KEY_ENABLED, it).apply()
+            changed()
+        }
+        if (enabled) {
+            @Composable
+            fun priceRow(field: OwnPriceField) {
+                GroupRowClickable(
+                    title = stringResource(field.titleRes),
+                    valueText = remember(tick, field) { priceText(field) },
+                    showChevron = true,
+                ) { editField = field }
+            }
+            GroupDivider()
+            GroupRowClickable(
+                title = stringResource(R.string.settings_own_contract),
+                valueText = labelFor(contractOptions, ownContractValue(contract)),
+                showChevron = true,
+            ) { showContract = true }
+            priceRow(
+                if (contract == OwnContract.FIXED) {
+                    OwnPriceField(R.string.settings_own_fixed_price, ElectricityOwnSettings.KEY_FIXED_PRICE)
+                } else {
+                    OwnPriceField(R.string.settings_own_margin, ElectricityOwnSettings.KEY_MARGIN)
+                },
+            )
+            GroupDivider()
+            GroupRowClickable(
+                title = stringResource(R.string.settings_own_transfer_product),
+                valueText = labelFor(productOptions, ownProductValue(product)),
+                showChevron = true,
+            ) { showProduct = true }
+            when (product) {
+                TransferProduct.GENERAL ->
+                    priceRow(OwnPriceField(R.string.settings_own_transfer_price, ElectricityOwnSettings.KEY_TRANSFER_HIGH))
+                TransferProduct.TIME -> {
+                    priceRow(OwnPriceField(R.string.settings_own_transfer_day, ElectricityOwnSettings.KEY_TRANSFER_HIGH))
+                    priceRow(OwnPriceField(R.string.settings_own_transfer_night, ElectricityOwnSettings.KEY_TRANSFER_LOW))
+                }
+                TransferProduct.SEASON -> {
+                    priceRow(OwnPriceField(R.string.settings_own_transfer_winter, ElectricityOwnSettings.KEY_TRANSFER_HIGH))
+                    priceRow(OwnPriceField(R.string.settings_own_transfer_other, ElectricityOwnSettings.KEY_TRANSFER_LOW))
+                }
+            }
+            if (product != TransferProduct.GENERAL) {
+                GroupRowClickable(
+                    title = stringResource(R.string.settings_own_high_time),
+                    subtitle = stringResource(
+                        R.string.settings_own_time_value, hours.first, hours.second, labelFor(daysOptions, ownDaysValue(days)),
+                    ),
+                    showChevron = true,
+                ) { showTime = true }
+            }
+            GroupDivider()
+            GroupRowSwitch(
+                title = stringResource(R.string.settings_own_tax),
+                subtitle = stringResource(R.string.settings_own_tax_sub),
+                checked = taxOn,
+            ) {
+                prefs.edit().putBoolean(ElectricityOwnSettings.KEY_TAX_ENABLED, it).apply()
+                changed()
+            }
+            if (taxOn) {
+                priceRow(
+                    OwnPriceField(
+                        R.string.settings_own_tax_value, ElectricityOwnSettings.KEY_TAX, ElectricityOwnSettings.DEFAULT_TAX_SNT,
+                    ),
+                )
+            }
+        }
+    }
+    if (enabled) {
+        Text(
+            stringResource(R.string.settings_own_vat_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+        )
+    }
+
+    if (showContract) {
+        RadioDialog(
+            title = stringResource(R.string.settings_own_contract),
+            options = contractOptions,
+            current = ownContractValue(contract),
+            onPick = { value ->
+                showContract = false
+                prefs.edit().putString(ElectricityOwnSettings.KEY_CONTRACT, value).apply()
+                changed()
+            },
+            onDismiss = { showContract = false },
+        )
+    }
+    if (showProduct) {
+        RadioDialog(
+            title = stringResource(R.string.settings_own_transfer_product),
+            options = productOptions,
+            current = ownProductValue(product),
+            onPick = { value ->
+                showProduct = false
+                ElectricityOwnSettings.saveProduct(prefs, value)
+                changed()
+            },
+            onDismiss = { showProduct = false },
+        )
+    }
+    if (showTime) {
+        OwnTransferTimeDialog(
+            startHour = hours.first,
+            endHour = hours.second,
+            days = ownDaysValue(days),
+            daysOptions = daysOptions,
+            seasonal = product == TransferProduct.SEASON,
+            onSave = { start, end, pickedDays ->
+                if (start != null && end != null && ElectricityOwnSettings.validHours(start, end)) {
+                    showTime = false
+                    prefs.edit()
+                        .putInt(ElectricityOwnSettings.KEY_TRANSFER_START, start)
+                        .putInt(ElectricityOwnSettings.KEY_TRANSFER_END, end)
+                        .putString(ElectricityOwnSettings.KEY_TRANSFER_DAYS, pickedDays)
+                        .apply()
+                    changed()
+                } else {
+                    toast(context, R.string.settings_own_hours_invalid)
+                }
+            },
+            onDismiss = { showTime = false },
+        )
+    }
+    editField?.let { field ->
+        TextFieldDialog(
+            title = stringResource(field.titleRes),
+            initial = if (ElectricityOwnSettings.isSet(prefs, field.key)) {
+                ElectricityVat.format(ElectricityOwnSettings.storedPrice(prefs, field.key), locale)
+            } else {
+                // Oletusarvo (sähkövero) esitäytetään, jotta kenttä näyttää saman luvun kuin rivi.
+                field.fallback?.let { ElectricityVat.format(it, locale) } ?: ""
+            },
+            label = stringResource(R.string.settings_threshold_label_vat),
+            keyboardType = KeyboardType.Decimal,
+            onSave = { value ->
+                // Tyhjä syöte poistaa arvon (rivi palaa tilaan "Ei asetettu", sähköverossa oletukseen);
+                // muuttamaton oletus jätetään tallentamatta (ElectricityOwnSettings.savePrice).
+                if (ElectricityOwnSettings.savePrice(prefs, field.key, value, field.fallback)) {
+                    editField = null
+                    changed()
+                } else {
+                    toast(context, R.string.settings_own_price_invalid)
+                }
+            },
+            onDismiss = { editField = null },
+        )
+    }
+}
+
+/** Kalliimman siirtohinnan aika: alku- ja lopputunti sekä viikonpäivät. [onSave] saa null-tunnin, jos kenttä ei ole luku. */
+@Composable
+private fun OwnTransferTimeDialog(
+    startHour: Int,
+    endHour: Int,
+    days: String,
+    daysOptions: List<Pair<String, String>>,
+    seasonal: Boolean,
+    onSave: (start: Int?, end: Int?, days: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var start by remember { mutableStateOf(startHour.toString()) }
+    var end by remember { mutableStateOf(endHour.toString()) }
+    var picked by remember { mutableStateOf(days) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onSave(start.trim().toIntOrNull(), end.trim().toIntOrNull(), picked) }) {
+                Text(stringResource(R.string.common_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+        title = { Text(stringResource(R.string.settings_own_high_time)) },
+        text = {
+            // Vieritettävä: kaksi kenttää, kolme valintaa ja kausiselite eivät mahdu matalaan ikkunaan.
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = start,
+                    onValueChange = { start = it },
+                    label = { Text(stringResource(R.string.settings_own_start_hour)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = end,
+                    onValueChange = { end = it },
+                    label = { Text(stringResource(R.string.settings_own_end_hour)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                daysOptions.forEach { (value, label) ->
+                    RadioOptionRow(label = label, selected = value == picked, verticalPadding = 4.dp) { picked = value }
+                }
+                if (seasonal) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.settings_own_season_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+    )
+}

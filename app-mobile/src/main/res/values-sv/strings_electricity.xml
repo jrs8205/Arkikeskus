@@ -40,7 +40,37 @@
     <string name="electricity_cheap_notice_rest_of_day">Elen är billig resten av dagen: allt under %1$s c/kWh, högst %2$s c/kWh</string>
     <string name="electricity_cheap_notice_all_day">Elen är billig hela dagen: allt under %1$s c/kWh, högst %2$s c/kWh</string>
     <string name="electricity_notify_title">Morgondagens elpriser har kommit</string>
-    <string name="electricity_notify_text">Billigast kl. %1$s (%2$s c), dyrast kl. %3$s (%4$s c). Medelpris %5$s c/kWh, %6$s.</string>
+    <string name="electricity_notify_text_quarter">Billigaste kvarten kl. %1$s (%2$s c), dyraste kl. %3$s (%4$s c). Medelpris %5$s c/kWh, %6$s.</string>
+    <string name="electricity_notify_text_hour">Billigaste timmen kl. %1$s (%2$s c), dyraste kl. %3$s (%4$s c). Medelpris %5$s c/kWh, %6$s.</string>
+    <string name="electricity_own_note_incl" formatted="false">Ditt totalpris (inkl. moms 25,5 %)</string>
+    <string name="electricity_own_note_excl" formatted="false">Ditt totalpris (moms 0 %)</string>
+    <string name="electricity_own_label_incl" formatted="false">ditt totalpris (inkl. moms 25,5 %)</string>
+    <string name="electricity_own_label_excl" formatted="false">ditt totalpris (moms 0 %)</string>
+    <string name="electricity_own_widget">ditt pris</string>
+    <string name="electricity_fixed_note_incl" formatted="false">Börselens pris med överföring och elskatt (inkl. moms 25,5 %)</string>
+    <string name="electricity_fixed_note_excl" formatted="false">Börselens pris med överföring och elskatt (moms 0 %)</string>
+    <string name="electricity_fixed_label_incl" formatted="false">börsel med överföring och elskatt (inkl. moms 25,5 %)</string>
+    <string name="electricity_fixed_label_excl" formatted="false">börsel med överföring och elskatt (moms 0 %)</string>
+    <string name="electricity_fixed_widget">med överföring och skatt</string>
+    <string name="electricity_fixed_hero_cheaper">Ditt fasta pris %1$s c/kWh · börselen nu %2$s c/kWh billigare</string>
+    <string name="electricity_fixed_hero_dearer">Ditt fasta pris %1$s c/kWh · börselen nu %2$s c/kWh dyrare</string>
+    <string name="electricity_fixed_hero_equal">Ditt fasta pris %1$s c/kWh · börselen kostar nu lika mycket</string>
+    <string name="electricity_fixed_hero_avg_cheaper">Ditt fasta pris i snitt %1$s c/kWh · börselen i snitt %2$s c/kWh billigare</string>
+    <string name="electricity_fixed_hero_avg_dearer">Ditt fasta pris i snitt %1$s c/kWh · börselen i snitt %2$s c/kWh dyrare</string>
+    <string name="electricity_fixed_hero_avg_equal">Ditt fasta pris i snitt %1$s c/kWh · börselen kostar i snitt lika mycket</string>
+    <string name="electricity_fixed_summary_quarters">Börselen billigare än ditt pris: %1$d/%2$d kvartar</string>
+    <string name="electricity_fixed_summary_hours">Börselen billigare än ditt pris: %1$d/%2$d timmar</string>
+    <string name="electricity_fixed_row_cheaper">börselen billigare än ditt pris</string>
+    <string name="electricity_fixed_row_dearer">börselen dyrare än ditt pris</string>
+    <string name="electricity_fixed_row_equal">börselen kostar lika mycket som ditt pris</string>
+    <string name="electricity_compare_spot_note">Siffrorna i jämförelsen är börspriser utan dina egna tillägg.</string>
+    <string name="electricity_part_spot">Börspris</string>
+    <string name="electricity_part_margin">marginal</string>
+    <string name="electricity_part_transfer">överföring</string>
+    <string name="electricity_part_tax">skatt</string>
+    <string name="electricity_cheap_notice_now_spot">Börselen är billig nu: börspriset under %1$s c/kWh, högst %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_rest_of_day_spot">Börselen är billig resten av dagen: börspriset under %1$s c/kWh, högst %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_all_day_spot">Börselen är billig hela dagen: börspriset under %1$s c/kWh, högst %2$s c/kWh</string>
     <string name="electricity_tomorrow_not_yet">Morgondagens priser är inte tillgängliga än.\nNord Pool publicerar dem vanligen ca kl. 14.\nUppdateras automatiskt…</string>
     <string name="electricity_cheapest_at">Billigast: %1$s %2$s c/kWh</string>
     <string name="electricity_most_expensive_at">Dyrast: %1$s %2$s c/kWh</string>

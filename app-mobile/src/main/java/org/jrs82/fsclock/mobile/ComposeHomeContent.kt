@@ -242,7 +242,7 @@ internal fun HomeDashboard(onOpenSection: (HomeSection) -> Unit = {}) {
                             when (id) {
                                 HomeWidget.CLOCK.id -> HomeClockWidget()
                                 HomeWidget.HOLIDAY.id -> HomeHolidayWidget()
-                                HomeWidget.WEATHER.id -> HomeWeatherWidget(prefs)
+                                HomeWidget.WEATHER.id -> HomeWeatherWidget(prefs, onOpenForecast = { onOpenSection(HomeSection.FORECAST) })
                                 HomeWidget.ELECTRICITY.id -> HomeElectricityWidget(prefs, onOpenElectricity = { onOpenSection(HomeSection.ELECTRICITY) })
                                 HomeWidget.WARNINGS.id -> HomeWarningsCard(onOpenWarnings = { onOpenSection(HomeSection.WEATHER_WARNINGS) })
                                 HomeWidget.SENSORS.id -> HomeSensorsWidget(prefs)
@@ -374,7 +374,7 @@ private fun HomeHolidayWidget() {
 }
 
 @Composable
-private fun HomeWeatherWidget(prefs: SharedPreferences) {
+private fun HomeWeatherWidget(prefs: SharedPreferences, onOpenForecast: () -> Unit) {
     val context = LocalContext.current
     val refresh = LocalRefreshTick.current
     val settingsRevision = LocalHomeDataRevision.current
@@ -385,7 +385,7 @@ private fun HomeWeatherWidget(prefs: SharedPreferences) {
         if (SharedHomeWeather.seed(weatherKey) == null) weather = null
         loadHomeWeather(context, weatherKey, generation, refresh)?.let { weather = it }
     }
-    WeatherCard(context, prefs, weather)
+    WeatherCard(context, prefs, weather, onOpenForecast)
 }
 
 /** Täydentää nykyhetken kosteuden/pilvisyyden OpenMeteosta, jos FMI-livehavainnosta puuttuvat.
@@ -691,10 +691,21 @@ private fun formatIsoDayMonth(date: String?): String {
 }
 
 @Composable
-private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: WeatherData?) {
+private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: WeatherData?, onOpenForecast: (() -> Unit)? = null) {
+    // Linkki 7 vuorokauden ennusteeseen, kuten muiden korttien "Kaikki". Näkyy myös latauskortissa:
+    // ennustesivu hakee tietonsa itse, joten sinne pitää päästä, vaikka havainnon haku epäonnistuisi.
+    val forecastLink: (@Composable () -> Unit)? = if (onOpenForecast != null) {
+        { TextButton(onClick = onOpenForecast) { Text(stringResource(R.string.home_forecast_link)) } }
+    } else {
+        null
+    }
     val c = weather?.current
     if (c == null) {
-        GenericCard(stringResource(R.string.home_title_weather), stringResource(R.string.home_weather_loading))
+        GenericCard(
+            stringResource(R.string.home_title_weather),
+            stringResource(R.string.home_weather_loading),
+            trailing = forecastLink,
+        )
         return
     }
     val cs = MaterialTheme.colorScheme
@@ -707,6 +718,7 @@ private fun WeatherCard(context: Context, prefs: SharedPreferences, weather: Wea
                 accent = arki.weatherAccent,
                 title = displayPlace(prefs),
                 subtitle = if (weather.fetchedAt > 0) stringResource(R.string.common_updated_at, hhmm(weather.fetchedAt)) else null,
+                trailing = forecastLink,
             )
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -877,7 +889,9 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val context = LocalContext.current
     val loc = AppLocale.current(context)
     val settingsRevision = LocalHomeDataRevision.current
-    val vat = remember(settingsRevision) { ElectricityVat.enabled(prefs) }
+    // Näytetty hinta: ALV-asetus ja käyttäjän omat hinnat. Hintataso seuraa aina pörssihintaa.
+    val pricing = remember(settingsRevision) { ElectricityOwnSettings.pricing(prefs) }
+    val vat = pricing.vat
     val hourlySetting = remember(settingsRevision) { ElectricityHourly.enabled(prefs) }
     // Tuntitila on voimassa vain päivälle, jonka jokainen tunti on täysi; muuten näytetään vartit.
     val today = remember(tick, hourlySetting, vat) { ElectricityHourly.daySlots(todayQuarters(repo), hourlySetting, vat) }
@@ -892,7 +906,7 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
     val arki = ArkiTheme.colors
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
-            val headerLevel = q?.let { priceLevel(ElectricityVat.apply(it.sntPerKwh, vat), threshold) }
+            val headerLevel = q?.let { priceLevel(pricing.spot(it.sntPerKwh), threshold) }
             val headerAccent = headerLevel?.let { priceAccent(it, arki) } ?: MaterialTheme.colorScheme.primary
             ArkiCardHeader(
                 icon = painterResource(R.drawable.mobile_ic_bolt_24),
@@ -918,8 +932,8 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                 )
             } else {
                 val cs = MaterialTheme.colorScheme
-                val price = ElectricityVat.apply(q.sntPerKwh, vat)
-                val level = priceLevel(price, threshold)
+                val price = pricing.shown(q)
+                val level = priceLevel(pricing.spot(q.sntPerKwh), threshold)
                 val accent = priceAccent(level, arki)
                 ArkiPill(
                     text = stringResource(priceLabelRes(level)),
@@ -960,26 +974,27 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(ElectricityVat.priceNoteRes(vat)),
+                    stringResource(pricing.priceNoteRes()),
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant,
                 )
-                val range = remember(today) { slotRange(today.slots) }
-                val rmin = range.first
-                val rmax = range.second
-                if (rmin != null && rmax != null && rmax.sntPerKwh > rmin.sntPerKwh) {
+                // Halvin ja kallein jakso näytetyn hinnan mukaan (omilla hinnoilla kokonaishinta).
+                val range = remember(today, pricing) { electricitySlotRange(today.slots, pricing) }
+                val rmin = range?.first
+                val rmax = range?.second
+                if (rmin != null && rmax != null && pricing.shown(rmax) > pricing.shown(rmin)) {
                     Spacer(Modifier.height(16.dp))
-                    PriceMeter(q.sntPerKwh, rmin.sntPerKwh, rmax.sntPerKwh, vat, accent, arki)
+                    PriceMeter(price, pricing.shown(rmin), pricing.shown(rmax), accent, arki)
                     Spacer(Modifier.height(14.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MinMaxChip(
                             R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, stringResource(R.string.electricity_cheapest),
-                            quarterPriceText(context, rmin, vat),
+                            quarterPriceText(context, rmin, pricing),
                             Modifier.weight(1f),
                         )
                         MinMaxChip(
                             R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, stringResource(R.string.electricity_most_expensive),
-                            quarterPriceText(context, rmax, vat),
+                            quarterPriceText(context, rmax, pricing),
                             Modifier.weight(1f),
                         )
                     }
@@ -1005,14 +1020,16 @@ private fun ElectricityCard(prefs: SharedPreferences, repo: ElectricityRepositor
 
 internal enum class PriceLevel { CHEAP, NORMAL, EXPENSIVE }
 
-/** Yli tämän (c/kWh, NÄYTETTY hinta eli ALV-asetuksen mukainen) hinta luokitellaan kalliiksi (punainen). */
+/** Yli tämän (c/kWh, PÖRSSIHINTA ALV-asetuksen mukaan) hinta luokitellaan kalliiksi (punainen). */
 private const val EXPENSIVE_THRESHOLD = 15.0
 
-/** "HH.MM · 0,000" — vartin kello + hinta ALV-asetuksen mukaan, aina kolme desimaalia. */
-private fun quarterPriceText(context: Context, q: ElectricityData.Quarter, vat: Boolean): String =
+/** "HH.MM · 0,000" — vartin kello + näytetty hinta, aina kolme desimaalia. */
+private fun quarterPriceText(context: Context, q: ElectricityData.Quarter, pricing: ElectricityPricing): String =
     String.format(Locale.ROOT, "%02d.%02d", q.hour, q.minute) + ElectricityTime.dstSuffix(context, q.timestamp) +
-        " · " + ElectricityVat.format(ElectricityVat.apply(q.sntPerKwh, vat), AppLocale.current(context))
+        " · " + ElectricityVat.format(pricing.shown(q), AppLocale.current(context))
 
+/** Hintataso pörssihinnasta [snt] ([ElectricityPricing.spot]). Taso ei riipu käyttäjän omista lisistä,
+ *  jotta halvan sähkön raja ja kalliin raja tarkoittavat samaa, näytettiinpä kokonaishinta tai ei. */
 internal fun priceLevel(snt: Double, cheapThreshold: Double): PriceLevel = when {
     snt.isNaN() -> PriceLevel.NORMAL
     snt < cheapThreshold -> PriceLevel.CHEAP
@@ -1044,12 +1061,6 @@ private fun todayQuarters(repo: ElectricityRepository): List<ElectricityData.Qua
     return repo.dayQuarters(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
 }
 
-/** Jaksojen halvin ja kallein (liikennevalomittariin + halvin/kallein-lappuihin). */
-private fun slotRange(slots: List<ElectricityData.Quarter>): Pair<ElectricityData.Quarter?, ElectricityData.Quarter?> {
-    if (slots.isEmpty()) return null to null
-    return slots.minByOrNull { it.sntPerKwh } to slots.maxByOrNull { it.sntPerKwh }
-}
-
 /** Jakson alku ja loppu muodossa "18.30" ja "18.45" (Suomen aikaa, oikein myös kellonsiirron yli). */
 internal fun slotClockRange(timestamp: Long, slotMs: Long): Pair<String, String> {
     val (start, end) = ElectricityTime.slotBounds(timestamp, slotMs)
@@ -1064,19 +1075,19 @@ private fun slotRangeText(context: Context, q: ElectricityData.Quarter, hourly: 
 
 /** Liikennevalomittari: vihreä→keltainen→punainen liuku päivän halvimmasta kalleimpaan varttiin,
  *  valkoinen osoitin nykyhinnan kohdalla ja alla janan alun, keskikohdan ja lopun hinnat.
- *  Sama jana etusivun kortissa ja sähkösivulla; widget piirtää vastaavan Glancella. */
+ *  Sama jana etusivun kortissa ja sähkösivulla; widget piirtää vastaavan Glancella.
+ *  [current], [min] ja [max] ovat näytettyjä hintoja ([ElectricityPricing.shown]). */
 @Composable
 internal fun PriceMeter(
     current: Double,
     min: Double,
     max: Double,
-    vat: Boolean,
     pointer: Color,
     arki: ArkiColors,
     labelStyle: TextStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
 ) {
-    val f = PriceScale.fraction(current, min, max, vat) ?: return
-    val (minText, midText, maxText) = PriceScale.labels(min, max, vat, appLocale())
+    val f = PriceScale.fraction(current, min, max) ?: return
+    val (minText, midText, maxText) = PriceScale.labels(min, max, appLocale())
     Box(modifier = Modifier.fillMaxWidth().height(16.dp), contentAlignment = Alignment.CenterStart) {
         Box(
             modifier = Modifier
@@ -1242,10 +1253,23 @@ private fun SensorTile(entry: Pair<String, RuuviSample?>, modifier: Modifier) {
 }
 
 @Composable
-private fun GenericCard(title: String, note: String) {
+private fun GenericCard(title: String, note: String, trailing: (@Composable () -> Unit)? = null) {
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (trailing == null) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            } else {
+                // Otsikon oikeassa reunassa toiminto (esim. sääkortin ennustelinkki).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    trailing()
+                }
+            }
             Spacer(Modifier.height(4.dp))
             Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -1299,7 +1323,7 @@ internal fun SensorsSection() {
 private data class CompareRowData(val label: String, val value: Double, val highlight: Boolean, val isSection: Boolean)
 
 @Composable
-internal fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
+internal fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean, ownPrices: Boolean = false) {
     // Seedataan prosessivälimuistista → ei lasketa raskaita keskiarvoja uudelleen joka kerta kun
     // Vertailu-välilehti avataan (sektio poistuu kompositiosta välilehteä vaihtaessa).
     // Rivien otsikot ovat valmiiksi käännettyjä → välimuisti kelpaa vain samalla kielellä.
@@ -1357,6 +1381,13 @@ internal fun ElectricityCompare(context: Context, refresh: Int, vat: Boolean) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    if (ownPrices) {
+        Text(
+            stringResource(R.string.electricity_compare_spot_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     Spacer(Modifier.height(10.dp))
     val r = rows
     when {
@@ -2154,7 +2185,7 @@ private fun cheapNotice(context: Context, prefs: SharedPreferences, repo: Electr
     val max = checked.maxByOrNull { it.sntPerKwh } ?: return null
     val loc = AppLocale.current(context)
     return context.getString(
-        cheapNoticeRes(mode),
+        cheapNoticeRes(mode, ElectricityOwnSettings.enabled(prefs)),
         ElectricityVat.format(threshold, loc), ElectricityVat.format(ElectricityVat.apply(max.sntPerKwh, vat), loc),
     )
 }
@@ -2167,14 +2198,6 @@ internal fun cheapThreshold(prefs: SharedPreferences): Double {
     } catch (e: NumberFormatException) {
         5.0
     }
-}
-
-// Koko lause per tila, koska ajanilmaus taipuu eri kielissä eri kohtaan lausetta.
-@StringRes
-private fun cheapNoticeRes(mode: String): Int = when (mode) {
-    MobileThemeController.CHEAP_MODE_CURRENT -> R.string.electricity_cheap_notice_now
-    MobileThemeController.CHEAP_MODE_REMAINING_DAY -> R.string.electricity_cheap_notice_rest_of_day
-    else -> R.string.electricity_cheap_notice_all_day
 }
 
 /** Anturit: ensin kaikki nimetyt (MAC→nimi-kartta, rajaton määrä), sitten muut löydetyt

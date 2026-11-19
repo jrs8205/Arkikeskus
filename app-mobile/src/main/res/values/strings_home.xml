@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_see_all">See all</string>
+    <string name="home_forecast_link">7 days</string>
     <string name="home_title_clock">Clock and date</string>
     <string name="home_title_holidays">Public holidays and flag days</string>
     <string name="home_title_weather">Weather</string>

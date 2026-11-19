@@ -42,9 +42,11 @@ import org.jrs82.fsclock.R
 import org.jrs82.fsclock.mobile.FontScaleCap
 import org.jrs82.fsclock.mobile.AppLocale
 import org.jrs82.fsclock.mobile.ElectricityHourly
+import org.jrs82.fsclock.mobile.ElectricityOwnSettings
 import org.jrs82.fsclock.mobile.ElectricityTime
 import org.jrs82.fsclock.mobile.ElectricityVat
 import org.jrs82.fsclock.mobile.PriceScale
+import org.jrs82.fsclock.mobile.widgetNoteRes
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
@@ -65,7 +67,9 @@ class ElectricityWidget : GlanceAppWidget() {
 @Composable
 private fun ElectricityContent(context: Context) {
     val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-    val vat = ElectricityVat.enabled(prefs)
+    // Sama hintamalli kuin sovelluksen näkymissä: ALV-asetus ja käyttäjän omat hinnat.
+    val pricing = ElectricityOwnSettings.pricing(prefs)
+    val vat = pricing.vat
     // Kuluva vartti haetaan piirtohetkellä varttilistasta (veroton) → hinta ja varttiteksti samasta vartista.
     val nowMs = System.currentTimeMillis()
     // Asetuksella "Näytä tunnin keskihinta" varttilista muunnetaan tunneiksi vasta piirrettäessä.
@@ -77,10 +81,13 @@ private fun ElectricityContent(context: Context) {
     val slotMs = today.slotMs
     val hourly = slotMs == ElectricityHourly.HOUR_MS
     val rawSnt = WidgetElectricity.currentPrice(quarters, nowMs, slotMs)
-    val snt = ElectricityVat.apply(rawSnt, vat)
+    // Näytetty hinta kuluvan jakson alusta (siirtohinta voi riippua kellonajasta). Jaksot alkavat
+    // tasavartein tai -tunnein, ja Suomen aikavyöhykkeen siirtymä on täysiä tunteja.
+    val snt = pricing.shown(Math.floorDiv(nowMs, slotMs) * slotMs, rawSnt)
     val threshold = (prefs.getString("mobile_cheap_electricity_threshold", "5.0") ?: "5.0")
         .trim().replace(',', '.').toDoubleOrNull() ?: 5.0
-    val level = WidgetFormat.priceLevel(snt, threshold)
+    // Hintataso seuraa pörssihintaa myös silloin, kun näytetään oma kokonaishinta.
+    val level = WidgetFormat.priceLevel(pricing.spot(rawSnt), threshold)
     val locale = AppLocale.current(context)
     val priceText = ElectricityVat.format(snt, locale)
 
@@ -102,11 +109,11 @@ private fun ElectricityContent(context: Context) {
     }
 
     // Jana = päivän halvin–kallein vartti, sama asteikko kuin sovelluksen etusivun kortissa ja sähkösivulla.
-    val range = WidgetElectricity.dayRange(quarters, nowMs, slotMs)
+    val range = WidgetElectricity.dayRange(quarters, nowMs, slotMs, pricing)
     val dayMin = range?.first ?: Double.NaN
     val dayMax = range?.second ?: Double.NaN
-    val pos01 = PriceScale.fraction(rawSnt, dayMin, dayMax, vat)
-    val (minText, midText, maxText) = PriceScale.labels(dayMin, dayMax, vat, locale)
+    val pos01 = PriceScale.fraction(snt, dayMin, dayMax)
+    val (minText, midText, maxText) = PriceScale.labels(dayMin, dayMax, locale)
 
     // Asettelu valitaan ilmoitetun korkeuden ja fonttiskaalan mukaan: matalassa widgetissä rivejä pudotetaan,
     // jotta jana ja sen hinnat mahtuvat aina kokonaan widgetin sisään.
@@ -161,7 +168,7 @@ private fun ElectricityContent(context: Context) {
                         maxLines = 1,
                     )
                     Text(
-                        context.getString(ElectricityVat.widgetNoteRes(vat)),
+                        context.getString(pricing.widgetNoteRes()),
                         style = TextStyle(color = WidgetColors.dim, fontSize = widgetSp(11), fontWeight = FontWeight.Medium),
                         maxLines = 1,
                     )

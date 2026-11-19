@@ -98,7 +98,9 @@ internal fun ElectricitySection() {
     val repo = remember { ElectricityRepository.get(context) }
     val settingsRevision = LocalHomeDataRevision.current
     val threshold = remember(settingsRevision) { cheapThreshold(prefs) }
-    val vat = remember(settingsRevision) { ElectricityVat.enabled(prefs) }
+    // Näytetty hinta: ALV-asetus ja käyttäjän omat hinnat. Hintataso seuraa aina pörssihintaa.
+    val pricing = remember(settingsRevision) { ElectricityOwnSettings.pricing(prefs) }
+    val vat = pricing.vat
     val hourly = remember(settingsRevision) { ElectricityHourly.enabled(prefs) }
     val refresh = LocalRefreshTick.current
     var dayOffset by remember { mutableIntStateOf(0) }
@@ -157,8 +159,8 @@ internal fun ElectricitySection() {
             else -> ElectricityHourly.current(day.slots, nowMs, day.slotMs)
         }
     }
-    val rows = remember(day, vat, nowMs, dayOffset) {
-        day?.let { electricityPriceRows(it.slots, it.slotMs, vat, if (dayOffset == 0) nowMs else null) }.orEmpty()
+    val rows = remember(day, pricing, nowMs, dayOffset) {
+        day?.let { electricityPriceRows(it.slots, it.slotMs, pricing, if (dayOffset == 0) nowMs else null) }.orEmpty()
     }
     val showList = dayOffset != TAB_COMPARE && hasPrices && day != null && day.slots.isNotEmpty()
     val showUnit = dayOffset != TAB_COMPARE
@@ -238,7 +240,7 @@ internal fun ElectricitySection() {
             }
             when {
                 dayOffset == TAB_COMPARE -> item(key = "compare") {
-                    Column { ElectricityCompare(context, refresh, vat) }
+                    Column { ElectricityCompare(context, refresh, vat, ownPrices = pricing.own != null) }
                 }
                 !showList || quarters == null || day == null -> item(key = "empty") {
                     Text(
@@ -249,13 +251,14 @@ internal fun ElectricitySection() {
                 }
                 else -> {
                     item(key = "hero") {
-                        ElectricityHeroCard(quarters, day, current, dayOffset, threshold, vat, data)
+                        ElectricityHeroCard(quarters, day, current, dayOffset, threshold, pricing, data)
                     }
                     item(key = "list-title") {
-                        PriceListTitle(day.hourly, vat)
+                        PriceListTitle(day.hourly, pricing)
                     }
-                    val dayMin = day.slots.minOf { it.sntPerKwh }
-                    val dayMax = day.slots.maxOf { it.sntPerKwh }
+                    // Lämpövärin asteikko samasta arvosta kuin rivien väri (PriceRow.scalePrice).
+                    val dayMin = rows.minOf { it.scalePrice }
+                    val dayMax = rows.maxOf { it.scalePrice }
                     items(rows, key = { "row-${it.timestamp}" }) { row ->
                         PriceListRow(row, dayMin, dayMax, rowsSideBySide)
                     }
@@ -295,26 +298,32 @@ private const val SLOT_TICK_MARGIN_MS = 500L
 /** Kuluvan rivin yläpuolelle jäävä tila Siirry nykyhetkeen -vierityksen jälkeen. */
 private val JUMP_CONTEXT = 64.dp
 
-/** Hintalistan otsikko: "Kaikki vartit" / "Kaikki tunnit" ja oikealla yksikkö + ALV. */
+/**
+ * Hintalistan otsikko: "Kaikki vartit" / "Kaikki tunnit" sekä yksikkö ja hinnan selite. Pelkkä
+ * ALV-selite mahtuu otsikon viereen oikealle; oman kokonaishinnan pidempi selite tulee otsikon alle
+ * omalle rivilleen, jottei otsikko katkea.
+ */
 @Composable
-private fun PriceListTitle(hourly: Boolean, vat: Boolean) {
+private fun PriceListTitle(hourly: Boolean, pricing: ElectricityPricing) {
+    val title = stringResource(if (hourly) R.string.electricity_all_hours else R.string.electricity_all_quarters)
+    val label = "$UNIT · " + stringResource(pricing.labelRes())
+    val titleStyle = MaterialTheme.typography.titleMedium
+    val labelStyle = MaterialTheme.typography.bodySmall
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    if (pricing.own != null) {
+        Column(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp)) {
+            Text(title, style = titleStyle, fontWeight = FontWeight.Bold)
+            Text(label, style = labelStyle, color = labelColor)
+        }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text(
-            stringResource(if (hourly) R.string.electricity_all_hours else R.string.electricity_all_quarters),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
-        )
+        Text(title, style = titleStyle, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
-        Text(
-            "$UNIT · " + stringResource(ElectricityVat.labelRes(vat)),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.End,
-        )
+        Text(label, style = labelStyle, color = labelColor, textAlign = TextAlign.End)
     }
 }
 
@@ -345,9 +354,13 @@ private fun rememberPriceRowLayout(rows: List<PriceRow>): PriceRowLayout {
     val nowPx = rememberTextWidthPx(stringResource(R.string.electricity_now_short), nowStyle) +
         with(density) { (NOW_PILL_PADDING_H * 2 + ROW_GAP).toPx() }
     val timePx = rememberTextWidthPx(widestTime, timeStyle) + nowPx
-    return PriceRowLayout(timePx, pricePx)
+    // Kiinteän sopimuksen vertailumerkki vie tilaa hinnan vierestä.
+    val markPx = if (rows.any { it.fixedMark != null }) with(density) { (FIXED_MARK_ICON + FIXED_MARK_GAP).toPx() } else 0f
+    return PriceRowLayout(timePx, pricePx + markPx)
 }
 
+private val FIXED_MARK_ICON = 20.dp
+private val FIXED_MARK_GAP = 4.dp
 private val ROW_PADDING_H = 14.dp
 private val ROW_GAP = 12.dp
 private val NOW_PILL_PADDING_H = 8.dp
@@ -367,7 +380,9 @@ private fun PriceListRow(row: PriceRow, dayMin: Double, dayMax: Double, sideBySi
     val loc = AppLocale.current(LocalContext.current)
     val price = ElectricityVat.format(row.displayPrice, loc)
     val nowLabel = stringResource(R.string.electricity_now_short)
-    val description = row.rangeText + ", " + price + " " + UNIT + if (row.isNow) ", $nowLabel" else ""
+    // Kiinteän sopimuksen vertailumerkki luetaan tekstinä; kuvake on vain näkyvä vastine.
+    val markText = row.fixedMark?.let { ", " + stringResource(fixedRowDescriptionRes(it)) } ?: ""
+    val description = row.rangeText + ", " + price + " " + UNIT + markText + if (row.isNow) ", $nowLabel" else ""
     val time: @Composable () -> Unit = {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(row.rangeText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = PriceRowInk)
@@ -387,7 +402,18 @@ private fun PriceListRow(row: PriceRow, dayMin: Double, dayMax: Double, sideBySi
         }
     }
     val priceText: @Composable () -> Unit = {
-        Text(price, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = PriceRowInk, maxLines = 1, softWrap = false)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            row.fixedMark?.let { mark ->
+                Icon(
+                    painterResource(fixedMarkIconRes(mark)),
+                    contentDescription = null,
+                    tint = PriceRowInk,
+                    modifier = Modifier.size(FIXED_MARK_ICON),
+                )
+                Spacer(Modifier.width(FIXED_MARK_GAP))
+            }
+            Text(price, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = PriceRowInk, maxLines = 1, softWrap = false)
+        }
     }
     val ring = MaterialTheme.colorScheme.primary
     Box(
@@ -397,7 +423,7 @@ private fun PriceListRow(row: PriceRow, dayMin: Double, dayMax: Double, sideBySi
         val base = Modifier
             .fillMaxWidth()
             .clip(ROW_SHAPE)
-            .background(rowHeatColor(row.rawPrice, dayMin, dayMax, ArkiTheme.colors))
+            .background(rowHeatColor(row.scalePrice, dayMin, dayMax, ArkiTheme.colors))
             .heightIn(min = 52.dp)
             .padding(horizontal = ROW_PADDING_H, vertical = 8.dp)
             .semantics(mergeDescendants = true) { contentDescription = description }
@@ -481,23 +507,31 @@ private fun ElectricityHeroCard(
     current: ElectricityData.Quarter?,
     dayOffset: Int,
     threshold: Double,
-    vat: Boolean,
+    pricing: ElectricityPricing,
     data: ElectricityData?,
 ) {
     val arki = ArkiTheme.colors
     val cs = MaterialTheme.colorScheme
-    val slots = day.slots
-    val min = slots.minByOrNull { it.sntPerKwh }
-    val max = slots.maxByOrNull { it.sntPerKwh }
-    val dayMin = min?.sntPerKwh ?: 0.0
-    val dayMax = max?.sntPerKwh ?: 0.0
+    val vat = pricing.vat
+    // Halvin ja kallein jakso näytetyn hinnan mukaan (omilla hinnoilla kokonaishinta).
+    val range = electricitySlotRange(day.slots, pricing)
+    val min = range?.first
+    val max = range?.second
+    val dayMin = min?.let { pricing.shown(it) } ?: 0.0
+    val dayMax = max?.let { pricing.shown(it) } ?: 0.0
     val hero = electricityHero(dayOffset, current != null)
     val heroPrice = when {
-        hero == ElectricityHero.CURRENT && current != null -> ElectricityVat.apply(current.sntPerKwh, vat)
-        hero == ElectricityHero.DAY_AVERAGE -> electricityDayAverage(quarters, vat)
+        hero == ElectricityHero.CURRENT && current != null -> pricing.shown(current)
+        hero == ElectricityHero.DAY_AVERAGE -> electricityDayAverage(quarters, pricing)
         else -> Double.NaN // NO_CURRENT: hinnan paikalla viiva, ei päivän keskiarvoa
     }
-    val heroLevel = priceLevel(heroPrice, threshold)
+    // Hintataso pörssihinnasta: sama taso, näytettiinpä oma kokonaishinta tai ei.
+    val heroSpot = when {
+        hero == ElectricityHero.CURRENT && current != null -> pricing.spot(current.sntPerKwh)
+        hero == ElectricityHero.DAY_AVERAGE -> electricityDayAverage(quarters, ElectricityPricing(vat))
+        else -> Double.NaN
+    }
+    val heroLevel = priceLevel(heroSpot, threshold)
     ArkiCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(18.dp)) {
             FlowRow(
@@ -506,7 +540,7 @@ private fun ElectricityHeroCard(
             ) {
                 when {
                     hero == ElectricityHero.CURRENT && current != null -> {
-                        val level = priceLevel(ElectricityVat.apply(current.sntPerKwh, vat), threshold)
+                        val level = priceLevel(pricing.spot(current.sntPerKwh), threshold)
                         ArkiPill(
                             text = stringResource(priceLabelRes(level)),
                             accent = priceAccent(level, arki),
@@ -540,21 +574,50 @@ private fun ElectricityHeroCard(
             HeroPrice(ElectricityVat.format(heroPrice, AppLocale.current(LocalContext.current)), priceAccent(heroLevel, arki))
             Spacer(Modifier.height(4.dp))
             Text(
-                stringResource(ElectricityVat.priceNoteRes(vat)),
+                stringResource(pricing.priceNoteRes()),
                 style = MaterialTheme.typography.bodySmall,
                 color = cs.onSurfaceVariant,
             )
+            // Omilla hinnoilla: mistä kuluvan jakson kokonaishinta koostuu.
+            electricityBreakdown(hero, current, pricing)?.let { parts ->
+                Spacer(Modifier.height(2.dp))
+                BreakdownRow(parts)
+            }
+            // Kiinteä sopimus: oma hinta ja ero pörssihintaan (kuluva jakso tai päivän keskiarvo).
+            fixedHeroCompare(hero, current, quarters, pricing)?.let { compare ->
+                val loc = AppLocale.current(LocalContext.current)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(
+                        fixedHeroRes(compare),
+                        ElectricityVat.format(compare.ownPrice, loc),
+                        ElectricityVat.format(Math.abs(compare.diff), loc),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cs.onSurface,
+                )
+            }
             if (min != null && max != null) {
                 Spacer(Modifier.height(16.dp))
                 // Hintajana + nyt-osoitin kuten etusivun kortissa (vain Tänään, kun kuluva jakso tunnetaan).
                 if (dayOffset == 0 && current != null && dayMax > dayMin) {
                     PriceMeter(
-                        current.sntPerKwh, dayMin, dayMax, vat, priceAccent(heroLevel, arki), arki,
+                        pricing.shown(current), dayMin, dayMax, priceAccent(heroLevel, arki), arki,
                         labelStyle = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(14.dp))
                 }
-                SummaryTiles(quarters, day, min, max, dayOffset, vat)
+                SummaryTiles(quarters, day, min, max, dayOffset, pricing)
+                // Kiinteä sopimus: monellako jaksolla pörssisähkö olisi omaa hintaa halvempi.
+                fixedCheaperCount(day.slots, pricing)?.let { (cheaper, total) ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        stringResource(fixedSummaryRes(day.hourly), cheaper, total),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
             }
             Spacer(Modifier.height(14.dp))
             val updated = if (data != null && data.fetchedAt > 0) {
@@ -566,6 +629,23 @@ private fun ElectricityHeroCard(
                 updated + stringResource(electricitySourceFooterRes(data?.source), stringResource(ElectricityVat.labelRes(vat))),
                 style = MaterialTheme.typography.bodySmall,
                 color = cs.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Erittely muodossa "Pörssi 12,550 + marginaali 0,590 + siirto 4,100 + vero 2,918". Osat rivittyvät
+ *  kokonaisina, joten rivi toimii myös isolla fontilla ja kapealla näytöllä. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BreakdownRow(parts: List<Pair<Int, Double>>) {
+    val loc = AppLocale.current(LocalContext.current)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        parts.forEachIndexed { index, (labelRes, value) ->
+            Text(
+                (if (index > 0) "+ " else "") + stringResource(labelRes) + " " + ElectricityVat.format(value, loc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -628,7 +708,7 @@ private fun SummaryTiles(
     min: ElectricityData.Quarter,
     max: ElectricityData.Quarter,
     dayOffset: Int,
-    vat: Boolean,
+    pricing: ElectricityPricing,
 ) {
     val arki = ArkiTheme.colors
     val cs = MaterialTheme.colorScheme
@@ -638,18 +718,18 @@ private fun SummaryTiles(
         when (tile) {
             SummaryTile.CHEAPEST -> TileData(
                 R.drawable.mobile_ic_arrow_down_24, arki.priceCheap, stringResource(R.string.electricity_cheapest),
-                ElectricityVat.format(ElectricityVat.apply(min.sntPerKwh, vat), loc),
-                electricityPriceRows(listOf(min), day.slotMs, vat, null).first().rangeText,
+                ElectricityVat.format(pricing.shown(min), loc),
+                electricityPriceRows(listOf(min), day.slotMs, pricing, null).first().rangeText,
             )
             SummaryTile.AVERAGE -> TileData(
                 null, cs.onSurfaceVariant, stringResource(R.string.electricity_average),
-                ElectricityVat.format(electricityDayAverage(quarters, vat), loc),
+                ElectricityVat.format(electricityDayAverage(quarters, pricing), loc),
                 UNIT,
             )
             SummaryTile.MOST_EXPENSIVE -> TileData(
                 R.drawable.mobile_ic_arrow_up_24, arki.priceExpensive, stringResource(R.string.electricity_most_expensive),
-                ElectricityVat.format(ElectricityVat.apply(max.sntPerKwh, vat), loc),
-                electricityPriceRows(listOf(max), day.slotMs, vat, null).first().rangeText,
+                ElectricityVat.format(pricing.shown(max), loc),
+                electricityPriceRows(listOf(max), day.slotMs, pricing, null).first().rangeText,
             )
         }
     }

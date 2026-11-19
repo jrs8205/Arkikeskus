@@ -153,6 +153,7 @@ internal fun isHomeDataPrefKey(key: String?): Boolean {
         key == MobileThemeController.KEY_CHEAP_ELECTRICITY_NOTICE ||
         key == ElectricityVat.KEY ||
         key == ElectricityHourly.KEY ||
+        key.startsWith(ElectricityOwnSettings.PREFIX) ||
         key == SettingsManager.KEY_RUUVI_MAC_BEDROOM ||
         key == SettingsManager.KEY_RUUVI_MAC_LIVINGROOM ||
         key == SettingsManager.KEY_RUUVI_MAC_BALCONY ||

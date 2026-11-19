@@ -1,6 +1,7 @@
 package org.jrs82.fsclock.mobile
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.annotation.StringRes
 import androidx.preference.PreferenceManager
 import org.jrs82.fsclock.BuildConfig
@@ -122,6 +123,70 @@ internal object BackupManager {
         val splits: List<WorkoutSplitEntity>,
     )
 
+    /**
+     * Palautuksen asetusvaihe: vie kopion asetukset ([prefsJson]) [editor]iin kirjoittamatta mitään;
+     * kutsuja tekee commitin. [existingKeys] = asennuksen nykyiset asetusavaimet. Palauttaa
+     * palautettavien asetusten määrän. Virheellinen kenttä (ei objekti, tuntematon tyyppi) ohitetaan.
+     *
+     * Omat sähköhinnat ([ElectricityOwnSettings.GROUP_KEYS]) palautetaan kokonaisuutena tai ei lainkaan
+     * ([ElectricityOwnSettings.restoreDecision]). Kelvollisesta ryhmästä kirjoitetaan kopion avaimet ja
+     * poistetaan asennuksen avaimet, jotka kopiosta puuttuvat, jottei vanha sopimustyyppi tai
+     * siirtotuote jää voimaan palautetun rinnalle. Jos yksikin ryhmän kenttä on virheellinen, ryhmästä
+     * ei poisteta eikä kirjoiteta mitään: asennuksen nykyiset omat hinnat jäävät voimaan ja muut
+     * asetukset palautetaan. Jos kopiossa ei ole yhtään ryhmän avainta, omiin hintoihin ei kosketa;
+     * avain, jota tämä versio ei tunne, ei kuulu ryhmään eikä käynnistä poistoa.
+     */
+    fun stagePrefs(prefsJson: JSONObject, existingKeys: Set<String>, editor: SharedPreferences.Editor): Int {
+        val backupKeys = HashSet<String>().also { set -> prefsJson.keys().forEach { set.add(it) } }
+        val ownValues = backupKeys.filter { it in ElectricityOwnSettings.GROUP_KEYS }
+            .associateWith { storedValue(prefsJson.optJSONObject(it)) }
+        val ownRestore = ElectricityOwnSettings.restoreDecision(ownValues)
+        if (ownRestore == OwnRestore.REPLACE) {
+            for (key in ElectricityOwnSettings.keysToClearOnRestore(existingKeys, backupKeys)) editor.remove(key)
+        }
+        var prefCount = 0
+        for (key in prefsJson.keys()) {
+            if (key.startsWith("auto_backup_")) continue
+            if (ownRestore == OwnRestore.INVALID && key in ElectricityOwnSettings.GROUP_KEYS) continue
+            val entry = prefsJson.optJSONObject(key) ?: continue
+            when (entry.optString("t")) {
+                "string" -> editor.putString(key, entry.optString("v"))
+                "bool" -> editor.putBoolean(key, entry.optBoolean("v"))
+                "int" -> editor.putInt(key, entry.optInt("v"))
+                "long" -> editor.putLong(key, entry.optLong("v"))
+                "float" -> editor.putFloat(key, entry.optDouble("v").toFloat())
+                "set" -> {
+                    val arr = entry.optJSONArray("v") ?: JSONArray()
+                    val set = HashSet<String>()
+                    for (i in 0 until arr.length()) set.add(arr.optString(i))
+                    editor.putStringSet(key, set)
+                }
+                else -> continue
+            }
+            prefCount++
+        }
+        return prefCount
+    }
+
+    /**
+     * Kopion kentän arvo tallennustyypissään (String, Boolean, Int) tarkasti luettuna: null, jos kenttä
+     * ei ole objekti, arvo puuttuu tai arvon JSON-tyyppi ei vastaa ilmoitettua tyyppiä. Käytetään omien
+     * sähköhintojen tarkistukseen; muut tyypit (long, float, set) eivät kuulu niihin ja ovat null.
+     */
+    private fun storedValue(entry: JSONObject?): Any? {
+        val value = entry?.opt("v") ?: return null
+        return when (entry.optString("t")) {
+            "string" -> value as? String
+            "bool" -> value as? Boolean
+            "int" -> when (value) {
+                is Int -> value
+                is Long -> if (value in Int.MIN_VALUE..Int.MAX_VALUE) value.toInt() else null
+                else -> null
+            }
+            else -> null
+        }
+    }
+
     /** Palauttaa varmuuskopion KAKSIVAIHEISESTI: ensin koko sisältö validoidaan ja rakennetaan
      *  muistiin, vasta sitten kirjoitetaan — virheellinen tiedosto ei jätä osittaista palautusta.
      *  Asetukset kirjoitetaan commit()-kutsulla (EI apply()), koska palautusta seuraa välitön
@@ -140,26 +205,7 @@ internal object BackupManager {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val editor = prefs.edit() // editor on vain puskuri — mitään ei kirjoitu ennen commit()ia
         val prefsJson = root.optJSONObject("prefs") ?: JSONObject()
-        var prefCount = 0
-        for (key in prefsJson.keys()) {
-            if (key.startsWith("auto_backup_")) continue
-            val entry = prefsJson.optJSONObject(key) ?: continue
-            when (entry.optString("t")) {
-                "string" -> editor.putString(key, entry.optString("v"))
-                "bool" -> editor.putBoolean(key, entry.optBoolean("v"))
-                "int" -> editor.putInt(key, entry.optInt("v"))
-                "long" -> editor.putLong(key, entry.optLong("v"))
-                "float" -> editor.putFloat(key, entry.optDouble("v").toFloat())
-                "set" -> {
-                    val arr = entry.optJSONArray("v") ?: JSONArray()
-                    val set = HashSet<String>()
-                    for (i in 0 until arr.length()) set.add(arr.optString(i))
-                    editor.putStringSet(key, set)
-                }
-                else -> continue
-            }
-            prefCount++
-        }
+        val prefCount = stagePrefs(prefsJson, prefs.all.keys, editor)
 
         val db = FsClockDb.get(context)
         val dao = db.workoutDao()

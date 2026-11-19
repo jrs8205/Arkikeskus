@@ -40,7 +40,37 @@
     <string name="electricity_cheap_notice_rest_of_day">Sähkö on halpaa loppupäivän: kaikki alle %1$s c/kWh, korkein %2$s c/kWh</string>
     <string name="electricity_cheap_notice_all_day">Sähkö on halpaa koko päivän: kaikki alle %1$s c/kWh, korkein %2$s c/kWh</string>
     <string name="electricity_notify_title">Huomisen sähköhinnat saapuivat</string>
-    <string name="electricity_notify_text">Halvin klo %1$s (%2$s snt), kallein klo %3$s (%4$s snt). Keskihinta %5$s snt/kWh, %6$s.</string>
+    <string name="electricity_notify_text_quarter">Halvin vartti klo %1$s (%2$s snt), kallein klo %3$s (%4$s snt). Keskihinta %5$s snt/kWh, %6$s.</string>
+    <string name="electricity_notify_text_hour">Halvin tunti klo %1$s (%2$s snt), kallein klo %3$s (%4$s snt). Keskihinta %5$s snt/kWh, %6$s.</string>
+    <string name="electricity_own_note_incl" formatted="false">Oma kokonaishinta (sis. ALV 25,5 %)</string>
+    <string name="electricity_own_note_excl" formatted="false">Oma kokonaishinta (ALV 0 %)</string>
+    <string name="electricity_own_label_incl" formatted="false">oma kokonaishinta (sis. ALV 25,5 %)</string>
+    <string name="electricity_own_label_excl" formatted="false">oma kokonaishinta (ALV 0 %)</string>
+    <string name="electricity_own_widget">oma hinta</string>
+    <string name="electricity_fixed_note_incl" formatted="false">Pörssisähkön hinta siirtoineen ja veroineen (sis. ALV 25,5 %)</string>
+    <string name="electricity_fixed_note_excl" formatted="false">Pörssisähkön hinta siirtoineen ja veroineen (ALV 0 %)</string>
+    <string name="electricity_fixed_label_incl" formatted="false">pörssisähkö siirtoineen ja veroineen (sis. ALV 25,5 %)</string>
+    <string name="electricity_fixed_label_excl" formatted="false">pörssisähkö siirtoineen ja veroineen (ALV 0 %)</string>
+    <string name="electricity_fixed_widget">siirtoineen ja veroineen</string>
+    <string name="electricity_fixed_hero_cheaper">Oma kiinteä hintasi %1$s c/kWh · pörssi nyt %2$s c/kWh halvempi</string>
+    <string name="electricity_fixed_hero_dearer">Oma kiinteä hintasi %1$s c/kWh · pörssi nyt %2$s c/kWh kalliimpi</string>
+    <string name="electricity_fixed_hero_equal">Oma kiinteä hintasi %1$s c/kWh · pörssi nyt samanhintainen</string>
+    <string name="electricity_fixed_hero_avg_cheaper">Oma kiinteä hintasi keskimäärin %1$s c/kWh · pörssi keskimäärin %2$s c/kWh halvempi</string>
+    <string name="electricity_fixed_hero_avg_dearer">Oma kiinteä hintasi keskimäärin %1$s c/kWh · pörssi keskimäärin %2$s c/kWh kalliimpi</string>
+    <string name="electricity_fixed_hero_avg_equal">Oma kiinteä hintasi keskimäärin %1$s c/kWh · pörssi keskimäärin samanhintainen</string>
+    <string name="electricity_fixed_summary_quarters">Pörssi halvempi kuin oma hintasi: %1$d/%2$d varttia</string>
+    <string name="electricity_fixed_summary_hours">Pörssi halvempi kuin oma hintasi: %1$d/%2$d tuntia</string>
+    <string name="electricity_fixed_row_cheaper">pörssi omaa hintaasi halvempi</string>
+    <string name="electricity_fixed_row_dearer">pörssi omaa hintaasi kalliimpi</string>
+    <string name="electricity_fixed_row_equal">pörssi samanhintainen kuin oma hintasi</string>
+    <string name="electricity_compare_spot_note">Vertailun luvut ovat pörssihintoja ilman omia lisiä.</string>
+    <string name="electricity_part_spot">Pörssi</string>
+    <string name="electricity_part_margin">marginaali</string>
+    <string name="electricity_part_transfer">siirto</string>
+    <string name="electricity_part_tax">vero</string>
+    <string name="electricity_cheap_notice_now_spot">Pörssisähkö on halpaa nyt: pörssihinta alle %1$s c/kWh, korkein %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_rest_of_day_spot">Pörssisähkö on halpaa loppupäivän: pörssihinta alle %1$s c/kWh, korkein %2$s c/kWh</string>
+    <string name="electricity_cheap_notice_all_day_spot">Pörssisähkö on halpaa koko päivän: pörssihinta alle %1$s c/kWh, korkein %2$s c/kWh</string>
     <string name="electricity_tomorrow_not_yet">Huomisen hinnat eivät ole vielä saatavilla.\nNord Pool julkaisee ne yleensä noin klo 14.\nPäivitetään automaattisesti…</string>
     <string name="electricity_cheapest_at">Halvin: %1$s %2$s c/kWh</string>
     <string name="electricity_most_expensive_at">Kallein: %1$s %2$s c/kWh</string>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_see_all">Alla</string>
+    <string name="home_forecast_link">7 dygn</string>
     <string name="home_title_clock">Klocka och datum</string>
     <string name="home_title_holidays">Helg- och flaggdagar</string>
     <string name="home_title_weather">Väder</string>

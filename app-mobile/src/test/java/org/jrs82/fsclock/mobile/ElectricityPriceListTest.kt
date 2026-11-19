@@ -30,25 +30,25 @@ class ElectricityPriceListTest {
     fun `vartit saavat aikavalin, naytetyn hinnan ja nyt-merkinnan`() {
         val rows = electricityPriceRows(
             listOf(q("2026-11-17T06:30:00Z", 10.0), q("2026-11-17T06:45:00Z", -1.0)),
-            quarterMs, vat = true, nowMs = ms("2026-11-17T06:31:00Z"),
+            quarterMs, pricing = ElectricityPricing(true), nowMs = ms("2026-11-17T06:31:00Z"),
         )
         assertEquals(listOf("08.30–08.45", "08.45–09.00"), rows.map { it.rangeText })
         assertEquals(12.55, rows[0].displayPrice, 1e-9)
         assertEquals(-1.0, rows[1].displayPrice, 1e-9)
-        assertEquals(10.0, rows[0].rawPrice, 1e-9)
+        assertEquals(10.0, rows[0].scalePrice, 1e-9)
         assertEquals(listOf(true, false), rows.map { it.isNow })
         assertEquals(ms("2026-11-17T06:30:00Z"), rows[0].timestamp)
     }
 
     @Test
     fun `paivan viimeinen vartti paattyy keskiyohon`() {
-        val rows = electricityPriceRows(listOf(q("2026-11-17T21:45:00Z", 5.0)), quarterMs, vat = false, nowMs = null)
+        val rows = electricityPriceRows(listOf(q("2026-11-17T21:45:00Z", 5.0)), quarterMs, pricing = ElectricityPricing(false), nowMs = null)
         assertEquals("23.45–00.00", rows.single().rangeText)
     }
 
     @Test
     fun `tuntitilassa rivi kattaa koko tunnin`() {
-        val rows = electricityPriceRows(listOf(q("2026-11-17T06:00:00Z", 5.0)), hourMs, vat = false, nowMs = null)
+        val rows = electricityPriceRows(listOf(q("2026-11-17T06:00:00Z", 5.0)), hourMs, pricing = ElectricityPricing(false), nowMs = null)
         assertEquals("08.00–09.00", rows.single().rangeText)
     }
 
@@ -56,7 +56,7 @@ class ElectricityPriceListTest {
     fun `huomenna ilman nykyhetkea mikaan rivi ei ole nyt`() {
         val rows = electricityPriceRows(
             listOf(q("2026-11-18T06:30:00Z", 5.0), q("2026-11-18T06:45:00Z", 6.0)),
-            quarterMs, vat = false, nowMs = null,
+            quarterMs, pricing = ElectricityPricing(false), nowMs = null,
         )
         assertTrue(rows.none { it.isNow })
     }
@@ -65,7 +65,7 @@ class ElectricityPriceListTest {
     fun `talviaikaan siirryttaessa vain toistuvan tunnin jalkimmainen kierros saa tahden`() {
         val rows = electricityPriceRows(
             listOf(q("2026-10-25T00:00:00Z", 5.0), q("2026-10-25T01:00:00Z", 6.0)),
-            quarterMs, vat = false, nowMs = null,
+            quarterMs, pricing = ElectricityPricing(false), nowMs = null,
         )
         assertEquals(listOf("03.00–03.15", "03.00*–03.15"), rows.map { it.rangeText })
     }
@@ -74,7 +74,7 @@ class ElectricityPriceListTest {
     fun `syksyn kellonsiirtopaiva tuntitilassa 25 rivia ja tahti vain toistuvan tunnin jalkimmaisella kierroksella`() {
         val day = ElectricityHourly.daySlots(fullDay("2026-10-25"), hourly = true, vat = false)
         assertEquals(hourMs, day.slotMs)
-        val rows = electricityPriceRows(day.slots, day.slotMs, vat = false, nowMs = null)
+        val rows = electricityPriceRows(day.slots, day.slotMs, pricing = ElectricityPricing(false), nowMs = null)
         assertEquals(25, rows.size)
         assertEquals(listOf(4), rows.indices.filter { rows[it].rangeText.contains('*') })
         assertEquals(
@@ -89,7 +89,7 @@ class ElectricityPriceListTest {
     fun `kevaan kellonsiirtopaiva tuntitilassa 23 rivia ja siirtotunti paattyy alkunsa ajassa`() {
         val day = ElectricityHourly.daySlots(fullDay("2026-03-29"), hourly = true, vat = false)
         assertEquals(hourMs, day.slotMs)
-        val rows = electricityPriceRows(day.slots, day.slotMs, vat = false, nowMs = null)
+        val rows = electricityPriceRows(day.slots, day.slotMs, pricing = ElectricityPricing(false), nowMs = null)
         assertEquals(23, rows.size)
         assertTrue(rows.none { it.rangeText.contains('*') })
         assertEquals(listOf("01.00–02.00", "02.00–03.00", "04.00–05.00"), rows.subList(1, 4).map { it.rangeText })
@@ -99,7 +99,7 @@ class ElectricityPriceListTest {
     @Test
     fun `syksyn kellonsiirtoyon vartit paattyvat alkunsa ajassa`() {
         val day = ElectricityHourly.daySlots(fullDay("2026-10-25"), hourly = false, vat = false)
-        val rows = electricityPriceRows(day.slots, day.slotMs, vat = false, nowMs = null)
+        val rows = electricityPriceRows(day.slots, day.slotMs, pricing = ElectricityPricing(false), nowMs = null)
         assertEquals(100, rows.size)
         // Indeksit 14..20 = 00.30Z..02.00Z: toistuvan tunnin ensimmäisen kierroksen loppu ja jälkimmäinen kierros.
         assertEquals(
@@ -112,7 +112,7 @@ class ElectricityPriceListTest {
     @Test
     fun `kevaan kellonsiirtoyon vartit paattyvat alkunsa ajassa`() {
         val day = ElectricityHourly.daySlots(fullDay("2026-03-29"), hourly = false, vat = false)
-        val rows = electricityPriceRows(day.slots, day.slotMs, vat = false, nowMs = null)
+        val rows = electricityPriceRows(day.slots, day.slotMs, pricing = ElectricityPricing(false), nowMs = null)
         assertEquals(92, rows.size)
         // Indeksit 10..12 = 00.30Z..01.00Z: kello siirtyy 03.00 → 04.00.
         assertEquals(listOf("02.30–02.45", "02.45–03.00", "04.00–04.15"), rows.subList(10, 13).map { it.rangeText })
@@ -121,7 +121,7 @@ class ElectricityPriceListTest {
 
     @Test
     fun `paivan keskihinta lasketaan naytetyista varttihinnoista`() {
-        val avg = electricityDayAverage(listOf(q("2026-11-17T06:30:00Z", 10.0), q("2026-11-17T06:45:00Z", -2.0)), vat = true)
+        val avg = electricityDayAverage(listOf(q("2026-11-17T06:30:00Z", 10.0), q("2026-11-17T06:45:00Z", -2.0)), ElectricityPricing(true))
         assertEquals(5.275, avg, 1e-9)
     }
 

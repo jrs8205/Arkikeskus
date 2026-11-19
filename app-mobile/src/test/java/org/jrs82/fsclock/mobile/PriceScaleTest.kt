@@ -29,8 +29,8 @@ class PriceScaleTest {
 
     @Test fun fraction_withVat_followsShownPrices_whenDayMinIsNegative() {
         // Näytetyt hinnat: −2 (veroton), 1,255 ja 5,020 → osoitin ei ole enää tasan keskellä.
-        assertEquals(3.255f / 7.02f, PriceScale.fraction(1.0, -2.0, 4.0, true)!!, 1e-6f)
-        assertEquals(0.5f, PriceScale.fraction(1.0, -2.0, 4.0, false)!!, 1e-6f)
+        assertEquals(3.255f / 7.02f, PriceScale.fraction(ElectricityVat.apply(1.0, true), ElectricityVat.apply(-2.0, true), ElectricityVat.apply(4.0, true))!!, 1e-6f)
+        assertEquals(0.5f, PriceScale.fraction(1.0, -2.0, 4.0)!!, 1e-6f)
     }
 
     @Test fun fraction_nullWithoutUsableRange() {
@@ -42,25 +42,25 @@ class PriceScaleTest {
     }
 
     @Test fun labels_startMiddleEnd_withVat() {
-        assertEquals(Triple("1,255", "5,020", "8,785"), PriceScale.labels(1.0, 7.0, true, fi))
+        assertEquals(Triple("1,255", "5,020", "8,785"), PriceScale.labels(1.255, 8.785, fi))
     }
 
     @Test fun labels_startMiddleEnd_withoutVat() {
-        assertEquals(Triple("1,000", "4,000", "7,000"), PriceScale.labels(1.0, 7.0, false, fi))
+        assertEquals(Triple("1,000", "4,000", "7,000"), PriceScale.labels(1.0, 7.0, fi))
     }
 
     @Test fun labels_middleIsHalfwayBetweenShownEnds_whenDayMinIsNegative() {
         // Halvin −2 pysyy verottomana, kallein 4 → 5,020; janan keskikohta on näiden puolivälissä.
-        val labels = PriceScale.labels(-2.0, 4.0, true, fi)
+        val labels = PriceScale.labels(-2.0, 5.02, fi)
         assertEquals("1,510", labels.second)
         assertEquals("5,020", labels.third)
     }
 
     @Test fun labels_followLocaleDecimalSeparator() {
-        assertEquals(Triple("1.255", "5.020", "8.785"), PriceScale.labels(1.0, 7.0, true, AppLocale.ENGLISH))
+        assertEquals(Triple("1.255", "5.020", "8.785"), PriceScale.labels(1.255, 8.785, AppLocale.ENGLISH))
     }
 
     @Test fun labels_dashWithoutData() {
-        assertEquals(Triple("–", "–", "–"), PriceScale.labels(Double.NaN, Double.NaN, true, fi))
+        assertEquals(Triple("–", "–", "–"), PriceScale.labels(Double.NaN, Double.NaN, fi))
     }
 }

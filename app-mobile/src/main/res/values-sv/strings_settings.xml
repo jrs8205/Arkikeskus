@@ -54,12 +54,46 @@
     <string name="settings_hourly_title">Visa timmens medelpris</string>
     <string name="settings_hourly_on">Priserna visas per timme som medelvärde av kvartspriserna</string>
     <string name="settings_hourly_off">Priserna visas per kvart</string>
+    <string name="settings_own_header">Egna priser</string>
+    <string name="settings_own_enabled">Visa ditt totalpris</string>
+    <string name="settings_own_enabled_sub">Priserna inkluderar marginal, överföring och elskatt</string>
+    <string name="settings_own_contract">Elavtal</string>
+    <string name="settings_own_contract_spot">Börsel</string>
+    <string name="settings_own_contract_fixed">Fast pris</string>
+    <string name="settings_own_margin">Marginal</string>
+    <string name="settings_own_fixed_price">Elpris</string>
+    <string name="settings_own_transfer_product">Överföringsprodukt</string>
+    <string name="settings_own_product_general">Allmän överföring</string>
+    <string name="settings_own_product_time">Tidsöverföring (dag/natt)</string>
+    <string name="settings_own_product_season">Säsongsöverföring (vintervardag/övrig tid)</string>
+    <string name="settings_own_transfer_price">Överföringspris</string>
+    <string name="settings_own_transfer_day">Dagpris</string>
+    <string name="settings_own_transfer_night">Nattpris</string>
+    <string name="settings_own_transfer_winter">Vintervardag</string>
+    <string name="settings_own_transfer_other">Övrig tid</string>
+    <string name="settings_own_high_time">Tid för det högre priset</string>
+    <string name="settings_own_time_value">kl. %1$d–%2$d, %3$s</string>
+    <string name="settings_own_season_note">Vintersäsongen är 1.11–31.3.</string>
+    <string name="settings_own_start_hour">Börjar (timme 0–23)</string>
+    <string name="settings_own_end_hour">Slutar (timme 1–24)</string>
+    <string name="settings_own_days_all">varje dag</string>
+    <string name="settings_own_days_mon_fri">mån–fre</string>
+    <string name="settings_own_days_mon_sat">mån–lör</string>
+    <string name="settings_own_hours_invalid">Starttimmen måste vara före sluttimmen (0–24).</string>
+    <string name="settings_own_tax">Elskatt</string>
+    <string name="settings_own_tax_sub">Nätbolaget fakturerar skatten på överföringsfakturan, inte elförsäljaren. Stäng av om ditt överföringspris redan innehåller den.</string>
+    <string name="settings_own_tax_value">Elskattens belopp</string>
+    <string name="settings_own_not_set">Inte angett</string>
+    <string name="settings_own_price_invalid">Ange ett pris mellan 0 och 100 med högst tre decimaler.</string>
+    <string name="settings_own_vat_hint">Ange priserna inklusive moms, som på fakturan.</string>
     <string name="settings_cheap_header">Billig el</string>
     <string name="settings_cheap_notice">Notis om billig el</string>
     <string name="settings_cheap_notice_sub">Visa en notis på Hem-sidan när elen är billig</string>
     <string name="settings_cheap_threshold">Gräns för billig el</string>
     <string name="settings_threshold_label_vat" formatted="false">c/kWh (inkl. moms 25,5 %)</string>
     <string name="settings_threshold_label_no_vat" formatted="false">c/kWh (moms 0 %)</string>
+    <string name="settings_threshold_label_spot_vat" formatted="false">c/kWh, börspris (inkl. moms 25,5 %)</string>
+    <string name="settings_threshold_label_spot_no_vat" formatted="false">c/kWh, börspris (moms 0 %)</string>
     <string name="settings_threshold_invalid">Ange ett tal, t.ex. 5,0</string>
     <string name="settings_cheap_mode">När notisen visas</string>
     <string name="settings_cheap_mode_current">Aktuell kvart</string>

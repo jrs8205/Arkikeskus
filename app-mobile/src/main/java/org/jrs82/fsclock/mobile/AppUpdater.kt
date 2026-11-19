@@ -14,6 +14,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 
 /**
  * Sovelluksen itsepäivitys GitHub-julkaisuista. Tarkistaa uusimman releasen GitHubin julkisesta
@@ -173,6 +174,66 @@ object AppUpdater {
             .replace(EXTRA_BLANK_LINES, "\n\n")
         return text.trim()
     }
+
+    /**
+     * Mitä uutta -teksti sovelluksen kielellä ([language] = fi, sv tai en; muut kielet saavat englannin).
+     * Julkaisuteksti voi sisältää kieliosiot: osio alkaa rivillä, jolla on pelkkä otsikko "Suomeksi",
+     * "På svenska" tai "In English" (kirjainkoko, lopun kaksoispiste ja markdown-otsikko tai -lihavointi
+     * sallitaan), ja jatkuu seuraavaan otsikkoon. Palauttaa oman kielen osion ilman otsikkoriviä; ennen
+     * ensimmäistä otsikkoa oleva teksti on yhteinen ja säilyy osion edellä.
+     *
+     * Mitään ei piiloteta turhaan: jos tekstissä ei ole osioita (vanhat, yksikieliset julkaisut) tai oman
+     * kielen osio puuttuu tai on tyhjä, palautetaan koko teksti ([plainNotes]). Sama koko teksti näkyy
+     * versioissa, jotka eivät tunne osioita, joten otsikot ovat tavallista, luettavaa tekstiä.
+     */
+    fun localizedNotes(notes: String, language: String): String {
+        val parsed = parseSections(notes)
+        val own = parsed.own(language)
+        return when {
+            own.isEmpty() -> parsed.plain
+            parsed.shared.isEmpty() -> own
+            else -> parsed.shared + "\n\n" + own
+        }
+    }
+
+    /**
+     * Julkaisutekstin ensimmäinen sisältörivi sovelluksen kielellä päivitysilmoitukseen. Ilmoitukseen
+     * mahtuu yksi rivi, joten se poimitaan oman kielen osiosta eikä osioita edeltävästä yhteisestä
+     * tekstistä, jonka [localizedNotes] näyttää ikkunassa osion edellä. Jos omaa osiota ei ole,
+     * käytetään yhteistä tekstiä; osiottomasta tekstistä otetaan sen ensimmäinen rivi. null, kun sopivaa
+     * riviä ei ole (tyhjä teksti, tai vain muiden kielten osioita): toisen kielen otsikkoa tai tekstiä ei
+     * näytetä ilmoituksessa.
+     */
+    fun localizedFirstLine(notes: String, language: String): String? {
+        val parsed = parseSections(notes)
+        val source = if (parsed.sections.isEmpty()) parsed.plain else parsed.own(language).ifEmpty { parsed.shared }
+        return source.lineSequence().firstOrNull { it.isNotBlank() }?.trim()
+    }
+
+    /**
+     * Julkaisuteksti kieliosioihin jaettuna. [plain] = koko teksti ilman markdownia, [shared] = ennen
+     * ensimmäistä otsikkoa oleva yhteinen teksti, [sections] = kielikoodi → osion teksti ilman
+     * otsikkoriviä (avain on olemassa myös tyhjälle osiolle; tyhjä kartta = tekstissä ei ole osioita).
+     */
+    private class NotesSections(val plain: String, val shared: String, val sections: Map<String, String>) {
+        /** Sovelluksen kielen osio; tyhjä, jos osio puuttuu tai on tyhjä. Muut kielet kuin fi ja sv saavat englannin. */
+        fun own(language: String): String = sections[if (language == "fi" || language == "sv") language else "en"].orEmpty()
+    }
+
+    private fun parseSections(notes: String): NotesSections {
+        val plain = plainNotes(notes)
+        val intro = ArrayList<String>()
+        val sections = LinkedHashMap<String, MutableList<String>>()
+        var target: MutableList<String> = intro
+        for (line in plain.split('\n')) {
+            val heading = SECTION_HEADINGS[line.trim().trimEnd(':').trim().lowercase(Locale.ROOT)]
+            if (heading != null) target = sections.getOrPut(heading) { ArrayList() } else target.add(line)
+        }
+        return NotesSections(plain, intro.joinToString("\n").trim(), sections.mapValues { it.value.joinToString("\n").trim() })
+    }
+
+    /** Kieliosion otsikkorivi pienillä kirjaimilla → kielikoodi. */
+    private val SECTION_HEADINGS = mapOf("suomeksi" to "fi", "på svenska" to "sv", "in english" to "en")
 
     private val HTML_COMMENT = Regex("""<!--.*?-->""", RegexOption.DOT_MATCHES_ALL)
     private val FENCE = Regex("""^[ \t]*(```|~~~).*$""")

@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
 """Generoi Arkikeskuksen adaptive launcher iconin arkikeskus.png:stä.
 Foreground = valkoinen A (läpinäkyvä), background = sininen->vihrea gradientti (näytteistetty).
-Tuottaa tiheysversiot + monochrome + Play Store 512 + esikatselut."""
+Tuottaa foreground-tiheysversiot + Play Store 512 + esikatselut. Monochrome-kerros (teemakuvakkeet)
+tehdään tämän jälkeen skriptillä make_monochrome_icon.py, joka lukee tässä kirjoitetun foreground-kuvan.
+
+Käyttö: python tools/make_icon.py <polku lähdekuvaan arkikeskus.png>
+Lähdekuva ei ole repossa. Kaikki kirjoitettavat polut ovat tämän työpuun sisällä (icon_paths.py)."""
 import os
+import sys
 import numpy as np
 from PIL import Image, ImageDraw
 
-SRC = r"C:\Users\jrs82\Downloads\Samsung sm-t819\Arkikeskus\arkikeskus.png"
-RES = r"C:\Android\projects\FsClock\app-mobile\src\main\res"
-OUT = r"C:\Android\projects\FsClock\releases"
-PREV = r"C:\Android\projects\FsClock\tools"
+from icon_paths import RELEASES as OUT, RES, TOOLS as PREV
+
+if len(sys.argv) != 2:
+    sys.exit("Kaytto: python tools/make_icon.py <polku lahdekuvaan arkikeskus.png>")
+SRC = sys.argv[1]
 
 src = Image.open(SRC).convert("RGBA")
 W, H = src.size
@@ -83,8 +89,9 @@ for name, size in DENS.items():
     d = os.path.join(RES, "mipmap-" + name)
     os.makedirs(d, exist_ok=True)
     place_A(size).save(os.path.join(d, "ic_launcher_foreground.png"))
-    place_A(size, solid_black=True).save(os.path.join(d, "ic_launcher_monochrome.png"))
-print("foreground + monochrome tiheydet kirjoitettu")
+# Monochrome-kerros (teemakuvakkeet) tehdaan erikseen foreground-kerroksesta: tools/make_monochrome_icon.py.
+# Pelkka A ei riita teemakuvakkeeksi, koska kaynnistin korvaa taustan omallaan.
+print("foreground-tiheydet kirjoitettu; aja sitten tools/make_monochrome_icon.py")
 
 
 # ---------- gradientti-tausta (PNG Play Storelle + esikatseluun) ----------

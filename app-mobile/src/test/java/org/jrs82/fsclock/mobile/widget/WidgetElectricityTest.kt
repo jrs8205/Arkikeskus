@@ -197,3 +197,43 @@ class WidgetElectricityTest {
         assertNull(WidgetElectricity.dayRange(slots.list, now, slots.slotMs))
     }
 }
+
+/** Hintajanan asteikko on näytetyistä hinnoista, jotta se osuu samoihin lukuihin kuin sovelluksen janat. */
+class WidgetElectricityOwnPricesTest {
+    private val zone = java.time.ZoneId.of("Europe/Helsinki")
+    private val quarterMs = 15L * 60_000L
+    private val dayStart = java.time.LocalDate.of(2026, 11, 17).atStartOfDay(zone).toInstant().toEpochMilli()
+    private val now = dayStart + 10 * 60 * 60_000L
+
+    // Pörssi 2,0; klo 12.00–12.15 on pörssin halvin (1,0) ja tunti 18 kallein (9,0).
+    private val day = (0 until 96).map { i ->
+        val hour = i / 4
+        WidgetElectricity.QuarterPrice(
+            dayStart + i * quarterMs,
+            when {
+                i == 48 -> 1.0
+                hour == 18 -> 9.0
+                else -> 2.0
+            },
+        )
+    }
+
+    @Test fun dayRange_returnsShownExtremes_underOwnPrices() {
+        val night = org.jrs82.fsclock.mobile.ElectricityPricing(
+            true,
+            org.jrs82.fsclock.mobile.OwnPrices(
+                org.jrs82.fsclock.mobile.OwnContract.SPOT, 0.0,
+                org.jrs82.fsclock.mobile.OwnTransfer(org.jrs82.fsclock.mobile.TransferProduct.TIME, 4.10, 2.60), 0.0,
+            ),
+        )
+        val range = WidgetElectricity.dayRange(day, now, quarterMs, night)!!
+        assertEquals(5.11, range.first, 1e-9) // yövartti 2,51 + 2,60
+        assertEquals(15.395, range.second, 1e-9) // 11,295 + 4,10
+    }
+
+    @Test fun dayRange_withoutOwnPrices_equalsVatAppliedRawExtremes() {
+        val range = WidgetElectricity.dayRange(day, now, quarterMs, org.jrs82.fsclock.mobile.ElectricityPricing(true))!!
+        assertEquals(1.255, range.first, 1e-9)
+        assertEquals(11.295, range.second, 1e-9)
+    }
+}

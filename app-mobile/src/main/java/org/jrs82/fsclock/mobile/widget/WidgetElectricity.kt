@@ -1,6 +1,7 @@
 package org.jrs82.fsclock.mobile.widget
 
 import org.jrs82.fsclock.mobile.ElectricityHourly
+import org.jrs82.fsclock.mobile.ElectricityPricing
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -65,11 +66,17 @@ object WidgetElectricity {
     fun dayStart(nowMs: Long): Long =
         Instant.ofEpochMilli(nowMs).atZone(HELSINKI).toLocalDate().atStartOfDay(HELSINKI).toInstant().toEpochMilli()
 
-    /** Kuluvan päivän (Suomen aikaa) halvin ja kallein vartti. Lasketaan piirtohetkellä, joten väli
+    /** Kuluvan päivän (Suomen aikaa) halvimman ja kalleimman jakson NÄYTETYT hinnat [pricing]in mukaan
+     *  (oletuksena veroton pörssihinta sellaisenaan). Lasketaan piirtohetkellä, joten väli
      *  vaihtuu keskiyöllä ilman workerin ajoa. null jos lista ei kata päivää ensimmäisestä vartista
      *  viimeiseen: vajaa lista (sovelluspäivitystä edeltävä cache, joka alkoi tuntia ennen tallennusta,
      *  tai keskiyön jälkeen pelkät aamuyön vartit) näyttäisi loppupäivän ääriarvot koko päivän asteikkona. */
-    fun dayRange(list: List<QuarterPrice>, nowMs: Long, slotMs: Long = QUARTER_MS): Pair<Double, Double>? {
+    fun dayRange(
+        list: List<QuarterPrice>,
+        nowMs: Long,
+        slotMs: Long = QUARTER_MS,
+        pricing: ElectricityPricing = ElectricityPricing(false),
+    ): Pair<Double, Double>? {
         val today = Instant.ofEpochMilli(nowMs).atZone(HELSINKI).toLocalDate()
         val start = today.atStartOfDay(HELSINKI).toInstant().toEpochMilli()
         val end = today.plusDays(1).atStartOfDay(HELSINKI).toInstant().toEpochMilli()
@@ -79,8 +86,9 @@ object WidgetElectricity {
         var last = Long.MIN_VALUE
         for (q in list) {
             if (q.timestamp < start || q.timestamp >= end) continue
-            if (min.isNaN() || q.snt < min) min = q.snt
-            if (max.isNaN() || q.snt > max) max = q.snt
+            val shown = pricing.shown(q.timestamp, q.snt)
+            if (min.isNaN() || shown < min) min = shown
+            if (max.isNaN() || shown > max) max = shown
             if (q.timestamp < first) first = q.timestamp
             if (q.timestamp > last) last = q.timestamp
         }

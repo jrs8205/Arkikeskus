@@ -40,13 +40,14 @@ object AppUpdateNotifier {
         Notifications.post(
             context, Notifications.CHANNEL_UPDATE, Notifications.NOTIF_ID_UPDATE,
             context.getString(R.string.settings_update_notif_title, rel.versionName),
-            notesPreview(rel.notes) ?: context.getString(R.string.settings_update_notif_text),
+            notesPreview(rel.notes, AppLocale.language(context)) ?: context.getString(R.string.settings_update_notif_text),
             null,
         )
     }
 
-    /** Ilmoituksen teksti julkaisukuvauksesta (releasetekstit ovat suomeksi): ensimmäinen ei-tyhjä rivi
-     *  ilman markdownia ([AppUpdater.plainNotes]), enintään 160 merkkiä; null → yleinen käännetty teksti. */
-    fun notesPreview(notes: String): String? =
-        AppUpdater.plainNotes(notes).lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(160)
+    /** Ilmoituksen teksti julkaisukuvauksesta sovelluksen kielellä ([AppUpdater.localizedFirstLine]):
+     *  oman kielen osion ensimmäinen ei-tyhjä rivi ilman markdownia, enintään 160 merkkiä; null → yleinen
+     *  käännetty teksti. */
+    fun notesPreview(notes: String, language: String): String? =
+        AppUpdater.localizedFirstLine(notes, language)?.take(160)
 }

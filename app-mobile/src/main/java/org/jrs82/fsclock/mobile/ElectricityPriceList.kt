@@ -3,43 +3,42 @@ package org.jrs82.fsclock.mobile
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import org.jrs82.fsclock.ElectricityData
-import java.util.Locale
 
 /**
  * Sähkösivun hintalistan rivi. [rangeText] on muotoa "08.30–08.45"; talviaikaan siirtymisen
  * toistuvan tunnin jälkimmäisellä kierroksella alkuajan perässä on tähti ("03.00*–03.15").
- * [displayPrice] on näytettävä hinta ALV-asetuksen mukaan, [rawPrice] veroton (lämpövärin asteikko).
+ * [displayPrice] on näytettävä hinta, [scalePrice] lämpövärin asteikon arvo
+ * ([ElectricityPricing.scaleValue]: veroton pörssihinta, tai omilla hinnoilla näytetty hinta).
+ * [fixedMark] on kiinteän sopimuksen vertailumerkki, muuten null.
  */
 internal data class PriceRow(
     val timestamp: Long,
     val rangeText: String,
     val displayPrice: Double,
-    val rawPrice: Double,
+    val scalePrice: Double,
     val isNow: Boolean,
+    val fixedMark: FixedMark? = null,
 )
 
 /**
  * Rivit näytettävistä jaksoista (vartit tai tunnit, pituus [slotMs]). [nowMs] null = ei kuluvaa jaksoa (Huomenna).
- * Jakson loppu muotoillaan alun UTC-offsetilla, jotta kellonsiirtoyön rivi näyttää jakson pituiselta:
- * syksyllä "03.00–04.00" (ei "03.00–03.00") ja keväällä "02.00–03.00" (ei "02.00–04.00").
+ * Kellonsiirtoyön rivi näyttää jakson pituiselta ([ElectricityTime.slotClockTexts]).
  */
 internal fun electricityPriceRows(
     slots: List<ElectricityData.Quarter>,
     slotMs: Long,
-    vat: Boolean,
+    pricing: ElectricityPricing,
     nowMs: Long?,
 ): List<PriceRow> = slots.map { slot ->
-    val (start, slotEnd) = ElectricityTime.slotBounds(slot.timestamp, slotMs)
-    val end = slotEnd.toInstant().atOffset(start.offset)
+    val (start, end) = ElectricityTime.slotClockTexts(slot.timestamp, slotMs)
     val star = if (ElectricityTime.isRepeatedPass(slot.timestamp)) "*" else ""
-    val range = String.format(Locale.ROOT, "%02d.%02d", start.hour, start.minute) + star + "–" +
-        String.format(Locale.ROOT, "%02d.%02d", end.hour, end.minute)
     PriceRow(
         timestamp = slot.timestamp,
-        rangeText = range,
-        displayPrice = ElectricityVat.apply(slot.sntPerKwh, vat),
-        rawPrice = slot.sntPerKwh,
+        rangeText = "$start$star–$end",
+        displayPrice = pricing.shown(slot),
+        scalePrice = pricing.scaleValue(slot.timestamp, slot.sntPerKwh),
         isNow = nowMs != null && slot.timestamp <= nowMs && nowMs < slot.timestamp + slotMs,
+        fixedMark = fixedMark(slot, pricing),
     )
 }
 
@@ -54,9 +53,24 @@ internal fun electricityDayHasPrices(dayOffset: Int, quarters: List<ElectricityD
     else -> true
 }
 
-/** Päivän keskihinta näytetyistä varttihinnoista (ALV vain positiivisiin). Tyhjä lista → NaN. */
-internal fun electricityDayAverage(quarters: List<ElectricityData.Quarter>, vat: Boolean): Double =
-    quarters.map { ElectricityVat.apply(it.sntPerKwh, vat) }.average()
+/** Päivän keskihinta näytetyistä varttihinnoista (ALV vain positiivisiin pörssihintoihin, omat lisät
+ *  jokaiseen varttiin). Tyhjä lista → NaN. */
+internal fun electricityDayAverage(quarters: List<ElectricityData.Quarter>, pricing: ElectricityPricing): Double =
+    quarters.map { pricing.shown(it) }.average()
+
+/**
+ * Jaksojen halvin ja kallein [ElectricityPricing.scaleValue]n mukaan; tasatilanteessa ensimmäinen.
+ * Omilla hinnoilla järjestys on kokonaishinnan järjestys: halvempi yösiirto voi tehdä yövartista
+ * halvemman kuin päivän halvin pörssivartti. Tyhjä lista → null.
+ */
+internal fun electricitySlotRange(
+    slots: List<ElectricityData.Quarter>,
+    pricing: ElectricityPricing,
+): Pair<ElectricityData.Quarter, ElectricityData.Quarter>? {
+    val min = slots.minByOrNull { pricing.scaleValue(it.timestamp, it.sntPerKwh) } ?: return null
+    val max = slots.maxByOrNull { pricing.scaleValue(it.timestamp, it.sntPerKwh) } ?: return null
+    return min to max
+}
 
 /** Yläkortin hintalaatat. */
 internal enum class SummaryTile { CHEAPEST, AVERAGE, MOST_EXPENSIVE }
@@ -93,7 +107,7 @@ internal val PriceRowInk: Color = Color(0xFF080E12)
 /**
  * Hintarivin tausta päivän sisäisellä asteikolla: päivän halvin jakso [ArkiColors.priceRowCheap],
  * keskikohta [ArkiColors.priceRowNormal], kallein [ArkiColors.priceRowExpensive]. Hinnat ovat samaa
- * yksikköä (verottomia) kuin [dayMin] ja [dayMax]. Tasainen päivä (kallein ei ylitä halvinta) on
+ * yksikköä ([PriceRow.scalePrice]) kuin [dayMin] ja [dayMax]. Tasainen päivä (kallein ei ylitä halvinta) on
  * halvan sävyinen.
  */
 internal fun rowHeatColor(price: Double, dayMin: Double, dayMax: Double, colors: ArkiColors): Color {
