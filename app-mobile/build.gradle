@@ -115,9 +115,10 @@ android {
 }
 
 // APK:n tiedostonimi. Debug-APK on selvästi merkitty; releasen nimi Arkikeskus-{V}.apk on se, jota
-// julkaisutyö odottaa. AGP 9:ssä vanha applicationVariants-rajapinta on poistunut. outputFileName ei
-// kuulu AGP:n julkiseen rajapintaan (se on toteutusluokan ominaisuus), joten tarkista APK:n nimi
-// rakennuksen jälkeen aina, kun AGP päivitetään.
+// julkaisutyö odottaa. AGP 9:ssä vanha applicationVariants-rajapinta on poistunut. outputFileName
+// kuuluu AGP:n julkiseen VariantOutput-rajapintaan, mutta se on merkitty kokeelliseksi (@Incubating)
+// ja voi muuttua ilman siirtymäaikaa, joten tarkista APK:n nimi rakennuksen jälkeen aina, kun AGP
+// päivitetään.
 androidComponents {
     onVariants(selector().all()) { variant ->
         def suffix = variant.buildType == 'debug' ? '-debug' : ''
