@@ -1,5 +1,6 @@
 apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
+// Kotlinin kääntää AGP itse (sisäänrakennettu Kotlin, AGP 9); versio valitaan juuren build.gradlessa.
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 def localProps = new Properties()
 def localPropsFile = rootProject.file('local.properties')
@@ -13,26 +14,21 @@ def yleAppId = localProps.getProperty('YLE_APP_ID') ?: System.getenv('YLE_APP_ID
 def yleAppKey = localProps.getProperty('YLE_APP_KEY') ?: System.getenv('YLE_APP_KEY') ?: ""
 
 android {
-    namespace 'org.jrs82.fsclock'
-    compileSdk 36
-    buildToolsVersion '36.0.0'
+    namespace = 'org.jrs82.fsclock'
+    compileSdk = 36
+    buildToolsVersion = '36.0.0'
 
     buildFeatures {
-        buildConfig true
-        compose true
-    }
-
-    // Kotlin on lukittu 1.9.24:ään (ks. resolutionStrategy) → Compose-kääntäjä 1.5.14.
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.14'
+        buildConfig = true
+        compose = true
     }
 
     defaultConfig {
-        applicationId 'org.jrs82.arkikeskus'
-        minSdk 30
-        targetSdk 35
-        versionCode 94
-        versionName '2.30.0'
+        applicationId = 'org.jrs82.arkikeskus'
+        minSdk = 30
+        targetSdk = 35
+        versionCode = 94
+        versionName = '2.30.0'
         buildConfigField "String", "MML_API_KEY", "\"${mmlApiKey}\""
         buildConfigField "String", "DIGITRANSIT_KEY", "\"${digitransitKey}\""
         buildConfigField "String", "YLE_APP_ID", "\"${yleAppId}\""
@@ -60,23 +56,11 @@ android {
         }
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            // Debug-APK selvästi merkitty tiedostonimessä; release pysyy ennallaan (julkaisutyön
-            // odottama nimi Arkikeskus-{V}.apk).
-            def suffix = variant.buildType.name == 'debug' ? '-debug' : ''
-            outputFileName = "Arkikeskus-${variant.versionName}${suffix}.apk"
-        }
-    }
-
+    // Kotlinin JVM-taso tulee tästä: sisäänrakennettu Kotlin käyttää oletuksena samaa tasoa kuin Java.
     compileOptions {
-        coreLibraryDesugaringEnabled true
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = '17'
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     signingConfigs {
@@ -84,10 +68,10 @@ android {
             def ksPw = localProps.getProperty('KEYSTORE_PASSWORD') ?: System.getenv('KEYSTORE_PASSWORD')
             def kPw  = localProps.getProperty('KEY_PASSWORD') ?: System.getenv('KEY_PASSWORD')
             if (ksPw && kPw) {
-                storeFile rootProject.file('release.keystore')
-                storePassword ksPw
-                keyAlias 'fsclock'
-                keyPassword kPw
+                storeFile = rootProject.file('release.keystore')
+                storePassword = ksPw
+                keyAlias = 'fsclock'
+                keyPassword = kPw
             }
         }
     }
@@ -96,15 +80,15 @@ android {
         debug {
             // Debug-buildit omalle tunnukselle, jotta Android Studion "Run" ei saastuta
             // oikeaa pakettia debug-avaimella (Developer Verification -rekisteröinnin takia).
-            applicationIdSuffix '.debug'
+            applicationIdSuffix = '.debug'
         }
         release {
             // R8: koodin minifiointi + resurssikarsinta. Keep-säännöt proguard-rules.pro:ssa
             // (HiveMQ/Netty, Room, MapLibre, Health Connect, fragmentit, custom-View't).
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            signingConfig = signingConfigs.release
         }
     }
 
@@ -118,8 +102,8 @@ android {
     }
 
     lint {
-        abortOnError false
-        lintConfig file('lint.xml')
+        abortOnError = false
+        lintConfig = file('lint.xml')
     }
 
     // HiveMQ vetää Netty:n → useita jareja tarjoaa samat META-INF-tiedostot. Karsitaan duplikaatit.
@@ -130,11 +114,16 @@ android {
     }
 }
 
-configurations.all {
-    resolutionStrategy {
-        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
+// APK:n tiedostonimi. Debug-APK on selvästi merkitty; releasen nimi Arkikeskus-{V}.apk on se, jota
+// julkaisutyö odottaa. AGP 9:ssä vanha applicationVariants-rajapinta on poistunut. outputFileName ei
+// kuulu AGP:n julkiseen rajapintaan (se on toteutusluokan ominaisuus), joten tarkista APK:n nimi
+// rakennuksen jälkeen aina, kun AGP päivitetään.
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def suffix = variant.buildType == 'debug' ? '-debug' : ''
+        variant.outputs.each { output ->
+            output.outputFileName.set(output.versionName.map { version -> "Arkikeskus-${version}${suffix}.apk".toString() })
+        }
     }
 }
 
@@ -143,8 +132,9 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.core:core-splashscreen:1.0.1'
 
-    // Jetpack Compose (UI-modernisointi). BOM 2024.06.00 = Compose 1.6.8 / Material3 1.2.1,
-    // yhteensopiva Kotlin 1.9.24 + compiler 1.5.14:n kanssa.
+    // Jetpack Compose (UI-modernisointi). BOM 2024.06.00 = Compose 1.6.8 / Material3 1.2.1.
+    // Kirjastoversioita ei muutettu AGP 9 -siirtymässä: Kotlinin mukana tuleva Compose-kääntäjä
+    // toimii tämän ajonaikaisen kirjaston kanssa (käännös, 749 testiä ja laitetesti 20.11.2026).
     def composeBom = platform('androidx.compose:compose-bom:2024.06.00')
     implementation composeBom
     implementation 'androidx.compose.ui:ui'
@@ -155,7 +145,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.3'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     // Jetpack Glance (kotinaytton widgetit, Compose-tyyliset). 1.1.1 = vakaa, yhteensopiva
-    // Kotlin 1.9.24 + Compose BOM 2024.06.00 kanssa (1.2.0+ vaatisi uudemman runtimen).
+    // Compose BOM 2024.06.00:n kanssa (1.2.0+ vaatisi uudemman runtimen).
     implementation 'androidx.glance:glance-appwidget:1.1.1'
     implementation 'androidx.glance:glance-material3:1.1.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'

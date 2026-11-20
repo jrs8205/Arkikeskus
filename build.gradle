@@ -4,7 +4,12 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.9.1'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24'
+        classpath 'com.android.tools.build:gradle:9.5.1'
+        // AGP 9 kääntää Kotlinin itse (sisäänrakennettu Kotlin), joten moduulissa ei enää käytetä
+        // kotlin-android-lisäosaa. Tämä rivi valitsee Kotlin-version: ilman sitä käytössä olisi AGP:n
+        // mukana tuleva vähimmäisversio.
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21'
+        // Compose-kääntäjä kulkee Kotlinin mukana: sen version pitää olla sama kuin Kotlinin.
+        classpath 'org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.4.21'
     }
 }
