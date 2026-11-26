@@ -106,17 +106,7 @@
     <string name="home_gps_title">GPS-hastighet</string>
     <string name="home_gps_need_location">Tillåt platsåtkomst så att hastigheten kan mätas.</string>
     <string name="home_allow_location">Tillåt platsåtkomst</string>
-    <string name="home_gps_quality_excellent">Utmärkt</string>
-    <string name="home_gps_quality_good">Bra</string>
-    <string name="home_gps_quality_weak">Svag</string>
-    <string name="home_gps_quality_none">Ingen positionering</string>
-    <plurals name="home_gps_signal">
-        <item quantity="one">%1$s · %2$d/%3$d satellit</item>
-        <item quantity="other">%1$s · %2$d/%3$d satelliter</item>
-    </plurals>
-    <string name="home_gps_accuracy">Noggrannhet ±%1$d m</string>
     <string name="home_gps_waiting">Väntar på GPS-signal…</string>
-    <string name="home_gps_updated">Uppdaterad %1$s</string>
     <string name="home_widget_at_hour">kl. %1$d</string>
     <string name="home_widget_hour">kl. %1$02d</string>
     <string name="home_widget_fmi">FMI</string>

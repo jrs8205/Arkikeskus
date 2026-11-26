@@ -3,29 +3,29 @@ package org.jrs82.fsclock.mobile
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.GnssStatus
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
-import android.os.Handler
-import android.os.Looper
 import android.view.View
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,19 +34,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -57,6 +53,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
+import org.jrs82.fsclock.mobile.gps.GpsDashboardScreen
+import org.jrs82.fsclock.mobile.gps.GpsPage
+import org.jrs82.fsclock.mobile.gps.TripHistoryScreen
+import org.jrs82.fsclock.mobile.gps.gpsPage
 
 /**
  * Lisäsektiot: Puhelimen tiedot, Liikennetiedot, GPS-nopeus (natiivi Compose) sekä
@@ -343,195 +343,62 @@ internal fun referenceCoordinates(context: Context): DoubleArray? {
     return null
 }
 
-// ===================== GPS-nopeus (GpsSpeedometerView + LocationManager) =====================
+// ===================== GPS-nopeus (mittaristo: gps/GpsDashboardScreen) =====================
 
+/** GPS-näkymä: tarkan sijaintiluvan tarkistus ja pyyntö; itse mittaristo on [GpsDashboardScreen]issa. */
 @Composable
-internal fun SpeedometerSection() {
+internal fun SpeedometerSection(onBack: () -> Unit, visible: Boolean, bottomBarHidden: Boolean) {
     val context = LocalContext.current
     var granted by remember { mutableStateOf(hasPerm(context, Manifest.permission.ACCESS_FINE_LOCATION)) }
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { granted = hasPerm(context, Manifest.permission.ACCESS_FINE_LOCATION) }
-    // Pystyvieritys: pienessä vaakanäkymässä mittari + tekstit eivät leikkaudu vaan niitä voi vierittää.
+    var historyOpen by rememberSaveable { mutableStateOf(false) }
+    when (gpsPage(historyOpen, granted)) {
+        GpsPage.HISTORY -> {
+            TripHistoryScreen(visible = visible, onBack = { historyOpen = false })
+            return
+        }
+        GpsPage.DASHBOARD -> {
+            GpsDashboardScreen(onBack = onBack, onHistory = { historyOpen = true }, visible = visible)
+            return
+        }
+        GpsPage.PERMISSION -> Unit
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // Sama reunojen väistö kuin mittaristossa: vaakana kameran aukko ei saa peittää nuolta.
+            .consumeWindowInsets(WindowInsets.systemBars)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        if (bottomBarHidden) {
+            // Vaakana alapalkki on piilossa: paluun pitää näkyä jo ennen sijaintiluvan antamista.
+            Row(Modifier.fillMaxWidth()) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        painterResource(R.drawable.mobile_ic_arrow_back),
+                        contentDescription = stringResource(R.string.common_back),
+                    )
+                }
+            }
+        }
         Text(stringResource(R.string.home_gps_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        if (!granted) {
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.home_gps_need_location),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(R.string.home_gps_need_location),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+        FilledTonalButton(onClick = {
+            permLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
             )
-            Spacer(Modifier.height(10.dp))
-            FilledTonalButton(onClick = {
-                permLauncher.launch(
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                )
-            }) { Text(stringResource(R.string.home_allow_location)) }
-        } else {
-            Spacer(Modifier.height(16.dp))
-            GpsSpeedContent(context)
-            Spacer(Modifier.height(16.dp))
-        }
+        }) { Text(stringResource(R.string.home_allow_location)) }
+        FilledTonalButton(onClick = { historyOpen = true }) { Text(stringResource(R.string.gps_history)) }
     }
-}
-
-@Composable
-private fun GpsSpeedContent(context: Context) {
-    var location by remember { mutableStateOf<Location?>(null) }
-    var satUsed by remember { mutableStateOf(0) }
-    var satVisible by remember { mutableStateOf(0) }
-    var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) {
-                nowMs = System.currentTimeMillis()
-                kotlinx.coroutines.delay(1000L)
-            }
-        }
-    }
-    DisposableEffect(lifecycleOwner) {
-        val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-        val main = Handler(Looper.getMainLooper())
-        val listener = object : LocationListener {
-            override fun onLocationChanged(loc: Location) {
-                // Älä korvaa tuoretta GPS-nopeutta nopeudettomalla NETWORK-sijainnilla.
-                val prev = location
-                if (!loc.hasSpeed() && prev != null && prev.hasSpeed() &&
-                    System.currentTimeMillis() - prev.time < 8_000L
-                ) {
-                    return
-                }
-                location = loc
-            }
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
-        }
-        val gnss = object : GnssStatus.Callback() {
-            override fun onSatelliteStatusChanged(status: GnssStatus) {
-                var used = 0
-                val visible = status.satelliteCount
-                for (i in 0 until visible) if (status.usedInFix(i)) used++
-                satUsed = used
-                satVisible = visible
-            }
-        }
-        // GPS/GNSS-kuuntelijat sidotaan elinkaareen: kuunnellaan vain kun sovellus on etualalla (ON_START)
-        // ja pysäytetään taustalle/näytön lukitukseen (ON_STOP) → GPS ei jää päälle akkua syömään.
-        var registered = false
-        fun register() {
-            if (registered || lm == null) return
-            registered = true
-            try {
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener)
-            } catch (e: SecurityException) {
-            } catch (e: IllegalArgumentException) {
-            }
-            try {
-                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000L, 0f, listener)
-            } catch (e: SecurityException) {
-            } catch (e: IllegalArgumentException) {
-            }
-            try {
-                lm.registerGnssStatusCallback(gnss, main)
-            } catch (e: SecurityException) {
-            }
-            try {
-                val g = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                val n = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                location = when {
-                    g != null && (n == null || g.time >= n.time) -> g
-                    n != null -> n
-                    else -> location
-                }
-            } catch (e: SecurityException) {
-            }
-        }
-        fun unregister() {
-            if (!registered || lm == null) return
-            registered = false
-            try {
-                lm.removeUpdates(listener)
-            } catch (e: Exception) {
-            }
-            try {
-                lm.unregisterGnssStatusCallback(gnss)
-            } catch (e: Exception) {
-            }
-        }
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> register()
-                Lifecycle.Event.ON_STOP -> unregister()
-                else -> {}
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) register()
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            unregister()
-        }
-    }
-
-    val kmh = speedKmh(location, nowMs)
-    AndroidView(
-        factory = { GpsSpeedometerView(it) },
-        update = { it.setSpeedKmh(kmh) },
-        // Rajaa käytettävissä olevaan leveyteen (kork. 340 dp) ja pidä neliönä → ei leikkaudu kapeassa
-        // tilassa eikä veny leveällä; pystyvieritys hoitaa korkeuden pienessä vaakanäkymässä.
-        // widthIn ENNEN fillMaxWidth → 340 dp -katto pätee myös leveällä näytöllä.
-        modifier = Modifier
-            .widthIn(max = 340.dp)
-            .fillMaxWidth()
-            .aspectRatio(1f),
-    )
-    Spacer(Modifier.height(8.dp))
-    Text(
-        if (kmh <= 0f) "-- km/h" else "${Math.round(kmh)} km/h",
-        fontSize = 40.sp,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-    )
-    Text(signalLabel(context, location, satUsed, satVisible), style = MaterialTheme.typography.bodyMedium)
-    val detail = speedDetail(context, location, nowMs)
-    if (detail.isNotEmpty()) {
-        Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-private fun speedKmh(loc: Location?, nowMs: Long): Float {
-    if (loc == null || !loc.hasSpeed()) return 0f
-    if (nowMs - loc.time > 8_000L) return 0f
-    val kmh = loc.speed * 3.6f
-    return if (kmh < 2f) 0f else kmh
-}
-
-private fun signalLabel(context: Context, loc: Location?, used: Int, visible: Int): String {
-    if (used > 0) {
-        val quality = when {
-            used >= 10 -> R.string.home_gps_quality_excellent
-            used >= 7 -> R.string.home_gps_quality_good
-            used >= 4 -> R.string.home_gps_quality_weak
-            else -> R.string.home_gps_quality_none
-        }
-        return context.resources.getQuantityString(R.plurals.home_gps_signal, visible, context.getString(quality), used, visible)
-    }
-    if (loc != null && loc.hasAccuracy()) return context.getString(R.string.home_gps_accuracy, Math.round(loc.accuracy))
-    return context.getString(R.string.home_gps_waiting)
-}
-
-private fun speedDetail(context: Context, loc: Location?, nowMs: Long): String {
-    if (loc == null) return ""
-    val parts = ArrayList<String>(2)
-    if (loc.hasAccuracy()) parts.add(context.getString(R.string.home_gps_accuracy, Math.round(loc.accuracy)))
-    parts.add(context.getString(R.string.home_gps_updated, homeAgeText(context, loc.time, nowMs)))
-    return parts.joinToString(" · ")
 }

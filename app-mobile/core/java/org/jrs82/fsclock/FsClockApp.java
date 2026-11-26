@@ -34,6 +34,11 @@ public class FsClockApp extends Application {
 
         SettingsManager.get().init(this);
 
+        // Matkamittari: tallennetun matkan palautus ja edellisen prosessin jälkien siivous (käynnissä ollut matka
+        // tauolle, vanha muistutus ja sen herätys pois). Tehdään täällä eikä vasta näkymässä, koska prosessin voi
+        // käynnistää myös taustatyö tai widget.
+        org.jrs82.fsclock.mobile.gps.TripTracker.INSTANCE.init(this);
+
         // Taustailmoitukset (4b): ajasta tunnittainen WorkManager-työ. Worker tarkistaa per-tyyppi-
         // kytkimet → kaikki opt-in (oletus pois), joten pois päältä olevat eivät tee mitään.
         Notifications.schedule(this);

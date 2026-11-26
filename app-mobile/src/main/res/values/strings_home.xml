@@ -106,17 +106,7 @@
     <string name="home_gps_title">GPS speed</string>
     <string name="home_gps_need_location">Allow location access to measure your speed.</string>
     <string name="home_allow_location">Allow location</string>
-    <string name="home_gps_quality_excellent">Excellent</string>
-    <string name="home_gps_quality_good">Good</string>
-    <string name="home_gps_quality_weak">Weak</string>
-    <string name="home_gps_quality_none">No fix</string>
-    <plurals name="home_gps_signal">
-        <item quantity="one">%1$s · %2$d/%3$d satellite</item>
-        <item quantity="other">%1$s · %2$d/%3$d satellites</item>
-    </plurals>
-    <string name="home_gps_accuracy">Accuracy ±%1$d m</string>
     <string name="home_gps_waiting">Waiting for GPS signal…</string>
-    <string name="home_gps_updated">Updated %1$s</string>
     <string name="home_widget_at_hour">%1$02d:00</string>
     <string name="home_widget_hour">%1$02d:00</string>
     <string name="home_widget_fmi">FMI</string>

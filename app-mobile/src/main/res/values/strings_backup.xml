@@ -5,11 +5,11 @@
     <string name="backup_drive_row">Back up to Drive</string>
     <string name="backup_drive_row_sub">WhatsApp-style Google Drive backup</string>
     <string name="backup_export_row">Export backup (to file)</string>
-    <string name="backup_export_row_sub">Settings and workouts in one file (e.g. on Drive)</string>
+    <string name="backup_export_row_sub">Settings, workouts and trips in one file (e.g. on Drive)</string>
     <string name="backup_import_row">Restore backup (from file)</string>
     <string name="backup_import_row_sub">Import a previously exported backup file</string>
     <string name="backup_file_name">Arkikeskus-backup-%1$s.json</string>
-    <string name="backup_saved_file">Backup saved: %1$s, %2$s (%3$s).</string>
+    <string name="backup_saved_file">Backup saved with %1$s, %4$s and %2$s (%3$s).</string>
     <string name="backup_save_failed">Saving failed.</string>
     <string name="backup_failed_reason">Backup failed: %1$s</string>
     <string name="backup_stop_workout_first">Finish the ongoing workout before restoring.</string>
@@ -18,7 +18,7 @@
 
     <!-- Palautuksen yhteenveto -->
     <string name="backup_restored_title">Backup restored</string>
-    <string name="backup_restored_summary">Restored %1$s and %2$s.</string>
+    <string name="backup_restored_summary">Restored %1$s, %3$s and %2$s.</string>
     <plurals name="backup_workouts">
         <item quantity="one">%1$d workout</item>
         <item quantity="other">%1$d workouts</item>
@@ -36,7 +36,7 @@
     <string name="backup_restart">Restart</string>
 
     <!-- Drive-varmuuskopio -->
-    <string name="backup_drive_intro">Back up your workouts, steps and settings to Google Drive so you don\'t lose them when you get a new phone. The copy is saved in a hidden app folder in your account.</string>
+    <string name="backup_drive_intro">Back up your workouts, trips, steps and settings to Google Drive so you don\'t lose them when you get a new phone. The copy is saved in a hidden app folder in your account.</string>
     <string name="backup_sign_in_prompt">Sign in with your Google account to save backups to your Drive.</string>
     <string name="backup_sign_in">Sign in with Google</string>
     <string name="backup_signed_in_as">Signed in as %1$s</string>

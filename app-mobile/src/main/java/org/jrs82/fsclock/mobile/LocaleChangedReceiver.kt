@@ -22,6 +22,7 @@ class LocaleChangedReceiver : BroadcastReceiver() {
         val app = context.applicationContext
         Notifications.ensureChannels(app)
         WorkoutTrackingService.createChannels(app)
+        org.jrs82.fsclock.mobile.gps.TripTrackingService.onLocaleChanged(app)
         val pending = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {

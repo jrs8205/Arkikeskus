@@ -12,8 +12,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 @Database(
     entities = {WeatherSample.class, DailyStat.class, RuuviSampleEntity.class, DailyStepsEntity.class,
-                WorkoutEntity.class, WorkoutPointEntity.class, WorkoutSplitEntity.class},
-    version = 7,
+                WorkoutEntity.class, WorkoutPointEntity.class, WorkoutSplitEntity.class, TripEntity.class},
+    version = 8,
     autoMigrations = {
         @AutoMigration(from = 2, to = 3)
     },
@@ -26,6 +26,8 @@ public abstract class FsClockDb extends RoomDatabase {
     public abstract RuuviSamplesDao ruuviSamplesDao();
     public abstract DailyStepsDao dailyStepsDao();
     public abstract WorkoutDao workoutDao();
+
+    public abstract TripDao tripDao();
 
     static final Migration MIGRATION_1_2 = new Migration(1, 2) {
         @Override
@@ -90,6 +92,16 @@ public abstract class FsClockDb extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRATION_7_8 = new Migration(7, 8) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS trips ("
+                    + "id TEXT NOT NULL PRIMARY KEY, startedAtMs INTEGER NOT NULL, endedAtMs INTEGER NOT NULL, "
+                    + "estimatedStart INTEGER NOT NULL, distanceM REAL NOT NULL, totalMs INTEGER NOT NULL, "
+                    + "movingMs INTEGER NOT NULL, maxSpeedMps REAL NOT NULL)");
+        }
+    };
+
     private static volatile FsClockDb instance;
 
     public static FsClockDb get(Context context) {
@@ -101,7 +113,7 @@ public abstract class FsClockDb extends RoomDatabase {
                         FsClockDb.class,
                         "fsclock.db"
                     ).addMigrations(MIGRATION_1_2, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                            MIGRATION_6_7).build();
+                            MIGRATION_6_7, MIGRATION_7_8).build();
                 }
             }
         }

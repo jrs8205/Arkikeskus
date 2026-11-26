@@ -106,17 +106,7 @@
     <string name="home_gps_title">GPS-nopeus</string>
     <string name="home_gps_need_location">Salli sijainti, jotta nopeus voidaan mitata.</string>
     <string name="home_allow_location">Salli sijainti</string>
-    <string name="home_gps_quality_excellent">Erinomainen</string>
-    <string name="home_gps_quality_good">Hyvä</string>
-    <string name="home_gps_quality_weak">Heikko</string>
-    <string name="home_gps_quality_none">Ei paikannusta</string>
-    <plurals name="home_gps_signal">
-        <item quantity="one">%1$s · %2$d/%3$d satelliitti</item>
-        <item quantity="other">%1$s · %2$d/%3$d satelliittia</item>
-    </plurals>
-    <string name="home_gps_accuracy">Tarkkuus ±%1$d m</string>
     <string name="home_gps_waiting">Odotetaan GPS-signaalia…</string>
-    <string name="home_gps_updated">Päivitetty %1$s</string>
     <string name="home_widget_at_hour">klo %1$d</string>
     <string name="home_widget_hour">klo %1$02d</string>
     <string name="home_widget_fmi">Ilmatieteen laitos</string>

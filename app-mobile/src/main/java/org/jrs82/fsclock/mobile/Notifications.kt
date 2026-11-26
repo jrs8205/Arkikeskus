@@ -153,7 +153,9 @@ object Notifications {
         )
         val n = NotificationCompat.Builder(context, channelId)
             // Pieni ikoni = branded "A"-siluetti (Android renderöi vain alfan → tilapalkissa valkoinen).
-            .setSmallIcon(R.mipmap.ic_launcher_monochrome)
+            // Oma 24 dp:n kuvake, jossa merkki täyttää tilapalkkikuvakkeen alueen: käynnistimen
+            // teemakuvakkeen kerroksessa merkki on vain noin 11 dp ja näkyi muita kuvakkeita pienempänä.
+            .setSmallIcon(R.drawable.mobile_ic_stat_arkikeskus)
             // setColor tinttaa pienen ikonin + sovelluksen nimen brändisinisellä (kuten WhatsApp).
             .setColor(ContextCompat.getColor(context, R.color.mobile_accent))
             // Iso ikoni = värillinen Arkikeskus-logo ilmoituksen oikeassa reunassa (välimuistitettu, M9).

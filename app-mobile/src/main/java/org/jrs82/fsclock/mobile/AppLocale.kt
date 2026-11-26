@@ -1,6 +1,9 @@
 package org.jrs82.fsclock.mobile
 
+import android.app.LocaleManager
 import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
 import java.util.Locale
 
 /** Sovelluksen kieli: fi ja sv sellaisenaan, kaikki muut englanniksi. Sama sääntö kuin
@@ -29,6 +32,28 @@ object AppLocale {
     }
 
     fun language(context: Context): String = current(context).language
+
+    /**
+     * Konteksti, jonka tekstit ovat sovellukselle valitulla kielellä. Android 13+:n sovelluskohtainen
+     * kieli ei aina päädy palvelun omaan kontekstiin, kun sovelluksella ei ole aktiviteettia (esim.
+     * sovellus pyyhkäisty pois viimeisimmistä): taustalla rakennettu ilmoitus näkyisi laitteen kielellä.
+     * Vanhemmissa versioissa sovelluskohtaista kieltä ei ole, joten konteksti palautetaan sellaisenaan.
+     */
+    fun localizedContext(context: Context): Context {
+        if (Build.VERSION.SDK_INT < 33) return context
+        return try {
+            val locales = context.getSystemService(LocaleManager::class.java)?.applicationLocales
+            if (locales == null || locales.isEmpty) {
+                context
+            } else {
+                val conf = Configuration(context.resources.configuration)
+                conf.setLocales(locales)
+                context.createConfigurationContext(conf)
+            }
+        } catch (e: Exception) {
+            context
+        }
+    }
 
     fun isSwedish(context: Context): Boolean = current(context).language == "sv"
 

@@ -13,4 +13,7 @@
     <!-- Laitekohtainen tila (DeviceLocalPrefs), esim. tieto sijaintiluvan kysymisestä: ajonaikaiset luvat
          eivät siirry laitteelta toiselle, joten palautettu "jo kysytty" estäisi kysymästä lupaa koskaan. -->
     <exclude domain="sharedpref" path="device_local_prefs.xml" />
+    <!-- GPS-mittariston kesken oleva matka (TripStore) on laitekohtainen: toisella laitteella se
+         näkyisi tauolla olevana matkana, jota siellä ei ole koskaan ajettu. -->
+    <exclude domain="sharedpref" path="gps_trip_prefs.xml" />
 </full-backup-content>

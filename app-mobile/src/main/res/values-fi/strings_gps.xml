@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GPS-mittaristo: matkan taustapalvelu ja sen ilmoitukset -->
+    <string name="gps_channel_tracking_name">Matkan seuranta</string>
+    <string name="gps_channel_tracking_desc">Käynnissä olevan matkan tila ja hallinta</string>
+    <string name="gps_channel_reminder_name">Matkan muistutus</string>
+    <string name="gps_channel_reminder_desc">Muistutus, kun käynnissä olevalla matkalla ei ole havaittu liikettä kahteen tuntiin</string>
+    <string name="gps_trip_running">Matka käynnissä</string>
+    <string name="gps_trip_paused">Matka tauolla</string>
+    <string name="gps_trip_reminder_title">Matka on yhä käynnissä</string>
+    <string name="gps_trip_reminder_text">Liikettä ei ole havaittu 2 tuntiin · %1$s</string>
+    <string name="gps_action_pause">Tauko</string>
+    <string name="gps_action_resume">Jatka</string>
+    <string name="gps_action_finish">Lopeta</string>
+    <string name="gps_trip_start_failed">Matkan seurantaa ei voitu käynnistää.</string>
+    <!-- GPS-mittaristo: näkymät, matkan painikkeet, laatat ja GPS:n tila -->
+    <string name="gps_view_basic">Perus</string>
+    <string name="gps_view_trip">Matka</string>
+    <string name="gps_view_full">Täysi</string>
+    <string name="gps_keep_screen_on">Näyttö päällä</string>
+    <string name="gps_show_controls">Näytä valinnat</string>
+    <string name="gps_action_start">Aloita matka</string>
+    <string name="gps_action_reset">Nollaa</string>
+    <string name="gps_action_new_trip">Uusi matka</string>
+    <string name="gps_action_continue">Jatka tätä matkaa</string>
+    <string name="gps_label_distance">Matka</string>
+    <string name="gps_label_time">Aika</string>
+    <string name="gps_label_total_time">Kokonaisaika</string>
+    <string name="gps_label_moving">Liikkeessä</string>
+    <string name="gps_label_stopped">Pysähdyksissä</string>
+    <string name="gps_label_avg">Keskinopeus</string>
+    <string name="gps_label_avg_total">Keskinopeus, koko matka</string>
+    <string name="gps_label_avg_moving">Keskinopeus, liikkeessä</string>
+    <string name="gps_label_top">Huippu</string>
+    <string name="gps_label_top_speed">Huippunopeus</string>
+    <string name="gps_quality_good">GPS hyvä</string>
+    <string name="gps_quality_fair">GPS kohtalainen</string>
+    <string name="gps_quality_weak">GPS heikko</string>
+    <string name="gps_signal_lost">GPS-signaali katkennut</string>
+    <string name="gps_location_off">Sijainti on pois päältä</string>
+    <string name="gps_no_speed">GPS ei anna nopeutta</string>
+    <string name="gps_unavailable">Laitteessa ei ole GPS-paikannusta</string>
+    <string name="gps_detail_position">Sijainti %1$s</string>
+    <string name="gps_detail_speed">Nopeus %1$s</string>
+    <string name="gps_detail_satellites">Satelliitit %1$d/%2$d</string>
+    <string name="gps_chip_running">Matka käynnissä · %1$s</string>
+    <string name="gps_chip_paused">Matka tauolla · %1$s</string>
+    <string name="gps_history">Matkahistoria</string>
+    <string name="gps_history_empty">Ei vielä tallennettuja matkoja. Matka tallentuu historiaan, kun painat %1$s.</string>
+    <plurals name="gps_history_count">
+        <item quantity="one">%d matka</item>
+        <item quantity="other">%d matkaa</item>
+    </plurals>
+    <string name="gps_history_estimated">n. %1$s</string>
+    <string name="gps_history_delete">Poista matka</string>
+    <string name="gps_history_deleted">Matka poistettu</string>
+    <string name="gps_history_undo">Kumoa</string>
+    <string name="gps_history_day">Päivä</string>
+    <string name="gps_history_speeds">Ka %1$s · Huippu %2$s</string>
+    <string name="gps_history_interval">Alkoi kello %1$s, päättyi %2$s</string>
+    <string name="gps_history_approximately">noin %1$s</string>
+    <string name="gps_history_unavailable">Ei saatavilla</string>
+    <string name="gps_history_error">Matkahistorian päivitys epäonnistui.</string>
+    <string name="gps_history_save_pending">Matka lopetettu. Tallennusta yritetään uudelleen.</string>
+</resources>

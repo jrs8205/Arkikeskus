@@ -10,6 +10,9 @@ import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.db.WorkoutEntity
 import org.jrs82.fsclock.db.WorkoutPointEntity
 import org.jrs82.fsclock.db.WorkoutSplitEntity
+import org.jrs82.fsclock.mobile.gps.TripTracker
+import org.jrs82.fsclock.mobile.gps.putTrips
+import org.jrs82.fsclock.mobile.gps.tripEntries
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.InputStream
@@ -30,8 +33,8 @@ internal object BackupManager {
     private const val FORMAT = "arkikeskus-backup"
     private const val VERSION = 1
 
-    data class ExportResult(val workouts: Int, val prefs: Int, val bytes: Int)
-    data class RestoreResult(val workouts: Int, val prefs: Int, val skipped: Int)
+    data class ExportResult(val workouts: Int, val prefs: Int, val bytes: Int, val trips: Int)
+    data class RestoreResult(val workouts: Int, val prefs: Int, val skipped: Int, val trips: Int)
 
     /** Tiedoston tunnisteen ja version tarkistus ennen palautusta: null = kelpaa, muuten virheen
      *  resurssi-id (argumenttina versio). Pure → testattavissa ilman Contextia. */
@@ -108,10 +111,13 @@ internal object BackupManager {
         root.put("appVersion", BuildConfig.VERSION_NAME)
         root.put("prefs", prefsJson)
         root.put("workouts", workouts)
+        TripTracker.init(context)
+        val trips = TripTracker.archive.export()
+        root.putTrips(trips)
         val data = root.toString().toByteArray(Charsets.UTF_8)
         out.write(data)
         out.flush()
-        return ExportResult(all.size, prefCount, data.size)
+        return ExportResult(all.size, prefCount, data.size, trips.size)
     }
 
     /** Suurin sallittu varmuuskopiotiedoston koko (100 lenkkiä ≈ 5–8 Mt → 30 Mt reilu marginaali). */
@@ -267,8 +273,12 @@ internal object BackupManager {
         // täynnä), KOKO lenkkijoukko peruuntuu → ei osittaista palautusta. Asetukset kirjoitetaan
         // vasta kun lenkit on saatu talteen, joten DB ja asetukset palautuvat joko molemmat tai
         // ei kumpikaan (poikkeus etenee kutsujan virhekäsittelyyn ilman puolittaista tilaa).
+        val trips = tripEntries(root)
         var imported = 0
+        var importedTrips = 0
         db.runInTransaction(Runnable {
+            val tripDao = db.tripDao()
+            importedTrips = trips.count { tripDao.insertMissing(it) != -1L }
             for (pw in pending) {
                 val id = dao.insertWorkout(pw.w)
                 pw.points.forEach { it.workoutId = id }
@@ -284,7 +294,7 @@ internal object BackupManager {
         // Uudelleenkäynnistyksen jälkeinen vahvistus-toast (MobileComposeMainActivity lukee).
         // commit(): restart tappaa prosessin heti — apply() voisi hukata lipun JA palautetut arvot.
         prefs.edit().putBoolean("restore_done_pending", true).commit()
-        return RestoreResult(imported, prefCount, skipped)
+        return RestoreResult(imported, prefCount, skipped, importedTrips)
     }
 }
 

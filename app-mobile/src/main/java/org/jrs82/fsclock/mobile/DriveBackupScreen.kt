@@ -296,6 +296,7 @@ internal fun restoreSummaryText(res: BackupManager.RestoreResult, @StringRes res
         R.string.backup_restored_summary,
         pluralStringResource(R.plurals.backup_workouts, res.workouts, res.workouts),
         pluralStringResource(R.plurals.backup_settings, res.prefs, res.prefs),
+        pluralStringResource(R.plurals.gps_history_count, res.trips, res.trips),
     )
     val skipped = if (res.skipped > 0) {
         " " + pluralStringResource(R.plurals.backup_skipped, res.skipped, res.skipped)

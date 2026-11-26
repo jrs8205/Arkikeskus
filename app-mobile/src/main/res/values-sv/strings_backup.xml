@@ -5,11 +5,11 @@
     <string name="backup_drive_row">Säkerhetskopiering till Drive</string>
     <string name="backup_drive_row_sub">Säkerhetskopiering till Google Drive i WhatsApp-stil</string>
     <string name="backup_export_row">Exportera säkerhetskopia (till fil)</string>
-    <string name="backup_export_row_sub">Inställningar och träningspass i en fil (t.ex. på Drive)</string>
+    <string name="backup_export_row_sub">Inställningar, träningspass och resor i en fil (t.ex. på Drive)</string>
     <string name="backup_import_row">Återställ säkerhetskopia (från fil)</string>
     <string name="backup_import_row_sub">Importera en tidigare exporterad säkerhetskopia</string>
     <string name="backup_file_name">Arkikeskus-backup-%1$s.json</string>
-    <string name="backup_saved_file">Säkerhetskopian har sparats: %1$s, %2$s (%3$s).</string>
+    <string name="backup_saved_file">Säkerhetskopian innehåller %1$s, %4$s och %2$s (%3$s).</string>
     <string name="backup_save_failed">Det gick inte att spara.</string>
     <string name="backup_failed_reason">Säkerhetskopieringen misslyckades: %1$s</string>
     <string name="backup_stop_workout_first">Avsluta det pågående träningspasset innan du återställer.</string>
@@ -18,7 +18,7 @@
 
     <!-- Palautuksen yhteenveto -->
     <string name="backup_restored_title">Säkerhetskopian har återställts</string>
-    <string name="backup_restored_summary">Återställde %1$s och %2$s.</string>
+    <string name="backup_restored_summary">Återställde %1$s, %3$s och %2$s.</string>
     <plurals name="backup_workouts">
         <item quantity="one">%1$d träningspass</item>
         <item quantity="other">%1$d träningspass</item>
@@ -36,7 +36,7 @@
     <string name="backup_restart">Starta om</string>
 
     <!-- Drive-varmuuskopio -->
-    <string name="backup_drive_intro">Säkerhetskopiera dina träningspass, steg och inställningar till Google Drive så att du inte förlorar dem när du byter telefon. Kopian sparas i en dold appmapp på ditt konto.</string>
+    <string name="backup_drive_intro">Säkerhetskopiera dina träningspass, resor, steg och inställningar till Google Drive så att du inte förlorar dem när du byter telefon. Kopian sparas i en dold appmapp på ditt konto.</string>
     <string name="backup_sign_in_prompt">Logga in med ditt Google-konto så sparas säkerhetskopiorna på din Drive.</string>
     <string name="backup_sign_in">Logga in med Google</string>
     <string name="backup_signed_in_as">Inloggad som %1$s</string>

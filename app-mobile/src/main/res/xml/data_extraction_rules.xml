@@ -10,12 +10,15 @@
         <exclude domain="sharedpref" path="drive_backup_prefs.xml" />
         <!-- Laitekohtainen tila (DeviceLocalPrefs), ks. backup_rules.xml -->
         <exclude domain="sharedpref" path="device_local_prefs.xml" />
+        <!-- GPS-mittariston kesken oleva matka (TripStore), ks. backup_rules.xml -->
+        <exclude domain="sharedpref" path="gps_trip_prefs.xml" />
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="." />
         <exclude domain="sharedpref" path="auto_backup_prefs.xml" />
         <exclude domain="sharedpref" path="drive_backup_prefs.xml" />
         <exclude domain="sharedpref" path="device_local_prefs.xml" />
+        <exclude domain="sharedpref" path="gps_trip_prefs.xml" />
         <include domain="database" path="." />
     </device-transfer>
 </data-extraction-rules>

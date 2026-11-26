@@ -5,11 +5,11 @@
     <string name="backup_drive_row">Varmuuskopiointi Driveen</string>
     <string name="backup_drive_row_sub">WhatsApp-tyylinen Google Drive -varmuuskopio</string>
     <string name="backup_export_row">Vie varmuuskopio (tiedostoon)</string>
-    <string name="backup_export_row_sub">Asetukset ja lenkit yhteen tiedostoon (esim. Driveen)</string>
+    <string name="backup_export_row_sub">Asetukset, lenkit ja matkat yhteen tiedostoon (esim. Driveen)</string>
     <string name="backup_import_row">Palauta varmuuskopio (tiedostosta)</string>
     <string name="backup_import_row_sub">Tuo aiemmin viety varmuuskopiotiedosto</string>
     <string name="backup_file_name">Arkikeskus-varmuuskopio-%1$s.json</string>
-    <string name="backup_saved_file">Varmuuskopio tallennettu: %1$s, %2$s (%3$s).</string>
+    <string name="backup_saved_file">Varmuuskopioon tallennettiin %1$s, %4$s ja %2$s (%3$s).</string>
     <string name="backup_save_failed">Tallennus epäonnistui.</string>
     <string name="backup_failed_reason">Varmuuskopiointi epäonnistui: %1$s</string>
     <string name="backup_stop_workout_first">Lopeta käynnissä oleva lenkki ennen palautusta.</string>
@@ -18,7 +18,7 @@
 
     <!-- Palautuksen yhteenveto -->
     <string name="backup_restored_title">Varmuuskopio palautettu</string>
-    <string name="backup_restored_summary">Palautettu %1$s ja %2$s.</string>
+    <string name="backup_restored_summary">Palautettu %1$s, %3$s ja %2$s.</string>
     <plurals name="backup_workouts">
         <item quantity="one">%1$d lenkki</item>
         <item quantity="other">%1$d lenkkiä</item>
@@ -36,7 +36,7 @@
     <string name="backup_restart">Käynnistä uudelleen</string>
 
     <!-- Drive-varmuuskopio -->
-    <string name="backup_drive_intro">Varmuuskopioi lenkit, askeleet ja asetukset Google Driveen, jotta et menetä niitä uudella puhelimella. Kopio tallentuu tilisi piilotettuun sovelluskansioon.</string>
+    <string name="backup_drive_intro">Varmuuskopioi lenkit, matkat, askeleet ja asetukset Google Driveen, jotta et menetä niitä uudella puhelimella. Kopio tallentuu tilisi piilotettuun sovelluskansioon.</string>
     <string name="backup_sign_in_prompt">Kirjaudu Google-tilillä, jotta varmuuskopiot tallentuvat Driveesi.</string>
     <string name="backup_sign_in">Kirjaudu Google-tilillä</string>
     <string name="backup_signed_in_as">Kirjauduttu: %1$s</string>

@@ -237,6 +237,7 @@ fun SettingsScreen(
                                 context.resources.getQuantityString(R.plurals.backup_workouts, res.workouts, res.workouts),
                                 context.resources.getQuantityString(R.plurals.backup_settings, res.prefs, res.prefs),
                                 formatBackupSize(context, res.bytes.toLong()),
+                                context.resources.getQuantityString(R.plurals.gps_history_count, res.trips, res.trips),
                             )
                             else context.getString(R.string.backup_save_failed),
                         )

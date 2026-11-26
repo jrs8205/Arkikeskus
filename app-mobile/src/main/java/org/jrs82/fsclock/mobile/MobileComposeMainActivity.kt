@@ -79,6 +79,8 @@ class MobileComposeMainActivity : AppCompatActivity() {
             DisruptionNav.requestFocusFavorites()
             intent?.removeExtra(Notifications.EXTRA_DISRUPTION_FAV)
         }
+        // GPS-mittariston matka: tallennettu tila muistiin (prosessin kuollessa käynnissä ollut matka on tauolla).
+        org.jrs82.fsclock.mobile.gps.TripTracker.init(applicationContext)
         maybeRecoverWorkout()
         maybeImportWorkoutFile(intent)
         // Palautuksen jälkeinen vahvistus: prosessi käynnistettiin uudelleen → kerro käyttäjälle.

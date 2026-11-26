@@ -58,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -75,6 +76,7 @@ import androidx.preference.PreferenceManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jrs82.fsclock.BuildConfig
+import org.jrs82.fsclock.mobile.gps.GpsDashboardModel
 import org.jrs82.fsclock.R
 import org.jrs82.fsclock.SettingsManager
 import java.text.SimpleDateFormat
@@ -442,6 +444,16 @@ fun ComposeMainScreen(
     // voittavat tämän kun ovat aktiivisia.
     BackHandler(enabled = section != HomeSection.HOME) { section = HomeSection.HOME }
 
+    // GPS-näkymässä vaakana (puhelin autotelineessä) alapalkki piilotetaan, jotta luvuille jää tilaa.
+    // Näkymästä pääsee pois sen omalla takaisin-nuolella, takaisin-eleellä tai kääntämällä puhelimen.
+    val windowConf = LocalConfiguration.current
+    val hideBottomBar = GpsDashboardModel.hideBottomBar(
+        isSpeedometer = section == HomeSection.SPEEDOMETER,
+        widthDp = windowConf.screenWidthDp,
+        heightDp = windowConf.screenHeightDp,
+        menuOpen = menuOpen,
+        settingsOpen = settingsOpen,
+    )
     Scaffold(
             bottomBar = {
                 // Kiinteä alapalkki (HSL Reittiopas -tyyli): kolme ikonia tekstilappuineen.
@@ -450,7 +462,7 @@ fun ComposeMainScreen(
                 // NavigationBarItem antaa automaattisesti ≥48dp kosketusalat. Sovelluksen nimeä
                 // ei näytetä. Erotinviivat + oma sävy puhelimen navigaatiopalkin (nuolet) alueelle,
                 // jotta sovelluksen palkki erottuu järjestelmän palkista (erit. tumma teema).
-                Column(modifier = Modifier.fillMaxWidth()) {
+                if (!hideBottomBar) Column(modifier = Modifier.fillMaxWidth()) {
                 HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -594,7 +606,13 @@ fun ComposeMainScreen(
                     // hyödyn. Visuaalinen yhtenäisyys tulee jaetusta kuoresta (drawer/alapalkki/teema).
                     HomeSection.ROUTE_PLANNER -> RoutePlannerHost()
                     HomeSection.HSL_DISRUPTIONS -> HslDisruptionsScreen()
-                    HomeSection.SPEEDOMETER -> SpeedometerSection()
+                    // Valikko ja asetukset piirretään näkymän päälle: mittaristo ei silloin saa pitää GPS:ää
+                    // eikä näyttöä päällä (käynnissä olevan matkan palvelun omaan varaukseen ei kosketa).
+                    HomeSection.SPEEDOMETER -> SpeedometerSection(
+                        onBack = { section = HomeSection.HOME },
+                        visible = !menuOpen && !settingsOpen,
+                        bottomBarHidden = hideBottomBar,
+                    )
                     HomeSection.TRAFFIC_ACCIDENTS -> TrafficSection(TrafficNotice.Kind.ACCIDENT, sectionTitle)
                     HomeSection.TRAFFIC_ROADWORKS -> TrafficSection(TrafficNotice.Kind.ROAD_WORK, sectionTitle)
                     HomeSection.TRAFFIC_WEIGHT -> TrafficSection(TrafficNotice.Kind.WEIGHT_RESTRICTION, sectionTitle)

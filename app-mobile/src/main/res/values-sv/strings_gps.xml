@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GPS-instrumentpanelen: resans bakgrundstjänst och dess aviseringar -->
+    <string name="gps_channel_tracking_name">Resespårning</string>
+    <string name="gps_channel_tracking_desc">Den pågående resans status och styrning</string>
+    <string name="gps_channel_reminder_name">Resepåminnelse</string>
+    <string name="gps_channel_reminder_desc">Påminnelse när ingen rörelse har registrerats på två timmar under en pågående resa</string>
+    <string name="gps_trip_running">Resa pågår</string>
+    <string name="gps_trip_paused">Resa pausad</string>
+    <string name="gps_trip_reminder_title">Resan pågår fortfarande</string>
+    <string name="gps_trip_reminder_text">Ingen rörelse har registrerats på 2 timmar · %1$s</string>
+    <string name="gps_action_pause">Paus</string>
+    <string name="gps_action_resume">Fortsätt</string>
+    <string name="gps_action_finish">Avsluta</string>
+    <string name="gps_trip_start_failed">Det gick inte att starta resespårningen.</string>
+    <!-- GPS-instrumentpanelen: vyer, resans knappar, rutor och GPS-status -->
+    <string name="gps_view_basic">Bas</string>
+    <string name="gps_view_trip">Resa</string>
+    <string name="gps_view_full">Full</string>
+    <string name="gps_keep_screen_on">Håll skärmen på</string>
+    <string name="gps_show_controls">Visa reglagen</string>
+    <string name="gps_action_start">Starta resa</string>
+    <string name="gps_action_reset">Nollställ</string>
+    <string name="gps_action_new_trip">Ny resa</string>
+    <string name="gps_action_continue">Fortsätt den här resan</string>
+    <string name="gps_label_distance">Sträcka</string>
+    <string name="gps_label_time">Tid</string>
+    <string name="gps_label_total_time">Total tid</string>
+    <string name="gps_label_moving">I rörelse</string>
+    <string name="gps_label_stopped">Stillastående</string>
+    <string name="gps_label_avg">Medelhastighet</string>
+    <string name="gps_label_avg_total">Medelhastighet, hela resan</string>
+    <string name="gps_label_avg_moving">Medelhastighet, i rörelse</string>
+    <string name="gps_label_top">Topp</string>
+    <string name="gps_label_top_speed">Topphastighet</string>
+    <string name="gps_quality_good">GPS bra</string>
+    <string name="gps_quality_fair">GPS måttlig</string>
+    <string name="gps_quality_weak">GPS svag</string>
+    <string name="gps_signal_lost">GPS-signalen bröts</string>
+    <string name="gps_location_off">Platstjänsten är avstängd</string>
+    <string name="gps_no_speed">GPS ger ingen hastighet</string>
+    <string name="gps_unavailable">Enheten saknar GPS</string>
+    <string name="gps_detail_position">Position %1$s</string>
+    <string name="gps_detail_speed">Hastighet %1$s</string>
+    <string name="gps_detail_satellites">Satelliter %1$d/%2$d</string>
+    <string name="gps_chip_running">Resa pågår · %1$s</string>
+    <string name="gps_chip_paused">Resa pausad · %1$s</string>
+    <string name="gps_history">Resehistorik</string>
+    <string name="gps_history_empty">Inga sparade resor ännu. Resan sparas i historiken när du trycker på %1$s.</string>
+    <plurals name="gps_history_count">
+        <item quantity="one">%d resa</item>
+        <item quantity="other">%d resor</item>
+    </plurals>
+    <string name="gps_history_estimated">ca %1$s</string>
+    <string name="gps_history_delete">Ta bort resan</string>
+    <string name="gps_history_deleted">Resan har tagits bort</string>
+    <string name="gps_history_undo">Ångra</string>
+    <string name="gps_history_day">Dag</string>
+    <string name="gps_history_speeds">Medel %1$s · Topp %2$s</string>
+    <string name="gps_history_interval">Från klockan %1$s till %2$s</string>
+    <string name="gps_history_approximately">cirka %1$s</string>
+    <string name="gps_history_unavailable">Uppgift saknas</string>
+    <string name="gps_history_error">Resehistoriken kunde inte uppdateras.</string>
+    <string name="gps_history_save_pending">Resan har avslutats. Ett nytt försök att spara görs automatiskt.</string>
+</resources>

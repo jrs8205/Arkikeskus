@@ -90,6 +90,12 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- GPS-mittariston matka: jatkuu näytön sammuttua, pysyvä ilmoitus toimintoineen. -->
+        <service
+            android:name="org.jrs82.fsclock.mobile.gps.TripTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <!-- Lähilähtömuistutus (#4): AlarmManager herättää tämän, joka näyttää ilmoituksen. -->
         <receiver
             android:name="org.jrs82.fsclock.mobile.DepartureReminderReceiver"

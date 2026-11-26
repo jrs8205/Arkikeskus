@@ -1,0 +1,20 @@
+// Lisää vain tämän erillisen JVM-ajon lähteet, sovellusresurssit ja testikirjastot.
+gradle.beforeProject { project ->
+    if (project.path == ':app-mobile') {
+        project.plugins.withId('com.android.application') {
+            project.androidComponents.finalizeDsl { android ->
+                android.testOptions.unitTests.includeAndroidResources = true
+                android.sourceSets.test.kotlin.srcDir('src/hostTest/java')
+            }
+            project.dependencies.add('testImplementation', 'org.robolectric:robolectric:4.16.1')
+            // Matkaohjain ja tietokanta elävät koko prosessin ajan. Kummallakin kokeella on oma prosessi.
+            project.tasks.withType(Test).configureEach {
+                forkEvery = 1
+                filter {
+                    includeTestsMatching 'org.jrs82.fsclock.mobile.gps.TripHistoryRenderTest'
+                    includeTestsMatching 'org.jrs82.fsclock.mobile.gps.TripFinishControlTest'
+                }
+            }
+        }
+    }
+}
