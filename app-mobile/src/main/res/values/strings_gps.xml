@@ -56,13 +56,14 @@
     <string name="gps_history_deleted">Trip deleted</string>
     <string name="gps_history_undo">Undo</string>
     <string name="gps_history_day">Day</string>
-    <string name="gps_history_speeds">Average %1$s · Top %2$s</string>
+    <string name="gps_history_pill_avg">avg %1$s</string>
+    <string name="gps_history_pill_top">top %1$s</string>
     <string name="gps_history_interval">From %1$s to %2$s</string>
     <string name="gps_history_approximately">approximately %1$s</string>
     <string name="gps_history_unavailable">Not available</string>
     <string name="gps_history_error">Could not update trip history.</string>
     <string name="gps_history_save_pending">Trip stopped. Saving will be retried.</string>
-    <string name="car_settings">GPS driving</string>
+    <string name="car_settings">Driving</string>
     <string name="car_switch">Start trips automatically in the car</string>
     <string name="car_help">A trip starts when your phone connects to a selected car via Bluetooth and ends when it disconnects.</string>
     <string name="car_cars">Cars</string>

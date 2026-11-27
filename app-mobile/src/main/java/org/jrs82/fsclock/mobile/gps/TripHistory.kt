@@ -5,6 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 
 internal fun TripEntity.snapshot() = TripSnapshot(TripPhase.FINISHED, distanceM, totalMs, movingMs, maxSpeedMps)
@@ -17,6 +18,9 @@ internal fun tripDays(entries: List<TripEntity>, zone: ZoneId): Map<LocalDate, L
     entries.sortedWith(compareByDescending<TripEntity> { it.startedAtMs }.thenBy { it.id })
         .groupBy { Instant.ofEpochMilli(it.startedAtMs).atZone(zone).toLocalDate() }
         .toSortedMap(reverseOrder())
+
+internal fun historyMonths(days: Map<LocalDate, List<TripEntity>>): List<Pair<YearMonth, List<LocalDate>>> =
+    days.keys.sortedDescending().groupBy(YearMonth::from).toList()
 
 internal data class HistoryInterval(val startedAtMs: Long, val endedAtMs: Long, val estimatedStart: Boolean)
 

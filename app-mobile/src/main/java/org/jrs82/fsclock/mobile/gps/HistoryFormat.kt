@@ -11,6 +11,7 @@ import java.text.NumberFormat
 import java.text.ParsePosition
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -22,12 +23,15 @@ internal class HistoryFormat(private val context: Context, val locale: Locale, v
         DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale)
 
     private val time = pattern(if (use24h) "Hm" else "hm")
+    private val monthYear = pattern("LLLLy")
     private val shortDate = pattern("EEEMd")
     private val shortYear = pattern("EEEMdy")
     private val fullDate = pattern("EEEEMMMMd")
     private val fullYear = pattern("EEEEMMMMdy")
     private val measures = MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE)
     private val numbers = NumberFormat.getNumberInstance(locale)
+
+    fun month(month: YearMonth): String = monthYear.format(month).replaceFirstChar { it.titlecase(locale) }
 
     fun date(day: LocalDate, spoken: Boolean = false): String {
         val format = if (spoken) {

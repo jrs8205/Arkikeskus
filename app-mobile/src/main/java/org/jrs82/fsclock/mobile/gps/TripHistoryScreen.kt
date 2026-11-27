@@ -6,12 +6,16 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +31,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.asFlow
@@ -44,6 +51,8 @@ import org.jrs82.fsclock.R
 import org.jrs82.fsclock.db.FsClockDb
 import org.jrs82.fsclock.db.TripEntity
 import org.jrs82.fsclock.mobile.AppLocale
+import org.jrs82.fsclock.mobile.historyCarIcon
+import org.jrs82.fsclock.mobile.historyColors
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -158,7 +167,7 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit, requestedTr
         null -> stringResource(R.string.gps_history)
     }
 
-    Column(Modifier.fillMaxSize().consumeWindowInsets(WindowInsets.systemBars)
+    Column(Modifier.fillMaxSize().background(historyColors().page).consumeWindowInsets(WindowInsets.systemBars)
         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
         .padding(horizontal = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -172,15 +181,16 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit, requestedTr
         when {
             groups == null -> Text(stringResource(R.string.common_loading), body)
             detail is HistoryDetail.Day -> {
-                LazyColumn(body, state = dayState) {
+                LazyColumn(body, state = dayState, verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(tripCount(detail.rows.size))
-                            FullTiles(remember(detail) { daySnapshot(detail.rows) }, format.locale)
+                            FullTiles(remember(detail) { daySnapshot(detail.rows) }, format.locale, TileStyle.HISTORY)
                         }
                     }
                     items(detail.rows, key = { it.id }) { trip ->
-                        TripRow(detail.date, trip, format) { selection = selection.copy(tripId = trip.id) }
+                        TripCard(detail.date, trip, format) { selection = selection.copy(tripId = trip.id) }
                     }
                 }
             }
@@ -192,7 +202,7 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit, requestedTr
                         if (selected.endedAutomatically) stringResource(R.string.car_ended) else null,
                     )
                     if (origins.isNotEmpty()) Text(origins.joinToString(" · "))
-                    FullTiles(selected.snapshot(), format.locale)
+                    FullTiles(selected.snapshot(), format.locale, TileStyle.HISTORY)
                     TextButton(onClick = {
                         val removal = TripTracker.archive.remove(selected)
                         scope.launch {
@@ -212,10 +222,20 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit, requestedTr
                 }
             }
             groups.isEmpty() -> Text(stringResource(R.string.gps_history_empty, stringResource(R.string.gps_action_finish)), body)
-            else -> LazyColumn(body, state = listState) {
-                for ((date, rows) in groups) {
-                    item("day:$date") {
-                        DayRow(date, rows, format) { selection = openHistoryDay(date, rows) }
+            else -> {
+                val months = remember(groups) { historyMonths(groups) }
+                LazyColumn(body, state = listState, verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)) {
+                    for ((month, dates) in months) {
+                        item(key = "month:$month", contentType = "month") {
+                            Text(format.month(month).uppercase(format.locale),
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp).semantics { heading() },
+                                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        items(dates, key = { "day:$it" }, contentType = { "day" }) { date ->
+                            val rows = groups.getValue(date)
+                            DayCard(date, rows, format) { selection = openHistoryDay(date, rows) }
+                        }
                     }
                 }
             }
@@ -228,41 +248,74 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit, requestedTr
 private fun tripCount(count: Int) = pluralStringResource(R.plurals.gps_history_count, count, count)
 
 @Composable
-private fun DayRow(date: LocalDate, rows: List<TripEntity>, format: HistoryFormat, onClick: () -> Unit) {
+private fun DayCard(date: LocalDate, rows: List<TripEntity>, format: HistoryFormat, onClick: () -> Unit) {
     val total = remember(rows) { daySnapshot(rows) }
     val interval = remember(rows) { dayInterval(rows) }
     val count = tripCount(rows.size)
     val distance = TripFormat.distance(total.distanceM, format.locale)
     val spoken = listOf(format.date(date, true), format.interval(interval, true), count, format.spokenQuantity(distance),
         format.spokenDuration(total.totalMs)).joinToString(", ")
-    HistoryRow(spoken, onClick) {
-        Text(format.dateAndInterval(date, interval), style = MaterialTheme.typography.titleMedium)
-        Text("$count · $distance · ${TripFormat.clock(total.totalMs)}")
-    }
+    HistoryCard(description = spoken, title = format.date(date), subtitle = format.interval(interval),
+        pills = listOf(count, distance.toString(), TripFormat.clock(total.totalMs)), onClick = onClick,
+        leadingIcon = {
+            Box(Modifier.size(36.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center) {
+                Icon(painterResource(R.drawable.mobile_ic_car_24), contentDescription = null,
+                    modifier = Modifier.size(21.dp), tint = MaterialTheme.colorScheme.historyCarIcon)
+            }
+        })
 }
 
 @Composable
-private fun TripRow(date: LocalDate, trip: TripEntity, format: HistoryFormat, onClick: () -> Unit) {
+private fun TripCard(date: LocalDate, trip: TripEntity, format: HistoryFormat, onClick: () -> Unit) {
     val distance = TripFormat.distance(trip.distanceM, format.locale)
     val average = TripFormat.avgKmh(trip.snapshot().avgTotalKmh, format.locale)
     val top = TripFormat.wholeKmh(trip.maxSpeedMps)
     val spoken = listOf(format.date(date, true), format.interval(trip, true), format.spokenQuantity(distance),
         format.spokenDuration(trip.totalMs), stringResource(R.string.gps_label_avg) + " " + format.spokenQuantity(average),
         stringResource(R.string.gps_label_top_speed) + " " + format.spokenQuantity(top)).joinToString(", ")
-    HistoryRow(spoken, onClick) {
-        Text(format.interval(trip), style = MaterialTheme.typography.titleSmall)
-        Text("$distance · ${TripFormat.clock(trip.totalMs)} · ${stringResource(R.string.gps_history_speeds, average, top)}")
-    }
+    HistoryCard(description = spoken, title = format.interval(trip), onClick = onClick,
+        pills = listOf(distance.toString(), TripFormat.clock(trip.totalMs),
+            stringResource(R.string.gps_history_pill_avg, average), stringResource(R.string.gps_history_pill_top, top)))
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun HistoryRow(description: String, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
-        .clearAndSetSemantics { contentDescription = description }
-        .heightIn(min = 48.dp).padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), content = content)
-        Icon(painterResource(R.drawable.mobile_ic_chevron_right_24), contentDescription = null)
+private fun HistoryCard(
+    description: String,
+    title: String,
+    pills: List<String>,
+    onClick: () -> Unit,
+    subtitle: String? = null,
+    leadingIcon: (@Composable () -> Unit)? = null,
+) {
+    val colors = historyColors()
+    Surface(shape = RoundedCornerShape(18.dp), color = colors.card, contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, colors.border), shadowElevation = 1.dp) {
+        Row(
+            Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
+                .clearAndSetSemantics { contentDescription = description }
+                .heightIn(min = 48.dp).padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            leadingIcon?.invoke()
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (subtitle != null) {
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    for (pill in pills) {
+                        Text(pill, Modifier.background(colors.pill, RoundedCornerShape(9.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+                    }
+                }
+            }
+            Icon(painterResource(R.drawable.mobile_ic_chevron_right_24), contentDescription = null,
+                modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
-    HorizontalDivider()
 }

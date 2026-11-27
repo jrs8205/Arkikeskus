@@ -11,7 +11,7 @@ gradle.beforeProject { project ->
             project.tasks.withType(Test).configureEach {
                 forkEvery = 1
                 filter {
-                    includeTestsMatching 'org.jrs82.fsclock.mobile.gps.TripHistoryRenderTest'
+                    includeTestsMatching 'org.jrs82.fsclock.mobile.gps.TripHistory*RenderTest'
                     includeTestsMatching 'org.jrs82.fsclock.mobile.gps.TripFinishControlTest'
                     includeTestsMatching 'org.jrs82.fsclock.mobile.gps.CarTripLifecycleTest'
                     includeTestsMatching 'org.jrs82.fsclock.mobile.gps.CarPauseRecoveryTest'

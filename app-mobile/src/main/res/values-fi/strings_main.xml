@@ -29,6 +29,7 @@
     <string name="main_menu">Valikko</string>
     <string name="main_drawer_weather">Sää</string>
     <string name="main_drawer_traffic">Liikennetiedot</string>
+    <string name="main_drawer_driving">Autoilu</string>
     <string name="main_drawer_transit">Joukkoliikenne (HSL/Tampere)</string>
     <string name="main_drawer_news">Uutiset</string>
     <string name="main_drawer_fitness">Liikunta</string>

@@ -16,6 +16,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 
 /**
@@ -37,7 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 // ----------------------------------------------------------------------------
 // Brändipaletti — VAALEA
 // ----------------------------------------------------------------------------
-private val LightColors = lightColorScheme(
+internal val LightColors = lightColorScheme(
     primary = Color(0xFF1B53C0),
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFD9E2FF),
@@ -75,7 +76,7 @@ private val LightColors = lightColorScheme(
 // ----------------------------------------------------------------------------
 // Brändipaletti — TUMMA (ei täysmustaa; värisävytetyt pinnat — OSA B / B5)
 // ----------------------------------------------------------------------------
-private val DarkColors = darkColorScheme(
+internal val DarkColors = darkColorScheme(
     primary = Color(0xFFB0C6FF),
     onPrimary = Color(0xFF002A78),
     primaryContainer = Color(0xFF00419E),
@@ -109,6 +110,20 @@ private val DarkColors = darkColorScheme(
     surfaceContainerHigh = Color(0xFF272A31),
     surfaceContainerHighest = Color(0xFF32353C),
 )
+
+internal data class HistoryColors(val page: Color, val card: Color, val pill: Color, val border: Color)
+
+private val ColorScheme.darkHistory: Boolean get() = background.luminance() < 0.5f
+
+internal val ColorScheme.historyCarIcon: Color get() = if (darkHistory) onPrimaryContainer else primary
+
+internal fun historyColors(scheme: ColorScheme): HistoryColors = with(scheme) {
+    if (darkHistory) HistoryColors(background, surfaceContainer, surfaceContainerHigh, outlineVariant)
+    else HistoryColors(surfaceContainer, surfaceContainerLowest, surfaceContainer, outlineVariant)
+}
+
+@Composable
+internal fun historyColors(): HistoryColors = historyColors(MaterialTheme.colorScheme)
 
 // ----------------------------------------------------------------------------
 // Semanttiset korttivärit (OSA B / B2) — aihekohtainen värikoodaus.

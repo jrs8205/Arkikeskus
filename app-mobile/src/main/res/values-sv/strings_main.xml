@@ -29,6 +29,7 @@
     <string name="main_menu">Meny</string>
     <string name="main_drawer_weather">Väder</string>
     <string name="main_drawer_traffic">Trafikinfo</string>
+    <string name="main_drawer_driving">Bilkörning</string>
     <string name="main_drawer_transit">Kollektivtrafik (HRT/Tammerfors)</string>
     <string name="main_drawer_news">Nyheter</string>
     <string name="main_drawer_fitness">Motion</string>

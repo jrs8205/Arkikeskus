@@ -1,3 +1,5 @@
+@file:OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
+
 package org.jrs82.fsclock.mobile.gps
 
 import android.app.Application
@@ -44,25 +46,24 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "en-rUS-w411dp-h891dp-port")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
-class TripHistoryRenderTest {
-    private val zone = ZoneId.systemDefault()
-    private val day = LocalDate.of(2020, 11, 24)
-    private fun at(date: LocalDate, hour: Int, minute: Int) = date.atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
-    private val early = TripEntity("early", at(day, 7, 40), at(day.plusDays(1), 0, 25), true, 800.0, 60_000, 50_000, 20f)
-    private val late = TripEntity("late", at(day, 16, 10), at(day, 16, 52), false, 1600.0, 120_000, 100_000, 15f)
-    private val single = TripEntity("single", at(day.plusDays(1), 7, 42), at(day.plusDays(1), 8, 15), false, 900.0, 30_000, 20_000, 18f, true, true)
+abstract class TripHistoryRenderFixture {
+    protected val zone = ZoneId.systemDefault()
+    protected val day = LocalDate.of(2020, 11, 24)
+    protected fun at(date: LocalDate, hour: Int, minute: Int) = date.atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
+    protected val early = TripEntity("early", at(day, 7, 40), at(day.plusDays(1), 0, 25), true, 800.0, 60_000, 50_000, 20f)
+    protected val late = TripEntity("late", at(day, 16, 10), at(day, 16, 52), false, 1600.0, 120_000, 100_000, 15f)
+    protected val single = TripEntity("single", at(day.plusDays(1), 7, 42), at(day.plusDays(1), 8, 15), false, 900.0, 30_000, 20_000, 18f, true, true)
 
-    private fun seed(activity: ComponentActivity) {
+    protected fun seed(activity: ComponentActivity, trips: List<TripEntity> = listOf(late, single, early)) {
         Settings.System.putString(activity.contentResolver, Settings.System.TIME_12_24, "24")
         TripTracker.init(activity)
         runBlocking(Dispatchers.IO) {
             val dao = FsClockDb.get(activity).tripDao()
-            listOf(late, single, early).forEach(dao::save)
+            trips.forEach(dao::save)
         }
     }
 
-    private fun ComponentActivity.showHistory() = setContent {
+    protected fun ComponentActivity.showHistory() = setContent {
         MaterialTheme { TripHistoryScreen(visible = true, onBack = { error("Unexpected exit from history") }) }
     }
 
@@ -71,7 +72,7 @@ class TripHistoryRenderTest {
         children.forEach { yieldAll(it.tree()) }
     }
 
-    private fun nodes(view: View, merged: Boolean = true): List<SemanticsNode> {
+    protected fun nodes(view: View, merged: Boolean = true): List<SemanticsNode> {
         val root = view.allViews.filterIsInstance<RootForTest>().firstOrNull() ?: return emptyList()
         // Roomin muutos voi jo olla kompositiossa, vaikka vierityslistan mittaus vielä odottaa.
         root.measureAndLayoutForTest()
@@ -79,7 +80,7 @@ class TripHistoryRenderTest {
         return (if (merged) owner.rootSemanticsNode else owner.unmergedRootSemanticsNode).tree().toList()
     }
 
-    private fun awaitNode(view: View, label: String, merged: Boolean = true, matches: (SemanticsNode) -> Boolean): SemanticsNode {
+    protected fun awaitNode(view: View, label: String, merged: Boolean = true, matches: (SemanticsNode) -> Boolean): SemanticsNode {
         val main = shadowOf(Looper.getMainLooper())
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
         do {
@@ -91,25 +92,46 @@ class TripHistoryRenderTest {
         })
     }
 
-    private fun text(view: View, label: String, merged: Boolean = true) = awaitNode(view, label, merged) {
+    protected fun text(view: View, label: String, merged: Boolean = true) = awaitNode(view, label, merged) {
         it.config.getOrNull(SemanticsProperties.Text).orEmpty().any { text -> text.text == label }
     }
 
-    private fun SemanticsNode.description() =
+    protected fun SemanticsNode.description() =
         config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().joinToString()
 
-    private fun described(view: View, part: String) = awaitNode(view, part) { it.description().contains(part) }
+    protected fun described(view: View, part: String) = awaitNode(view, part) { it.description().contains(part) }
 
-    private fun click(node: SemanticsNode) {
+    protected fun click(node: SemanticsNode) {
         assertTrue(node.config.getOrNull(SemanticsActions.OnClick)?.action?.invoke() == true)
     }
 
-    private fun scrollToBottom(view: View) {
+    protected fun scrollToBottom(view: View) {
         val scroller = awaitNode(view, "scroll") { it.config.contains(SemanticsActions.ScrollBy) }
         assertTrue(scroller.config[SemanticsActions.ScrollBy].action!!.invoke(0f, 10000f))
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
     }
 
+    protected fun assertTextFits(view: View, label: String, card: SemanticsNode? = null): TextLayoutResult {
+        val node = if (card == null) text(view, label, merged = false) else {
+            val unmerged = nodes(view, merged = false).single { it.id == card.id }
+            unmerged.tree().single { it.config.getOrNull(SemanticsProperties.Text)?.singleOrNull()?.text == label }
+        }
+        val layouts = mutableListOf<TextLayoutResult>()
+        assertTrue(node.config[SemanticsActions.GetTextLayoutResult].action!!.invoke(layouts))
+        val layout = layouts.single()
+        assertEquals(label.length, layout.getLineEnd(layout.lineCount - 1))
+        for (line in 0 until layout.lineCount) {
+            assertFalse(label, layout.isLineEllipsized(line))
+            assertTrue(label, layout.getLineLeft(line) >= -1f)
+            assertTrue(label, layout.getLineRight(line) <= node.boundsInRoot.width + 1)
+            assertTrue(label, layout.getLineBottom(line) <= node.boundsInRoot.height + 1)
+        }
+        return layout
+    }
+
+}
+
+class TripHistoryRenderTest : TripHistoryRenderFixture() {
     private fun undo(view: View) {
         text(view, "Trip deleted")
         // Ilmoitusta vaihdettaessa myös poistuva Kumoa on hetken semantiikkapuussa.
@@ -224,10 +246,10 @@ class TripHistoryRenderTest {
             assertTrue(second.description().contains("From approximately 07:40 to ${date(activity, day.plusDays(1), true)} 00:25"))
             assertTrue(second.description().contains("2 trips, 2.4 kilometres, 3 minutes"))
             val singleTitle = "${date(activity, day.plusDays(1))} · 07:42–08:15"
-            text(view, singleTitle, merged = false)
-            text(view, multiTitle(activity), merged = false)
-            text(view, "1 trip · 900 m · 00:30", merged = false)
-            text(view, "2 trips · 2.40 km · 03:00", merged = false)
+            assertRowFits(view, first.description(), date(activity, day.plusDays(1)), "07:42–08:15",
+                "1 trip", "900 m", "00:30")
+            assertRowFits(view, second.description(), date(activity, day),
+                "approx.\u00a007:40–${date(activity, day.plusDays(1))} 00:25", "2 trips", "2.40 km", "03:00")
             val listImage = draw(view)
 
             click(first)
@@ -347,27 +369,12 @@ class TripHistoryRenderTest {
         }
     }
 
-    private fun assertTextFits(view: View, label: String) {
-        val node = text(view, label, merged = false)
-        val layouts = mutableListOf<TextLayoutResult>()
-        assertTrue(node.config[SemanticsActions.GetTextLayoutResult].action!!.invoke(layouts))
-        val layout = layouts.single()
-        assertEquals(label.length, layout.getLineEnd(layout.lineCount - 1))
-        for (line in 0 until layout.lineCount) {
-            assertFalse(label, layout.isLineEllipsized(line))
-            assertTrue(label, layout.getLineLeft(line) >= -1f)
-            assertTrue(label, layout.getLineRight(line) <= node.boundsInRoot.width + 1)
-            assertTrue(label, layout.getLineBottom(line) <= node.boundsInRoot.height + 1)
-        }
-    }
-
-    private fun assertRowFits(view: View, description: String, heading: String, figures: String) {
+    private fun assertRowFits(view: View, description: String, vararg labels: String) {
         val row = described(view, description)
         val min = 48 * view.resources.displayMetrics.density
         assertTrue(row.description(), row.boundsInRoot.width >= min && row.boundsInRoot.height >= min)
         assertTrue(row.config.contains(SemanticsActions.OnClick))
-        assertTextFits(view, heading)
-        assertTextFits(view, figures)
+        labels.forEach { assertTextFits(view, it, row) }
     }
 
     private fun checkLargeText(language: String, landscape: Boolean) {
@@ -390,20 +397,97 @@ class TripHistoryRenderTest {
             assertEquals(landscape, view.width > view.height)
             assertEquals(1.5f, view.resources.configuration.fontScale, 0f)
             val title = "${format.date(day)} · ${format.interval(early)}"
-            val singleTitle = "${format.date(day.plusDays(1))} · ${format.interval(single)}"
-            assertRowFits(view, format.interval(single, true), singleTitle, "$one · 900 m · 00:30")
-            assertRowFits(view, format.interval(early, true), title, "$two · ${TripFormat.distance(2400.0, locale)} · 03:00")
+            assertRowFits(view, format.interval(single, true), format.date(day.plusDays(1)), format.interval(single),
+                one, "900 m", "00:30")
+            assertRowFits(view, format.interval(early, true), format.date(day), format.interval(early),
+                two, TripFormat.distance(2400.0, locale).toString(), "03:00")
             click(described(view, two))
             assertTextFits(view, "${activity.getString(R.string.gps_history_day)} · $title")
             scrollToBottom(view)
             for (trip in listOf(late, early)) {
-                val speeds = activity.getString(R.string.gps_history_speeds,
-                    TripFormat.avgKmh(48.0, locale), TripFormat.wholeKmh(trip.maxSpeedMps))
-                val figures = "${TripFormat.distance(trip.distanceM, locale)} · ${TripFormat.clock(trip.totalMs)} · $speeds"
-                assertRowFits(view, format.interval(trip, true), format.interval(trip), figures)
+                assertRowFits(view, format.interval(trip, true), format.interval(trip),
+                    TripFormat.distance(trip.distanceM, locale).toString(), TripFormat.clock(trip.totalMs),
+                    activity.getString(R.string.gps_history_pill_avg, TripFormat.avgKmh(48.0, locale)),
+                    activity.getString(R.string.gps_history_pill_top, TripFormat.wholeKmh(trip.maxSpeedMps)))
             }
             click(described(view, format.interval(early, true)))
             assertTextFits(view, title)
+        }
+    }
+}
+
+class TripHistoryMonthRenderTest : TripHistoryRenderFixture() {
+    @Test fun monthHeadersAreHeadingsAndCardsKeepOneDescription() {
+        RuntimeEnvironment.setQualifiers("fi-rFI-w411dp-h891dp-port")
+        Robolectric.buildActivity(ComponentActivity::class.java).setup().use { controller ->
+            val activity = controller.get()
+            val view = activity.window.decorView
+            val dates = listOf(LocalDate.of(2026, 11, 26), LocalDate.of(2025, 11, 20))
+            val trips = dates.map { date ->
+                TripEntity(date.toString(), at(date, 9, 0), at(date, 9, 30), false, 12000.0, 1800000, 1800000, 20f)
+            }
+            seed(activity, trips)
+            activity.showHistory()
+            val newest = text(view, "MARRASKUU 2026")
+            val oldest = text(view, "MARRASKUU 2025")
+            assertTrue(newest.config.contains(SemanticsProperties.Heading))
+            assertTrue(oldest.config.contains(SemanticsProperties.Heading))
+            assertTrue(newest.boundsInRoot.top < oldest.boundsInRoot.top)
+            val format = HistoryFormat(activity, AppLocale.current(activity), zone, LocalDate.now(zone), true)
+            assertEquals("Marraskuu 2026", format.month(java.time.YearMonth.from(dates.first())))
+            val buttons = nodes(view).filter { it.config.contains(SemanticsActions.OnClick) }
+            assertEquals(3, buttons.size) // Takaisin sekä kaksi päivää
+            for ((date, trip) in dates.zip(trips)) {
+                val expected = listOf(format.date(date, true), format.interval(trip, true), "1 matka",
+                    format.spokenQuantity(TripFormat.distance(trip.distanceM, format.locale)),
+                    format.spokenDuration(trip.totalMs)).joinToString(", ")
+                val card = buttons.single { it.description() == expected }
+                assertEquals(listOf(expected), card.config[SemanticsProperties.ContentDescription])
+                assertEquals(androidx.compose.ui.semantics.Role.Button, card.config[SemanticsProperties.Role])
+                assertTrue(card.children.isEmpty())
+                assertTrue(card.boundsInRoot.height >= 48 * view.resources.displayMetrics.density)
+            }
+            val oldDate = format.date(dates.last())
+            assertTrue(oldDate, oldDate.contains("2025"))
+            text(view, oldDate, merged = false)
+        }
+    }
+}
+
+class TripHistoryPillRenderTest : TripHistoryRenderFixture() {
+    @Test fun pillsStayOnOneLineAtLargeFontInEveryLanguage() {
+        val trip = TripEntity("commute", at(day, 12, 0), at(day, 12, 30), false, 24700.0, 1800000, 1800000, 25f)
+        for ((language, speeds) in mapOf(
+            "fi-rFI" to listOf("ka 49,4 km/h", "huippu 90 km/h", "ka 48,0 km/h", "huippu 54 km/h"),
+            "sv-rFI" to listOf("medel 49,4 km/h", "topp 90 km/h", "medel 48,0 km/h", "topp 54 km/h"),
+            "en-rUS" to listOf("avg 49.4 km/h", "top 90 km/h", "avg 48.0 km/h", "top 54 km/h"),
+        )) {
+            RuntimeEnvironment.setQualifiers("$language-w320dp-h891dp-port")
+            RuntimeEnvironment.setFontScale(1.5f)
+            Robolectric.buildActivity(ComponentActivity::class.java).setup().use { controller ->
+                val activity = controller.get()
+                val view = activity.window.decorView
+                seed(activity, listOf(trip, late))
+                activity.showHistory()
+                val two = activity.resources.getQuantityString(R.plurals.gps_history_count, 2, 2)
+                click(described(view, two))
+                text(view, two)
+                for (label in listOf(R.string.gps_label_distance, R.string.gps_label_top_speed,
+                    R.string.gps_label_avg_total, R.string.gps_label_avg_moving, R.string.gps_label_total_time,
+                    R.string.gps_label_moving, R.string.gps_label_stopped)) {
+                    assertTextFits(view, activity.getString(label))
+                }
+                scrollToBottom(view)
+                assertEquals(320f, view.width / view.resources.displayMetrics.density, 1f)
+                assertEquals(1.5f, view.resources.configuration.fontScale, 0f)
+                val locale = AppLocale.current(activity)
+                val format = HistoryFormat(activity, locale, zone, LocalDate.now(zone), true)
+                for ((row, speedPills) in listOf(trip, late).zip(speeds.chunked(2))) {
+                    val card = described(view, format.interval(row, true))
+                    val pills = listOf(TripFormat.distance(row.distanceM, locale).toString(), TripFormat.clock(row.totalMs)) + speedPills
+                    for (pill in pills) assertEquals(pill, 1, assertTextFits(view, pill, card).lineCount)
+                }
+            }
         }
     }
 }

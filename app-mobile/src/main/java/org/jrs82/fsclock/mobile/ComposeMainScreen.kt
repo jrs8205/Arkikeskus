@@ -7,6 +7,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -665,6 +666,41 @@ fun ComposeMainScreen(
         }
 }
 
+internal data class DrawerGroup(
+    @StringRes val titleRes: Int,
+    @DrawableRes val iconRes: Int,
+    val sections: List<HomeSection>,
+)
+
+internal val DRAWER_GROUPS = listOf(
+    DrawerGroup(R.string.main_drawer_weather, R.drawable.mobile_ic_weather_24, listOf(
+        HomeSection.FORECAST, HomeSection.WEATHER_WARNINGS, HomeSection.PLACES,
+        HomeSection.SENSORS,
+    )),
+    DrawerGroup(R.string.main_drawer_traffic, R.drawable.mobile_ic_car_24, listOf(
+        HomeSection.TRAFFIC_ACCIDENTS, HomeSection.TRAFFIC_ROADWORKS, HomeSection.TRAFFIC_WEIGHT,
+        HomeSection.TRAFFIC_INCIDENTS, HomeSection.TRAFFIC_CONGESTION, HomeSection.ROAD_CAMERAS,
+    )),
+    DrawerGroup(R.string.main_drawer_driving, R.drawable.mobile_ic_speed_24, listOf(
+        HomeSection.SPEEDOMETER,
+    )),
+    DrawerGroup(R.string.main_drawer_transit, R.drawable.mobile_ic_bus_24, listOf(
+        HomeSection.TRANSIT, HomeSection.ROUTE_PLANNER, HomeSection.HSL_DISRUPTIONS,
+    )),
+    DrawerGroup(R.string.main_drawer_tv, R.drawable.mobile_ic_apps_24, listOf(
+        HomeSection.TELETEXT, HomeSection.TV_GUIDE,
+    )),
+    DrawerGroup(R.string.main_drawer_news, R.drawable.mobile_ic_news_24, listOf(
+        HomeSection.NEWS, HomeSection.NEWS_FOREIGN, HomeSection.OWN_FEEDS,
+    )),
+    DrawerGroup(R.string.main_drawer_fitness, R.drawable.mobile_ic_apps_24, listOf(
+        HomeSection.WORKOUT, HomeSection.STEPS,
+    )),
+    DrawerGroup(R.string.main_drawer_other, R.drawable.mobile_ic_apps_24, listOf(
+        HomeSection.ELECTRICITY, HomeSection.DEVICE_INFO, HomeSection.FLIGHTS,
+    )),
+)
+
 @Composable
 private fun DrawerContent(
     modifier: Modifier = Modifier,
@@ -690,45 +726,10 @@ private fun DrawerContent(
             )
             // Etusivulle pääsee alapalkin Koti-painikkeesta → ei erillistä "Etusivu"-kohtaa valikossa.
 
-            // Valikko ryhmitelty otsikoiden alle selkeyden vuoksi (käyttäjän toive):
-            // säähän liittyvät, liikenne, joukkoliikenne ja loput "Muut"-otsikon alle.
-            DrawerHeader(stringResource(R.string.main_drawer_weather), R.drawable.mobile_ic_weather_24)
-            DrawerItem(HomeSection.FORECAST, current, onSelect)
-            DrawerItem(HomeSection.WEATHER_WARNINGS, current, onSelect)
-            DrawerItem(HomeSection.PLACES, current, onSelect)
-            DrawerItem(HomeSection.SENSORS, current, onSelect)
-
-            DrawerHeader(stringResource(R.string.main_drawer_traffic), R.drawable.mobile_ic_car_24)
-            DrawerItem(HomeSection.TRAFFIC_ACCIDENTS, current, onSelect)
-            DrawerItem(HomeSection.TRAFFIC_ROADWORKS, current, onSelect)
-            DrawerItem(HomeSection.TRAFFIC_WEIGHT, current, onSelect)
-            DrawerItem(HomeSection.TRAFFIC_INCIDENTS, current, onSelect)
-            DrawerItem(HomeSection.TRAFFIC_CONGESTION, current, onSelect)
-            DrawerItem(HomeSection.ROAD_CAMERAS, current, onSelect)
-
-            DrawerHeader(stringResource(R.string.main_drawer_transit), R.drawable.mobile_ic_bus_24)
-            DrawerItem(HomeSection.TRANSIT, current, onSelect)
-            DrawerItem(HomeSection.ROUTE_PLANNER, current, onSelect)
-            DrawerItem(HomeSection.HSL_DISRUPTIONS, current, onSelect)
-
-            DrawerHeader(stringResource(R.string.main_drawer_tv), R.drawable.mobile_ic_apps_24)
-            DrawerItem(HomeSection.TELETEXT, current, onSelect)
-            DrawerItem(HomeSection.TV_GUIDE, current, onSelect)
-
-            DrawerHeader(stringResource(R.string.main_drawer_news), R.drawable.mobile_ic_news_24)
-            DrawerItem(HomeSection.NEWS, current, onSelect)
-            DrawerItem(HomeSection.NEWS_FOREIGN, current, onSelect)
-            DrawerItem(HomeSection.OWN_FEEDS, current, onSelect)
-
-            DrawerHeader(stringResource(R.string.main_drawer_fitness), R.drawable.mobile_ic_apps_24)
-            DrawerItem(HomeSection.WORKOUT, current, onSelect)
-            DrawerItem(HomeSection.STEPS, current, onSelect)
-            DrawerItem(HomeSection.SPEEDOMETER, current, onSelect)
-
-            DrawerHeader(stringResource(R.string.main_drawer_other), R.drawable.mobile_ic_apps_24)
-            DrawerItem(HomeSection.ELECTRICITY, current, onSelect)
-            DrawerItem(HomeSection.DEVICE_INFO, current, onSelect)
-            DrawerItem(HomeSection.FLIGHTS, current, onSelect)
+            for (group in DRAWER_GROUPS) {
+                DrawerHeader(stringResource(group.titleRes), group.iconRes)
+                group.sections.forEach { DrawerItem(it, current, onSelect) }
+            }
             // Asetukset siirretty alapalkkiin (ratas oikeassa reunassa) — löydettävyys.
 
             Spacer(Modifier.height(16.dp))

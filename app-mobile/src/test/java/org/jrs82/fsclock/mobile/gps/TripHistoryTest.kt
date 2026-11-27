@@ -6,12 +6,33 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 
 class TripHistoryTest {
     private fun stamp(time: Long) = SaveStamp(time, time, "session")
     private fun row(id: String, start: Long, end: Long, distance: Double, total: Long, moving: Long, top: Float) =
         TripEntity(id, start, end, false, distance, total, moving, top)
+
+    @Test fun monthsGroupNewestFirstAcrossYearBoundary() {
+        val jan2 = LocalDate.of(2027, 1, 2)
+        val dec31 = LocalDate.of(2026, 12, 31)
+        val nov26 = LocalDate.of(2026, 11, 26)
+        val nov25 = LocalDate.of(2026, 11, 25)
+        val previousYear = LocalDate.of(2025, 11, 20)
+        val days = listOf(nov25, jan2, previousYear, dec31, nov26).associateWith { emptyList<TripEntity>() }
+        assertEquals(listOf(
+            YearMonth.of(2027, 1) to listOf(jan2),
+            YearMonth.of(2026, 12) to listOf(dec31),
+            YearMonth.of(2026, 11) to listOf(nov26, nov25),
+            YearMonth.of(2025, 11) to listOf(previousYear),
+        ), historyMonths(days))
+        val start = Instant.parse("2026-11-30T22:30:00Z").toEpochMilli()
+        val trip = row("midnight", start, start + 60_000, 250.0, 60_000, 60_000, 5f)
+        val localDays = tripDays(listOf(trip), ZoneId.of("Europe/Helsinki"))
+        assertEquals(listOf(YearMonth.of(2026, 12) to listOf(LocalDate.of(2026, 12, 1))), historyMonths(localDays))
+    }
 
     @Test fun legacyPhasesWithAndWithoutStampKeepOriginalKeysUntilWrite() {
         for (phase in listOf(TripPhase.FINISHED, TripPhase.PAUSED, TripPhase.RUNNING)) {

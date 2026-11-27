@@ -56,13 +56,14 @@
     <string name="gps_history_deleted">Matka poistettu</string>
     <string name="gps_history_undo">Kumoa</string>
     <string name="gps_history_day">Päivä</string>
-    <string name="gps_history_speeds">Ka %1$s · Huippu %2$s</string>
+    <string name="gps_history_pill_avg">ka %1$s</string>
+    <string name="gps_history_pill_top">huippu %1$s</string>
     <string name="gps_history_interval">Alkoi kello %1$s, päättyi %2$s</string>
     <string name="gps_history_approximately">noin %1$s</string>
     <string name="gps_history_unavailable">Ei saatavilla</string>
     <string name="gps_history_error">Matkahistorian päivitys epäonnistui.</string>
     <string name="gps_history_save_pending">Matka lopetettu. Tallennusta yritetään uudelleen.</string>
-    <string name="car_settings">GPS-ajo</string>
+    <string name="car_settings">Autoilu</string>
     <string name="car_switch">Aloita matka automaattisesti autossa</string>
     <string name="car_help">Matka alkaa, kun puhelin yhdistää valittuun autoon Bluetoothilla, ja päättyy, kun yhteys katkeaa.</string>
     <string name="car_cars">Autot</string>

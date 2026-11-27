@@ -56,13 +56,14 @@
     <string name="gps_history_deleted">Resan har tagits bort</string>
     <string name="gps_history_undo">Ångra</string>
     <string name="gps_history_day">Dag</string>
-    <string name="gps_history_speeds">Medel %1$s · Topp %2$s</string>
+    <string name="gps_history_pill_avg">medel %1$s</string>
+    <string name="gps_history_pill_top">topp %1$s</string>
     <string name="gps_history_interval">Från klockan %1$s till %2$s</string>
     <string name="gps_history_approximately">cirka %1$s</string>
     <string name="gps_history_unavailable">Uppgift saknas</string>
     <string name="gps_history_error">Resehistoriken kunde inte uppdateras.</string>
     <string name="gps_history_save_pending">Resan har avslutats. Ett nytt försök att spara görs automatiskt.</string>
-    <string name="car_settings">GPS-körning</string>
+    <string name="car_settings">Bilkörning</string>
     <string name="car_switch">Starta resor automatiskt i bilen</string>
     <string name="car_help">Resan börjar när telefonen ansluter till en vald bil via Bluetooth och slutar när anslutningen bryts.</string>
     <string name="car_cars">Bilar</string>

@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +47,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -111,6 +113,7 @@ import org.jrs82.fsclock.mobile.AppLocale
 import org.jrs82.fsclock.mobile.ArkiCard
 import org.jrs82.fsclock.mobile.ArkiTheme
 import org.jrs82.fsclock.mobile.GpsSpeedometerView
+import org.jrs82.fsclock.mobile.historyColors
 
 /** Kaikki, mitä näkymät tarvitsevat piirtämiseen: yksi olio, jotta kolme näkymää näyttävät samat luvut. */
 private data class DashboardData(
@@ -552,25 +555,27 @@ private fun FullLandscape(data: DashboardData, onAction: (TripAction) -> Unit, m
     }
 }
 
+internal enum class TileStyle { DASHBOARD, HISTORY }
+
 /** Täysi-näkymän kaikki luvut: neljä laattaa ja kolme aikalaattaa. */
 @Composable
-internal fun FullTiles(t: TripSnapshot, locale: Locale) {
+internal fun FullTiles(t: TripSnapshot, locale: Locale, style: TileStyle = TileStyle.DASHBOARD) {
     val has = t.phase != TripPhase.NONE
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TileRow {
-            StatTile(R.string.gps_label_distance, distanceOf(t, locale), Modifier.weight(1f))
-            StatTile(R.string.gps_label_top_speed, topOf(t), Modifier.weight(1f))
+            StatTile(R.string.gps_label_distance, distanceOf(t, locale), Modifier.weight(1f), style = style)
+            StatTile(R.string.gps_label_top_speed, topOf(t), Modifier.weight(1f), style = style)
         }
         TileRow {
-            StatTile(R.string.gps_label_avg_total, avgOf(has, t.avgTotalKmh, locale), Modifier.weight(1f))
-            StatTile(R.string.gps_label_avg_moving, avgOf(has, t.avgMovingKmh, locale), Modifier.weight(1f))
+            StatTile(R.string.gps_label_avg_total, avgOf(has, t.avgTotalKmh, locale), Modifier.weight(1f), style = style)
+            StatTile(R.string.gps_label_avg_moving, avgOf(has, t.avgMovingKmh, locale), Modifier.weight(1f), style = style)
         }
         TimeTileRow(
             listOf(
                 R.string.gps_label_total_time to timeOf(has, t.totalMs),
                 R.string.gps_label_moving to timeOf(has, t.movingMs),
                 R.string.gps_label_stopped to timeOf(has, TripFormat.stoppedForDisplay(t.totalMs, t.movingMs)),
-            ),
+            ), style = style,
         )
     }
 }
@@ -646,7 +651,7 @@ private fun TileRow(content: @Composable androidx.compose.foundation.layout.RowS
  * pysyy tasaisena: pitkä sana ei katkea kesken (iso fontti) eikä pitkä aika leikkaudu (yli 100 h).
  */
 @Composable
-private fun TimeTileRow(tiles: List<Pair<Int, Quantity>>) {
+private fun TimeTileRow(tiles: List<Pair<Int, Quantity>>, style: TileStyle) {
     val labelStyle = MaterialTheme.typography.labelMedium
     val valueStyle = tileValueStyle()
     val unitStyle = MaterialTheme.typography.labelLarge
@@ -674,7 +679,7 @@ private fun TimeTileRow(tiles: List<Pair<Int, Quantity>>) {
         }
         TileRow {
             tiles.forEach { (labelRes, quantity) ->
-                StatTile(labelRes, quantity, Modifier.weight(1f), labelScale, valueScale)
+                StatTile(labelRes, quantity, Modifier.weight(1f), labelScale, valueScale, style)
             }
         }
     }
@@ -687,14 +692,21 @@ private fun StatTile(
     modifier: Modifier = Modifier,
     labelScale: Float = 1f,
     valueScale: Float = 1f,
+    style: TileStyle = TileStyle.DASHBOARD,
 ) {
-    ArkiCard(modifier = modifier, shape = RoundedCornerShape(16.dp)) {
+    val history = if (style == TileStyle.HISTORY) historyColors() else null
+    val shape = RoundedCornerShape(if (history != null) 18.dp else 16.dp)
+    ArkiCard(
+        modifier = if (history != null) modifier.border(1.dp, history.border, shape) else modifier,
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = history?.card ?: MaterialTheme.colorScheme.surfaceContainer),
+    ) {
         Column(Modifier.padding(horizontal = TILE_PADDING_H, vertical = 8.dp)) {
             Text(
                 stringResource(labelRes),
                 style = MaterialTheme.typography.labelMedium.scaledBy(labelScale, LocalDensity.current),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
+                maxLines = if (style == TileStyle.HISTORY) Int.MAX_VALUE else 2,
                 overflow = TextOverflow.Ellipsis,
             )
             QuantityLine(quantity, valueScale)
