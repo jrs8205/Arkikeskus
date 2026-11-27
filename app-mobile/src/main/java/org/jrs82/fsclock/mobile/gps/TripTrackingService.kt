@@ -37,8 +37,8 @@ import org.jrs82.fsclock.mobile.WorkoutTrackingService
  * sovelluksen ollessa taustalla, näyttää pysyvän ilmoituksen toimintoineen ja muistuttaa unohtuneesta
  * matkasta. Kaikki laskenta on [TripTracker]issa; palvelu seuraa sen tilaa.
  *
- * Käynnistetään aina etualalta (Aloita matka, Jatka), joten käytön aikainen sijaintilupa riittää.
- * Palvelu ei käynnisty itsestään: START_NOT_STICKY, ei käynnistystä puhelimen käynnistyessä. Jos
+ * Käsikäytössä riittää käytön aikainen sijaintilupa. Valitun auton yhdistys saa pyytää
+ * käynnistystä myös taustalta, kun taustasijainti on sallittu. Jos
  * prosessi kuolee, matka palaa tauolle, kun pääprosessi seuraavan kerran käynnistyy ([TripTracker.init]).
  */
 class TripTrackingService : Service() {
@@ -54,7 +54,27 @@ class TripTrackingService : Service() {
         /** AlarmManagerin herätys muistutuksen tarkistukseen; vain palvelun oma. */
         private const val ACTION_REMINDER_CHECK = "org.jrs82.arkikeskus.trip.REMINDER_CHECK"
 
-        private const val CHANNEL_TRACKING = "gps_trip_tracking"
+        private const val ACTION_CAR_START = "org.jrs82.arkikeskus.trip.CAR_START"
+        private const val TOKEN = "car_connection_generation"
+
+        fun startFromCar(context: Context, token: Long) {
+            val reason = CarTripNotifications.failureReason(context)
+            if (reason != null) { CarTripNotifications.failed(context, reason); return }
+            if (running?.foreground == true) {
+                TripTracker.acceptCarStart(context, token)
+                return
+            }
+            val request = Intent(context, TripTrackingService::class.java).setAction(ACTION_CAR_START).putExtra(TOKEN, token)
+            try {
+                ContextCompat.startForegroundService(context, request)
+            } catch (_: IllegalStateException) { CarTripNotifications.failed(context, R.string.car_service_blocked) }
+            catch (_: SecurityException) { CarTripNotifications.failed(context, R.string.car_service_blocked) }
+        }
+
+        fun onCarSettingChanged() { running?.updateAdapterListener() }
+
+        val hasForeground get() = running?.foreground == true
+        internal const val CHANNEL_TRACKING = "gps_trip_tracking"
         private const val CHANNEL_REMINDER = "gps_trip_reminder"
         // 41–43 lenkki, 44–60 Notifications, 1000– lähtömuistutukset.
         private const val NOTIF_ID = 61
@@ -154,6 +174,18 @@ class TripTrackingService : Service() {
     private var foreground = false
     private var lastPhase: TripPhase? = null
     private var pausedSinceRt = 0L
+    private var lastWaiting = false
+    private var listeningForAdapter = false
+    private val adapterReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED) return
+            val state = intent.getIntExtra(android.bluetooth.BluetoothAdapter.EXTRA_STATE, -1)
+            if (state == android.bluetooth.BluetoothAdapter.STATE_OFF || state == android.bluetooth.BluetoothAdapter.STATE_TURNING_OFF) {
+                AutoTripPrefs(context).adapterOff()?.let { TripTracker.carConnectionChanged(context, it) }
+            }
+        }
+    }
+
     private var tickCount = 0
     private var reminderShown = false
     /** Viimeisin käynnistyspyyntö: pysäytys ei saa kaataa jonossa odottavaa uudempaa pyyntöä. */
@@ -171,6 +203,7 @@ class TripTrackingService : Service() {
                     updateNotification(TripTracker.state.value)
                 }
                 TripPhase.PAUSED -> {
+                    if (s.waitingForCar) TripTracker.checkCarDeadlineIfDue(this@TripTrackingService)
                     if (pausedSinceRt > 0L && SystemClock.elapsedRealtime() - pausedSinceRt > PAUSE_MAX_MS) {
                         // Pitkä tauko: ilmoitus pois, matka säilyy tauolla ja on jatkettavissa sovelluksesta.
                         shutDown()
@@ -194,7 +227,7 @@ class TripTrackingService : Service() {
         scope = s
         s.launch {
             TripTracker.state.collect { snapshot ->
-                if (armed && snapshot.phase != lastPhase) onPhaseChanged(snapshot)
+                if (armed && (snapshot.phase != lastPhase || snapshot.waitingForCar != lastWaiting)) onPhaseChanged(snapshot)
             }
         }
     }
@@ -206,6 +239,15 @@ class TripTrackingService : Service() {
             return START_NOT_STICKY
         }
         when (intent?.action) {
+            ACTION_CAR_START -> {
+                val token = intent.getLongExtra(TOKEN, -1)
+                val reason = CarTripNotifications.failureReason(this)
+                val active = AutoTripPrefs(this).currentConnection(token)
+                if (!active || reason != null || !promote(TripSnapshot(TripPhase.RUNNING))) {
+                    if (active) CarTripNotifications.failed(this, reason ?: R.string.car_service_blocked)
+                    if (!armed) { stopSelf(startId); return START_NOT_STICKY }
+                } else TripTracker.acceptCarStart(this, token)
+            }
             ACTION_START, ACTION_RESUME -> {
                 val isStart = intent.action == ACTION_START
                 // Palvelu on nostettava etualalle heti startForegroundServicen jälkeen. Jos nosto ei onnistu
@@ -237,6 +279,7 @@ class TripTrackingService : Service() {
         // Kaikki tämän instanssin jonottamat kutsut pois (tikki ja ilmoituksen päivitys), eikä tuhottu palvelu
         // enää julkaise ilmoitusta: muuten juuri ennen tuhoutumista jonotettu päivitys toisi pysyvän ilmoituksen
         // takaisin, vaikka palvelua ei ole.
+        if (listeningForAdapter) unregisterReceiver(adapterReceiver)
         handler.removeCallbacksAndMessages(null)
         foreground = false
         scope?.cancel()
@@ -259,6 +302,7 @@ class TripTrackingService : Service() {
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(NOTIF_ID)
         } catch (e: Exception) {
         }
+        if (TripTracker.state.value.waitingForCar) TripTracker.checkCarDeadline(this)
         super.onDestroy()
     }
 
@@ -266,6 +310,7 @@ class TripTrackingService : Service() {
 
     private fun onPhaseChanged(s: TripSnapshot) {
         lastPhase = s.phase
+        lastWaiting = s.waitingForCar
         val active = s.phase == TripPhase.RUNNING || s.phase == TripPhase.PAUSED
         if (!active || !foreground) {
             // Matka on lopetettu tai nollattu, tai toiminto saapui palveluun, joka ei ole etualalla
@@ -273,6 +318,7 @@ class TripTrackingService : Service() {
             shutDown()
             return
         }
+        updateAdapterListener()
         cancelReminder()
         if (s.phase == TripPhase.RUNNING) {
             pausedSinceRt = 0L
@@ -285,6 +331,17 @@ class TripTrackingService : Service() {
         scheduleReminderCheck(s)
         handler.removeCallbacks(tick)
         handler.postDelayed(tick, TICK_MS)
+    }
+
+    private fun updateAdapterListener() {
+        val needed = foreground && AutoTripPrefs(this).enabled
+        if (needed == listeningForAdapter) return
+        if (needed) {
+            ContextCompat.registerReceiver(this, adapterReceiver,
+                android.content.IntentFilter(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED),
+                "android.permission.BLUETOOTH_PRIVILEGED", null, ContextCompat.RECEIVER_EXPORTED)
+        } else unregisterReceiver(adapterReceiver)
+        listeningForAdapter = needed
     }
 
     private fun shutDown() {
@@ -499,7 +556,7 @@ internal fun tripNotifModel(s: TripSnapshot, speedKmh: Int?, locale: Locale): Tr
         listOf(TripAction.PAUSE, TripAction.FINISH),
     )
     TripPhase.PAUSED -> TripNotifModel(
-        R.string.gps_trip_paused,
+        if (s.waitingForCar) R.string.car_waiting else R.string.gps_trip_paused,
         TripFormat.notificationLine(s, speedKmh, locale),
         listOf(TripAction.RESUME, TripAction.FINISH),
     )

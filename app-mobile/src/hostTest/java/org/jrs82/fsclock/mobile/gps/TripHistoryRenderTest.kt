@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
 import android.view.View
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
@@ -49,7 +51,7 @@ class TripHistoryRenderTest {
     private fun at(date: LocalDate, hour: Int, minute: Int) = date.atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
     private val early = TripEntity("early", at(day, 7, 40), at(day.plusDays(1), 0, 25), true, 800.0, 60_000, 50_000, 20f)
     private val late = TripEntity("late", at(day, 16, 10), at(day, 16, 52), false, 1600.0, 120_000, 100_000, 15f)
-    private val single = TripEntity("single", at(day.plusDays(1), 7, 42), at(day.plusDays(1), 8, 15), false, 900.0, 30_000, 20_000, 18f)
+    private val single = TripEntity("single", at(day.plusDays(1), 7, 42), at(day.plusDays(1), 8, 15), false, 900.0, 30_000, 20_000, 18f, true, true)
 
     private fun seed(activity: ComponentActivity) {
         Settings.System.putString(activity.contentResolver, Settings.System.TIME_12_24, "24")
@@ -119,19 +121,91 @@ class TripHistoryRenderTest {
         HistoryFormat(activity, AppLocale.current(activity), zone, LocalDate.now(zone), true).date(date, spoken)
 
     private fun multiTitle(activity: ComponentActivity) =
-        "${date(activity, day)} · approx. 07:40–${date(activity, day.plusDays(1))} 00:25"
+        "${date(activity, day)} · approx.\u00a007:40–${date(activity, day.plusDays(1))} 00:25"
 
     private fun draw(view: View): Bitmap =
         Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888).also { view.draw(Canvas(it)) }
 
     // Sama sovellusprosessi pitää Roomin ja matka-arkiston elossa aktiviteettien vaihtuessa.
     @Test fun populatedHistoryNavigationRestorationDeletionAndLargeText() {
+        savedNotificationOpensItsTrip()
         populatedListAndDayShowTheirOwnRowsAndOpenEachTrip()
         deletingFromDayKeepsRemainingTripAndUndoRestoresTheLastTrip()
         restoredTripsReturnToTheirOriginalPageAfterRotation()
+        for (landscape in listOf(false, true)) checkCarSettings(landscape)
         for (language in listOf("fi-rFI", "sv-rFI", "en-rUS")) {
             checkLargeText(language, landscape = false)
             checkLargeText(language, landscape = true)
+        }
+    }
+
+    private fun savedNotificationOpensItsTrip() {
+        Robolectric.buildActivity(ComponentActivity::class.java).setup().use { controller ->
+            val activity = controller.get()
+            seed(activity)
+            val request = androidx.compose.runtime.mutableStateOf<String?>(single.id)
+            activity.setContent {
+                MaterialTheme {
+                    org.jrs82.fsclock.mobile.SpeedometerSection({}, visible = true, bottomBarHidden = false,
+                        requestedTrip = request.value, onTripOpened = { request.value = null })
+                }
+            }
+            val view = activity.window.decorView
+            text(view, "Started automatically · Ended automatically")
+            request.value = late.id
+            text(view, "${date(activity, day)} · 16:10–16:52")
+            request.value = "removed"
+            described(view, "2 trips")
+        }
+    }
+
+    private fun checkCarSettings(landscape: Boolean) {
+        RuntimeEnvironment.setQualifiers(if (landscape) "en-rUS-w891dp-h411dp-land" else "en-rUS-w411dp-h891dp-port")
+        RuntimeEnvironment.setFontScale(1.5f)
+        Robolectric.buildActivity(ComponentActivity::class.java).setup().use { controller ->
+            val activity = controller.get()
+            val view = activity.window.decorView
+            var toggled = false
+            var picked = ""
+            var requested = false
+            val populated = androidx.compose.runtime.mutableStateOf(true)
+            activity.setContent {
+                MaterialTheme {
+                    androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.verticalScroll(rememberScrollState())) {
+                        CarSettingsContent(true, if (populated.value) mapOf("a" to "Golf") else emptyMap(),
+                            if (populated.value) setOf("old") else emptySet(), true,
+                            listOf(CarPermission.BACKGROUND), { toggled = true }, { address, _ -> picked = address },
+                            { requested = true }, {})
+                    }
+                }
+            }
+            val label = activity.getString(R.string.car_switch)
+            assertTextFits(view, label)
+            val minimum = 48 * view.resources.displayMetrics.density
+            fun touchTarget(labelText: String): SemanticsNode = text(view, labelText).also { node ->
+                assertTrue(labelText, node.boundsInRoot.width >= minimum && node.boundsInRoot.height >= minimum)
+            }
+            val toggle = touchTarget(label)
+            assertEquals(androidx.compose.ui.semantics.Role.Switch, toggle.config[SemanticsProperties.Role])
+            click(toggle)
+            assertTrue(toggled)
+            scrollToBottom(view)
+            val car = touchTarget("Golf")
+            assertEquals(androidx.compose.ui.semantics.Role.Checkbox, car.config[SemanticsProperties.Role])
+            assertEquals(androidx.compose.ui.state.ToggleableState.Off, car.config[SemanticsProperties.ToggleableState])
+            click(car)
+            assertEquals("a", picked)
+            val unpaired = touchTarget("old (no longer paired)")
+            assertEquals(androidx.compose.ui.state.ToggleableState.On, unpaired.config[SemanticsProperties.ToggleableState])
+            click(unpaired)
+            assertEquals("old", picked)
+            click(touchTarget(activity.getString(R.string.car_permission_background)))
+            assertTrue(requested)
+            populated.value = false
+            scrollToBottom(view)
+            text(view, activity.getString(R.string.car_no_selection))
+            text(view, activity.getString(R.string.car_pair))
+            draw(view)
         }
     }
 
@@ -158,6 +232,7 @@ class TripHistoryRenderTest {
 
             click(first)
             text(view, singleTitle)
+            text(view, "Started automatically · Ended automatically")
             text(view, "Delete trip")
             val tripImage = draw(view)
             assertFalse(listImage.sameAs(tripImage))
@@ -306,6 +381,8 @@ class TripHistoryRenderTest {
             activity.showHistory()
             val locale = AppLocale.current(activity)
             assertEquals(language.substringBefore('-'), locale.language)
+            val estimate = activity.getString(R.string.gps_history_estimated, "9.23")
+            assertTrue(estimate, estimate.endsWith("\u00a09.23"))
             val format = HistoryFormat(activity, locale, zone, LocalDate.now(zone), true)
             val two = activity.resources.getQuantityString(R.plurals.gps_history_count, 2, 2)
             val one = activity.resources.getQuantityString(R.plurals.gps_history_count, 1, 1)

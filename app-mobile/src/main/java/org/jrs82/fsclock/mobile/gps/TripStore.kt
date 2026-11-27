@@ -85,9 +85,10 @@ class TripStore(private val prefs: SharedPreferences, private val newId: () -> S
 
     /** Kutsutaan kerran käynnistyksessä, ennen uusien komentojen hyväksymistä. */
     @Synchronized
-    internal fun recover(saved: TripSnapshot, restored: TripSnapshot, now: SaveStamp) {
+    internal fun recover(saved: TripSnapshot, restored: TripSnapshot, now: SaveStamp, timing: CarTiming = carTiming()) {
         if (saved.phase == TripPhase.NONE) return
         val editor = prefs.edit()
+        stageTiming(editor, timing)
         val legacy = !prefs.contains(ID)
         // Historia tarvitsee vain seinäkellon; laskennan aikahyvitys vaatii yhä kokonaisen leiman.
         val lastWall = (prefs.all[prefix() + KEY_SAVED_AT_WALL_MS] as? Long)?.takeIf { it > 0 } ?: now.wallMs
@@ -108,23 +109,43 @@ class TripStore(private val prefs: SharedPreferences, private val newId: () -> S
         editor.apply()
     }
 
+    internal fun carTiming() = CarTiming(
+        startedAuto = prefs.getBoolean("car_started", false),
+        pausedWall = (prefs.all["pause_wall"] as? Long),
+        userPaused = prefs.getBoolean("pause_user", true),
+        disconnectWall = prefs.all["car_lost_wall"] as? Long,
+        disconnectElapsed = prefs.getLong("car_lost_elapsed", 0),
+        boot = prefs.getInt("car_lost_boot", -1),
+    )
+
+    private fun stageTiming(editor: SharedPreferences.Editor, timing: CarTiming) {
+        editor.putBoolean("car_started", timing.startedAuto).putBoolean("pause_user", timing.userPaused)
+        if (timing.pausedWall == null) editor.remove("pause_wall") else editor.putLong("pause_wall", timing.pausedWall)
+        if (timing.disconnectWall == null) editor.remove("car_lost_wall")
+        else editor.putLong("car_lost_wall", timing.disconnectWall)
+            .putLong("car_lost_elapsed", timing.disconnectElapsed).putInt("car_lost_boot", timing.boot)
+    }
+
     /** Yksi asetusmuutos sisältää sekä yhteenvedon että mahdollisen kirjoittamattoman lopetuksen. */
     @Synchronized
-    internal fun transition(s: TripSnapshot, stamp: SaveStamp, newTrip: Boolean = false) {
+    internal fun transition(s: TripSnapshot, stamp: SaveStamp, newTrip: Boolean = false,
+                            timing: CarTiming = if (newTrip) CarTiming() else carTiming(), endedAuto: Boolean = false) {
         val editor = prefs.edit()
         stage(editor, prefix(), s, stamp)
+        stageTiming(editor, timing)
         when {
             newTrip -> editor.putString(ID, newId()).putLong(START, stamp.wallMs).putBoolean(ESTIMATED, false)
             s.phase == TripPhase.NONE -> editor.remove(ID).remove(START).remove(ESTIMATED)
             s.phase == TripPhase.FINISHED -> stageFinish(editor, checkNotNull(prefs.getString(ID, null)),
-                prefs.getLong(START, stamp.wallMs), stamp.wallMs, prefs.getBoolean(ESTIMATED, false), s)
+                prefs.getLong(START, stamp.wallMs), stamp.wallMs, prefs.getBoolean(ESTIMATED, false), s, timing.startedAuto, endedAuto)
         }
         editor.putBoolean(RECORDED, false).apply()
     }
 
     private fun stageFinish(editor: SharedPreferences.Editor, id: String, start: Long, end: Long,
-                            estimated: Boolean, s: TripSnapshot) {
-        val row = TripEntity(id, start, end, estimated, s.distanceM, s.totalMs, s.movingMs, s.maxSpeedMps)
+                            estimated: Boolean, s: TripSnapshot, startedAuto: Boolean = false, endedAuto: Boolean = false) {
+        val row = TripEntity(id, start, end, estimated, s.distanceM, s.totalMs, s.movingMs, s.maxSpeedMps,
+            startedAuto, endedAuto)
         editor.putString(PENDING + id, row.toJson().toString())
     }
 

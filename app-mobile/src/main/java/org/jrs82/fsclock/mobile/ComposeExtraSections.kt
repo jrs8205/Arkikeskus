@@ -347,16 +347,18 @@ internal fun referenceCoordinates(context: Context): DoubleArray? {
 
 /** GPS-näkymä: tarkan sijaintiluvan tarkistus ja pyyntö; itse mittaristo on [GpsDashboardScreen]issa. */
 @Composable
-internal fun SpeedometerSection(onBack: () -> Unit, visible: Boolean, bottomBarHidden: Boolean) {
+internal fun SpeedometerSection(onBack: () -> Unit, visible: Boolean, bottomBarHidden: Boolean,
+                                requestedTrip: String? = null, onTripOpened: () -> Unit = {}) {
     val context = LocalContext.current
     var granted by remember { mutableStateOf(hasPerm(context, Manifest.permission.ACCESS_FINE_LOCATION)) }
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { granted = hasPerm(context, Manifest.permission.ACCESS_FINE_LOCATION) }
     var historyOpen by rememberSaveable { mutableStateOf(false) }
-    when (gpsPage(historyOpen, granted)) {
+    when (gpsPage(historyOpen || requestedTrip != null, granted)) {
         GpsPage.HISTORY -> {
-            TripHistoryScreen(visible = visible, onBack = { historyOpen = false })
+            TripHistoryScreen(visible = visible, onBack = { historyOpen = false }, requestedTrip = requestedTrip,
+                onTripOpened = { historyOpen = true; onTripOpened() })
             return
         }
         GpsPage.DASHBOARD -> {

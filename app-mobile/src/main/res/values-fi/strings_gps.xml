@@ -51,7 +51,7 @@
         <item quantity="one">%d matka</item>
         <item quantity="other">%d matkaa</item>
     </plurals>
-    <string name="gps_history_estimated">n. %1$s</string>
+    <string name="gps_history_estimated">n.\u00a0%1$s</string>
     <string name="gps_history_delete">Poista matka</string>
     <string name="gps_history_deleted">Matka poistettu</string>
     <string name="gps_history_undo">Kumoa</string>
@@ -62,4 +62,26 @@
     <string name="gps_history_unavailable">Ei saatavilla</string>
     <string name="gps_history_error">Matkahistorian päivitys epäonnistui.</string>
     <string name="gps_history_save_pending">Matka lopetettu. Tallennusta yritetään uudelleen.</string>
+    <string name="car_settings">GPS-ajo</string>
+    <string name="car_switch">Aloita matka automaattisesti autossa</string>
+    <string name="car_help">Matka alkaa, kun puhelin yhdistää valittuun autoon Bluetoothilla, ja päättyy, kun yhteys katkeaa.</string>
+    <string name="car_cars">Autot</string>
+    <string name="car_no_selection">Valitse auto automaattista ajoa varten.</string>
+    <string name="car_pair">Pariliitä auto ensin puhelimen Bluetooth-asetuksissa.</string>
+    <string name="car_unpaired">%1$s (ei pariliitetty)</string>
+    <string name="car_permissions">Puuttuvat luvat</string>
+    <string name="car_permission_nearby">Salli lähellä olevat laitteet</string>
+    <string name="car_permission_fine">Salli tarkka sijainti</string>
+    <string name="car_permission_background">Salli sijainti aina</string>
+    <string name="car_permission_notifications">Salli ilmoitukset</string>
+    <string name="car_open_settings">Avaa sovelluksen asetukset</string>
+    <string name="car_location_off">Puhelimen sijainti on pois päältä.</string>
+    <string name="car_service_blocked">Android esti matkan seurannan käynnistyksen.</string>
+    <string name="car_channel">Automaattiset matkat</string>
+    <string name="car_start_failed">Automaattinen aloitus ei onnistunut</string>
+    <string name="car_trip_saved">Matka tallennettu historiaan</string>
+    <string name="car_waiting">Yhteys autoon katkesi. Matka päättyy hetken kuluttua.</string>
+    <string name="car_started">Alkoi automaattisesti</string>
+    <string name="car_ended">Päättyi automaattisesti</string>
+    <string name="car_paired_unknown">Pariliitoksen tila ei ole saatavilla</string>
 </resources>

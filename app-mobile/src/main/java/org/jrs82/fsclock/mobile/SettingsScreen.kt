@@ -102,6 +102,7 @@ enum class SettingsPage(@StringRes val titleRes: Int) {
     NEWS(R.string.settings_page_news),
     TRANSIT(R.string.settings_page_transit),
     FITNESS(R.string.settings_page_fitness),
+    GPS_CAR(R.string.car_settings),
     RUUVI(R.string.settings_page_ruuvi),
     APPEARANCE(R.string.settings_page_appearance),
     APP_DATA(R.string.settings_page_app_data),
@@ -415,6 +416,8 @@ fun SettingsScreen(
                             R.drawable.mobile_ic_bus_24) { onPageChange(SettingsPage.TRANSIT) }
                         HubRow(SettingsPage.FITNESS.titleRes, stringResource(R.string.settings_hub_fitness_sub),
                             R.drawable.mobile_ic_transit_walk) { onPageChange(SettingsPage.FITNESS) }
+                        HubRow(SettingsPage.GPS_CAR.titleRes, stringResource(R.string.car_switch),
+                            R.drawable.mobile_ic_car_24) { onPageChange(SettingsPage.GPS_CAR) }
                         HubRow(SettingsPage.RUUVI.titleRes, ruuviSubtitle,
                             R.drawable.mobile_ic_thermometer_24) { onPageChange(SettingsPage.RUUVI) }
                         HubRow(SettingsPage.APPEARANCE.titleRes, stringResource(R.string.settings_hub_appearance_sub),
@@ -645,6 +648,10 @@ fun SettingsScreen(
                 }
 
                 // ============================ Ruuvi-anturit ============================
+                SettingsPage.GPS_CAR -> {
+                    SettingsPageTitle(stringResource(R.string.car_settings))
+                    GroupCard { org.jrs82.fsclock.mobile.gps.CarSettings() }
+                }
                 SettingsPage.RUUVI -> {
                     SettingsPageTitle(
                         stringResource(SettingsPage.RUUVI.titleRes),

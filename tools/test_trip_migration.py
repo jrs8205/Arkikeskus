@@ -52,14 +52,33 @@ class TripMigrationTest(unittest.TestCase):
                 sql = f"PRAGMA {pragma}(trips)"
                 self.assertEqual(fresh.execute(sql).fetchall(), db.execute(sql).fetchall())
 
+            # Upgrade the populated version 8 database using the production statements.
+            legacy_trip = ("legacy", 100, 110, 0, 7.0, 10, 5, 1.0)
+            db.execute("INSERT INTO trips VALUES (?,?,?,?,?,?,?,?)", legacy_trip)
+            block = source.split("new Migration(8, 9)", 1)[1].split("};", 1)[0]
+            for statement in re.findall(r'db\.execSQL\("([^"]+)"\);', block):
+                db.execute(statement)
+            self.assertEqual(legacy_trip + (0, 0), db.execute("SELECT * FROM trips").fetchone())
+            for table, rows in before.items():
+                self.assertEqual(rows, db.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall())
+            latest_schema = {entity["tableName"]: entity for entity in entities(9)}
+            self.assertEqual({k: v for k, v in new.items() if k != "trips"},
+                             {k: v for k, v in latest_schema.items() if k != "trips"})
+            with sqlite3.connect(":memory:") as version9:
+                create_table(version9, latest_schema["trips"])
+                for pragma in ("table_info", "index_list", "foreign_key_list"):
+                    sql = f"PRAGMA {pragma}(trips)"
+                    self.assertEqual(version9.execute(sql).fetchall(), db.execute(sql).fetchall())
+            db.execute("DELETE FROM trips WHERE id='legacy'")
+
             # Exercise the exact SQL generated for save, restore/undo and deletion.
             path = MODULE / "build/generated/ap_generated_sources/debug/out/org/jrs82/fsclock/db/TripDao_Impl.java"
             adapter = path.read_text(encoding="utf-8")
             save, merge = [re.search(r'return "(INSERT OR ' + conflict + r' [^"]+)"', adapter)[1]
                            for conflict in ("REPLACE", "IGNORE")]
             delete = re.search(r'"(DELETE FROM trips [^"]+)"', adapter)[1]
-            first = ("a", 1000, 4000, 1, 3.25, 3000, 2000, 2.5)
-            latest = ("a", 1000, 9000, 1, 7.75, 6000, 4000, 4.25)
+            first = ("a", 1000, 4000, 1, 3.25, 3000, 2000, 2.5, 1, 1)
+            latest = ("a", 1000, 9000, 1, 7.75, 6000, 4000, 4.25, 1, 0)
             db.execute(save, first)
             db.execute(save, latest)
             db.execute(merge, first)

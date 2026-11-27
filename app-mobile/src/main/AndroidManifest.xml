@@ -96,6 +96,17 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Bluetooth-järjestelmäpalvelun oma UID tarvitsee viedyn vastaanottimen. Lähettäjältä
+             vaaditaan järjestelmäoikeus, ja vastaanotin hyväksyy vain kaksi suojattua ACL-tapahtumaa. -->
+        <receiver android:name="org.jrs82.fsclock.mobile.gps.CarBluetoothReceiver"
+            android:exported="true" android:permission="android.permission.BLUETOOTH_PRIVILEGED">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name="org.jrs82.fsclock.mobile.gps.CarTimeoutReceiver" android:exported="false" />
+
         <!-- Lähilähtömuistutus (#4): AlarmManager herättää tämän, joka näyttää ilmoituksen. -->
         <receiver
             android:name="org.jrs82.fsclock.mobile.DepartureReminderReceiver"

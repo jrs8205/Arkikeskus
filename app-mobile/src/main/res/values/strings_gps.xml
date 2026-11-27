@@ -51,7 +51,7 @@
         <item quantity="one">%d trip</item>
         <item quantity="other">%d trips</item>
     </plurals>
-    <string name="gps_history_estimated">approx. %1$s</string>
+    <string name="gps_history_estimated">approx.\u00a0%1$s</string>
     <string name="gps_history_delete">Delete trip</string>
     <string name="gps_history_deleted">Trip deleted</string>
     <string name="gps_history_undo">Undo</string>
@@ -62,4 +62,26 @@
     <string name="gps_history_unavailable">Not available</string>
     <string name="gps_history_error">Could not update trip history.</string>
     <string name="gps_history_save_pending">Trip stopped. Saving will be retried.</string>
+    <string name="car_settings">GPS driving</string>
+    <string name="car_switch">Start trips automatically in the car</string>
+    <string name="car_help">A trip starts when your phone connects to a selected car via Bluetooth and ends when it disconnects.</string>
+    <string name="car_cars">Cars</string>
+    <string name="car_no_selection">Select a car to enable automatic trips.</string>
+    <string name="car_pair">Pair the car in your phone’s Bluetooth settings first.</string>
+    <string name="car_unpaired">%1$s (no longer paired)</string>
+    <string name="car_permissions">Missing permissions</string>
+    <string name="car_permission_nearby">Allow access to nearby devices</string>
+    <string name="car_permission_fine">Allow precise location</string>
+    <string name="car_permission_background">Allow location all the time</string>
+    <string name="car_permission_notifications">Allow notifications</string>
+    <string name="car_open_settings">Open app settings</string>
+    <string name="car_location_off">Location is turned off on this phone.</string>
+    <string name="car_service_blocked">Android prevented trip tracking from starting.</string>
+    <string name="car_channel">Automatic trips</string>
+    <string name="car_start_failed">Could not start the trip automatically</string>
+    <string name="car_trip_saved">Trip saved to history</string>
+    <string name="car_waiting">Car disconnected. The trip will end shortly.</string>
+    <string name="car_started">Started automatically</string>
+    <string name="car_ended">Ended automatically</string>
+    <string name="car_paired_unknown">Pairing status unavailable</string>
 </resources>

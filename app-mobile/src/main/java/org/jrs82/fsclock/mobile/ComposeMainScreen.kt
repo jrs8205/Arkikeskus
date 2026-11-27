@@ -314,6 +314,7 @@ fun ComposeMainScreen(
     var menuOpen by remember { mutableStateOf(false) }
     // Asetukset samanlaisena overlayna kuin valikko (alapalkki jää näkyviin, ratas korostuu).
     // rememberSaveable → teeman-/dynamic color -vaihdon recreate palauttaa asetukset auki.
+    var requestedTrip by rememberSaveable { mutableStateOf<String?>(null) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     // Asetusten alasivu (keskussivu HUB + 10 alasivua). rememberSaveable → teemanvaihdon recreate
     // pitää käyttäjän samalla alasivulla. Avattaessa nollataan keskussivulle (ks. alapalkki).
@@ -427,10 +428,23 @@ fun ComposeMainScreen(
     // Ulkoinen navigointipyyntö (lenkkinotifikaation napautus / lenkin palautus avauksessa).
     LaunchedEffect(externalSection?.value) {
         val name = externalSection?.value ?: return@LaunchedEffect
-        runCatching { HomeSection.valueOf(name) }.getOrNull()?.let {
-            section = it
-            menuOpen = false
-            settingsOpen = false
+        when {
+            name == org.jrs82.fsclock.mobile.gps.CarTripNotifications.SETTINGS -> {
+                settingsPage = SettingsPage.GPS_CAR
+                settingsOpen = true
+                menuOpen = false
+            }
+            name.startsWith(org.jrs82.fsclock.mobile.gps.CarTripNotifications.TRIP_PREFIX) -> {
+                requestedTrip = name.removePrefix(org.jrs82.fsclock.mobile.gps.CarTripNotifications.TRIP_PREFIX)
+                section = HomeSection.SPEEDOMETER
+                settingsOpen = false
+                menuOpen = false
+            }
+            else -> runCatching { HomeSection.valueOf(name) }.getOrNull()?.let {
+                section = it
+                menuOpen = false
+                settingsOpen = false
+            }
         }
         // Kuluta deep-link vasta TÄSSÄ (navigoinnin jälkeen): kylmän käynnistyksen relaunch ei näin
         // hukkaa sektiota, ja launch-intent tyhjenee jottei myöhempi recreate bounssaa takaisin.
@@ -609,6 +623,8 @@ fun ComposeMainScreen(
                     // Valikko ja asetukset piirretään näkymän päälle: mittaristo ei silloin saa pitää GPS:ää
                     // eikä näyttöä päällä (käynnissä olevan matkan palvelun omaan varaukseen ei kosketa).
                     HomeSection.SPEEDOMETER -> SpeedometerSection(
+                        requestedTrip = requestedTrip,
+                        onTripOpened = { requestedTrip = null },
                         onBack = { section = HomeSection.HOME },
                         visible = !menuOpen && !settingsOpen,
                         bottomBarHidden = hideBottomBar,

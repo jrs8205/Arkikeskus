@@ -93,7 +93,7 @@ private val historySelectionSaver = mapSaver(
 )
 
 @Composable
-internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit) {
+internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit, requestedTrip: String? = null, onTripOpened: () -> Unit = {}) {
     val context = LocalContext.current
     val format = historyFormat()
     val history = remember(context, format.zone) {
@@ -103,6 +103,12 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit) {
     }
     val days by history.collectAsStateWithLifecycle(initialValue = null)
     var selection by rememberSaveable(stateSaver = historySelectionSaver) { mutableStateOf(HistorySelection()) }
+    LaunchedEffect(requestedTrip) {
+        if (requestedTrip != null) {
+            selection = HistorySelection(tripId = requestedTrip)
+            onTripOpened()
+        }
+    }
     var undoRow by rememberSaveable { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     val dayState = key(selection.dayKey) { rememberLazyListState() }
@@ -131,8 +137,8 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit) {
     }
 
     val detail = remember(days, selection) { historyDetail(days, selection.dayKey, selection.tripId) }
-    LaunchedEffect(days, selection) {
-        if (days != null) {
+    LaunchedEffect(days, selection, requestedTrip) {
+        if (requestedTrip == null && days != null) {
             when (detail) {
                 null -> selection = HistorySelection()
                 is HistoryDetail.Day -> selection = selection.copy(tripId = null)
@@ -181,6 +187,11 @@ internal fun TripHistoryScreen(visible: Boolean, onBack: () -> Unit) {
             detail is HistoryDetail.Trip -> {
                 val selected = detail.row
                 Column(body.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val origins = listOfNotNull(
+                        if (selected.startedAutomatically) stringResource(R.string.car_started) else null,
+                        if (selected.endedAutomatically) stringResource(R.string.car_ended) else null,
+                    )
+                    if (origins.isNotEmpty()) Text(origins.joinToString(" · "))
                     FullTiles(selected.snapshot(), format.locale)
                     TextButton(onClick = {
                         val removal = TripTracker.archive.remove(selected)

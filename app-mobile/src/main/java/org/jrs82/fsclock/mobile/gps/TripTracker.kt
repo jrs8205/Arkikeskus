@@ -34,6 +34,8 @@ object TripTracker {
     private var store: TripStore? = null
     internal lateinit var archive: TripArchive
         private set
+    private var timing = CarTiming()
+    private var retryConnection: Long? = null
     private var finishing = false
     private var initialized = false
     private val persistThrottle = Throttle(PERSIST_INTERVAL_MS)
@@ -75,9 +77,17 @@ object TripTracker {
         // päättymistietoihin, jotta seuraava käynnistys löytää juuri tämän prosessin päättymisajan.
         registerSession(context)
         val restored = TripCalculator.restore(saved, credit)
-        s.recover(saved, restored, stamp())
+        val current = stamp()
+        timing = s.carTiming()
+        if (saved.phase == TripPhase.RUNNING) {
+            val pauseWall = s.stamp()?.let { it.wallMs + credit } ?: current.wallMs
+            timing = CarTiming(timing.startedAuto, pausedWall = pauseWall)
+        } else if (restored.phase == TripPhase.PAUSED && timing.pausedWall == null) {
+            timing = timing.copy(pausedWall = s.stamp()?.wallMs ?: current.wallMs)
+        }
+        s.recover(saved, restored, current, timing)
         val app = context.applicationContext
-        archive = TripArchive(s) { FsClockDb.get(app).tripDao() }
+        archive = TripArchive(s, { row -> CarTripNotifications.saved(app, row) }) { FsClockDb.get(app).tripDao() }
         archive.recover()
         // Prosessin alussa mikään matka ei ole käynnissä (käynnissä ollut palautettiin juuri tauolle), joten
         // muistutusta "Matka on yhä käynnissä" tai sen tarkistusherätystä ei saa olla. Kumpikin on voinut jäädä
@@ -91,6 +101,7 @@ object TripTracker {
         GpsSource.onFix = { fix -> onFix(fix) }
         initialized = true
         publish()
+        if (timing.waiting) checkCarDeadline(app)
     }
 
     /** Aloita matka tai Uusi matka. Palauttaa true, jos tila muuttui. */
@@ -101,7 +112,7 @@ object TripTracker {
      * napautus, joten kaksoisnapautussuoja ei saa hylätä sitä.
      */
     fun pause(context: Context, userAction: Boolean = true): Boolean =
-        command(context, gated = userAction) { it.pause(now()) }
+        command(context, gated = userAction, userPause = userAction) { it.pause(now()) }
 
     /** Jatka tauolta tai Jatka tätä matkaa lopetetusta. */
     fun resume(context: Context): Boolean = command(context) { it.resume(now()) }
@@ -111,8 +122,11 @@ object TripTracker {
         init(context)
         val at = stamp()
         if (!acceptsCommands() || !calculator.finish(at.elapsedMs)) return false
+        AutoTripPrefs(context).supersedeStart()
         finishing = true
-        store!!.transition(calculator.snapshot(at.elapsedMs), at)
+        val end = at.copy(wallMs = timing.disconnectWall ?: at.wallMs)
+        clearWait(context)
+        store!!.transition(calculator.snapshot(at.elapsedMs), end, timing = timing)
         val app = context.applicationContext
         archive.finish { saved ->
             if (!saved) {
@@ -124,9 +138,118 @@ object TripTracker {
                 finishing = false
                 gate.changed(now())
                 publish()
+                retryConnection?.let { token ->
+                    retryConnection = null
+                    Handler(Looper.getMainLooper()).post {
+                        if (AutoTripPrefs(app).currentConnection(token)) carConnectionChanged(app, CarEvent.FOUND)
+                    }
+                }
             }
         }
         return true
+    }
+
+    private fun clearWait(context: Context) {
+        if (timing.waiting) {
+            CarTimeoutReceiver.cancel(context)
+            CarTripNotifications.clearWaiting(context)
+        }
+        timing = CarTiming(timing.startedAuto)
+    }
+
+    @Synchronized
+    internal fun cancelCarWait(context: Context) {
+        init(context)
+        if (!timing.waiting) return
+        val pause = timing.disconnectWall
+        clearWait(context)
+        timing = timing.copy(pausedWall = pause)
+        store!!.transition(publish(), stamp(), timing = timing)
+    }
+
+    @Synchronized
+    internal fun checkCarDeadlineIfDue(context: Context) {
+        if (timing.waiting && timing.remaining(System.currentTimeMillis(), now(), bootCount(context)) == 0L) {
+            checkCarDeadline(context)
+        }
+    }
+
+    @Synchronized
+    internal fun checkCarDeadline(context: Context) {
+        init(context)
+        if (!timing.waiting) return
+        if (!AutoTripPrefs(context).enabled) { cancelCarWait(context); return }
+        val at = stamp()
+        val delay = timing.remaining(at.wallMs, at.elapsedMs, bootCount(context))
+        if (delay > 0) {
+            CarTimeoutReceiver.schedule(context, delay)
+            if (!TripTrackingService.hasForeground) CarTripNotifications.waiting(context, checkNotNull(timing.disconnectWall))
+        }
+        else if (carAction(state.value.phase, timing, CarEvent.EXPIRED, at.wallMs) == CarAction.FINISH) {
+            automaticFinish(context, at, checkNotNull(timing.disconnectWall))
+        }
+    }
+
+    private fun automaticFinish(context: Context, at: SaveStamp, endWall: Long) {
+        if (!calculator.finish(at.elapsedMs)) return
+        clearWait(context)
+        val discard = discardAutoTrip(timing.startedAuto, true, calculator.snapshot(at.elapsedMs).distanceM)
+        if (discard) {
+            calculator.reset()
+            timing = CarTiming()
+        }
+        store!!.transition(calculator.snapshot(at.elapsedMs), at.copy(wallMs = endWall), timing = timing, endedAuto = true)
+        if (!discard) archive.recover()
+        gate.changed(at.elapsedMs)
+        publish()
+    }
+
+    @Synchronized
+    internal fun carConnectionChanged(context: Context, event: CarEvent) {
+        init(context)
+        val prefs = AutoTripPrefs(context)
+        if (!prefs.enabled) return
+        if (finishing) {
+            retryConnection = if (event == CarEvent.FOUND) prefs.generation else null
+            return
+        }
+        if (timing.waiting) checkCarDeadline(context)
+        val at = stamp()
+        when (carAction(state.value.phase, timing, event, at.wallMs)) {
+            CarAction.WAIT -> {
+                calculator.pause(at.elapsedMs)
+                timing = timing.copy(pausedWall = timing.pausedWall ?: at.wallMs, userPaused = false,
+                    disconnectWall = at.wallMs, disconnectElapsed = at.elapsedMs, boot = bootCount(context))
+                store!!.transition(publish(), at, timing = timing)
+                CarTimeoutReceiver.schedule(context, CAR_WAIT_MS)
+                if (!TripTrackingService.hasForeground) CarTripNotifications.waiting(context, at.wallMs)
+            }
+            CarAction.START, CarAction.RESUME, CarAction.REPLACE -> {
+                if (timing.waiting) {
+                    // Y ehti ajoissa. Palvelun käynnistysviive ei saa päättää tätä matkaa.
+                    clearWait(context)
+                    timing = timing.copy(pausedWall = at.wallMs)
+                    store!!.transition(publish(), at, timing = timing)
+                }
+                TripTrackingService.startFromCar(context, prefs.generation)
+            }
+            else -> Unit
+        }
+    }
+
+    /** Kutsutaan vasta, kun palvelu on saanut sijaintipalvelun etualalle. */
+    @Synchronized
+    internal fun acceptCarStart(context: Context, token: Long) {
+        val prefs = AutoTripPrefs(context)
+        if (!prefs.currentConnection(token) || finishing) return
+        val at = stamp()
+        val action = carAction(state.value.phase, timing, CarEvent.FOUND, prefs.foundAt)
+        if (action == CarAction.REPLACE) automaticFinish(context, at, timing.pausedWall ?: at.wallMs)
+        when (action) {
+            CarAction.START, CarAction.REPLACE -> command(context, gated = false, newTrip = true, autoStart = true) { it.start(at.elapsedMs) }
+            CarAction.RESUME -> command(context, gated = false) { it.resume(at.elapsedMs) }
+            else -> Unit
+        }
     }
 
     /** Nollaa: lopetetun matkan yhteenveto pois. */
@@ -193,15 +316,24 @@ object TripTracker {
     }
 
     @Synchronized
-    private fun command(context: Context, gated: Boolean = true, newTrip: Boolean = false, block: (TripCalculator) -> Boolean): Boolean {
+    private fun command(context: Context, gated: Boolean = true, newTrip: Boolean = false, userPause: Boolean = false,
+                        autoStart: Boolean = false, block: (TripCalculator) -> Boolean): Boolean {
         init(context)
         // Kaksoisnapautus: painikkeet vaihtuvat tilan mukana samalla paikalla, joten heti muutoksen
         // perään tuleva komento on todennäköisesti vahinko (esim. Lopeta ja sen kohdalle tullut Jatka).
         if (finishing || (gated && !gate.open(now()))) return false
         val changed = block(calculator)
         if (changed) {
-            gate.changed(now())
-            store?.transition(publish(), stamp(), newTrip)
+            if (gated) AutoTripPrefs(context).supersedeStart()
+            val at = stamp()
+            clearWait(context)
+            timing = when (calculator.snapshot(at.elapsedMs).phase) {
+                TripPhase.PAUSED -> timing.copy(pausedWall = at.wallMs, userPaused = userPause)
+                TripPhase.NONE -> CarTiming()
+                else -> if (newTrip) CarTiming(startedAuto = autoStart) else timing
+            }
+            gate.changed(at.elapsedMs)
+            store?.transition(publish(), at, newTrip, timing)
         }
         return changed
     }
@@ -217,7 +349,7 @@ object TripTracker {
     }
 
     private fun publish(): TripSnapshot {
-        val s = calculator.snapshot(now())
+        val s = calculator.snapshot(now()).let { if (timing.waiting) it.copy(waitingForCar = true) else it }
         mutableState.value = s
         return s
     }

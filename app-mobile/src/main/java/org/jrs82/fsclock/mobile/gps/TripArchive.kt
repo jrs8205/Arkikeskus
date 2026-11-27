@@ -35,9 +35,18 @@ internal class TripHistoryWriter(private val store: TripStore, private val upser
     }
 }
 
-internal class TripArchive(private val store: TripStore, private val dao: () -> TripDao) {
+internal class TripArchive(private val store: TripStore, private val onStored: (TripEntity) -> Unit = {}, private val dao: () -> TripDao) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val writer = TripHistoryWriter(store) { dao().save(it) }
+    private val writer = TripHistoryWriter(store) { row ->
+        dao().save(row)
+        if (row.endedAutomatically) {
+            try {
+                onStored(row)
+            } catch (e: RuntimeException) {
+                warn("Could not post saved trip notification", e)
+            }
+        }
+    }
 
     // Varsinaiset lopetukset ovat TripStoressa. Yksi heräte riittää myös usealle lopetukselle levyvirheen aikana.
     private val writes = Channel<Unit>(Channel.CONFLATED)
@@ -55,10 +64,27 @@ internal class TripArchive(private val store: TripStore, private val dao: () -> 
         }
     }
 
+    // Kylmästä herätyksestä tehty lopetus ehtii normaalisti sekä kantaan että ilmoitukseksi
+    // lähetyksen elinaikana. Pysyvä jono jatkaa myös, jos levytyö ylittää lähetyksen aikabudjetin.
+    fun completeBroadcast(done: () -> Unit) {
+        scope.launch {
+            val drain = scope.async { writer.afterWrites {} }
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(6_000L) { drain.await() }
+            } catch (_: IOException) { writes.trySend(Unit) }
+            catch (_: android.database.sqlite.SQLiteException) { writes.trySend(Unit) }
+            finally { done() }
+        }
+    }
+
     fun recover() {
         scope.launch {
             if (store.pendingTrips().isNotEmpty()) writes.trySend(Unit)
         }
+    }
+
+    private fun warn(message: String, cause: Exception) {
+        Log.w("TripHistory", message, cause)
     }
 
     private suspend fun retryWrite(write: () -> Unit) {
@@ -68,9 +94,9 @@ internal class TripArchive(private val store: TripStore, private val dao: () -> 
                 write()
                 return
             } catch (e: IOException) {
-                Log.w("TripHistory", "Trip state write will be retried", e)
+                warn("Trip state write will be retried", e)
             } catch (e: android.database.sqlite.SQLiteException) {
-                Log.w("TripHistory", "Trip database write will be retried", e)
+                warn("Trip database write will be retried", e)
             }
             delay(waitMs)
             waitMs = (waitMs * 2).coerceAtMost(60_000L)

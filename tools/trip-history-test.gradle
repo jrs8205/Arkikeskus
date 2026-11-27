@@ -7,12 +7,14 @@ gradle.beforeProject { project ->
                 android.sourceSets.test.kotlin.srcDir('src/hostTest/java')
             }
             project.dependencies.add('testImplementation', 'org.robolectric:robolectric:4.16.1')
-            // Matkaohjain ja tietokanta elävät koko prosessin ajan. Kummallakin kokeella on oma prosessi.
+            // Matkaohjain ja tietokanta elävät koko prosessin ajan. Jokaisella koeluokalla on oma prosessi.
             project.tasks.withType(Test).configureEach {
                 forkEvery = 1
                 filter {
                     includeTestsMatching 'org.jrs82.fsclock.mobile.gps.TripHistoryRenderTest'
                     includeTestsMatching 'org.jrs82.fsclock.mobile.gps.TripFinishControlTest'
+                    includeTestsMatching 'org.jrs82.fsclock.mobile.gps.CarTripLifecycleTest'
+                    includeTestsMatching 'org.jrs82.fsclock.mobile.gps.CarPauseRecoveryTest'
                 }
             }
         }

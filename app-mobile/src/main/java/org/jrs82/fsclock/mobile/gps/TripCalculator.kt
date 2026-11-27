@@ -25,6 +25,7 @@ data class TripSnapshot(
     val maxSpeedMps: Float = 0f,
     val idleMs: Long = 0L,
     val reminded: Boolean = false,
+    val waitingForCar: Boolean = false,
 ) {
     /** Pysähdysaika = kokonaisaika − liikeaika, joten kolme aikaa täsmäävät aina keskenään. */
     val stoppedMs: Long get() = (totalMs - movingMs).coerceAtLeast(0L)

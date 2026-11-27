@@ -304,6 +304,7 @@ internal fun GpsDashboardScreen(onBack: () -> Unit, onHistory: () -> Unit, visib
                 Spacer(Modifier.height(if (landscape) 4.dp else 10.dp))
             }
         }
+        if (trip.waitingForCar) Text(stringResource(R.string.car_waiting))
         val body = Modifier.fillMaxWidth().weight(1f)
         when (view) {
             DashboardView.BASIC ->

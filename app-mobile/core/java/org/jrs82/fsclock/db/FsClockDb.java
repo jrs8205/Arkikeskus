@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 @Database(
     entities = {WeatherSample.class, DailyStat.class, RuuviSampleEntity.class, DailyStepsEntity.class,
                 WorkoutEntity.class, WorkoutPointEntity.class, WorkoutSplitEntity.class, TripEntity.class},
-    version = 8,
+    version = 9,
     autoMigrations = {
         @AutoMigration(from = 2, to = 3)
     },
@@ -102,6 +102,14 @@ public abstract class FsClockDb extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRATION_8_9 = new Migration(8, 9) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE trips ADD COLUMN startedAutomatically INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE trips ADD COLUMN endedAutomatically INTEGER NOT NULL DEFAULT 0");
+        }
+    };
+
     private static volatile FsClockDb instance;
 
     public static FsClockDb get(Context context) {
@@ -113,7 +121,7 @@ public abstract class FsClockDb extends RoomDatabase {
                         FsClockDb.class,
                         "fsclock.db"
                     ).addMigrations(MIGRATION_1_2, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                            MIGRATION_6_7, MIGRATION_7_8).build();
+                            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build();
                 }
             }
         }

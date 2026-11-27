@@ -51,7 +51,7 @@
         <item quantity="one">%d resa</item>
         <item quantity="other">%d resor</item>
     </plurals>
-    <string name="gps_history_estimated">ca %1$s</string>
+    <string name="gps_history_estimated">ca\u00a0%1$s</string>
     <string name="gps_history_delete">Ta bort resan</string>
     <string name="gps_history_deleted">Resan har tagits bort</string>
     <string name="gps_history_undo">Ångra</string>
@@ -62,4 +62,26 @@
     <string name="gps_history_unavailable">Uppgift saknas</string>
     <string name="gps_history_error">Resehistoriken kunde inte uppdateras.</string>
     <string name="gps_history_save_pending">Resan har avslutats. Ett nytt försök att spara görs automatiskt.</string>
+    <string name="car_settings">GPS-körning</string>
+    <string name="car_switch">Starta resor automatiskt i bilen</string>
+    <string name="car_help">Resan börjar när telefonen ansluter till en vald bil via Bluetooth och slutar när anslutningen bryts.</string>
+    <string name="car_cars">Bilar</string>
+    <string name="car_no_selection">Välj en bil för automatiska resor.</string>
+    <string name="car_pair">Parkoppla först bilen i telefonens Bluetooth-inställningar.</string>
+    <string name="car_unpaired">%1$s (inte parkopplad)</string>
+    <string name="car_permissions">Behörigheter som saknas</string>
+    <string name="car_permission_nearby">Tillåt enheter i närheten</string>
+    <string name="car_permission_fine">Tillåt exakt plats</string>
+    <string name="car_permission_background">Tillåt platsåtkomst hela tiden</string>
+    <string name="car_permission_notifications">Tillåt aviseringar</string>
+    <string name="car_open_settings">Öppna appinställningarna</string>
+    <string name="car_location_off">Telefonens platsfunktion är avstängd.</string>
+    <string name="car_service_blocked">Android hindrade resan från att starta.</string>
+    <string name="car_channel">Automatiska resor</string>
+    <string name="car_start_failed">Resan kunde inte starta automatiskt</string>
+    <string name="car_trip_saved">Resan har sparats i historiken</string>
+    <string name="car_waiting">Anslutningen till bilen bröts. Resan avslutas snart.</string>
+    <string name="car_started">Startades automatiskt</string>
+    <string name="car_ended">Avslutades automatiskt</string>
+    <string name="car_paired_unknown">Parkopplingsstatus är inte tillgänglig</string>
 </resources>

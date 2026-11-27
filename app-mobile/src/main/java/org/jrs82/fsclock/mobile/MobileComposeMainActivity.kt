@@ -202,6 +202,8 @@ class MobileComposeMainActivity : AppCompatActivity() {
      *  itse; vain tuore lenkki avaa Lenkki-sivun automaattisesti. */
     private fun maybeRecoverWorkout() {
         if (WorkoutTracker.state.value.phase != WorkoutTracker.Phase.IDLE) return
+        val launchIntent = intent
+        val navigateOnRecovery = externalSection.value == null
         Thread {
             try {
                 val active = org.jrs82.fsclock.db.FsClockDb.get(applicationContext)
@@ -210,7 +212,9 @@ class MobileComposeMainActivity : AppCompatActivity() {
                     val fresh = System.currentTimeMillis() - active.updatedAtMs < 10L * 60_000L
                     runOnUiThread {
                         WorkoutTrackingService.command(this, WorkoutTrackingService.ACTION_RECOVER)
-                        if (fresh) externalSection.value = "WORKOUT"
+                        if (fresh && navigateOnRecovery && intent === launchIntent && externalSection.value == null) {
+                            externalSection.value = "WORKOUT"
+                        }
                     }
                 }
             } catch (e: Exception) { }

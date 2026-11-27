@@ -58,7 +58,8 @@ internal fun daySnapshot(entries: List<TripEntity>) = TripSnapshot(
 internal fun TripEntity.toJson(): JSONObject = JSONObject()
     .put("id", id).put("startedAtMs", startedAtMs).put("endedAtMs", endedAtMs)
     .put("estimatedStart", estimatedStart).put("distanceM", distanceM)
-    .put("totalMs", totalMs).put("movingMs", movingMs).put("maxSpeedMps", maxSpeedMps.toDouble())
+    .put("totalMs", totalMs).put("startedAutomatically", startedAutomatically).put("endedAutomatically", endedAutomatically)
+    .put("movingMs", movingMs).put("maxSpeedMps", maxSpeedMps.toDouble())
 
 private fun JSONObject.integer(key: String): Long? {
     val value = opt(key)
@@ -76,7 +77,8 @@ internal fun JSONObject.tripOrNull(): TripEntity? {
     val speed = (opt("maxSpeedMps") as? Number)?.toFloat() ?: return null
     if (moving !in 0..total || !distance.isFinite() || distance < 0 || !speed.isFinite() || speed < 0) return null
     // Seinäkello voi siirtyä ajossa taaksepäin. Kesto tulee monotonisesta kellosta.
-    return TripEntity(id, start, end, estimated, distance, total, moving, speed)
+    return TripEntity(id, start, end, estimated, distance, total, moving, speed,
+        optBoolean("startedAutomatically", false), optBoolean("endedAutomatically", false))
 }
 
 internal fun JSONObject.putTrips(entries: List<TripEntity>) {
